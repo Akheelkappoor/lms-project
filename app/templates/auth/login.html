@@ -1,0 +1,425 @@
+{% extends "base.html" %}
+
+{% block title %}Login - {{ APP_NAME }}{% endblock %}
+
+{% block content %}
+<div class="auth-container">
+    <div class="auth-wrapper">
+        <div class="auth-card">
+            <div class="auth-header">
+                <div class="auth-logo">
+                    <i class="fas fa-graduation-cap"></i>
+                    <h2>{{ APP_NAME }}</h2>
+                </div>
+                <h3>Welcome Back</h3>
+                <p>Sign in to your account to continue</p>
+            </div>
+            
+            <form method="POST" class="auth-form">
+                {{ form.hidden_tag() }}
+                
+                <div class="form-group">
+                    {{ form.username.label(class="form-label") }}
+                    {{ form.username(class="form-control") }}
+                    {% if form.username.errors %}
+                        <div class="form-errors">
+                            {% for error in form.username.errors %}
+                                <small class="text-danger">{{ error }}</small>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+                
+                <div class="form-group">
+                    {{ form.password.label(class="form-label") }}
+                    <div class="password-input">
+                        {{ form.password(class="form-control", id="password") }}
+                        <button type="button" class="password-toggle" onclick="togglePassword()">
+                            <i class="fas fa-eye" id="password-icon"></i>
+                        </button>
+                    </div>
+                    {% if form.password.errors %}
+                        <div class="form-errors">
+                            {% for error in form.password.errors %}
+                                <small class="text-danger">{{ error }}</small>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+                
+                <div class="form-check-wrapper">
+                    <div class="form-check">
+                        {{ form.remember_me(class="form-check-input") }}
+                        {{ form.remember_me.label(class="form-check-label") }}
+                    </div>
+                    <a href="{{ url_for('auth.forgot_password') }}" class="forgot-link">Forgot Password?</a>
+                </div>
+                
+                <div class="form-group">
+                    {{ form.submit(class="btn btn-primary btn-block btn-lg") }}
+                </div>
+            </form>
+            
+            <div class="auth-footer">
+                <p>Demo Credentials:</p>
+                <div class="demo-credentials">
+                    <div class="demo-item">
+                        <strong>Admin:</strong> admin@i2global.co.in / admin123
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="auth-side">
+            <div class="auth-side-content">
+                <h2>Transform Education with Our LMS</h2>
+                <p>Empowering educators and students with comprehensive learning management solutions.</p>
+                <div class="feature-list">
+                    <div class="feature-item">
+                        <i class="fas fa-check-circle"></i>
+                        <span>Advanced Class Management</span>
+                    </div>
+                    <div class="feature-item">
+                        <i class="fas fa-check-circle"></i>
+                        <span>Real-time Attendance Tracking</span>
+                    </div>
+                    <div class="feature-item">
+                        <i class="fas fa-check-circle"></i>
+                        <span>Comprehensive Reporting</span>
+                    </div>
+                    <div class="feature-item">
+                        <i class="fas fa-check-circle"></i>
+                        <span>Multi-Department Support</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.auth-container {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    padding: 2rem 1rem;
+}
+
+.auth-wrapper {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    max-width: 1000px;
+    width: 100%;
+    background: white;
+    border-radius: 20px;
+    overflow: hidden;
+    box-shadow: 0 25px 50px rgba(0, 0, 0, 0.15);
+    min-height: 600px;
+}
+
+.auth-card {
+    padding: 3rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.auth-header {
+    text-align: center;
+    margin-bottom: 2.5rem;
+}
+
+.auth-logo {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.auth-logo i {
+    font-size: 2.5rem;
+    color: var(--primary-color);
+}
+
+.auth-logo h2 {
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+.auth-header h3 {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 0.5rem;
+}
+
+.auth-header p {
+    color: var(--text-secondary);
+    margin: 0;
+}
+
+.auth-form {
+    width: 100%;
+}
+
+.form-group {
+    margin-bottom: 1.5rem;
+}
+
+.form-label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.form-control {
+    width: 100%;
+    padding: 0.875rem 1rem;
+    border: 2px solid var(--border-color);
+    border-radius: 10px;
+    font-size: 1rem;
+    transition: var(--transition);
+    background: white;
+}
+
+.form-control:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(241, 161, 80, 0.1);
+}
+
+.password-input {
+    position: relative;
+}
+
+.password-toggle {
+    position: absolute;
+    right: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    padding: 0.25rem;
+    transition: var(--transition);
+}
+
+.password-toggle:hover {
+    color: var(--primary-color);
+}
+
+.form-check-wrapper {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+}
+
+.form-check {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.form-check-input {
+    width: 1rem;
+    height: 1rem;
+}
+
+.form-check-label {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    margin: 0;
+}
+
+.forgot-link {
+    color: var(--primary-color);
+    text-decoration: none;
+    font-size: 0.875rem;
+    font-weight: 500;
+    transition: var(--transition);
+}
+
+.forgot-link:hover {
+    text-decoration: underline;
+}
+
+.btn-block {
+    width: 100%;
+}
+
+.auth-footer {
+    margin-top: 2rem;
+    padding-top: 2rem;
+    border-top: 1px solid var(--border-color);
+    text-align: center;
+}
+
+.auth-footer p {
+    margin-bottom: 1rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+}
+
+.demo-credentials {
+    background: var(--bg-light);
+    padding: 1rem;
+    border-radius: 8px;
+    font-size: 0.875rem;
+}
+
+.demo-item {
+    margin-bottom: 0.5rem;
+}
+
+.demo-item:last-child {
+    margin-bottom: 0;
+}
+
+.auth-side {
+    background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 3rem;
+    color: white;
+    position: relative;
+    overflow: hidden;
+}
+
+.auth-side::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    right: -50%;
+    width: 200%;
+    height: 200%;
+    background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="2" fill="rgba(255,255,255,0.1)"/></svg>') repeat;
+    animation: float 20s linear infinite;
+}
+
+@keyframes float {
+    0% { transform: translateX(0) translateY(0); }
+    100% { transform: translateX(-50px) translateY(-50px); }
+}
+
+.auth-side-content {
+    position: relative;
+    z-index: 1;
+    text-align: center;
+}
+
+.auth-side-content h2 {
+    font-size: 2rem;
+    font-weight: 700;
+    margin-bottom: 1rem;
+    line-height: 1.2;
+}
+
+.auth-side-content p {
+    font-size: 1.1rem;
+    margin-bottom: 2rem;
+    opacity: 0.9;
+    line-height: 1.6;
+}
+
+.feature-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.feature-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-size: 1rem;
+}
+
+.feature-item i {
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 1.2rem;
+}
+
+.form-errors {
+    margin-top: 0.25rem;
+}
+
+@media (max-width: 768px) {
+    .auth-wrapper {
+        grid-template-columns: 1fr;
+        margin: 1rem;
+    }
+    
+    .auth-side {
+        order: -1;
+        padding: 2rem;
+        min-height: 200px;
+    }
+    
+    .auth-card {
+        padding: 2rem;
+    }
+    
+    .auth-side-content h2 {
+        font-size: 1.5rem;
+    }
+    
+    .feature-list {
+        display: none;
+    }
+}
+
+/* Loading state for form submission */
+.auth-form.loading .btn {
+    pointer-events: none;
+    opacity: 0.7;
+}
+
+.auth-form.loading .btn::after {
+    content: '';
+    width: 1rem;
+    height: 1rem;
+    border: 2px solid transparent;
+    border-top: 2px solid currentColor;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-left: 0.5rem;
+}
+</style>
+
+<script>
+function togglePassword() {
+    const passwordInput = document.getElementById('password');
+    const passwordIcon = document.getElementById('password-icon');
+    
+    if (passwordInput.type === 'password') {
+        passwordInput.type = 'text';
+        passwordIcon.className = 'fas fa-eye-slash';
+    } else {
+        passwordInput.type = 'password';
+        passwordIcon.className = 'fas fa-eye';
+    }
+}
+
+// Add loading state on form submission
+document.querySelector('.auth-form').addEventListener('submit', function() {
+    this.classList.add('loading');
+});
+
+// Auto-focus first input
+document.addEventListener('DOMContentLoaded', function() {
+    const firstInput = document.querySelector('.form-control');
+    if (firstInput) {
+        firstInput.focus();
+    }
+});
+</script>
+{% endblock %}

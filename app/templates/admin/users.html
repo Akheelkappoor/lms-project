@@ -38,7 +38,6 @@
                         <option value="">All Roles</option>
                         <option value="admin" {{ 'selected' if request.args.get('role') == 'admin' }}>Admin</option>
                         <option value="coordinator" {{ 'selected' if request.args.get('role') == 'coordinator' }}>Coordinator</option>
-                        <option value="tutor" {{ 'selected' if request.args.get('role') == 'tutor' }}>Tutor</option>
                     </select>
                 </div>
                 <div class="col-md-3">
@@ -171,7 +170,7 @@
                                     
                                     {% if current_user.role == 'superadmin' and user.role != 'superadmin' %}
                                     <button type="button" class="btn btn-outline-danger" 
-                                            onclick="deleteUser({{ user.id }}, '{{ user.full_name }}')"
+                                            onclick="deleteUser('{{ user.id }}', '{{ user.full_name }}')"
                                             data-bs-toggle="tooltip" title="Delete User">
                                         <i class="fas fa-trash"></i>
                                     </button>

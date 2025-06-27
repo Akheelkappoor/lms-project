@@ -156,11 +156,11 @@
                         </div>
                         <div class="class-actions">
                             {% if class.status == 'scheduled' %}
-                                <button class="btn btn-sm btn-success" onclick="startClass({{ class.id }})">
+                                <button class="btn btn-sm btn-success" onclick="startClass('{{ class.id }}')">
                                     <i class="fas fa-play"></i> Start
                                 </button>
                             {% elif class.status == 'ongoing' %}
-                                <button class="btn btn-sm btn-warning" onclick="completeClass({{ class.id }})">
+                                <button class="btn btn-sm btn-warning" onclick="completeClass('{{ class.id }}')">
                                     <i class="fas fa-check"></i> Complete
                                 </button>
                             {% endif %}
@@ -248,7 +248,7 @@
                                         <i class="fas fa-check"></i> Uploaded
                                     </span>
                                 {% elif class.status == 'completed' %}
-                                    <button class="btn btn-sm btn-outline-warning" onclick="uploadVideo({{ class.id }})">
+                                    <button class="btn btn-sm btn-outline-warning" onclick="uploadVideo('{{ class.id }}')">
                                         <i class="fas fa-upload"></i> Upload
                                     </button>
                                 {% else %}
@@ -264,13 +264,13 @@
                                     
                                     {% if class.status == 'scheduled' and class.is_today() %}
                                         <button type="button" class="btn btn-outline-success" 
-                                                onclick="startClass({{ class.id }})"
+                                                onclick="startClass('{{ class.id }}')"
                                                 data-bs-toggle="tooltip" title="Start Class">
                                             <i class="fas fa-play"></i>
                                         </button>
                                     {% elif class.status == 'ongoing' %}
                                         <button type="button" class="btn btn-outline-warning" 
-                                                onclick="completeClass({{ class.id }})"
+                                                onclick="completeClass('{{ class.id }}')"
                                                 data-bs-toggle="tooltip" title="Complete Class">
                                             <i class="fas fa-check"></i>
                                         </button>
@@ -285,7 +285,7 @@
                                     
                                     {% if class.status == 'completed' %}
                                         <button type="button" class="btn btn-outline-secondary" 
-                                                onclick="addFeedback({{ class.id }})"
+                                                onclick="addFeedback('{{ class.id }}')"
                                                 data-bs-toggle="tooltip" title="Add Feedback">
                                             <i class="fas fa-comment"></i>
                                         </button>

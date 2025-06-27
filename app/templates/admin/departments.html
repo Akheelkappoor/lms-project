@@ -48,14 +48,14 @@
                                 </li>
                                 {% if current_user.role in ['superadmin', 'admin'] %}
                                 <li>
-                                    <a class="dropdown-item" href="#" onclick="editDepartment({{ department.id }})">
+                                    <a class="dropdown-item" href="#" onclick="editDepartment('{{ department.id }}')">
                                         <i class="fas fa-edit"></i>
                                         Edit Department
                                     </a>
                                 </li>
                                 <li><hr class="dropdown-divider"></li>
                                 <li>
-                                    <a class="dropdown-item text-danger" href="#" onclick="toggleDepartmentStatus({{ department.id }})">
+                                    <a class="dropdown-item text-danger" href="#" onclick="toggleDepartmentStatus('{{ department.id }}')">
                                         <i class="fas fa-{{ 'ban' if department.is_active else 'check' }}"></i>
                                         {{ 'Deactivate' if department.is_active else 'Activate' }}
                                     </a>

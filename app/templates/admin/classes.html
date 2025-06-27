@@ -227,14 +227,14 @@
                             <td>
                                 <div class="btn-group btn-group-sm">
                                     <button type="button" class="btn btn-outline-primary" 
-                                            onclick="viewClassDetails({{ class.id }})"
+                                            onclick="viewClassDetails('{{ class.id }}')"
                                             data-bs-toggle="tooltip" title="View Details">
                                         <i class="fas fa-eye"></i>
                                     </button>
                                     
                                     {% if class.can_be_rescheduled() %}
                                     <button type="button" class="btn btn-outline-warning" 
-                                            onclick="rescheduleClass({{ class.id }})"
+                                            onclick="rescheduleClass('{{ class.id }}')"
                                             data-bs-toggle="tooltip" title="Reschedule">
                                         <i class="fas fa-calendar-alt"></i>
                                     </button>
@@ -242,7 +242,7 @@
                                     
                                     {% if class.can_be_cancelled() %}
                                     <button type="button" class="btn btn-outline-danger" 
-                                            onclick="cancelClass({{ class.id }})"
+                                            onclick="cancelClass('{{ class.id }}')"
                                             data-bs-toggle="tooltip" title="Cancel">
                                         <i class="fas fa-times"></i>
                                     </button>
@@ -261,18 +261,18 @@
                                             <i class="fas fa-ellipsis-v"></i>
                                         </button>
                                         <ul class="dropdown-menu">
-                                            <li><a class="dropdown-item" href="#" onclick="editClass({{ class.id }})">
+                                            <li><a class="dropdown-item" href="#" onclick="editClass('{{ class.id }}')">
                                                 <i class="fas fa-edit"></i> Edit Class
                                             </a></li>
-                                            <li><a class="dropdown-item" href="#" onclick="duplicateClass({{ class.id }})">
+                                            <li><a class="dropdown-item" href="#" onclick="duplicateClass('{{ class.id }}')">
                                                 <i class="fas fa-copy"></i> Duplicate Class
                                             </a></li>
                                             <li><hr class="dropdown-divider"></li>
-                                            <li><a class="dropdown-item" href="#" onclick="viewAttendance({{ class.id }})">
+                                            <li><a class="dropdown-item" href="#" onclick="viewAttendance('{{ class.id }}')">
                                                 <i class="fas fa-calendar-check"></i> View Attendance
                                             </a></li>
                                             {% if class.status == 'completed' %}
-                                            <li><a class="dropdown-item" href="#" onclick="viewFeedback({{ class.id }})">
+                                            <li><a class="dropdown-item" href="#" onclick="viewFeedback('{{ class.id }}')">
                                                 <i class="fas fa-comments"></i> View Feedback
                                             </a></li>
                                             {% endif %}

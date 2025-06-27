@@ -22,7 +22,7 @@ class CreateUserForm(FlaskForm):
     
     # Role and Department
     role = SelectField('Role', validators=[DataRequired()], 
-                      choices=[('admin', 'Admin'), ('coordinator', 'Coordinator')])
+                      choices=[('admin', 'Admin'), ('coordinator', 'Coordinator'), ('tutor', 'Tutor')])
     department_id = SelectField('Department', validators=[DataRequired()], coerce=int)
     
     # Password

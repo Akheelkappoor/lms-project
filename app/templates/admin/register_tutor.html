@@ -1,0 +1,897 @@
+{% extends "base.html" %}
+
+{% block title %}Register New Tutor{% endblock %}
+
+{% block extra_css %}
+<style>
+    .registration-container {
+        max-width: 1000px;
+        margin: 0 auto;
+    }
+    
+    .form-section {
+        background: var(--bg-white);
+        border-radius: var(--border-radius-lg);
+        padding: 2rem;
+        margin-bottom: 2rem;
+        box-shadow: var(--shadow);
+    }
+    
+    .section-title {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin-bottom: 1.5rem;
+        padding-bottom: 0.75rem;
+        border-bottom: 2px solid var(--border-color);
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+    
+    .form-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+    
+    .form-row.triple {
+        grid-template-columns: 1fr 1fr 1fr;
+    }
+    
+    .form-row.single {
+        grid-template-columns: 1fr;
+    }
+    
+    .form-group label {
+        display: block;
+        font-weight: 500;
+        color: var(--text-primary);
+        margin-bottom: 0.5rem;
+    }
+    
+    .form-control {
+        width: 100%;
+        padding: 0.75rem 1rem;
+        border: 2px solid var(--border-color);
+        border-radius: var(--border-radius);
+        font-size: 0.875rem;
+        transition: var(--transition);
+        background: var(--bg-white);
+    }
+    
+    .form-control:focus {
+        outline: none;
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 3px rgba(241, 161, 80, 0.1);
+    }
+    
+    .form-select {
+        background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
+        background-position: right 0.5rem center;
+        background-repeat: no-repeat;
+        background-size: 1.5em 1.5em;
+        padding-right: 2.5rem;
+    }
+    
+    .required {
+        color: var(--danger-color);
+    }
+    
+    .help-text {
+        font-size: 0.75rem;
+        color: var(--text-muted);
+        margin-top: 0.25rem;
+    }
+    
+    .file-upload-area {
+        border: 2px dashed var(--border-color);
+        border-radius: var(--border-radius);
+        padding: 1.5rem;
+        text-align: center;
+        transition: var(--transition);
+        background: var(--bg-light);
+    }
+    
+    .file-upload-area:hover {
+        border-color: var(--primary-color);
+        background: rgba(241, 161, 80, 0.05);
+    }
+    
+    .file-upload-area.dragover {
+        border-color: var(--primary-color);
+        background: rgba(241, 161, 80, 0.1);
+    }
+    
+    .file-upload-icon {
+        font-size: 2rem;
+        color: var(--text-muted);
+        margin-bottom: 0.5rem;
+    }
+    
+    .form-actions {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1rem;
+        padding-top: 2rem;
+        border-top: 1px solid var(--border-color);
+        margin-top: 2rem;
+    }
+    
+    .btn-group {
+        display: flex;
+        gap: 1rem;
+    }
+    
+    .salary-fields {
+        display: none;
+    }
+    
+    .salary-fields.active {
+        display: block;
+    }
+    
+    .progress-indicator {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        margin-bottom: 2rem;
+        gap: 1rem;
+    }
+    
+    .progress-step {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.5rem;
+        opacity: 0.5;
+        transition: var(--transition);
+    }
+    
+    .progress-step.active {
+        opacity: 1;
+    }
+    
+    .progress-step.completed {
+        opacity: 1;
+        color: var(--success-color);
+    }
+    
+    .step-circle {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        border: 2px solid var(--border-color);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+        background: var(--bg-white);
+    }
+    
+    .step-circle.active {
+        border-color: var(--primary-color);
+        background: var(--primary-color);
+        color: white;
+    }
+    
+    .step-circle.completed {
+        border-color: var(--success-color);
+        background: var(--success-color);
+        color: white;
+    }
+    
+    @media (max-width: 768px) {
+        .form-row, .form-row.triple {
+            grid-template-columns: 1fr;
+        }
+        
+        .form-actions {
+            flex-direction: column;
+            align-items: stretch;
+        }
+        
+        .btn-group {
+            justify-content: center;
+        }
+        
+        .progress-indicator {
+            flex-wrap: wrap;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="main-content">
+    <!-- Page Header -->
+    <div class="page-header">
+        <div class="page-header-content">
+            <div class="page-title">
+                <h1><i class="fas fa-user-plus"></i> Register New Tutor</h1>
+                <p>Complete tutor registration with all required information</p>
+            </div>
+            <div class="page-actions">
+                <a href="{{ url_for('admin.tutors') }}" class="btn btn-outline">
+                    <i class="fas fa-arrow-left"></i> Back to Tutors
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="registration-container">
+        <!-- Progress Indicator -->
+        <div class="progress-indicator">
+            <div class="progress-step active" data-step="1">
+                <div class="step-circle active">1</div>
+                <span>Personal Info</span>
+            </div>
+            <div class="progress-step" data-step="2">
+                <div class="step-circle">2</div>
+                <span>Professional</span>
+            </div>
+            <div class="progress-step" data-step="3">
+                <div class="step-circle">3</div>
+                <span>Documents</span>
+            </div>
+            <div class="progress-step" data-step="4">
+                <div class="step-circle">4</div>
+                <span>Banking</span>
+            </div>
+        </div>
+
+        <form method="POST" enctype="multipart/form-data" id="tutorRegistrationForm">
+            {{ form.hidden_tag() }}
+            
+            <!-- Step 1: Personal Information -->
+            <div class="form-step active" data-step="1">
+                <div class="form-section">
+                    <div class="section-title">
+                        <i class="fas fa-user"></i>
+                        Personal Information
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            {{ form.username.label(class="form-label") }} <span class="required">*</span>
+                            {{ form.username(class="form-control") }}
+                            {% if form.username.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {% for error in form.username.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                            <div class="help-text">Unique username for login</div>
+                        </div>
+                        
+                        <div class="form-group">
+                            {{ form.full_name.label(class="form-label") }} <span class="required">*</span>
+                            {{ form.full_name(class="form-control") }}
+                            {% if form.full_name.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {% for error in form.full_name.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            {{ form.email.label(class="form-label") }} <span class="required">*</span>
+                            {{ form.email(class="form-control") }}
+                            {% if form.email.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {% for error in form.email.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="form-group">
+                            {{ form.phone.label(class="form-label") }} <span class="required">*</span>
+                            {{ form.phone(class="form-control") }}
+                            {% if form.phone.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {% for error in form.phone.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            {{ form.date_of_birth.label(class="form-label") }} <span class="required">*</span>
+                            {{ form.date_of_birth(class="form-control") }}
+                            {% if form.date_of_birth.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {% for error in form.date_of_birth.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="form-group">
+                            {{ form.department_id.label(class="form-label") }} <span class="required">*</span>
+                            {{ form.department_id(class="form-control form-select") }}
+                            {% if form.department_id.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {% for error in form.department_id.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="form-row single">
+                        <div class="form-group">
+                            {{ form.address.label(class="form-label") }} <span class="required">*</span>
+                            {{ form.address(class="form-control", rows="3") }}
+                            {% if form.address.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {% for error in form.address.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            {{ form.state.label(class="form-label") }} <span class="required">*</span>
+                            {{ form.state(class="form-control") }}
+                            {% if form.state.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {% for error in form.state.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="form-group">
+                            {{ form.pin_code.label(class="form-label") }} <span class="required">*</span>
+                            {{ form.pin_code(class="form-control") }}
+                            {% if form.pin_code.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {% for error in form.pin_code.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 2: Professional & Teaching Details -->
+            <div class="form-step" data-step="2">
+                <div class="form-section">
+                    <div class="section-title">
+                        <i class="fas fa-graduation-cap"></i>
+                        Professional Details
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            {{ form.qualification.label(class="form-label") }} <span class="required">*</span>
+                            {{ form.qualification(class="form-control") }}
+                            {% if form.qualification.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {% for error in form.qualification.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="form-group">
+                            {{ form.salary_type.label(class="form-label") }} <span class="required">*</span>
+                            {{ form.salary_type(class="form-control form-select", id="salaryType") }}
+                            {% if form.salary_type.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {% for error in form.salary_type.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="form-row single">
+                        <div class="form-group">
+                            {{ form.experience.label(class="form-label") }} <span class="required">*</span>
+                            {{ form.experience(class="form-control", rows="4") }}
+                            {% if form.experience.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {% for error in form.experience.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                            <div class="help-text">Describe years of experience and relevant background</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-section">
+                    <div class="section-title">
+                        <i class="fas fa-chalkboard-teacher"></i>
+                        Teaching Details
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            {{ form.subjects.label(class="form-label") }} <span class="required">*</span>
+                            {{ form.subjects(class="form-control") }}
+                            {% if form.subjects.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {% for error in form.subjects.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                            <div class="help-text">Comma-separated list (e.g., Math, Physics, Chemistry)</div>
+                        </div>
+                        
+                        <div class="form-group">
+                            {{ form.grades.label(class="form-label") }} <span class="required">*</span>
+                            {{ form.grades(class="form-control") }}
+                            {% if form.grades.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {% for error in form.grades.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                            <div class="help-text">Comma-separated list (e.g., 9, 10, 11, 12)</div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            {{ form.boards.label(class="form-label") }} <span class="required">*</span>
+                            {{ form.boards(class="form-control") }}
+                            {% if form.boards.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {% for error in form.boards.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                            <div class="help-text">Comma-separated list (e.g., CBSE, ICSE, State Board)</div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <div class="salary-fields" id="monthlySalary">
+                                {{ form.monthly_salary.label(class="form-label") }} <span class="required">*</span>
+                                {{ form.monthly_salary(class="form-control") }}
+                                {% if form.monthly_salary.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {% for error in form.monthly_salary.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="salary-fields" id="hourlyRate">
+                                {{ form.hourly_rate.label(class="form-label") }} <span class="required">*</span>
+                                {{ form.hourly_rate(class="form-control") }}
+                                {% if form.hourly_rate.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {% for error in form.hourly_rate.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 3: Documents & Videos -->
+            <div class="form-step" data-step="3">
+                <div class="form-section">
+                    <div class="section-title">
+                        <i class="fas fa-file-alt"></i>
+                        Required Documents
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            {{ form.aadhaar_card.label(class="form-label") }} <span class="required">*</span>
+                            <div class="file-upload-area">
+                                <div class="file-upload-icon">
+                                    <i class="fas fa-id-card"></i>
+                                </div>
+                                {{ form.aadhaar_card(class="form-control") }}
+                                <p>Upload Aadhaar Card (JPG, PNG, PDF)</p>
+                            </div>
+                            {% if form.aadhaar_card.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {% for error in form.aadhaar_card.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="form-group">
+                            {{ form.pan_card.label(class="form-label") }} <span class="required">*</span>
+                            <div class="file-upload-area">
+                                <div class="file-upload-icon">
+                                    <i class="fas fa-credit-card"></i>
+                                </div>
+                                {{ form.pan_card(class="form-control") }}
+                                <p>Upload PAN Card (JPG, PNG, PDF)</p>
+                            </div>
+                            {% if form.pan_card.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {% for error in form.pan_card.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            {{ form.resume.label(class="form-label") }} <span class="required">*</span>
+                            <div class="file-upload-area">
+                                <div class="file-upload-icon">
+                                    <i class="fas fa-file-pdf"></i>
+                                </div>
+                                {{ form.resume(class="form-control") }}
+                                <p>Upload Resume/CV (PDF, DOC, DOCX)</p>
+                            </div>
+                            {% if form.resume.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {% for error in form.resume.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="form-group">
+                            {{ form.degree_certificate.label(class="form-label") }} <span class="required">*</span>
+                            <div class="file-upload-area">
+                                <div class="file-upload-icon">
+                                    <i class="fas fa-certificate"></i>
+                                </div>
+                                {{ form.degree_certificate(class="form-control") }}
+                                <p>Upload Degree Certificate (JPG, PNG, PDF)</p>
+                            </div>
+                            {% if form.degree_certificate.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {% for error in form.degree_certificate.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-section">
+                    <div class="section-title">
+                        <i class="fas fa-video"></i>
+                        Required Videos
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            {{ form.demo_video.label(class="form-label") }} <span class="required">*</span>
+                            <div class="file-upload-area">
+                                <div class="file-upload-icon">
+                                    <i class="fas fa-play-circle"></i>
+                                </div>
+                                {{ form.demo_video(class="form-control") }}
+                                <p>Upload Demo Teaching Video (MP4, AVI, MOV)</p>
+                            </div>
+                            {% if form.demo_video.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {% for error in form.demo_video.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                            <div class="help-text">5-10 minute demo class video</div>
+                        </div>
+                        
+                        <div class="form-group">
+                            {{ form.interview_video.label(class="form-label") }} <span class="required">*</span>
+                            <div class="file-upload-area">
+                                <div class="file-upload-icon">
+                                    <i class="fas fa-video"></i>
+                                </div>
+                                {{ form.interview_video(class="form-control") }}
+                                <p>Upload Interview Video (MP4, AVI, MOV)</p>
+                            </div>
+                            {% if form.interview_video.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {% for error in form.interview_video.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                            <div class="help-text">Introduction and background video</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 4: Banking Information -->
+            <div class="form-step" data-step="4">
+                <div class="form-section">
+                    <div class="section-title">
+                        <i class="fas fa-university"></i>
+                        Banking Information
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            {{ form.account_holder_name.label(class="form-label") }} <span class="required">*</span>
+                            {{ form.account_holder_name(class="form-control") }}
+                            {% if form.account_holder_name.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {% for error in form.account_holder_name.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="form-group">
+                            {{ form.bank_name.label(class="form-label") }} <span class="required">*</span>
+                            {{ form.bank_name(class="form-control") }}
+                            {% if form.bank_name.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {% for error in form.bank_name.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            {{ form.branch_name.label(class="form-label") }} <span class="required">*</span>
+                            {{ form.branch_name(class="form-control") }}
+                            {% if form.branch_name.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {% for error in form.branch_name.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="form-group">
+                            {{ form.ifsc_code.label(class="form-label") }} <span class="required">*</span>
+                            {{ form.ifsc_code(class="form-control") }}
+                            {% if form.ifsc_code.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {% for error in form.ifsc_code.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="form-row single">
+                        <div class="form-group">
+                            {{ form.account_number.label(class="form-label") }} <span class="required">*</span>
+                            {{ form.account_number(class="form-control") }}
+                            {% if form.account_number.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {% for error in form.account_number.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Form Actions -->
+            <div class="form-actions">
+                <div class="text-muted">
+                    <i class="fas fa-info-circle"></i>
+                    All fields marked with <span class="required">*</span> are required
+                </div>
+                
+                <div class="btn-group">
+                    <button type="button" class="btn btn-outline" id="prevBtn" style="display: none;">
+                        <i class="fas fa-arrow-left"></i> Previous
+                    </button>
+                    <button type="button" class="btn btn-primary" id="nextBtn">
+                        Next <i class="fas fa-arrow-right"></i>
+                    </button>
+                    {{ form.submit(class="btn btn-primary", id="submitBtn", style="display: none;") }}
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    let currentStep = 1;
+    const totalSteps = 4;
+    
+    // Elements
+    const form = document.getElementById('tutorRegistrationForm');
+    const nextBtn = document.getElementById('nextBtn');
+    const prevBtn = document.getElementById('prevBtn');
+    const submitBtn = document.getElementById('submitBtn');
+    const salaryTypeField = document.getElementById('salaryType');
+    
+    // Step management
+    function showStep(step) {
+        // Hide all steps
+        document.querySelectorAll('.form-step').forEach(s => s.classList.remove('active'));
+        document.querySelectorAll('.progress-step').forEach(s => {
+            s.classList.remove('active');
+            s.querySelector('.step-circle').classList.remove('active');
+        });
+        
+        // Show current step
+        document.querySelector(`[data-step="${step}"]`).classList.add('active');
+        const progressStep = document.querySelector(`.progress-step[data-step="${step}"]`);
+        progressStep.classList.add('active');
+        progressStep.querySelector('.step-circle').classList.add('active');
+        
+        // Mark completed steps
+        for (let i = 1; i < step; i++) {
+            const completedStep = document.querySelector(`.progress-step[data-step="${i}"]`);
+            completedStep.classList.add('completed');
+            completedStep.querySelector('.step-circle').classList.add('completed');
+        }
+        
+        // Update navigation buttons
+        prevBtn.style.display = step === 1 ? 'none' : 'inline-flex';
+        nextBtn.style.display = step === totalSteps ? 'none' : 'inline-flex';
+        submitBtn.style.display = step === totalSteps ? 'inline-flex' : 'none';
+    }
+    
+    // Salary type management
+    function toggleSalaryFields() {
+        const salaryType = salaryTypeField.value;
+        const monthlyField = document.getElementById('monthlySalary');
+        const hourlyField = document.getElementById('hourlyRate');
+        
+        monthlyField.classList.remove('active');
+        hourlyField.classList.remove('active');
+        
+        if (salaryType === 'monthly') {
+            monthlyField.classList.add('active');
+        } else if (salaryType === 'hourly') {
+            hourlyField.classList.add('active');
+        }
+    }
+    
+    // Step validation
+    function validateStep(step) {
+        const stepElement = document.querySelector(`[data-step="${step}"]`);
+        const requiredFields = stepElement.querySelectorAll('[required], .required-field');
+        let isValid = true;
+        
+        requiredFields.forEach(field => {
+            if (!field.value.trim()) {
+                isValid = false;
+                field.classList.add('is-invalid');
+            } else {
+                field.classList.remove('is-invalid');
+            }
+        });
+        
+        return isValid;
+    }
+    
+    // File upload handling
+    function setupFileUploads() {
+        const fileInputs = document.querySelectorAll('input[type="file"]');
+        
+        fileInputs.forEach(input => {
+            const uploadArea = input.closest('.file-upload-area');
+            
+            // Drag and drop
+            uploadArea.addEventListener('dragover', function(e) {
+                e.preventDefault();
+                uploadArea.classList.add('dragover');
+            });
+            
+            uploadArea.addEventListener('dragleave', function(e) {
+                uploadArea.classList.remove('dragover');
+            });
+            
+            uploadArea.addEventListener('drop', function(e) {
+                e.preventDefault();
+                uploadArea.classList.remove('dragover');
+                
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    input.files = files;
+                    updateFileDisplay(input, files[0]);
+                }
+            });
+            
+            // File selection
+            input.addEventListener('change', function(e) {
+                if (e.target.files.length > 0) {
+                    updateFileDisplay(input, e.target.files[0]);
+                }
+            });
+        });
+    }
+    
+    function updateFileDisplay(input, file) {
+        const uploadArea = input.closest('.file-upload-area');
+        const icon = uploadArea.querySelector('.file-upload-icon i');
+        const text = uploadArea.querySelector('p');
+        
+        icon.className = 'fas fa-check-circle';
+        icon.style.color = 'var(--success-color)';
+        text.textContent = `Selected: ${file.name}`;
+    }
+    
+    // Event listeners
+    nextBtn.addEventListener('click', function() {
+        if (validateStep(currentStep)) {
+            currentStep++;
+            showStep(currentStep);
+        } else {
+            alert('Please fill in all required fields before proceeding.');
+        }
+    });
+    
+    prevBtn.addEventListener('click', function() {
+        currentStep--;
+        showStep(currentStep);
+    });
+    
+    salaryTypeField.addEventListener('change', toggleSalaryFields);
+    
+    // Form submission
+    form.addEventListener('submit', function(e) {
+        // Final validation
+        for (let step = 1; step <= totalSteps; step++) {
+            if (!validateStep(step)) {
+                e.preventDefault();
+                currentStep = step;
+                showStep(currentStep);
+                alert(`Please complete all required fields in step ${step}.`);
+                return;
+            }
+        }
+        
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Registering...';
+    });
+    
+    // Initialize
+    showStep(1);
+    toggleSalaryFields();
+    setupFileUploads();
+});
+</script>
+{% endblock %}

@@ -5,6 +5,7 @@ from flask_login import LoginManager
 from flask_mail import Mail
 from config import Config
 import os
+from flask import render_template
 
 db = SQLAlchemy()
 migrate = Migrate()

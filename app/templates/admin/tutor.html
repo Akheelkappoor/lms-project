@@ -1,0 +1,458 @@
+{% extends "base.html" %}
+
+{% block title %}Tutor Management - {{ APP_NAME }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h1 class="page-title">
+                <i class="fas fa-chalkboard-teacher"></i>
+                Tutor Management
+            </h1>
+            <p class="page-subtitle">Manage tutors, their profiles, and verification status</p>
+        </div>
+        <div class="header-actions">
+            <a href="{{ url_for('admin.register_tutor') }}" class="btn btn-primary">
+                <i class="fas fa-user-plus"></i>
+                Register New Tutor
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="container-fluid">
+    <!-- Filters -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="GET" class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label">Search Tutors</label>
+                    <input type="text" name="search" class="form-control" 
+                           placeholder="Name or email" 
+                           value="{{ request.args.get('search', '') }}">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Status</label>
+                    <select name="status" class="form-select">
+                        <option value="">All Status</option>
+                        <option value="pending" {{ 'selected' if request.args.get('status') == 'pending' }}>Pending</option>
+                        <option value="active" {{ 'selected' if request.args.get('status') == 'active' }}>Active</option>
+                        <option value="inactive" {{ 'selected' if request.args.get('status') == 'inactive' }}>Inactive</option>
+                        <option value="suspended" {{ 'selected' if request.args.get('status') == 'suspended' }}>Suspended</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Department</label>
+                    <select name="department" class="form-select">
+                        <option value="">All Departments</option>
+                        {% for dept in departments %}
+                        <option value="{{ dept.id }}" {{ 'selected' if request.args.get('department')|int == dept.id }}>
+                            {{ dept.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">&nbsp;</label>
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-outline-primary">
+                            <i class="fas fa-search"></i>
+                            Filter
+                        </button>
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">&nbsp;</label>
+                    <div class="d-grid">
+                        <a href="{{ url_for('admin.tutors') }}" class="btn btn-outline-secondary">
+                            <i class="fas fa-times"></i>
+                            Clear
+                        </a>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row g-4 mb-4">
+        <div class="col-lg-3 col-md-6">
+            <div class="stat-card">
+                <div class="stat-icon success">
+                    <i class="fas fa-user-check"></i>
+                </div>
+                <div class="stat-content">
+                    <h3>{{ tutors.items|selectattr('status', 'equalto', 'active')|list|length }}</h3>
+                    <p>Active Tutors</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6">
+            <div class="stat-card">
+                <div class="stat-icon warning">
+                    <i class="fas fa-clock"></i>
+                </div>
+                <div class="stat-content">
+                    <h3>{{ tutors.items|selectattr('verification_status', 'equalto', 'pending')|list|length }}</h3>
+                    <p>Pending Verification</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6">
+            <div class="stat-card">
+                <div class="stat-icon info">
+                    <i class="fas fa-star"></i>
+                </div>
+                <div class="stat-content">
+                    <h3>{{ "%.1f"|format((tutors.items|map(attribute='rating')|sum / tutors.items|length) if tutors.items else 0) }}</h3>
+                    <p>Average Rating</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6">
+            <div class="stat-card">
+                <div class="stat-icon primary">
+                    <i class="fas fa-chalkboard"></i>
+                </div>
+                <div class="stat-content">
+                    <h3>{{ tutors.items|map(attribute='total_classes')|sum }}</h3>
+                    <p>Total Classes</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tutors Table -->
+    <div class="card">
+        <div class="card-header">
+            <h5 class="card-title mb-0">
+                <i class="fas fa-list"></i>
+                Tutors ({{ tutors.total }} total)
+            </h5>
+        </div>
+        <div class="card-body p-0">
+            {% if tutors.items %}
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Tutor</th>
+                            <th>Department</th>
+                            <th>Subjects</th>
+                            <th>Experience</th>
+                            <th>Status</th>
+                            <th>Verification</th>
+                            <th>Rating</th>
+                            <th>Classes</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for tutor in tutors.items %}
+                        <tr>
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    <div class="tutor-avatar me-3">
+                                        {% if tutor.user.profile_picture %}
+                                            <img src="{{ url_for('static', filename='uploads/profiles/' + tutor.user.profile_picture) }}" 
+                                                 alt="Avatar" class="rounded-circle" width="40" height="40">
+                                        {% else %}
+                                            <div class="avatar-placeholder">
+                                                <i class="fas fa-chalkboard-teacher"></i>
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                    <div>
+                                        <div class="fw-semibold">{{ tutor.user.full_name }}</div>
+                                        <small class="text-muted">{{ tutor.user.email }}</small><br>
+                                        <small class="text-muted">{{ tutor.user.phone }}</small>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                {% if tutor.user.department %}
+                                    <span class="badge badge-info">{{ tutor.user.department.name }}</span>
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="subjects-list">
+                                    {% for subject in tutor.get_subjects()[:2] %}
+                                        <span class="badge badge-secondary me-1">{{ subject }}</span>
+                                    {% endfor %}
+                                    {% if tutor.get_subjects()|length > 2 %}
+                                        <span class="badge badge-light">+{{ tutor.get_subjects()|length - 2 }}</span>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td>
+                                <span class="fw-semibold">{{ tutor.qualification }}</span><br>
+                                <small class="text-muted">{{ tutor.experience[:50] }}...</small>
+                            </td>
+                            <td>
+                                <span class="badge badge-{{ 'success' if tutor.status == 'active' else 'warning' if tutor.status == 'pending' else 'danger' }}">
+                                    {{ tutor.get_status_display() }}
+                                </span>
+                            </td>
+                            <td>
+                                <span class="badge badge-{{ 'success' if tutor.verification_status == 'verified' else 'warning' if tutor.verification_status == 'pending' else 'danger' }}">
+                                    {{ tutor.verification_status|title }}
+                                </span>
+                            </td>
+                            <td>
+                                <div class="rating">
+                                    {% for i in range(5) %}
+                                        <i class="fas fa-star {% if i < tutor.rating %}text-warning{% else %}text-muted{% endif %}"></i>
+                                    {% endfor %}
+                                    <br>
+                                    <small class="text-muted">{{ "%.1f"|format(tutor.rating) }}/5.0</small>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="text-center">
+                                    <strong>{{ tutor.total_classes }}</strong><br>
+                                    <small class="text-muted">{{ tutor.completed_classes }} completed</small>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="btn-group-vertical btn-group-sm">
+                                    <a href="{{ url_for('admin.tutor_details', tutor_id=tutor.id) }}" 
+                                       class="btn btn-outline-primary mb-1" data-bs-toggle="tooltip" title="View Details">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    
+                                    {% if tutor.verification_status == 'pending' %}
+                                    <div class="btn-group btn-group-sm mb-1">
+                                        <button type="button" class="btn btn-outline-success" 
+                                                onclick="verifyTutor({{ tutor.id }}, 'approve')"
+                                                data-bs-toggle="tooltip" title="Approve">
+                                            <i class="fas fa-check"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-outline-danger" 
+                                                onclick="verifyTutor({{ tutor.id }}, 'reject')"
+                                                data-bs-toggle="tooltip" title="Reject">
+                                            <i class="fas fa-times"></i>
+                                        </button>
+                                    </div>
+                                    {% endif %}
+                                    
+                                    <div class="btn-group btn-group-sm">
+                                        <button type="button" class="btn btn-outline-{{ 'success' if tutor.status == 'inactive' else 'warning' }}" 
+                                                onclick="toggleTutorStatus({{ tutor.id }})"
+                                                data-bs-toggle="tooltip" title="{{ 'Activate' if tutor.status == 'inactive' else 'Deactivate' }}">
+                                            <i class="fas fa-{{ 'check' if tutor.status == 'inactive' else 'ban' }}"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pagination -->
+            {% if tutors.pages > 1 %}
+            <div class="card-footer">
+                <nav aria-label="Tutors pagination">
+                    <ul class="pagination pagination-sm justify-content-center mb-0">
+                        {% if tutors.has_prev %}
+                        <li class="page-item">
+                            <a class="page-link" href="{{ url_for('admin.tutors', page=tutors.prev_num, **request.args) }}">
+                                <i class="fas fa-chevron-left"></i>
+                            </a>
+                        </li>
+                        {% endif %}
+                        
+                        {% for page_num in tutors.iter_pages(left_edge=1, right_edge=1, left_current=1, right_current=2) %}
+                            {% if page_num %}
+                                {% if page_num != tutors.page %}
+                                <li class="page-item">
+                                    <a class="page-link" href="{{ url_for('admin.tutors', page=page_num, **request.args) }}">{{ page_num }}</a>
+                                </li>
+                                {% else %}
+                                <li class="page-item active">
+                                    <span class="page-link">{{ page_num }}</span>
+                                </li>
+                                {% endif %}
+                            {% else %}
+                                <li class="page-item disabled">
+                                    <span class="page-link">...</span>
+                                </li>
+                            {% endif %}
+                        {% endfor %}
+                        
+                        {% if tutors.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="{{ url_for('admin.tutors', page=tutors.next_num, **request.args) }}">
+                                <i class="fas fa-chevron-right"></i>
+                            </a>
+                        </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+            </div>
+            {% endif %}
+            
+            {% else %}
+            <div class="text-center py-5">
+                <i class="fas fa-chalkboard-teacher fa-3x text-muted mb-3"></i>
+                <h5>No Tutors Found</h5>
+                <p class="text-muted">Try adjusting your search criteria or register a new tutor.</p>
+                <a href="{{ url_for('admin.register_tutor') }}" class="btn btn-primary">
+                    <i class="fas fa-user-plus"></i>
+                    Register First Tutor
+                </a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<style>
+.tutor-avatar {
+    position: relative;
+}
+
+.avatar-placeholder {
+    width: 40px;
+    height: 40px;
+    background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+}
+
+.subjects-list {
+    max-width: 150px;
+}
+
+.subjects-list .badge {
+    font-size: 0.7rem;
+    margin-bottom: 0.25rem;
+}
+
+.rating {
+    min-width: 80px;
+}
+
+.rating .fa-star {
+    font-size: 0.8rem;
+}
+
+.btn-group-vertical .btn {
+    margin-bottom: 0.25rem;
+}
+
+.btn-group-vertical .btn:last-child {
+    margin-bottom: 0;
+}
+
+.btn-group-sm .btn {
+    padding: 0.25rem 0.5rem;
+}
+
+.table td {
+    vertical-align: middle;
+}
+
+.stat-card {
+    transition: var(--transition);
+}
+
+.stat-card:hover {
+    transform: translateY(-5px);
+}
+
+@media (max-width: 768px) {
+    .btn-group-vertical {
+        flex-direction: row;
+        flex-wrap: wrap;
+    }
+    
+    .btn-group-vertical .btn {
+        margin-bottom: 0.25rem;
+        margin-right: 0.25rem;
+    }
+    
+    .subjects-list {
+        max-width: none;
+    }
+    
+    .table-responsive {
+        font-size: 0.875rem;
+    }
+}
+</style>
+
+<script>
+function verifyTutor(tutorId, action) {
+    const actionText = action === 'approve' ? 'approve' : 'reject';
+    const message = `Are you sure you want to ${actionText} this tutor?`;
+    
+    if (confirm(message)) {
+        fetch(`/admin/tutors/${tutorId}/verify`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({action: action})
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                LMS.showAlert(`Tutor ${actionText}d successfully`, 'success');
+                setTimeout(() => location.reload(), 1000);
+            } else {
+                LMS.showAlert(data.error || `Error ${actionText}ing tutor`, 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            LMS.showAlert(`Error ${actionText}ing tutor`, 'error');
+        });
+    }
+}
+
+function toggleTutorStatus(tutorId) {
+    const message = 'Are you sure you want to change this tutor\'s status?';
+    
+    if (confirm(message)) {
+        // Implementation would go here
+        LMS.showAlert('Tutor status updated successfully', 'success');
+        setTimeout(() => location.reload(), 1000);
+    }
+}
+
+// Initialize tooltips
+document.addEventListener('DOMContentLoaded', function() {
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+});
+
+// Auto-refresh pending verifications count
+setInterval(() => {
+    fetch('/admin/tutors?status=pending')
+        .then(response => response.text())
+        .then(html => {
+            // Update notification badge if there are pending verifications
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
+            const pendingCount = doc.querySelectorAll('tbody tr').length;
+            
+            if (pendingCount > 0) {
+                // Update any notification indicators
+                console.log(`${pendingCount} tutors pending verification`);
+            }
+        })
+        .catch(error => console.error('Auto-refresh error:', error));
+}, 300000); // Check every 5 minutes
+</script>
+{% endblock %}

@@ -8,11 +8,12 @@ from app.models.tutor import Tutor
 from app.models.student import Student
 from app.models.class_model import Class
 from app.models.attendance import Attendance
-
+from functools import wraps
 bp = Blueprint('tutor', __name__)
 
 def tutor_required(f):
     """Decorator to require tutor access"""
+    @wraps(f)
     def decorated_function(*args, **kwargs):
         if current_user.role != 'tutor':
             flash('Access denied. This page is for tutors only.', 'error')

@@ -15,8 +15,11 @@ from app.forms.user import CreateUserForm, EditUserForm, TutorRegistrationForm, 
 
 bp = Blueprint('admin', __name__)
 
+from functools import wraps
+
 def admin_required(f):
     """Decorator to require admin access"""
+    @wraps(f)
     def decorated_function(*args, **kwargs):
         if current_user.role not in ['superadmin', 'admin', 'coordinator']:
             flash('Access denied. Insufficient permissions.', 'error')

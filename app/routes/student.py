@@ -6,11 +6,13 @@ from app.models.student import Student
 from app.models.class_model import Class
 from app.models.attendance import Attendance
 from app.models.tutor import Tutor
-
+from functools import wraps
 bp = Blueprint('student', __name__)
+
 
 def admin_required(f):
     """Decorator to require admin access"""
+    @wraps(f)
     def decorated_function(*args, **kwargs):
         if current_user.role not in ['superadmin', 'admin', 'coordinator']:
             flash('Access denied. Insufficient permissions.', 'error')

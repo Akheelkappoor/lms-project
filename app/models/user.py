@@ -35,7 +35,7 @@ class User(UserMixin, db.Model):
     emergency_contact = db.Column(db.Text)  # JSON string
     
     # Relationships
-    department = db.relationship('Department', backref='users', lazy=True)
+    department = db.relationship('Department', foreign_keys=[department_id], backref='users', lazy=True)
     tutor_profile = db.relationship('Tutor', backref='user', uselist=False, lazy=True)
     
     def __init__(self, **kwargs):

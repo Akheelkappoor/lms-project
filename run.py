@@ -16,7 +16,7 @@ def make_shell_context():
         'Attendance': Attendance
     }
 
-@app.before_first_request
+
 def create_default_data():
     """Create default admin user and departments on first run"""
     with app.app_context():
@@ -32,4 +32,6 @@ def create_default_data():
         print("Default data created successfully!")
 
 if __name__ == '__main__':
+    # Create default data on first run
+    create_default_data()
     app.run(debug=True, host='0.0.0.0', port=5000)

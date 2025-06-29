@@ -220,10 +220,10 @@
                                         <i class="fas fa-eye"></i>
                                     </a>
                                     {% if class.status == 'scheduled' %}
-                                    <a href="#" class="btn btn-outline-warning" title="Reschedule" onclick="rescheduleClass({{ class.id }})">
+                                    <a href="#" class="btn btn-outline-warning" title="Reschedule" onclick="rescheduleClass('{{ class.id }}')">
                                         <i class="fas fa-calendar-alt"></i>
                                     </a>
-                                    <a href="#" class="btn btn-outline-danger" title="Cancel" onclick="cancelClass({{ class.id }})">
+                                    <a href="#" class="btn btn-outline-danger" title="Cancel" onclick="cancelClass('{{ class.id }}')">
                                         <i class="fas fa-times"></i>
                                     </a>
                                     {% endif %}
@@ -235,41 +235,86 @@
                 </table>
             </div>
 
-            <!-- Pagination -->
+            <!-- Fixed Pagination -->
             {% if classes.pages > 1 %}
-            <div class="d-flex justify-content-center mt-4">
-                <nav aria-label="Classes pagination">
-                    <ul class="pagination">
-                        {% if classes.has_prev %}
-                        <li class="page-item">
-                            <a class="page-link" href="{{ url_for('admin.classes', page=classes.prev_num, **request.args) }}">
-                                <i class="fas fa-chevron-left"></i>
-                            </a>
-                        </li>
-                        {% endif %}
-                        
-                        {% for page in classes.iter_pages() %}
-                        {% if page %}
-                        <li class="page-item {{ 'active' if page == classes.page }}">
-                            <a class="page-link" href="{{ url_for('admin.classes', page=page, **request.args) }}">{{ page }}</a>
-                        </li>
+            <nav aria-label="Classes pagination" class="mt-4">
+                <ul class="pagination justify-content-center">
+                    <!-- Previous page -->
+                    {% if classes.has_prev %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('admin.classes', 
+                            page=classes.prev_num,
+                            date=request.args.get('date', ''),
+                            tutor=request.args.get('tutor', ''),
+                            status=request.args.get('status', ''),
+                            class_type=request.args.get('class_type', '')) }}">
+                            <i class="fas fa-chevron-left"></i>
+                            Previous
+                        </a>
+                    </li>
+                    {% else %}
+                    <li class="page-item disabled">
+                        <span class="page-link">
+                            <i class="fas fa-chevron-left"></i>
+                            Previous
+                        </span>
+                    </li>
+                    {% endif %}
+
+                    <!-- Page numbers -->
+                    {% for page_num in classes.iter_pages() %}
+                        {% if page_num %}
+                            {% if page_num != classes.page %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('admin.classes', 
+                                    page=page_num,
+                                    date=request.args.get('date', ''),
+                                    tutor=request.args.get('tutor', ''),
+                                    status=request.args.get('status', ''),
+                                    class_type=request.args.get('class_type', '')) }}">{{ page_num }}</a>
+                            </li>
+                            {% else %}
+                            <li class="page-item active">
+                                <span class="page-link">{{ page_num }}</span>
+                            </li>
+                            {% endif %}
                         {% else %}
                         <li class="page-item disabled">
-                            <span class="page-link">...</span>
+                            <span class="page-link">…</span>
                         </li>
                         {% endif %}
-                        {% endfor %}
-                        
-                        {% if classes.has_next %}
-                        <li class="page-item">
-                            <a class="page-link" href="{{ url_for('admin.classes', page=classes.next_num, **request.args) }}">
-                                <i class="fas fa-chevron-right"></i>
-                            </a>
-                        </li>
-                        {% endif %}
-                    </ul>
-                </nav>
-            </div>
+                    {% endfor %}
+
+                    <!-- Next page -->
+                    {% if classes.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('admin.classes', 
+                            page=classes.next_num,
+                            date=request.args.get('date', ''),
+                            tutor=request.args.get('tutor', ''),
+                            status=request.args.get('status', ''),
+                            class_type=request.args.get('class_type', '')) }}">
+                            Next
+                            <i class="fas fa-chevron-right"></i>
+                        </a>
+                    </li>
+                    {% else %}
+                    <li class="page-item disabled">
+                        <span class="page-link">
+                            Next
+                            <i class="fas fa-chevron-right"></i>
+                        </span>
+                    </li>
+                    {% endif %}
+                </ul>
+                
+                <!-- Page info -->
+                <div class="text-center text-muted mt-2">
+                    Showing {{ classes.per_page * (classes.page - 1) + 1 }} to 
+                    {{ classes.per_page * (classes.page - 1) + classes.items|length }} of 
+                    {{ classes.total }} classes
+                </div>
+            </nav>
             {% endif %}
             
             {% else %}

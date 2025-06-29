@@ -349,3 +349,14 @@ class Class(db.Model):
         now = datetime.now()
         time_diff = (self.scheduled_datetime - now).total_seconds()
         return 0 <= time_diff <= (minutes_before * 60)
+    
+    def get_end_time(self):
+        """Get the end time of the class"""
+        if self.end_time:
+            return self.end_time
+        elif self.scheduled_time and self.duration:
+            start_datetime = datetime.combine(datetime.today(), self.scheduled_time)
+            end_datetime = start_datetime + timedelta(minutes=self.duration)
+            return end_datetime.time()
+
+        return None

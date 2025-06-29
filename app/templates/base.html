@@ -859,7 +859,7 @@
                 <!-- User Management -->
                 {% if current_user.has_permission('user_management') %}
                 <li class="nav-item">
-                    <a href="{{ url_for('admin.users') }}" class="nav-link {% if 'users' in request.endpoint %}active{% endif %}">
+                    <a href="{{ url_for('admin.users') }}" class="nav-link {% if request.endpoint and 'users' in request.endpoint %}active{% endif %}">
                         <i class="fas fa-users"></i>
                         <span>Users</span>
                     </a>

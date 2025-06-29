@@ -39,10 +39,6 @@ def create_app(config_class=Config):
         if not os.path.exists(path):
             os.makedirs(path)
 
-    # Register Blueprints
-    from app.routes.auth import bp as auth_bp
-    app.register_blueprint(auth_bp, url_prefix='/auth')
-
     from app.routes.dashboard import bp as dashboard_bp
     app.register_blueprint(dashboard_bp)
 
@@ -54,6 +50,9 @@ def create_app(config_class=Config):
 
     from app.routes.student import bp as student_bp
     app.register_blueprint(student_bp, url_prefix='/student')
+    
+    from app.routes.api import bp as api_bp
+    app.register_blueprint(api_bp)
 
     # Error handlers
     @app.errorhandler(404)

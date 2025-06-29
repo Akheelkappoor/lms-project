@@ -851,3 +851,375 @@ def activate_student(student_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': 'Error activating student'}), 500
+    
+
+    
+@bp.route('/timetable')
+@login_required
+@admin_required
+def timetable():
+    """Timetable management page"""
+    if not current_user.has_permission('timetable_management'):
+        flash('Access denied. You do not have timetable management permissions.', 'error')
+        return redirect(url_for('dashboard.admin_dashboard'))
+    
+    tutors = Tutor.query.join(User).filter(User.is_active == True).all()
+    students = Student.query.filter_by(is_active=True).all()
+    departments = Department.query.filter_by(is_active=True).all()
+    
+    return render_template('admin/timetable.html', 
+                         tutors=tutors, students=students, departments=departments)
+
+
+# Timetable API Endpoints
+@bp.route('/api/v1/timetable/today')
+@login_required
+@admin_required
+def api_timetable_today():
+    """Get today's timetable"""
+    try:
+        today = date.today()
+        filter_type = request.args.get('filter_type', 'all')
+        filter_value = request.args.get('filter_value', '')
+        
+        query = Class.query.filter_by(scheduled_date=today)
+        
+        # Apply filters
+        if filter_type == 'department' and filter_value:
+            query = query.join(Tutor).join(User).filter(User.department_id==int(filter_value))
+        elif filter_type == 'tutor' and filter_value:
+            query = query.filter_by(tutor_id=int(filter_value))
+        
+        classes = query.order_by(Class.scheduled_time).all()
+        
+        classes_data = []
+        for cls in classes:
+            student_name = ""
+            if cls.class_type == 'one_on_one':
+                student_name = cls.primary_student.full_name if cls.primary_student else "N/A"
+            else:
+                students = cls.get_students()
+                student_name = f"Group ({len(students)} students)"
+            
+            end_time = ""
+            if cls.get_end_time():
+                end_time = cls.get_end_time().strftime('%H:%M')
+            
+            classes_data.append({
+                'id': cls.id,
+                'subject': cls.subject,
+                'scheduled_time': cls.scheduled_time.strftime('%H:%M'),
+                'end_time': end_time,
+                'duration': cls.duration,
+                'status': cls.status,
+                'tutor_name': cls.tutor.user.full_name if cls.tutor else "N/A",
+                'student_name': student_name,
+                'meeting_link': cls.meeting_link,
+                'notes': cls.class_notes
+            })
+        
+        # Calculate statistics
+        stats = {
+            'total': len(classes_data),
+            'completed': len([c for c in classes_data if c['status'] == 'completed']),
+            'ongoing': len([c for c in classes_data if c['status'] == 'ongoing']),
+            'scheduled': len([c for c in classes_data if c['status'] == 'scheduled'])
+        }
+        
+        return jsonify({
+            'success': True,
+            'data': {
+                'classes': classes_data,
+                'stats': stats
+            }
+        })
+        
+    except Exception as e:
+        return jsonify({'error': f"Error loading today's timetable: {str(e)}"}), 500
+
+@bp.route('/api/v1/timetable/week')
+@login_required
+@admin_required
+def api_timetable_week():
+    """Get weekly timetable"""
+    try:
+        from datetime import datetime, timedelta
+        
+        date_param = request.args.get('date')
+        filter_type = request.args.get('filter_type', 'all')
+        filter_value = request.args.get('filter_value', '')
+        
+        if date_param:
+            current_date = datetime.strptime(date_param, '%Y-%m-%d').date()
+        else:
+            current_date = date.today()
+        
+        # Get start of week (Monday)
+        start_of_week = current_date - timedelta(days=current_date.weekday())
+        end_of_week = start_of_week + timedelta(days=6)
+        
+        query = Class.query.filter(
+            Class.scheduled_date >= start_of_week,
+            Class.scheduled_date <= end_of_week
+        )
+        
+        # Apply filters
+        if filter_type == 'department' and filter_value:
+            query = query.join(Tutor).join(User).filter(User.department_id==int(filter_value))
+        elif filter_type == 'tutor' and filter_value:
+            query = query.filter_by(tutor_id=int(filter_value))
+        
+        classes = query.order_by(Class.scheduled_date, Class.scheduled_time).all()
+        
+        classes_data = []
+        for cls in classes:
+            student_name = ""
+            if cls.class_type == 'one_on_one':
+                student_name = cls.primary_student.full_name if cls.primary_student else "N/A"
+            else:
+                students = cls.get_students()
+                student_name = f"Group ({len(students)} students)"
+            
+            end_time = ""
+            if cls.get_end_time():
+                end_time = cls.get_end_time().strftime('%H:%M')
+            
+            classes_data.append({
+                'id': cls.id,
+                'subject': cls.subject,
+                'scheduled_date': cls.scheduled_date.isoformat(),
+                'scheduled_time': cls.scheduled_time.strftime('%H:%M'),
+                'end_time': end_time,
+                'duration': cls.duration,
+                'status': cls.status,
+                'tutor_name': cls.tutor.user.full_name if cls.tutor else "N/A",
+                'student_name': student_name,
+                'meeting_link': cls.meeting_link
+            })
+        
+        # Calculate statistics
+        stats = {
+            'total': len(classes_data),
+            'completed': len([c for c in classes_data if c['status'] == 'completed']),
+            'ongoing': len([c for c in classes_data if c['status'] == 'ongoing']),
+            'scheduled': len([c for c in classes_data if c['status'] == 'scheduled'])
+        }
+        
+        return jsonify({
+            'success': True,
+            'data': {
+                'classes': classes_data,
+                'stats': stats,
+                'week_start': start_of_week.isoformat(),
+                'week_end': end_of_week.isoformat()
+            }
+        })
+        
+    except Exception as e:
+        return jsonify({'error': f"Error loading weekly timetable: {str(e)}"}), 500
+
+@bp.route('/api/v1/timetable/month')
+@login_required
+@admin_required
+def api_timetable_month():
+    """Get monthly timetable"""
+    try:
+        from datetime import datetime, timedelta
+        
+        date_param = request.args.get('date')
+        filter_type = request.args.get('filter_type', 'all')
+        filter_value = request.args.get('filter_value', '')
+        
+        if date_param:
+            current_date = datetime.strptime(date_param, '%Y-%m-%d').date()
+        else:
+            current_date = date.today()
+        
+        # Get start and end of month
+        start_of_month = current_date.replace(day=1)
+        if current_date.month == 12:
+            end_of_month = start_of_month.replace(year=current_date.year + 1, month=1) - timedelta(days=1)
+        else:
+            end_of_month = start_of_month.replace(month=current_date.month + 1) - timedelta(days=1)
+        
+        query = Class.query.filter(
+            Class.scheduled_date >= start_of_month,
+            Class.scheduled_date <= end_of_month
+        )
+        
+        # Apply filters
+        if filter_type == 'department' and filter_value:
+            query = query.join(Tutor).join(User).filter(User.department_id==int(filter_value))
+        elif filter_type == 'tutor' and filter_value:
+            query = query.filter_by(tutor_id=int(filter_value))
+        
+        classes = query.order_by(Class.scheduled_date, Class.scheduled_time).all()
+        
+        classes_data = []
+        for cls in classes:
+            student_name = ""
+            if cls.class_type == 'one_on_one':
+                student_name = cls.primary_student.full_name if cls.primary_student else "N/A"
+            else:
+                students = cls.get_students()
+                student_name = f"Group ({len(students)} students)"
+            
+            end_time = ""
+            if cls.get_end_time():
+                end_time = cls.get_end_time().strftime('%H:%M')
+            
+            classes_data.append({
+                'id': cls.id,
+                'subject': cls.subject,
+                'scheduled_date': cls.scheduled_date.isoformat(),
+                'scheduled_time': cls.scheduled_time.strftime('%H:%M'),
+                'end_time': end_time,
+                'duration': cls.duration,
+                'status': cls.status,
+                'tutor_name': cls.tutor.user.full_name if cls.tutor else "N/A",
+                'student_name': student_name
+            })
+        
+        # Calculate statistics
+        stats = {
+            'total': len(classes_data),
+            'completed': len([c for c in classes_data if c['status'] == 'completed']),
+            'ongoing': len([c for c in classes_data if c['status'] == 'ongoing']),
+            'scheduled': len([c for c in classes_data if c['status'] == 'scheduled'])
+        }
+        
+        return jsonify({
+            'success': True,
+            'data': {
+                'classes': classes_data,
+                'stats': stats,
+                'month_start': start_of_month.isoformat(),
+                'month_end': end_of_month.isoformat()
+            }
+        })
+        
+    except Exception as e:
+        return jsonify({'error': f"Error loading monthly timetable: {str(e)}"}), 500
+
+@bp.route('/api/v1/timetable/temp-class', methods=['POST'])
+@login_required
+@admin_required
+def api_add_temp_class():
+    """Add temporary class"""
+    try:
+        data = request.get_json()
+        
+        # Validate required fields
+        required_fields = ['tutor_id', 'student_id', 'subject', 'scheduled_date', 'scheduled_time', 'duration']
+        for field in required_fields:
+            if field not in data or not data[field]:
+                return jsonify({'error': f"Missing required field: {field}"}), 400
+        
+        # Validate tutor exists
+        tutor = Tutor.query.get(data['tutor_id'])
+        if not tutor:
+            return jsonify({'error': "Tutor not found"}), 400
+        
+        # Validate student exists
+        student = Student.query.get(data['student_id'])
+        if not student:
+            return jsonify({'error': "Student not found"}), 400
+        
+        # Parse date and time
+        scheduled_date = datetime.strptime(data['scheduled_date'], '%Y-%m-%d').date()
+        scheduled_time = datetime.strptime(data['scheduled_time'], '%H:%M').time()
+        
+        # Create new class
+        new_class = Class(
+            tutor_id=data['tutor_id'],
+            primary_student_id=data['student_id'],
+            subject=data['subject'],
+            scheduled_date=scheduled_date,
+            scheduled_time=scheduled_time,
+            duration=int(data['duration']),
+            class_type='one_on_one',
+            status='scheduled',
+            class_notes=data.get('notes', ''),
+            created_by=current_user.id
+        )
+        
+        db.session.add(new_class)
+        db.session.commit()
+        
+        return jsonify({'success': True, 'message': "Temporary class added successfully"})
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f"Error adding temporary class: {str(e)}"}), 500
+
+@bp.route('/api/v1/classes/<int:class_id>')
+@login_required
+@admin_required
+def api_get_class_details(class_id):
+    """Get class details"""
+    try:
+        cls = Class.query.get_or_404(class_id)
+        
+        student_name = ""
+        if cls.class_type == 'one_on_one':
+            student_name = cls.primary_student.full_name if cls.primary_student else "N/A"
+        else:
+            students = cls.get_students()
+            student_name = f"Group with {len(students)} students"
+        
+        end_time = ""
+        if cls.get_end_time():
+            end_time = cls.get_end_time().strftime('%H:%M')
+        
+        class_data = {
+            'id': cls.id,
+            'subject': cls.subject,
+            'scheduled_date': cls.scheduled_date.strftime('%Y-%m-%d'),
+            'scheduled_time': cls.scheduled_time.strftime('%H:%M'),
+            'end_time': end_time,
+            'duration': cls.duration,
+            'status': cls.status,
+            'tutor_name': cls.tutor.user.full_name if cls.tutor else "N/A",
+            'student_name': student_name,
+            'meeting_link': cls.meeting_link,
+            'notes': cls.class_notes,
+            'class_type': cls.class_type
+        }
+        
+        return jsonify({'success': True, 'data': class_data})
+        
+    except Exception as e:
+        return jsonify({'error': f"Error loading class details: {str(e)}"}), 500
+
+@bp.route('/api/v1/classes/<int:class_id>/cancel', methods=['POST'])
+@login_required
+@admin_required
+def api_cancel_class(class_id):
+    """Cancel a class"""
+    try:
+        cls = Class.query.get_or_404(class_id)
+        
+        if cls.status == 'completed':
+            return jsonify({'error': "Cannot cancel a completed class"}), 400
+        
+        if cls.status == 'cancelled':
+            return jsonify({'error': "Class is already cancelled"}), 400
+        
+        cls.status = 'cancelled'
+        cls.cancelled_at = datetime.utcnow()
+        cls.cancelled_by = current_user.id
+        
+        db.session.commit()
+        
+        return jsonify({'success': True, 'message': "Class cancelled successfully"})
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f"Error cancelling class: {str(e)}"}), 500
+
+@bp.route('/api/v1/timetable/export')
+@login_required
+@admin_required
+def api_export_timetable():
+    """Export timetable data"""
+    return jsonify({'success': True, 'message': "Export functionality will be implemented"})

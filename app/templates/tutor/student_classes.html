@@ -116,7 +116,7 @@
                                             </a>
                                             {% if class.status == 'scheduled' and class.is_upcoming() %}
                                             <button class="btn btn-outline-success btn-sm" 
-                                                    onclick="startClass({{ class.id }})">
+                                                    onclick="startClass('{{ class.id }}')">
                                                 <i class="fas fa-play"></i>
                                                 Start
                                             </button>

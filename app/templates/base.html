@@ -896,6 +896,15 @@
                 </li>
                 {% endif %}
 
+                {% if current_user.has_permission('timetable_management') %}
+                <li class="nav-item">
+                    <a href="{{ url_for('admin.timetable') }}" class="nav-link {% if 'timetable' in request.endpoint %}active{% endif %}">
+                        <i class="fas fa-calendar-alt"></i>
+                        <span>Timetable</span>
+                    </a>
+                </li>
+                {% endif %}
+
                 <!-- Department Management (Super Admin Only) -->
                 {% if current_user.role in ['superadmin', 'admin'] %}
                 <li class="nav-item">

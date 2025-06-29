@@ -1,0 +1,929 @@
+{% extends "base.html" %}
+
+{% block title %}Class Details - {{ class_item.subject }} - {{ APP_NAME }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h1 class="page-title">
+                <i class="fas fa-chalkboard"></i>
+                {{ class_item.subject }}
+            </h1>
+            <p class="page-subtitle">
+                {{ class_item.scheduled_date.strftime('%A, %B %d, %Y') }} at {{ class_item.scheduled_time.strftime('%I:%M %p') }}
+            </p>
+        </div>
+        <div class="header-actions">
+            <div class="btn-group">
+                <a href="{{ url_for('tutor.today_classes') }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left"></i>
+                    Back to Today
+                </a>
+                <a href="{{ url_for('tutor.my_classes') }}" class="btn btn-outline-primary">
+                    <i class="fas fa-chalkboard"></i>
+                    All Classes
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="container-fluid">
+    <div class="row g-4">
+        <!-- Main Class Information -->
+        <div class="col-lg-8">
+            <!-- Class Overview -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-info-circle"></i>
+                            Class Overview
+                        </h5>
+                        <span class="badge badge-{{ 'success' if class_item.status == 'completed' else 'warning' if class_item.status == 'ongoing' else 'primary' if class_item.status == 'scheduled' else 'danger' }} badge-lg">
+                            {{ class_item.status|title }}
+                        </span>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="row g-4">
+                        <div class="col-md-6">
+                            <div class="info-group">
+                                <h6 class="info-label">
+                                    <i class="fas fa-book"></i>
+                                    Subject & Details
+                                </h6>
+                                <div class="info-content">
+                                    <div class="info-item">
+                                        <strong>Subject:</strong> {{ class_item.subject }}
+                                    </div>
+                                    <div class="info-item">
+                                        <strong>Grade:</strong> {{ class_item.grade or 'Not specified' }}
+                                    </div>
+                                    <div class="info-item">
+                                        <strong>Board:</strong> {{ class_item.board or 'General' }}
+                                    </div>
+                                    <div class="info-item">
+                                        <strong>Type:</strong> 
+                                        <span class="badge badge-{{ 'info' if class_item.class_type == 'one_on_one' else 'success' if class_item.class_type == 'group' else 'warning' }}">
+                                            {{ class_item.class_type|replace('_', ' ')|title }}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="info-group">
+                                <h6 class="info-label">
+                                    <i class="fas fa-clock"></i>
+                                    Timing & Duration
+                                </h6>
+                                <div class="info-content">
+                                    <div class="info-item">
+                                        <strong>Date:</strong> {{ class_item.scheduled_date.strftime('%A, %B %d, %Y') }}
+                                    </div>
+                                    <div class="info-item">
+                                        <strong>Time:</strong> {{ class_item.scheduled_time.strftime('%I:%M %p') }}
+                                    </div>
+                                    <div class="info-item">
+                                        <strong>Duration:</strong> {{ class_item.duration }} minutes
+                                    </div>
+                                    <div class="info-item">
+                                        <strong>Created:</strong> {{ class_item.created_at.strftime('%d %b %Y') if class_item.created_at else 'N/A' }}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    {% if class_item.class_notes %}
+                    <div class="class-notes mt-4">
+                        <h6 class="info-label">
+                            <i class="fas fa-sticky-note"></i>
+                            Class Notes
+                        </h6>
+                        <div class="notes-content">
+                            {{ class_item.class_notes }}
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Students Information -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-user-graduate"></i>
+                        Students ({{ students|length }})
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if students %}
+                        <div class="students-list">
+                            {% for student in students %}
+                            <div class="student-item">
+                                <div class="student-avatar">
+                                    <div class="avatar">
+                                        <span>{{ student.full_name[0]|upper }}</span>
+                                    </div>
+                                </div>
+                                <div class="student-info">
+                                    <h6 class="student-name">{{ student.full_name }}</h6>
+                                    <p class="student-details">
+                                        <span class="detail">
+                                            <i class="fas fa-graduation-cap"></i>
+                                            Grade {{ student.grade }}
+                                        </span>
+                                        <span class="detail">
+                                            <i class="fas fa-envelope"></i>
+                                            {{ student.email }}
+                                        </span>
+                                        {% if student.phone %}
+                                        <span class="detail">
+                                            <i class="fas fa-phone"></i>
+                                            {{ student.phone }}
+                                        </span>
+                                        {% endif %}
+                                    </p>
+                                </div>
+                                <div class="student-actions">
+                                    <a href="{{ url_for('tutor.student_profile', student_id=student.id) }}" 
+                                       class="btn btn-sm btn-outline-primary">
+                                        <i class="fas fa-eye"></i>
+                                        Profile
+                                    </a>
+                                    <button class="btn btn-sm btn-outline-success" 
+                                            onclick="contactStudent({{ student.id }}, '{{ student.full_name }}', '{{ student.email }}')">
+                                        <i class="fas fa-envelope"></i>
+                                        Contact
+                                    </button>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="empty-state-small">
+                            <i class="fas fa-user-graduate"></i>
+                            <p>No students assigned to this class</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Attendance Records -->
+            {% if class_item.status in ['ongoing', 'completed'] %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-user-check"></i>
+                            Attendance Records
+                        </h5>
+                        {% if class_item.status == 'ongoing' %}
+                        <button class="btn btn-sm btn-primary" onclick="markAttendance()">
+                            <i class="fas fa-edit"></i>
+                            Mark Attendance
+                        </button>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="card-body">
+                    {% if attendance_records %}
+                        <div class="attendance-list">
+                            {% for record in attendance_records %}
+                            <div class="attendance-item">
+                                <div class="student-info">
+                                    <strong>{{ record.student.full_name }}</strong>
+                                    <small class="text-muted d-block">Grade {{ record.student.grade }}</small>
+                                </div>
+                                <div class="attendance-status">
+                                    <span class="badge badge-{{ 'success' if record.status == 'present' else 'danger' if record.status == 'absent' else 'warning' }}">
+                                        {{ record.status|title }}
+                                    </span>
+                                    {% if record.marked_at %}
+                                    <small class="d-block text-muted">
+                                        Marked at {{ record.marked_at.strftime('%I:%M %p') }}
+                                    </small>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="empty-state-small">
+                            <i class="fas fa-clipboard-list"></i>
+                            <p>No attendance records yet</p>
+                            {% if class_item.status == 'ongoing' %}
+                            <button class="btn btn-sm btn-primary" onclick="markAttendance()">
+                                <i class="fas fa-plus"></i>
+                                Mark Attendance
+                            </button>
+                            {% endif %}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Class Feedback -->
+            {% if class_item.status == 'completed' and class_feedback %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-comments"></i>
+                        Class Feedback
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="feedback-content">
+                        <div class="feedback-item">
+                            <strong>Teaching Quality:</strong>
+                            <div class="rating-stars">
+                                {% for i in range(5) %}
+                                <i class="fas fa-star {% if i < (class_feedback.teaching_rating or 0) %}text-warning{% else %}text-muted{% endif %}"></i>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% if class_feedback.feedback_text %}
+                        <div class="feedback-item">
+                            <strong>Comments:</strong>
+                            <p class="mt-2">{{ class_feedback.feedback_text }}</p>
+                        </div>
+                        {% endif %}
+                        <div class="feedback-item">
+                            <small class="text-muted">
+                                Submitted on {{ class_feedback.created_at.strftime('%B %d, %Y at %I:%M %p') }}
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Sidebar -->
+        <div class="col-lg-4">
+            <!-- Quick Actions -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="card-title mb-0">
+                        <i class="fas fa-bolt"></i>
+                        Quick Actions
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        {% if class_item.status == 'scheduled' %}
+                            {% set can_start = (class_item.scheduled_datetime - datetime.now()).total_seconds() <= 900 %}
+                            {% if can_start %}
+                            <button class="btn btn-success" onclick="startClass()">
+                                <i class="fas fa-play"></i>
+                                Start Class
+                            </button>
+                            {% endif %}
+                            
+                            {% if class_item.meeting_link %}
+                            <a href="{{ class_item.meeting_link }}" target="_blank" class="btn btn-primary">
+                                <i class="fas fa-video"></i>
+                                Join Meeting
+                            </a>
+                            {% endif %}
+                            
+                            <button class="btn btn-outline-warning" onclick="rescheduleClass()">
+                                <i class="fas fa-calendar-alt"></i>
+                                Reschedule
+                            </button>
+                            
+                        {% elif class_item.status == 'ongoing' %}
+                            {% if class_item.meeting_link %}
+                            <a href="{{ class_item.meeting_link }}" target="_blank" class="btn btn-primary">
+                                <i class="fas fa-video"></i>
+                                Join Meeting
+                            </a>
+                            {% endif %}
+                            
+                            <button class="btn btn-warning" onclick="markAttendance()">
+                                <i class="fas fa-user-check"></i>
+                                Mark Attendance
+                            </button>
+                            
+                            <button class="btn btn-success" onclick="completeClass()">
+                                <i class="fas fa-check"></i>
+                                Complete Class
+                            </button>
+                            
+                        {% elif class_item.status == 'completed' %}
+                            <button class="btn btn-outline-info" onclick="downloadReport()">
+                                <i class="fas fa-download"></i>
+                                Download Report
+                            </button>
+                            
+                            <button class="btn btn-outline-primary" onclick="viewFeedback()">
+                                <i class="fas fa-star"></i>
+                                View Feedback
+                            </button>
+                        {% endif %}
+                        
+                        <button class="btn btn-outline-secondary" onclick="addNotes()">
+                            <i class="fas fa-sticky-note"></i>
+                            Add Notes
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Meeting Information -->
+            {% if class_item.meeting_link or class_item.meeting_id %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="card-title mb-0">
+                        <i class="fas fa-video"></i>
+                        Meeting Information
+                    </h6>
+                </div>
+                <div class="card-body">
+                    {% if class_item.meeting_link %}
+                    <div class="meeting-item">
+                        <strong>Meeting Link:</strong>
+                        <a href="{{ class_item.meeting_link }}" target="_blank" class="d-block text-break">
+                            {{ class_item.meeting_link }}
+                        </a>
+                    </div>
+                    {% endif %}
+                    
+                    {% if class_item.meeting_id %}
+                    <div class="meeting-item">
+                        <strong>Meeting ID:</strong>
+                        <span class="meeting-id">{{ class_item.meeting_id }}</span>
+                        <button class="btn btn-sm btn-outline-secondary ms-2" onclick="copyMeetingId()">
+                            <i class="fas fa-copy"></i>
+                        </button>
+                    </div>
+                    {% endif %}
+                    
+                    {% if class_item.meeting_password %}
+                    <div class="meeting-item">
+                        <strong>Password:</strong>
+                        <span class="meeting-password">{{ class_item.meeting_password }}</span>
+                        <button class="btn btn-sm btn-outline-secondary ms-2" onclick="copyPassword()">
+                            <i class="fas fa-copy"></i>
+                        </button>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Class Statistics -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="card-title mb-0">
+                        <i class="fas fa-chart-bar"></i>
+                        Class Statistics
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="stat-item">
+                        <div class="stat-label">Duration</div>
+                        <div class="stat-value">{{ class_item.duration }} minutes</div>
+                    </div>
+                    
+                    <div class="stat-item">
+                        <div class="stat-label">Students Enrolled</div>
+                        <div class="stat-value">{{ students|length }}</div>
+                    </div>
+                    
+                    {% if attendance_records %}
+                    <div class="stat-item">
+                        <div class="stat-label">Attendance Rate</div>
+                        <div class="stat-value">
+                            {{ "%.0f"|format((attendance_records|selectattr('status', 'equalto', 'present')|list|length / attendance_records|length) * 100) }}%
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    {% if class_feedback %}
+                    <div class="stat-item">
+                        <div class="stat-label">Average Rating</div>
+                        <div class="stat-value">
+                            {{ "%.1f"|format(class_feedback.teaching_rating or 0) }}/5.0
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Related Classes -->
+            {% if related_classes %}
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="card-title mb-0">
+                        <i class="fas fa-history"></i>
+                        Related Classes
+                    </h6>
+                </div>
+                <div class="card-body">
+                    {% for related_class in related_classes[:5] %}
+                    <div class="related-class-item">
+                        <div class="class-info">
+                            <strong>{{ related_class.subject }}</strong>
+                            <small class="d-block text-muted">
+                                {{ related_class.scheduled_date.strftime('%d %b %Y') }}
+                            </small>
+                        </div>
+                        <span class="badge badge-sm badge-{{ 'success' if related_class.status == 'completed' else 'primary' }}">
+                            {{ related_class.status|title }}
+                        </span>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Contact Student Modal -->
+<div class="modal fade" id="contactStudentModal" tabindex="-1" aria-labelledby="contactStudentModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="contactStudentModalLabel">
+                    <i class="fas fa-envelope"></i>
+                    Contact Student
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="contactForm">
+                    <input type="hidden" id="studentId" name="student_id">
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Student Name</label>
+                        <input type="text" class="form-control" id="studentName" readonly>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="messageSubject" class="form-label">Subject *</label>
+                        <input type="text" class="form-control" id="messageSubject" name="subject" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="messageContent" class="form-label">Message *</label>
+                        <textarea class="form-control" id="messageContent" name="message" rows="4" required></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="sendMessage()">
+                    <i class="fas fa-paper-plane"></i>
+                    Send Message
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.badge-lg {
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+}
+
+.info-group {
+    margin-bottom: 1.5rem;
+}
+
+.info-label {
+    font-weight: 600;
+    color: #495057;
+    margin-bottom: 0.75rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.info-content {
+    background: #f8f9fa;
+    padding: 1rem;
+    border-radius: 0.375rem;
+    border-left: 3px solid #0d6efd;
+}
+
+.info-item {
+    margin-bottom: 0.5rem;
+    font-size: 0.875rem;
+}
+
+.info-item:last-child {
+    margin-bottom: 0;
+}
+
+.notes-content {
+    background: #f8f9fa;
+    padding: 1rem;
+    border-radius: 0.375rem;
+    border-left: 3px solid #ffc107;
+}
+
+.students-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.student-item {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem;
+    background: #f8f9fa;
+    border-radius: 0.5rem;
+    border: 1px solid #e9ecef;
+}
+
+.student-avatar .avatar {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: 600;
+    font-size: 1.2rem;
+}
+
+.student-info {
+    flex: 1;
+}
+
+.student-name {
+    margin: 0 0 0.5rem 0;
+    font-weight: 600;
+    color: #495057;
+}
+
+.student-details {
+    margin: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.detail {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-size: 0.875rem;
+    color: #6c757d;
+}
+
+.detail i {
+    width: 14px;
+}
+
+.student-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.attendance-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.attendance-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem;
+    background: #f8f9fa;
+    border-radius: 0.375rem;
+    border: 1px solid #e9ecef;
+}
+
+.attendance-status {
+    text-align: right;
+}
+
+.feedback-content {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.feedback-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.rating-stars {
+    display: flex;
+    gap: 2px;
+}
+
+.rating-stars .fa-star {
+    font-size: 1rem;
+}
+
+.text-warning { color: #ffc107 !important; }
+.text-muted { color: #6c757d !important; }
+
+.meeting-item {
+    margin-bottom: 1rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.meeting-item:last-child {
+    margin-bottom: 0;
+    padding-bottom: 0;
+    border-bottom: none;
+}
+
+.meeting-id, .meeting-password {
+    font-family: 'Courier New', monospace;
+    background: #f8f9fa;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+    font-size: 0.875rem;
+}
+
+.stat-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 0;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.stat-item:last-child {
+    border-bottom: none;
+}
+
+.stat-label {
+    font-weight: 500;
+    color: #6c757d;
+    font-size: 0.875rem;
+}
+
+.stat-value {
+    font-weight: 600;
+    color: #495057;
+}
+
+.related-class-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 0;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.related-class-item:last-child {
+    border-bottom: none;
+}
+
+.class-info strong {
+    font-size: 0.875rem;
+}
+
+.badge-sm {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+}
+
+.empty-state-small {
+    text-align: center;
+    padding: 2rem 1rem;
+    color: #6c757d;
+}
+
+.empty-state-small i {
+    font-size: 2rem;
+    margin-bottom: 0.5rem;
+    opacity: 0.5;
+}
+
+.badge-success { background-color: #198754; }
+.badge-danger { background-color: #dc3545; }
+.badge-warning { background-color: #ffc107; color: #000; }
+.badge-primary { background-color: #0d6efd; }
+.badge-info { background-color: #0dcaf0; }
+
+@media (max-width: 768px) {
+    .student-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.75rem;
+    }
+    
+    .student-actions {
+        width: 100%;
+        justify-content: space-between;
+    }
+    
+    .student-details {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    
+    .attendance-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
+    
+    .attendance-status {
+        text-align: left;
+        width: 100%;
+    }
+}
+</style>
+
+<script>
+function startClass() {
+    if (confirm('Are you ready to start this class?')) {
+        fetch(`/tutor/class/{{ class_item.id }}/start`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showAlert(data.message, 'success');
+                setTimeout(() => location.reload(), 1000);
+            } else {
+                showAlert(data.error || 'Error starting class', 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showAlert('Error starting class', 'error');
+        });
+    }
+}
+
+function completeClass() {
+    if (confirm('Mark this class as completed?')) {
+        fetch(`/tutor/class/{{ class_item.id }}/complete`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                completion_status: 'completed',
+                class_notes: ''
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showAlert(data.message, 'success');
+                setTimeout(() => location.reload(), 1000);
+            } else {
+                showAlert(data.error || 'Error completing class', 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showAlert('Error completing class', 'error');
+        });
+    }
+}
+
+function markAttendance() {
+    window.location.href = `/tutor/class/{{ class_item.id }}/attendance`;
+}
+
+function rescheduleClass() {
+    // Implementation for rescheduling
+    showAlert('Reschedule functionality coming soon', 'info');
+}
+
+function downloadReport() {
+    window.location.href = `/tutor/class/{{ class_item.id }}/report/download`;
+}
+
+function viewFeedback() {
+    window.location.href = `/tutor/class/{{ class_item.id }}/feedback`;
+}
+
+function addNotes() {
+    const notes = prompt('Add notes for this class:', '{{ class_item.class_notes or "" }}');
+    if (notes !== null) {
+        fetch(`/tutor/class/{{ class_item.id }}/notes`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ notes: notes })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showAlert('Notes updated successfully', 'success');
+                setTimeout(() => location.reload(), 1000);
+            } else {
+                showAlert(data.error || 'Error updating notes', 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showAlert('Error updating notes', 'error');
+        });
+    }
+}
+
+function contactStudent(studentId, studentName, studentEmail) {
+    document.getElementById('studentId').value = studentId;
+    document.getElementById('studentName').value = studentName;
+    
+    // Clear form
+    document.getElementById('messageSubject').value = '';
+    document.getElementById('messageContent').value = '';
+    
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById('contactStudentModal'));
+    modal.show();
+}
+
+function sendMessage() {
+    const studentId = document.getElementById('studentId').value;
+    const subject = document.getElementById('messageSubject').value;
+    const message = document.getElementById('messageContent').value;
+    
+    if (!subject.trim() || !message.trim()) {
+        showAlert('Please fill in all required fields', 'error');
+        return;
+    }
+    
+    fetch(`/tutor/student/${studentId}/contact`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            subject: subject,
+            message: message
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert('Message sent successfully!', 'success');
+            bootstrap.Modal.getInstance(document.getElementById('contactStudentModal')).hide();
+        } else {
+            showAlert(data.error || 'Failed to send message', 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showAlert('Error sending message', 'error');
+    });
+}
+
+function copyMeetingId() {
+    const meetingId = document.querySelector('.meeting-id').textContent;
+    navigator.clipboard.writeText(meetingId).then(() => {
+        showAlert('Meeting ID copied to clipboard', 'success');
+    });
+}
+
+function copyPassword() {
+    const password = document.querySelector('.meeting-password').textContent;
+    navigator.clipboard.writeText(password).then(() => {
+        showAlert('Password copied to clipboard', 'success');
+    });
+}
+
+function showAlert(message, type) {
+    if (typeof LMS !== 'undefined') {
+        LMS.showAlert(message, type);
+    } else {
+        alert(message);
+    }
+}
+
+// Initialize page
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize tooltips
+    if (typeof bootstrap !== 'undefined') {
+        const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl);
+        });
+    }
+});
+</script>
+{% endblock %}

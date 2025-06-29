@@ -96,7 +96,7 @@
                     <i class="fas fa-calendar-day"></i>
                 </div>
                 <div class="stat-content">
-                    <h3>{{ classes.items|selectattr('scheduled_date', 'equalto', today)|list|length }}</h3>
+                    <h3>{{ classes.items|selectattr('scheduled_date', 'equalto', today)|list|length if classes.items else 0 }}</h3>
                     <p>Today's Classes</p>
                 </div>
             </div>
@@ -107,7 +107,7 @@
                     <i class="fas fa-check-circle"></i>
                 </div>
                 <div class="stat-content">
-                    <h3>{{ classes.items|selectattr('status', 'equalto', 'completed')|list|length }}</h3>
+                    <h3>{{ classes.items|selectattr('status', 'equalto', 'completed')|list|length if classes.items else 0 }}</h3>
                     <p>Completed</p>
                 </div>
             </div>
@@ -118,7 +118,7 @@
                     <i class="fas fa-clock"></i>
                 </div>
                 <div class="stat-content">
-                    <h3>{{ classes.items|selectattr('status', 'equalto', 'scheduled')|list|length }}</h3>
+                    <h3>{{ classes.items|selectattr('status', 'equalto', 'scheduled')|list|length if classes.items else 0 }}</h3>
                     <p>Scheduled</p>
                 </div>
             </div>
@@ -129,33 +129,32 @@
                     <i class="fas fa-times-circle"></i>
                 </div>
                 <div class="stat-content">
-                    <h3>{{ classes.items|selectattr('status', 'equalto', 'cancelled')|list|length }}</h3>
+                    <h3>{{ classes.items|selectattr('status', 'equalto', 'cancelled')|list|length if classes.items else 0 }}</h3>
                     <p>Cancelled</p>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Classes Table -->
+    <!-- Classes List -->
     <div class="card">
         <div class="card-header">
             <h5 class="card-title mb-0">
                 <i class="fas fa-list"></i>
-                Classes ({{ classes.total }} total)
+                Classes ({{ classes.total if classes else 0 }} total)
             </h5>
         </div>
-        <div class="card-body p-0">
-            {% if classes.items %}
+        <div class="card-body">
+            {% if classes and classes.items %}
             <div class="table-responsive">
-                <table class="table table-hover mb-0">
+                <table class="table table-hover">
                     <thead>
                         <tr>
                             <th>Date & Time</th>
                             <th>Subject</th>
-                            <th>Tutor</th>
-                            <th>Student(s)</th>
                             <th>Type</th>
-                            <th>Duration</th>
+                            <th>Tutor</th>
+                            <th>Students</th>
                             <th>Status</th>
                             <th>Actions</th>
                         </tr>
@@ -164,120 +163,70 @@
                         {% for class in classes.items %}
                         <tr>
                             <td>
-                                <div class="class-datetime">
+                                <div>
                                     <strong>{{ class.scheduled_date.strftime('%d %b %Y') }}</strong><br>
-                                    <small class="text-muted">
-                                        {{ class.scheduled_time.strftime('%H:%M') }} - 
-                                        {{ class.end_time.strftime('%H:%M') if class.end_time }}
-                                    </small>
+                                    <small class="text-muted">{{ class.scheduled_time.strftime('%I:%M %p') }}</small>
                                 </div>
                             </td>
                             <td>
                                 <div>
                                     <strong>{{ class.subject }}</strong><br>
-                                    <small class="text-muted">
-                                        {% if class.grade %}Grade {{ class.grade }}{% endif %}
-                                        {% if class.board %} • {{ class.board }}{% endif %}
-                                    </small>
+                                    {% if class.grade %}
+                                    <small class="text-muted">Grade {{ class.grade }}</small>
+                                    {% endif %}
                                 </div>
                             </td>
                             <td>
-                                <div class="d-flex align-items-center">
-                                    <div class="tutor-avatar me-2">
-                                        {% if class.tutor.user.profile_picture %}
-                                            <img src="{{ url_for('static', filename='uploads/profiles/' + class.tutor.user.profile_picture) }}" 
-                                                 alt="Avatar" class="rounded-circle" width="30" height="30">
-                                        {% else %}
-                                            <div class="avatar-placeholder-sm">
-                                                <i class="fas fa-user"></i>
-                                            </div>
-                                        {% endif %}
-                                    </div>
-                                    <div>
-                                        <div class="fw-semibold">{{ class.tutor.user.full_name }}</div>
-                                        <small class="text-muted">{{ class.tutor.user.department.name if class.tutor.user.department }}</small>
-                                    </div>
-                                </div>
-                            </td>
-                            <td>
-                                {% if class.class_type == 'one_on_one' and class.primary_student %}
-                                    <div>
-                                        <strong>{{ class.primary_student.full_name }}</strong><br>
-                                        <small class="text-muted">Grade {{ class.primary_student.grade }}</small>
-                                    </div>
-                                {% elif class.class_type == 'group' %}
-                                    <span class="badge badge-info">
-                                        Group ({{ class.get_students()|length }} students)
-                                    </span>
-                                {% else %}
-                                    <span class="text-muted">No students assigned</span>
-                                {% endif %}
-                            </td>
-                            <td>
-                                <span class="badge badge-{{ 'primary' if class.class_type == 'one_on_one' else 'info' if class.class_type == 'group' else 'warning' }}">
+                                <span class="badge badge-{{ 'info' if class.class_type == 'one_on_one' else 'success' if class.class_type == 'group' else 'warning' }}">
                                     {{ class.class_type|replace('_', ' ')|title }}
                                 </span>
                             </td>
-                            <td>{{ class.get_duration_display() }}</td>
                             <td>
-                                <span class="badge badge-{{ 'success' if class.status == 'completed' else 'warning' if class.status == 'ongoing' else 'primary' if class.status == 'scheduled' else 'danger' }}">
+                                {% if class.tutor %}
+                                <div>
+                                    <strong>{{ class.tutor.user.full_name }}</strong><br>
+                                    <small class="text-muted">{{ class.tutor.user.email }}</small>
+                                </div>
+                                {% else %}
+                                <span class="text-muted">No tutor assigned</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% set student_ids = class.get_students() %}
+                                {% if student_ids %}
+                                <div>
+                                    {% for student_id in student_ids[:2] %}
+                                        {% set student = students_dict.get(student_id) %}
+                                        {% if student %}
+                                        <div>{{ student.full_name }}</div>
+                                        {% endif %}
+                                    {% endfor %}
+                                    {% if student_ids|length > 2 %}
+                                    <small class="text-muted">+{{ student_ids|length - 2 }} more</small>
+                                    {% endif %}
+                                </div>
+                                {% else %}
+                                <span class="text-muted">No students</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span class="badge badge-{{ 'warning' if class.status == 'scheduled' else 'success' if class.status == 'completed' else 'danger' if class.status == 'cancelled' else 'primary' }}">
                                     {{ class.status|title }}
                                 </span>
                             </td>
                             <td>
                                 <div class="btn-group btn-group-sm">
-                                    <button type="button" class="btn btn-outline-primary" 
-                                            onclick="viewClassDetails('{{ class.id }}')"
-                                            data-bs-toggle="tooltip" title="View Details">
+                                    <a href="{{ url_for('admin.class_details', class_id=class.id) }}" class="btn btn-outline-primary" title="View Details">
                                         <i class="fas fa-eye"></i>
-                                    </button>
-                                    
-                                    {% if class.can_be_rescheduled() %}
-                                    <button type="button" class="btn btn-outline-warning" 
-                                            onclick="rescheduleClass('{{ class.id }}')"
-                                            data-bs-toggle="tooltip" title="Reschedule">
+                                    </a>
+                                    {% if class.status == 'scheduled' %}
+                                    <a href="#" class="btn btn-outline-warning" title="Reschedule" onclick="rescheduleClass({{ class.id }})">
                                         <i class="fas fa-calendar-alt"></i>
-                                    </button>
-                                    {% endif %}
-                                    
-                                    {% if class.can_be_cancelled() %}
-                                    <button type="button" class="btn btn-outline-danger" 
-                                            onclick="cancelClass('{{ class.id }}')"
-                                            data-bs-toggle="tooltip" title="Cancel">
+                                    </a>
+                                    <a href="#" class="btn btn-outline-danger" title="Cancel" onclick="cancelClass({{ class.id }})">
                                         <i class="fas fa-times"></i>
-                                    </button>
-                                    {% endif %}
-                                    
-                                    {% if class.meeting_link %}
-                                    <a href="{{ class.meeting_link }}" target="_blank" 
-                                       class="btn btn-outline-success" data-bs-toggle="tooltip" title="Join Meeting">
-                                        <i class="fas fa-video"></i>
                                     </a>
                                     {% endif %}
-                                    
-                                    <div class="dropdown">
-                                        <button class="btn btn-outline-secondary dropdown-toggle" type="button" 
-                                                data-bs-toggle="dropdown" aria-expanded="false">
-                                            <i class="fas fa-ellipsis-v"></i>
-                                        </button>
-                                        <ul class="dropdown-menu">
-                                            <li><a class="dropdown-item" href="#" onclick="editClass('{{ class.id }}')">
-                                                <i class="fas fa-edit"></i> Edit Class
-                                            </a></li>
-                                            <li><a class="dropdown-item" href="#" onclick="duplicateClass('{{ class.id }}')">
-                                                <i class="fas fa-copy"></i> Duplicate Class
-                                            </a></li>
-                                            <li><hr class="dropdown-divider"></li>
-                                            <li><a class="dropdown-item" href="#" onclick="viewAttendance('{{ class.id }}')">
-                                                <i class="fas fa-calendar-check"></i> View Attendance
-                                            </a></li>
-                                            {% if class.status == 'completed' %}
-                                            <li><a class="dropdown-item" href="#" onclick="viewFeedback('{{ class.id }}')">
-                                                <i class="fas fa-comments"></i> View Feedback
-                                            </a></li>
-                                            {% endif %}
-                                        </ul>
-                                    </div>
                                 </div>
                             </td>
                         </tr>
@@ -288,9 +237,9 @@
 
             <!-- Pagination -->
             {% if classes.pages > 1 %}
-            <div class="card-footer">
+            <div class="d-flex justify-content-center mt-4">
                 <nav aria-label="Classes pagination">
-                    <ul class="pagination pagination-sm justify-content-center mb-0">
+                    <ul class="pagination">
                         {% if classes.has_prev %}
                         <li class="page-item">
                             <a class="page-link" href="{{ url_for('admin.classes', page=classes.prev_num, **request.args) }}">
@@ -299,22 +248,16 @@
                         </li>
                         {% endif %}
                         
-                        {% for page_num in classes.iter_pages(left_edge=1, right_edge=1, left_current=1, right_current=2) %}
-                            {% if page_num %}
-                                {% if page_num != classes.page %}
-                                <li class="page-item">
-                                    <a class="page-link" href="{{ url_for('admin.classes', page=page_num, **request.args) }}">{{ page_num }}</a>
-                                </li>
-                                {% else %}
-                                <li class="page-item active">
-                                    <span class="page-link">{{ page_num }}</span>
-                                </li>
-                                {% endif %}
-                            {% else %}
-                                <li class="page-item disabled">
-                                    <span class="page-link">...</span>
-                                </li>
-                            {% endif %}
+                        {% for page in classes.iter_pages() %}
+                        {% if page %}
+                        <li class="page-item {{ 'active' if page == classes.page }}">
+                            <a class="page-link" href="{{ url_for('admin.classes', page=page, **request.args) }}">{{ page }}</a>
+                        </li>
+                        {% else %}
+                        <li class="page-item disabled">
+                            <span class="page-link">...</span>
+                        </li>
+                        {% endif %}
                         {% endfor %}
                         
                         {% if classes.has_next %}
@@ -356,7 +299,9 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <form id="createClassForm">
+                <form id="createClassForm" action="{{ url_for('admin.create_class') }}" method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    
                     <div class="row">
                         <div class="col-md-6">
                             <div class="mb-3">
@@ -367,7 +312,7 @@
                         <div class="col-md-6">
                             <div class="mb-3">
                                 <label class="form-label">Class Type *</label>
-                                <select name="class_type" class="form-select" required>
+                                <select name="class_type" class="form-select" id="classType" required onchange="toggleStudentFields()">
                                     <option value="">Select Type</option>
                                     <option value="one_on_one">One-on-One</option>
                                     <option value="group">Group Class</option>
@@ -417,10 +362,44 @@
                             </div>
                         </div>
                     </div>
+
+                    <!-- Student Selection Fields -->
+                    <div id="oneOnOneStudent" class="student-selection" style="display: none;">
+                        <div class="mb-3">
+                            <label class="form-label">Select Student *</label>
+                            <select name="primary_student_id" class="form-select">
+                                <option value="">Choose Student</option>
+                                {% for student in students %}
+                                <option value="{{ student.id }}">{{ student.full_name }} - Grade {{ student.grade }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+
+                    <div id="groupStudents" class="student-selection" style="display: none;">
+                        <div class="mb-3">
+                            <label class="form-label">Select Students *</label>
+                            <div class="student-checkbox-list" style="max-height: 200px; overflow-y: auto; border: 1px solid #dee2e6; padding: 10px; border-radius: 0.375rem;">
+                                {% for student in students %}
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="students" value="{{ student.id }}" id="student_{{ student.id }}">
+                                    <label class="form-check-label" for="student_{{ student.id }}">
+                                        {{ student.full_name }} - Grade {{ student.grade }}
+                                    </label>
+                                </div>
+                                {% endfor %}
+                            </div>
+                            <small class="form-text text-muted">Select multiple students for group class</small>
+                        </div>
+                    </div>
                     
-                    <div class="mb-3">
-                        <label class="form-label">Meeting Link</label>
-                        <input type="url" name="meeting_link" class="form-control" placeholder="https://zoom.us/j/...">
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="mb-3">
+                                <label class="form-label">Meeting Link</label>
+                                <input type="url" name="meeting_link" class="form-control" placeholder="https://zoom.us/j/...">
+                            </div>
+                        </div>
                     </div>
                     
                     <div class="mb-3">
@@ -431,8 +410,8 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-primary" onclick="submitCreateClass()">
-                    <i class="fas fa-save"></i>
+                <button type="submit" form="createClassForm" class="btn btn-primary">
+                    <i class="fas fa-plus"></i>
                     Create Class
                 </button>
             </div>
@@ -440,165 +419,258 @@
     </div>
 </div>
 
-<style>
-.class-datetime {
-    min-width: 100px;
-}
+<!-- Bulk Create Modal -->
+<div class="modal fade" id="bulkCreateModal" tabindex="-1" aria-labelledby="bulkCreateModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="bulkCreateModalLabel">
+                    <i class="fas fa-layer-group"></i>
+                    Bulk Create Classes
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="bulkCreateForm" action="{{ url_for('admin.bulk_create_classes') }}" method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Subject *</label>
+                                <input type="text" name="subject" class="form-control" required>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="mb-3">
+                                <label class="form-label">Grade *</label>
+                                <input type="text" name="grade" class="form-control" required>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="mb-3">
+                                <label class="form-label">Duration (minutes) *</label>
+                                <input type="number" name="duration" class="form-control" min="15" max="300" value="60" required>
+                            </div>
+                        </div>
+                    </div>
 
-.tutor-avatar {
-    display: flex;
-    align-items: center;
-}
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Tutor *</label>
+                                <select name="tutor_id" class="form-select" required>
+                                    <option value="">Select Tutor</option>
+                                    {% for tutor in tutors %}
+                                    <option value="{{ tutor.id }}">{{ tutor.user.full_name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Class Type *</label>
+                                <select name="class_type" class="form-select" required>
+                                    <option value="">Select Type</option>
+                                    <option value="one_on_one">One-on-One</option>
+                                    <option value="group">Group Class</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
 
-.avatar-placeholder-sm {
-    width: 30px;
-    height: 30px;
-    background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
-    color: white;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 12px;
-}
+                    <div class="mb-3">
+                        <label class="form-label">Select Students *</label>
+                        <div class="student-checkbox-list" style="max-height: 200px; overflow-y: auto; border: 1px solid #dee2e6; padding: 10px; border-radius: 0.375rem;">
+                            {% for student in students %}
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="students" value="{{ student.id }}" id="bulk_student_{{ student.id }}">
+                                <label class="form-check-label" for="bulk_student_{{ student.id }}">
+                                    {{ student.full_name }} - Grade {{ student.grade }}
+                                </label>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
 
-.btn-group-sm .btn {
-    padding: 0.25rem 0.5rem;
-}
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label">Start Date *</label>
+                                <input type="date" name="start_date" class="form-control" required>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label">End Date *</label>
+                                <input type="date" name="end_date" class="form-control" required>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label">Start Time *</label>
+                                <input type="time" name="start_time" class="form-control" required>
+                            </div>
+                        </div>
+                    </div>
 
-.dropdown-menu {
-    border: none;
-    box-shadow: var(--shadow-lg);
-}
-
-.dropdown-item {
-    padding: 0.5rem 1rem;
-    transition: var(--transition);
-}
-
-.dropdown-item:hover {
-    background: var(--bg-light);
-}
-
-.dropdown-item i {
-    width: 16px;
-    margin-right: 0.5rem;
-}
-
-@media (max-width: 768px) {
-    .btn-group {
-        flex-direction: column;
-    }
-    
-    .btn-group .btn {
-        margin-bottom: 0.25rem;
-    }
-    
-    .table-responsive {
-        font-size: 0.875rem;
-    }
-}
-</style>
+                    <div class="mb-3">
+                        <label class="form-label">Days of Week *</label>
+                        <div class="row">
+                            <div class="col-md-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="days_of_week" value="0" id="monday">
+                                    <label class="form-check-label" for="monday">Monday</label>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="days_of_week" value="1" id="tuesday">
+                                    <label class="form-check-label" for="tuesday">Tuesday</label>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="days_of_week" value="2" id="wednesday">
+                                    <label class="form-check-label" for="wednesday">Wednesday</label>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="days_of_week" value="3" id="thursday">
+                                    <label class="form-check-label" for="thursday">Thursday</label>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row mt-2">
+                            <div class="col-md-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="days_of_week" value="4" id="friday">
+                                    <label class="form-check-label" for="friday">Friday</label>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="days_of_week" value="5" id="saturday">
+                                    <label class="form-check-label" for="saturday">Saturday</label>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="days_of_week" value="6" id="sunday">
+                                    <label class="form-check-label" for="sunday">Sunday</label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="submit" form="bulkCreateForm" class="btn btn-primary">
+                    <i class="fas fa-layer-group"></i>
+                    Create Classes
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 
 <script>
-function viewClassDetails(classId) {
-    // Implementation for viewing class details
-    window.location.href = `/admin/classes/${classId}`;
+function toggleStudentFields() {
+    const classType = document.getElementById('classType').value;
+    const oneOnOneField = document.getElementById('oneOnOneStudent');
+    const groupField = document.getElementById('groupStudents');
+    
+    // Hide all student fields first
+    oneOnOneField.style.display = 'none';
+    groupField.style.display = 'none';
+    
+    // Clear required attributes
+    oneOnOneField.querySelector('select').removeAttribute('required');
+    groupField.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.removeAttribute('required'));
+    
+    // Show appropriate field based on class type
+    if (classType === 'one_on_one' || classType === 'demo') {
+        oneOnOneField.style.display = 'block';
+        oneOnOneField.querySelector('select').setAttribute('required', 'required');
+    } else if (classType === 'group') {
+        groupField.style.display = 'block';
+        // At least one checkbox should be checked for group classes
+        const checkboxes = groupField.querySelectorAll('input[type="checkbox"]');
+        checkboxes.forEach(cb => cb.setAttribute('required', 'required'));
+    }
 }
 
-function editClass(classId) {
-    // Implementation for editing class
-    console.log('Edit class:', classId);
-}
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+    toggleStudentFields();
+});
 
 function rescheduleClass(classId) {
-    // Implementation for rescheduling
-    console.log('Reschedule class:', classId);
+    // Implement reschedule functionality
+    alert('Reschedule functionality to be implemented');
 }
 
 function cancelClass(classId) {
     if (confirm('Are you sure you want to cancel this class?')) {
-        // Implementation for cancelling
-        console.log('Cancel class:', classId);
+        // Implement cancel functionality
+        alert('Cancel functionality to be implemented');
     }
 }
-
-function duplicateClass(classId) {
-    // Implementation for duplicating
-    console.log('Duplicate class:', classId);
-}
-
-function viewAttendance(classId) {
-    // Implementation for viewing attendance
-    window.location.href = `/admin/classes/${classId}/attendance`;
-}
-
-function viewFeedback(classId) {
-    // Implementation for viewing feedback
-    window.location.href = `/admin/classes/${classId}/feedback`;
-}
-
-function submitCreateClass() {
-    const form = document.getElementById('createClassForm');
-    const formData = new FormData(form);
-    const data = Object.fromEntries(formData);
-    
-    // Basic validation
-    if (!data.subject || !data.class_type || !data.scheduled_date || !data.scheduled_time || !data.tutor_id) {
-        LMS.showAlert('Please fill in all required fields', 'error');
-        return;
-    }
-    
-    fetch('/admin/classes/create', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data)
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            LMS.showAlert('Class created successfully', 'success');
-            setTimeout(() => location.reload(), 1000);
-        } else {
-            LMS.showAlert(data.error || 'Error creating class', 'error');
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        LMS.showAlert('Error creating class', 'error');
-    });
-}
-
-// Set minimum date to today
-document.addEventListener('DOMContentLoaded', function() {
-    const dateInput = document.querySelector('input[name="scheduled_date"]');
-    if (dateInput) {
-        const today = new Date().toISOString().split('T')[0];
-        dateInput.min = today;
-        dateInput.value = today;
-    }
-    
-    // Initialize tooltips
-    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-    tooltipTriggerList.map(function (tooltipTriggerEl) {
-        return new bootstrap.Tooltip(tooltipTriggerEl);
-    });
-});
-
-// Auto-refresh classes every 5 minutes
-setInterval(() => {
-    const currentPage = window.location.href;
-    if (currentPage.includes('/admin/classes')) {
-        fetch(currentPage)
-            .then(response => response.text())
-            .then(html => {
-                // Update statistics if needed
-                console.log('Auto-refreshed class data');
-            })
-            .catch(error => console.error('Auto-refresh error:', error));
-    }
-}, 300000);
 </script>
+
+<style>
+.stat-card {
+    background: white;
+    border-radius: 0.5rem;
+    padding: 1.5rem;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.stat-icon {
+    width: 60px;
+    height: 60px;
+    border-radius: 0.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    color: white;
+}
+
+.stat-icon.primary { background: #0d6efd; }
+.stat-icon.success { background: #198754; }
+.stat-icon.warning { background: #ffc107; color: #000; }
+.stat-icon.danger { background: #dc3545; }
+
+.stat-content h3 {
+    margin: 0;
+    font-size: 2rem;
+    font-weight: 600;
+}
+
+.stat-content p {
+    margin: 0;
+    color: #6c757d;
+    font-size: 0.875rem;
+}
+
+.badge-info { background-color: #0dcaf0; }
+.badge-success { background-color: #198754; }
+.badge-warning { background-color: #ffc107; color: #000; }
+.badge-primary { background-color: #0d6efd; }
+.badge-danger { background-color: #dc3545; }
+
+.student-selection {
+    border: 1px solid #dee2e6;
+    border-radius: 0.375rem;
+    padding: 1rem;
+    background-color: #f8f9fa;
+    margin-bottom: 1rem;
+}
+</style>
 {% endblock %}

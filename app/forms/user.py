@@ -1,7 +1,7 @@
 from flask_wtf import FlaskForm
 from flask_wtf.file import FileField, FileAllowed
 from wtforms import StringField, PasswordField, SelectField, TextAreaField, BooleanField, SubmitField, DateField, FloatField, SelectMultipleField, widgets
-from wtforms.validators import DataRequired, Email, Length, Optional, ValidationError, NumberRange
+from wtforms.validators import DataRequired, Email, Length, Optional, ValidationError, NumberRange, EqualTo
 from app.models.user import User
 from app.models.department import Department
 
@@ -28,7 +28,11 @@ class CreateUserForm(FlaskForm):
     # Password
     password = PasswordField('Password', validators=[DataRequired(), Length(min=6, max=20)], 
                            render_kw={'placeholder': 'Enter password'})
-    
+    password_confirm = PasswordField('Confirm Password', validators=[
+        DataRequired(), 
+        EqualTo('password', message='Passwords must match')
+    ], render_kw={'placeholder': 'Re-enter password'})
+
     # Additional Information
     address = TextAreaField('Address', validators=[Optional()], 
                            render_kw={'placeholder': 'Enter complete address', 'rows': 3})
@@ -109,6 +113,14 @@ class TutorRegistrationForm(FlaskForm):
                           render_kw={'placeholder': 'Enter unique username'})
     full_name = StringField('Full Name', validators=[DataRequired(), Length(max=100)], 
                            render_kw={'placeholder': 'Enter full name'})
+    password = PasswordField('Password', validators=[
+        DataRequired(), 
+        Length(min=8, message='Password must be at least 8 characters long')
+    ], render_kw={'placeholder': 'Enter password'})
+    password_confirm = PasswordField('Confirm Password', validators=[
+        DataRequired(), 
+        EqualTo('password', message='Passwords must match')
+    ], render_kw={'placeholder': 'Re-enter password'})
     email = StringField('Email', validators=[DataRequired(), Email()], 
                        render_kw={'placeholder': 'Enter email address'})
     phone = StringField('Contact Number', validators=[DataRequired(), Length(max=20)], 

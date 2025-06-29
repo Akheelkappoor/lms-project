@@ -37,7 +37,7 @@
                     <i class="fas fa-chalkboard"></i>
                 </div>
                 <div class="stat-content">
-                    <h3>{{ stats.total_classes }}</h3>
+                    <h3>{{ stats.get('total_classes', 0) }}</h3>
                     <p>Total Classes Taught</p>
                 </div>
             </div>
@@ -49,7 +49,7 @@
                     <i class="fas fa-calendar-check"></i>
                 </div>
                 <div class="stat-content">
-                    <h3>{{ stats.this_month_classes }}</h3>
+                    <h3>{{ stats.get('this_month_classes', 0) }}</h3>
                     <p>Classes This Month</p>
                 </div>
             </div>
@@ -61,7 +61,7 @@
                     <i class="fas fa-user-graduate"></i>
                 </div>
                 <div class="stat-content">
-                    <h3>{{ stats.total_students }}</h3>
+                    <h3>{{ stats.get('total_students', 0) }}</h3>
                     <p>My Students</p>
                 </div>
             </div>
@@ -73,7 +73,7 @@
                     <i class="fas fa-money-bill-wave"></i>
                 </div>
                 <div class="stat-content">
-                    <h3>₹{{ "{:,.0f}".format(monthly_earnings) }}</h3>
+                    <h3>₹{{ "{:,.0f}".format(monthly_earnings or 0) }}</h3>
                     <p>This Month's Earnings</p>
                 </div>
             </div>
@@ -106,14 +106,18 @@
                                     <p class="mb-1">
                                         <i class="fas fa-user-graduate"></i>
                                         {% if class.class_type == 'one_on_one' %}
-                                            {{ class.primary_student.full_name }}
+                                            {% if class.primary_student %}
+                                                {{ class.primary_student.full_name }}
+                                            {% else %}
+                                                One-on-One Class
+                                            {% endif %}
                                         {% else %}
                                             Group Class ({{ class.get_students()|length }} students)
                                         {% endif %}
                                     </p>
                                     <p class="mb-0 text-muted">
                                         <i class="fas fa-bookmark"></i>
-                                        Grade {{ class.grade }} • {{ class.board }}
+                                        Grade {{ class.grade or 'N/A' }} • {{ class.board or 'General' }}
                                     </p>
                                 </div>
                                 <div class="schedule-actions">
@@ -172,9 +176,9 @@
                             Class Completion Rate
                         </div>
                         <div class="performance-value">
-                            <span class="value">{{ "%.1f"|format(stats.completion_rate) }}%</span>
+                            <span class="value">{{ "%.1f"|format(stats.get('completion_rate', 0)) }}%</span>
                             <div class="progress">
-                                <div class="progress-bar bg-success" style="width: {{ stats.completion_rate }}%"></div>
+                                <div class="progress-bar bg-success" style="width: {{ stats.get('completion_rate', 0) }}%"></div>
                             </div>
                         </div>
                     </div>
@@ -185,9 +189,9 @@
                             Attendance Rate
                         </div>
                         <div class="performance-value">
-                            <span class="value">{{ "%.1f"|format(stats.attendance.attendance_percentage if stats.attendance else 0) }}%</span>
+                            <span class="value">{{ "%.1f"|format(stats.attendance.get('attendance_percentage', 0) if stats.attendance else 0) }}%</span>
                             <div class="progress">
-                                <div class="progress-bar bg-primary" style="width: {{ stats.attendance.attendance_percentage if stats.attendance else 0 }}%"></div>
+                                <div class="progress-bar bg-primary" style="width: {{ stats.attendance.get('attendance_percentage', 0) if stats.attendance else 0 }}%"></div>
                             </div>
                         </div>
                     </div>
@@ -198,10 +202,10 @@
                             Student Rating
                         </div>
                         <div class="performance-value">
-                            <span class="value">{{ "%.1f"|format(stats.rating) }}/5.0</span>
+                            <span class="value">{{ "%.1f"|format(stats.get('rating', 0)) }}/5.0</span>
                             <div class="rating-stars">
                                 {% for i in range(5) %}
-                                    <i class="fas fa-star {% if i < stats.rating %}text-warning{% else %}text-muted{% endif %}"></i>
+                                    <i class="fas fa-star {% if i < (stats.get('rating', 0) | int) %}text-warning{% else %}text-muted{% endif %}"></i>
                                 {% endfor %}
                             </div>
                         </div>
@@ -277,12 +281,16 @@
                                         <td>
                                             <div>
                                                 <strong>{{ class.subject }}</strong><br>
-                                                <small class="text-muted">Grade {{ class.grade }}</small>
+                                                <small class="text-muted">Grade {{ class.grade or 'N/A' }}</small>
                                             </div>
                                         </td>
                                         <td>
                                             {% if class.class_type == 'one_on_one' %}
-                                                {{ class.primary_student.full_name }}
+                                                {% if class.primary_student %}
+                                                    {{ class.primary_student.full_name }}
+                                                {% else %}
+                                                    One-on-One
+                                                {% endif %}
                                             {% else %}
                                                 <span class="badge badge-info">Group ({{ class.get_students()|length }})</span>
                                             {% endif %}
@@ -324,17 +332,81 @@
 </div>
 
 <style>
+.dashboard-container {
+    padding: 1rem;
+}
+
+.page-header {
+    margin-bottom: 2rem;
+}
+
+.page-title {
+    font-size: 1.75rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    color: var(--text-primary, #212529);
+}
+
+.page-subtitle {
+    color: var(--text-muted, #6c757d);
+    margin: 0;
+}
+
+.stat-card {
+    background: white;
+    border-radius: 0.5rem;
+    padding: 1.5rem;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    height: 100%;
+}
+
+.stat-icon {
+    width: 60px;
+    height: 60px;
+    border-radius: 0.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    color: white;
+}
+
+.stat-icon.primary { background: #0d6efd; }
+.stat-icon.success { background: #198754; }
+.stat-icon.info { background: #0dcaf0; }
+.stat-icon.warning { background: #ffc107; color: #000; }
+
+.stat-content h3 {
+    margin: 0;
+    font-size: 2rem;
+    font-weight: 600;
+}
+
+.stat-content p {
+    margin: 0;
+    color: var(--text-muted, #6c757d);
+    font-size: 0.875rem;
+}
+
+.badge-primary {
+    background-color: #0d6efd;
+    color: white;
+}
+
 .schedule-item {
     display: flex;
     align-items: center;
     gap: 1rem;
     padding: 1rem;
-    border-bottom: 1px solid var(--border-color);
-    transition: var(--transition);
+    border-bottom: 1px solid var(--border-color, #dee2e6);
+    transition: all 0.15s ease-in-out;
 }
 
 .schedule-item:hover {
-    background: var(--bg-light);
+    background: var(--bg-light, #f8f9fa);
 }
 
 .schedule-item:last-child {
@@ -350,12 +422,12 @@
     display: block;
     font-weight: 600;
     font-size: 1.1rem;
-    color: var(--primary-color);
+    color: var(--primary-color, #0d6efd);
 }
 
 .schedule-time .duration {
     font-size: 0.75rem;
-    color: var(--text-muted);
+    color: var(--text-muted, #6c757d);
 }
 
 .schedule-content {
@@ -369,7 +441,7 @@
 
 .schedule-content p {
     font-size: 0.875rem;
-    color: var(--text-secondary);
+    color: var(--text-secondary, #495057);
     margin-bottom: 0.25rem;
 }
 
@@ -397,7 +469,7 @@
     align-items: center;
     gap: 0.5rem;
     font-size: 0.875rem;
-    color: var(--text-secondary);
+    color: var(--text-secondary, #495057);
     margin-bottom: 0.5rem;
 }
 
@@ -409,13 +481,13 @@
 
 .performance-value .value {
     font-weight: 600;
-    color: var(--text-primary);
+    color: var(--text-primary, #212529);
 }
 
 .progress {
     width: 60px;
     height: 6px;
-    background: var(--border-color);
+    background: var(--border-color, #dee2e6);
     border-radius: 3px;
     overflow: hidden;
 }
@@ -425,6 +497,9 @@
     transition: width 0.3s ease;
 }
 
+.bg-success { background-color: #198754 !important; }
+.bg-primary { background-color: #0d6efd !important; }
+
 .rating-stars {
     display: flex;
     gap: 2px;
@@ -433,6 +508,9 @@
 .rating-stars .fa-star {
     font-size: 0.875rem;
 }
+
+.text-warning { color: #ffc107 !important; }
+.text-muted { color: #6c757d !important; }
 
 .class-datetime {
     min-width: 80px;
@@ -445,7 +523,7 @@
 .empty-state {
     text-align: center;
     padding: 2rem;
-    color: var(--text-muted);
+    color: var(--text-muted, #6c757d);
 }
 
 .empty-state i {
@@ -456,13 +534,15 @@
 
 .empty-state h6 {
     margin-bottom: 0.5rem;
-    color: var(--text-secondary);
+    color: var(--text-secondary, #495057);
 }
 
 .empty-state p {
     margin: 0;
     font-size: 0.875rem;
 }
+
+.badge-info { background-color: #0dcaf0; }
 
 @media (max-width: 768px) {
     .schedule-item {
@@ -505,15 +585,23 @@ function startClass(classId) {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                LMS.showAlert(data.message, 'success');
+                if (typeof LMS !== 'undefined') {
+                    LMS.showAlert(data.message, 'success');
+                } else {
+                    alert(data.message);
+                }
                 setTimeout(() => location.reload(), 1000);
             } else {
-                LMS.showAlert(data.error || 'Error starting class', 'error');
+                if (typeof LMS !== 'undefined') {
+                    LMS.showAlert(data.error || 'Error starting class', 'error');
+                } else {
+                    alert(data.error || 'Error starting class');
+                }
             }
         })
         .catch(error => {
             console.error('Error:', error);
-            LMS.showAlert('Error starting class', 'error');
+            alert('Error starting class');
         });
     }
 }
@@ -533,15 +621,23 @@ function completeClass(classId) {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                LMS.showAlert(data.message, 'success');
+                if (typeof LMS !== 'undefined') {
+                    LMS.showAlert(data.message, 'success');
+                } else {
+                    alert(data.message);
+                }
                 setTimeout(() => location.reload(), 1000);
             } else {
-                LMS.showAlert(data.error || 'Error completing class', 'error');
+                if (typeof LMS !== 'undefined') {
+                    LMS.showAlert(data.error || 'Error completing class', 'error');
+                } else {
+                    alert(data.error || 'Error completing class');
+                }
             }
         })
         .catch(error => {
             console.error('Error:', error);
-            LMS.showAlert('Error completing class', 'error');
+            alert('Error completing class');
         });
     }
 }
@@ -559,10 +655,13 @@ function refreshDashboard() {
 
 // Initialize tooltips
 document.addEventListener('DOMContentLoaded', function() {
-    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-    tooltipTriggerList.map(function (tooltipTriggerEl) {
-        return new bootstrap.Tooltip(tooltipTriggerEl);
-    });
+    // Check if Bootstrap is available
+    if (typeof bootstrap !== 'undefined') {
+        const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl);
+        });
+    }
 });
 
 // Auto-refresh every 5 minutes

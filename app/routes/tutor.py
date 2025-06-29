@@ -73,38 +73,81 @@ def my_classes():
 @login_required
 @tutor_required
 def today_classes():
-    """View today's classes only"""
-    tutor = get_current_tutor()
-    if not tutor:
-        flash('Tutor profile not found.', 'error')
-        return redirect(url_for('dashboard.index'))
-    
+    """View today's classes for tutor"""
+    tutor = Tutor.query.filter_by(user_id=current_user.id).first_or_404()
     today = date.today()
-    todays_classes = Class.query.filter_by(
-        tutor_id=tutor.id,
-        scheduled_date=today
+    
+    # Get today's classes
+    classes = Class.query.filter(
+        Class.tutor_id == tutor.id,
+        Class.scheduled_date == today
     ).order_by(Class.scheduled_time).all()
     
-    return render_template('tutor/today_classes.html', 
-                         classes=todays_classes, tutor=tutor)
+    # Get all students for today's classes
+    all_student_ids = set()
+    for cls in classes:
+        all_student_ids.update(cls.get_students())
+    
+    students = Student.query.filter(Student.id.in_(all_student_ids)).all() if all_student_ids else []
+    students_dict = {s.id: s for s in students}
+    total_students = len(students)
+    
+    # Get upcoming classes (next 7 days)
+    upcoming_classes = Class.query.filter(
+        Class.tutor_id == tutor.id,
+        Class.scheduled_date > today,
+        Class.scheduled_date <= today + timedelta(days=7),
+        Class.status == 'scheduled'
+    ).order_by(Class.scheduled_date, Class.scheduled_time).all()
+    
+    return render_template('tutor/today_classes.html',
+                         classes=classes,
+                         today=today,
+                         total_students=total_students,
+                         students_dict=students_dict,
+                         upcoming_classes=upcoming_classes,
+                         moment=datetime.now)
 
 @bp.route('/class/<int:class_id>')
 @login_required
 @tutor_required
 def class_details(class_id):
-    """View class details"""
-    tutor = get_current_tutor()
-    class_obj = Class.query.filter_by(id=class_id, tutor_id=tutor.id).first_or_404()
+    """View detailed information about a specific class"""
+    tutor = Tutor.query.filter_by(user_id=current_user.id).first_or_404()
     
-    # Get attendance record if exists
-    attendance_records = Attendance.query.filter_by(class_id=class_id).all()
+    # Get the class and verify it belongs to this tutor
+    class_item = Class.query.filter_by(id=class_id, tutor_id=tutor.id).first_or_404()
     
-    # Get student objects for this class
-    students = class_obj.get_student_objects()
+    # Get students for this class
+    student_ids = class_item.get_students()
+    students = Student.query.filter(Student.id.in_(student_ids)).all() if student_ids else []
     
-    return render_template('tutor/class_details.html', 
-                         class_obj=class_obj, attendance_records=attendance_records,
-                         students=students, tutor=tutor)
+    # Get attendance records if class has started
+    attendance_records = []
+    if class_item.status in ['ongoing', 'completed']:
+        attendance_records = Attendance.query.filter_by(class_id=class_item.id).all()
+    
+    # Get class feedback if completed
+    class_feedback = None
+    if class_item.status == 'completed':
+        # You might have a ClassFeedback model
+        # class_feedback = ClassFeedback.query.filter_by(class_id=class_item.id).first()
+        pass
+    
+    # Get related classes (same subject, same students)
+    related_classes = Class.query.filter(
+        Class.tutor_id == tutor.id,
+        Class.subject == class_item.subject,
+        Class.id != class_item.id
+    ).order_by(Class.scheduled_date.desc()).limit(5).all()
+    
+    return render_template('tutor/class_details.html',
+                         class_item=class_item,
+                         students=students,
+                         attendance_records=attendance_records,
+                         class_feedback=class_feedback,
+                         related_classes=related_classes,
+                         datetime=datetime)
 
 @bp.route('/class/<int:class_id>/start', methods=['POST'])
 @login_required
@@ -221,54 +264,53 @@ def mark_attendance():
 @login_required
 @tutor_required
 def my_students():
-    """View tutor's students"""
-    tutor = get_current_tutor()
-    if not tutor:
-        flash('Tutor profile not found.', 'error')
-        return redirect(url_for('dashboard.index'))
+    """View tutor's assigned students"""
+    tutor = Tutor.query.filter_by(user_id=current_user.id).first_or_404()
     
-    # Get unique students from classes
-    student_ids = db.session.query(Class.primary_student_id)\
-        .filter_by(tutor_id=tutor.id)\
-        .distinct().all()
+    # Get students from classes taught by this tutor
+    student_ids = set()
+    classes = Class.query.filter_by(tutor_id=tutor.id).all()
     
-    student_ids = [sid[0] for sid in student_ids if sid[0]]
+    for cls in classes:
+        student_ids.update(cls.get_students())
     
-    # Also get students from group classes
-    group_classes = Class.query.filter_by(tutor_id=tutor.id, class_type='group').all()
-    for cls in group_classes:
-        student_ids.extend(cls.get_students())
-    
-    # Remove duplicates
-    student_ids = list(set(student_ids))
-    
-    # Get student objects
     students = Student.query.filter(Student.id.in_(student_ids)).all() if student_ids else []
     
-    # Get additional info for each student
-    student_info = []
+    # Get attendance data for each student
+    student_attendance = {}
     for student in students:
-        # Count classes with this student
-        total_classes = Class.query.filter(
-            Class.tutor_id == tutor.id,
-            ((Class.primary_student_id == student.id) | 
-             (Class.students.contains(str(student.id))))
-        ).count()
-        
-        # Get attendance summary
-        attendance_summary = Attendance.get_attendance_summary(
-            tutor_id=tutor.id, 
-            student_id=student.id
-        )
-        
-        student_info.append({
-            'student': student,
-            'total_classes': total_classes,
-            'attendance': attendance_summary
-        })
+        attendance_summary = Attendance.get_attendance_summary(student_id=student.id, tutor_id=tutor.id)
+        student_attendance[student.id] = attendance_summary
     
-    return render_template('tutor/my_students.html', 
-                         student_info=student_info, tutor=tutor)
+    # Get upcoming classes for each student
+    student_upcoming_classes = {}
+    for student in students:
+        upcoming = Class.query.filter(
+            Class.tutor_id == tutor.id,
+            Class.scheduled_date >= date.today(),
+            Class.status == 'scheduled'
+        ).order_by(Class.scheduled_date, Class.scheduled_time).all()
+        
+        student_classes = [cls for cls in upcoming if student.id in cls.get_students()]
+        student_upcoming_classes[student.id] = student_classes[:5]  # Next 5 classes
+    
+    # Get unique grades
+    grades = sorted(list(set(s.grade for s in students if s.grade)))
+    
+    # Count low attendance students (less than 75%)
+    low_attendance_count = sum(1 for s in students 
+                              if student_attendance.get(s.id, {}).get('percentage', 100) < 75)
+    
+    # Count total upcoming classes
+    upcoming_classes_count = sum(len(classes) for classes in student_upcoming_classes.values())
+    
+    return render_template('tutor/my_students.html',
+                         students=students,
+                         student_attendance=student_attendance,
+                         student_upcoming_classes=student_upcoming_classes,
+                         grades=grades,
+                         low_attendance_count=low_attendance_count,
+                         upcoming_classes_count=upcoming_classes_count)
 
 @bp.route('/attendance')
 @login_required

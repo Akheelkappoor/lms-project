@@ -1,0 +1,421 @@
+{% extends "base.html" %}
+
+{% block title %}Department Permissions - {{ department.name }} - {{ APP_NAME }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h1 class="page-title">
+                <i class="fas fa-key"></i>
+                Department Permissions
+            </h1>
+            <p class="page-subtitle">{{ department.name }} ({{ department.code }})</p>
+        </div>
+        <div class="header-actions">
+            <a href="{{ url_for('admin.departments') }}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left"></i>
+                Back to Departments
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-shield-alt"></i>
+                        Manage Permissions
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST" id="permissionsForm">
+                        <div class="permission-categories">
+                            
+                            <!-- User & Staff Management -->
+                            <div class="permission-category mb-4">
+                                <h6 class="category-title">
+                                    <i class="fas fa-users text-primary"></i>
+                                    User & Staff Management
+                                </h6>
+                                <div class="permission-grid">
+                                    <div class="permission-item">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" name="permissions" 
+                                                   value="user_management" id="user_management"
+                                                   {% if 'user_management' in department.get_permissions() %}checked{% endif %}>
+                                            <label class="form-check-label" for="user_management">
+                                                <strong>User Management</strong>
+                                                <small class="text-muted d-block">Create, edit, and manage user accounts</small>
+                                            </label>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="permission-item">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" name="permissions" 
+                                                   value="tutor_management" id="tutor_management"
+                                                   {% if 'tutor_management' in department.get_permissions() %}checked{% endif %}>
+                                            <label class="form-check-label" for="tutor_management">
+                                                <strong>Tutor Management</strong>
+                                                <small class="text-muted d-block">Register and manage tutor accounts</small>
+                                            </label>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="permission-item">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" name="permissions" 
+                                                   value="student_management" id="student_management"
+                                                   {% if 'student_management' in department.get_permissions() %}checked{% endif %}>
+                                            <label class="form-check-label" for="student_management">
+                                                <strong>Student Management</strong>
+                                                <small class="text-muted d-block">Register and manage student accounts</small>
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Academic Management -->
+                            <div class="permission-category mb-4">
+                                <h6 class="category-title">
+                                    <i class="fas fa-graduation-cap text-success"></i>
+                                    Academic Management
+                                </h6>
+                                <div class="permission-grid">
+                                    <div class="permission-item">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" name="permissions" 
+                                                   value="class_management" id="class_management"
+                                                   {% if 'class_management' in department.get_permissions() %}checked{% endif %}>
+                                            <label class="form-check-label" for="class_management">
+                                                <strong>Class Management</strong>
+                                                <small class="text-muted d-block">Create and manage class schedules</small>
+                                            </label>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="permission-item">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" name="permissions" 
+                                                   value="attendance_management" id="attendance_management"
+                                                   {% if 'attendance_management' in department.get_permissions() %}checked{% endif %}>
+                                            <label class="form-check-label" for="attendance_management">
+                                                <strong>Attendance Management</strong>
+                                                <small class="text-muted d-block">Track and manage student attendance</small>
+                                            </label>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="permission-item">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" name="permissions" 
+                                                   value="schedule_management" id="schedule_management"
+                                                   {% if 'schedule_management' in department.get_permissions() %}checked{% endif %}>
+                                            <label class="form-check-label" for="schedule_management">
+                                                <strong>Schedule Management</strong>
+                                                <small class="text-muted d-block">Create and modify timetables</small>
+                                            </label>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="permission-item">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" name="permissions" 
+                                                   value="demo_management" id="demo_management"
+                                                   {% if 'demo_management' in department.get_permissions() %}checked{% endif %}>
+                                            <label class="form-check-label" for="demo_management">
+                                                <strong>Demo Management</strong>
+                                                <small class="text-muted d-block">Schedule and manage demo classes</small>
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Financial Management -->
+                            <div class="permission-category mb-4">
+                                <h6 class="category-title">
+                                    <i class="fas fa-rupee-sign text-warning"></i>
+                                    Financial Management
+                                </h6>
+                                <div class="permission-grid">
+                                    <div class="permission-item">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" name="permissions" 
+                                                   value="finance_management" id="finance_management"
+                                                   {% if 'finance_management' in department.get_permissions() %}checked{% endif %}>
+                                            <label class="form-check-label" for="finance_management">
+                                                <strong>Finance Management</strong>
+                                                <small class="text-muted d-block">Manage fees, payments, and salaries</small>
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Communication & Reports -->
+                            <div class="permission-category mb-4">
+                                <h6 class="category-title">
+                                    <i class="fas fa-chart-bar text-info"></i>
+                                    Communication & Reports
+                                </h6>
+                                <div class="permission-grid">
+                                    <div class="permission-item">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" name="permissions" 
+                                                   value="report_generation" id="report_generation"
+                                                   {% if 'report_generation' in department.get_permissions() %}checked{% endif %}>
+                                            <label class="form-check-label" for="report_generation">
+                                                <strong>Report Generation</strong>
+                                                <small class="text-muted d-block">Generate and view reports</small>
+                                            </label>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="permission-item">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" name="permissions" 
+                                                   value="communication" id="communication"
+                                                   {% if 'communication' in department.get_permissions() %}checked{% endif %}>
+                                            <label class="form-check-label" for="communication">
+                                                <strong>Communication</strong>
+                                                <small class="text-muted d-block">Send notifications and announcements</small>
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Quality & Profiles -->
+                            <div class="permission-category mb-4">
+                                <h6 class="category-title">
+                                    <i class="fas fa-cog text-secondary"></i>
+                                    Quality & Profiles
+                                </h6>
+                                <div class="permission-grid">
+                                    <div class="permission-item">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" name="permissions" 
+                                                   value="profile_management" id="profile_management"
+                                                   {% if 'profile_management' in department.get_permissions() %}checked{% endif %}>
+                                            <label class="form-check-label" for="profile_management">
+                                                <strong>Profile Management</strong>
+                                                <small class="text-muted d-block">Edit user profiles and information</small>
+                                            </label>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="permission-item">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" name="permissions" 
+                                                   value="quality_checking" id="quality_checking"
+                                                   {% if 'quality_checking' in department.get_permissions() %}checked{% endif %}>
+                                            <label class="form-check-label" for="quality_checking">
+                                                <strong>Quality Checking</strong>
+                                                <small class="text-muted d-block">Monitor and ensure service quality</small>
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                        </div>
+
+                        <div class="d-flex justify-content-between">
+                            <button type="button" class="btn btn-outline-secondary" onclick="selectAll()">
+                                <i class="fas fa-check-square"></i>
+                                Select All
+                            </button>
+                            
+                            <div>
+                                <button type="button" class="btn btn-outline-danger me-2" onclick="clearAll()">
+                                    <i class="fas fa-times"></i>
+                                    Clear All
+                                </button>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-save"></i>
+                                    Save Permissions
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="card-title mb-0">
+                        <i class="fas fa-info-circle"></i>
+                        Department Information
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <dl class="row">
+                        <dt class="col-sm-4">Name:</dt>
+                        <dd class="col-sm-8">{{ department.name }}</dd>
+                        
+                        <dt class="col-sm-4">Code:</dt>
+                        <dd class="col-sm-8"><span class="badge badge-primary">{{ department.code }}</span></dd>
+                        
+                        <dt class="col-sm-4">Status:</dt>
+                        <dd class="col-sm-8">
+                            <span class="badge badge-{{ 'success' if department.is_active else 'danger' }}">
+                                {{ 'Active' if department.is_active else 'Inactive' }}
+                            </span>
+                        </dd>
+                        
+                        <dt class="col-sm-4">Created:</dt>
+                        <dd class="col-sm-8">{{ department.created_at.strftime('%d %b %Y') if department.created_at else 'N/A' }}</dd>
+                    </dl>
+                    
+                    {% if department.description %}
+                    <div class="mt-3">
+                        <h6>Description</h6>
+                        <p class="text-muted small">{{ department.description }}</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="card mt-3">
+                <div class="card-header">
+                    <h6 class="card-title mb-0">
+                        <i class="fas fa-users"></i>
+                        Department Statistics
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3 text-center">
+                        <div class="col-4">
+                            <div class="stat-item">
+                                <div class="stat-value text-primary">{{ department.get_user_count() }}</div>
+                                <div class="stat-label">Users</div>
+                            </div>
+                        </div>
+                        <div class="col-4">
+                            <div class="stat-item">
+                                <div class="stat-value text-success">{{ department.get_tutor_count() }}</div>
+                                <div class="stat-label">Tutors</div>
+                            </div>
+                        </div>
+                        <div class="col-4">
+                            <div class="stat-item">
+                                <div class="stat-value text-info">{{ department.get_student_count() }}</div>
+                                <div class="stat-label">Students</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.permission-categories {
+    background: #f8f9fa;
+    padding: 1.5rem;
+    border-radius: 0.5rem;
+}
+
+.permission-category {
+    background: white;
+    padding: 1.25rem;
+    border-radius: 0.375rem;
+    border: 1px solid #e9ecef;
+}
+
+.category-title {
+    font-weight: 600;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.permission-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1rem;
+}
+
+.permission-item {
+    padding: 0.75rem;
+    background: #f8f9fa;
+    border-radius: 0.25rem;
+    transition: all 0.2s ease;
+}
+
+.permission-item:hover {
+    background: #e9ecef;
+}
+
+.form-check-input:checked + .form-check-label {
+    color: #0d6efd;
+}
+
+.stat-item {
+    text-align: center;
+}
+
+.stat-value {
+    font-size: 1.5rem;
+    font-weight: 600;
+    line-height: 1;
+}
+
+.stat-label {
+    font-size: 0.875rem;
+    color: #6c757d;
+    margin-top: 0.25rem;
+}
+
+.badge-primary {
+    background-color: #0d6efd;
+    color: white;
+}
+
+.badge-success {
+    background-color: #198754;
+    color: white;
+}
+
+.badge-danger {
+    background-color: #dc3545;
+    color: white;
+}
+</style>
+
+<script>
+function selectAll() {
+    const checkboxes = document.querySelectorAll('input[name="permissions"]');
+    checkboxes.forEach(checkbox => checkbox.checked = true);
+}
+
+function clearAll() {
+    const checkboxes = document.querySelectorAll('input[name="permissions"]');
+    checkboxes.forEach(checkbox => checkbox.checked = false);
+}
+
+// Form submission with loading state
+document.getElementById('permissionsForm').addEventListener('submit', function(e) {
+    const submitBtn = this.querySelector('button[type="submit"]');
+    const originalText = submitBtn.innerHTML;
+    
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+    submitBtn.disabled = true;
+    
+    // Re-enable button after 3 seconds (form will have submitted by then)
+    setTimeout(() => {
+        submitBtn.innerHTML = originalText;
+        submitBtn.disabled = false;
+    }, 3000);
+});
+</script>
+{% endblock %}

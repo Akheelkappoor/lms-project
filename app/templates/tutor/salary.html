@@ -1,0 +1,586 @@
+{% extends "base.html" %}
+
+{% block title %}Salary Information - {{ APP_NAME }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h1 class="page-title">
+                <i class="fas fa-money-bill-wave"></i>
+                Salary Information
+            </h1>
+            <p class="page-subtitle">View your earnings, payments, and salary details</p>
+        </div>
+        <div class="header-actions">
+            <div class="btn-group">
+                <button class="btn btn-outline-primary" onclick="downloadSalarySlip()">
+                    <i class="fas fa-download"></i>
+                    Download Slip
+                </button>
+                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#salaryCalculatorModal">
+                    <i class="fas fa-calculator"></i>
+                    Calculator
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="container-fluid">
+    <!-- Salary Overview Cards -->
+    <div class="row mb-4">
+        <div class="col-lg-3 col-md-6">
+            <div class="salary-card primary">
+                <div class="salary-icon">
+                    <i class="fas fa-coins"></i>
+                </div>
+                <div class="salary-content">
+                    <h3>₹{{ "{:,.0f}".format(tutor.monthly_salary or 0) }}</h3>
+                    <p>Monthly Salary</p>
+                    <small class="text-muted">{{ tutor.salary_type.title() if tutor.salary_type else 'Fixed' }}</small>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-3 col-md-6">
+            <div class="salary-card success">
+                <div class="salary-icon">
+                    <i class="fas fa-hand-holding-usd"></i>
+                </div>
+                <div class="salary-content">
+                    <h3>₹{{ "{:,.0f}".format(current_month_earnings|default(0)) }}</h3>
+                    <p>This Month Earned</p>
+                    <small class="text-muted">{{ classes_this_month|default(0) }} classes</small>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-3 col-md-6">
+            <div class="salary-card warning">
+                <div class="salary-icon">
+                    <i class="fas fa-clock"></i>
+                </div>
+                <div class="salary-content">
+                    <h3>₹{{ "{:,.0f}".format(pending_amount|default(0)) }}</h3>
+                    <p>Pending Payment</p>
+                    <small class="text-muted">Due on {{ next_payment_date.strftime('%d %b') if next_payment_date else 'TBD' }}</small>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-3 col-md-6">
+            <div class="salary-card info">
+                <div class="salary-icon">
+                    <i class="fas fa-percentage"></i>
+                </div>
+                <div class="salary-content">
+                    <h3>₹{{ "{:,.0f}".format(tutor.hourly_rate or 0) }}</h3>
+                    <p>Hourly Rate</p>
+                    <small class="text-muted">Per hour</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Salary Breakdown -->
+        <div class="col-lg-8">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-chart-pie"></i>
+                        Current Month Breakdown
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="salary-breakdown">
+                        <div class="breakdown-item">
+                            <div class="breakdown-label">
+                                <i class="fas fa-chalkboard text-primary"></i>
+                                Classes Taught
+                            </div>
+                            <div class="breakdown-value">
+                                <span class="amount">₹{{ "{:,.0f}".format(base_salary|default(0)) }}</span>
+                                <small class="text-muted">({{ classes_this_month|default(0) }} classes × ₹{{ "{:,.0f}".format(tutor.hourly_rate or 0) if tutor.salary_type == 'hourly' else 'Fixed rate' }})</small>
+                            </div>
+                        </div>
+                        
+                        {% if (bonus_amount|default(0)) > 0 %}
+                        <div class="breakdown-item positive">
+                            <div class="breakdown-label">
+                                <i class="fas fa-gift text-success"></i>
+                                Performance Bonus
+                            </div>
+                            <div class="breakdown-value">
+                                <span class="amount text-success">+₹{{ "{:,.0f}".format(bonus_amount|default(0)) }}</span>
+                                <small class="text-muted">Excellent performance</small>
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        {% if (penalty_amount|default(0)) > 0 %}
+                        <div class="breakdown-item negative">
+                            <div class="breakdown-label">
+                                <i class="fas fa-exclamation-triangle text-warning"></i>
+                                Penalties/Deductions
+                            </div>
+                            <div class="breakdown-value">
+                                <span class="amount text-danger">-₹{{ "{:,.0f}".format(penalty_amount|default(0)) }}</span>
+                                <small class="text-muted">Late arrivals, absences</small>
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        <div class="breakdown-total">
+                            <div class="breakdown-label">
+                                <strong><i class="fas fa-calculator"></i> Total Earnings</strong>
+                            </div>
+                            <div class="breakdown-value">
+                                <strong class="amount">₹{{ "{:,.0f}".format(current_month_earnings|default(0)) }}</strong>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Payment History -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-history"></i>
+                        Payment History
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if payment_history and payment_history|length > 0 %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Month</th>
+                                    <th>Amount</th>
+                                    <th>Classes</th>
+                                    <th>Bonuses</th>
+                                    <th>Deductions</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for payment in payment_history %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ payment.month.strftime('%B %Y') if payment.month else 'Current Month' }}</strong>
+                                    </td>
+                                    <td>
+                                        <strong>₹{{ "{:,.0f}".format(payment.total_amount) }}</strong>
+                                    </td>
+                                    <td>{{ payment.classes_count }}</td>
+                                    <td>
+                                        {% if payment.bonus_amount > 0 %}
+                                        <span class="text-success">+₹{{ "{:,.0f}".format(payment.bonus_amount) }}</span>
+                                        {% else %}
+                                        <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if payment.deduction_amount > 0 %}
+                                        <span class="text-danger">-₹{{ "{:,.0f}".format(payment.deduction_amount) }}</span>
+                                        {% else %}
+                                        <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <span class="badge 
+                                            {% if payment.status == 'paid' %}bg-success
+                                            {% elif payment.status == 'pending' %}bg-warning
+                                            {% elif payment.status == 'processing' %}bg-info
+                                            {% else %}bg-secondary{% endif %}">
+                                            {{ payment.status.title() }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            <button class="btn btn-outline-primary btn-sm" 
+                                                    onclick="viewPaymentDetails('{{ payment.id }}')">
+                                                <i class="fas fa-eye"></i>
+                                                View
+                                            </button>
+                                            {% if payment.status == 'paid' %}
+                                            <button class="btn btn-outline-success btn-sm" 
+                                                    onclick="downloadPayslip('{{ payment.id }}')">
+                                                <i class="fas fa-download"></i>
+                                                Slip
+                                            </button>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-money-bill-wave fa-3x text-muted mb-3"></i>
+                        <h5 class="text-muted">No Payment History</h5>
+                        <p class="text-muted">Your payment history will appear here once you start receiving payments.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Salary Details Sidebar -->
+        <div class="col-lg-4">
+            <!-- Salary Structure -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="card-title mb-0">
+                        <i class="fas fa-cog"></i>
+                        Salary Structure
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="salary-structure">
+                        <div class="structure-item">
+                            <span class="label">Salary Type:</span>
+                            <span class="value">{{ tutor.salary_type.title() if tutor.salary_type else 'Fixed' }}</span>
+                        </div>
+                        
+                        {% if tutor.salary_type == 'monthly' %}
+                        <div class="structure-item">
+                            <span class="label">Monthly Rate:</span>
+                            <span class="value">₹{{ "{:,.0f}".format(tutor.monthly_salary or 0) }}</span>
+                        </div>
+                        {% endif %}
+                        
+                        {% if tutor.salary_type == 'hourly' %}
+                        <div class="structure-item">
+                            <span class="label">Hourly Rate:</span>
+                            <span class="value">₹{{ "{:,.0f}".format(tutor.hourly_rate or 0) }}</span>
+                        </div>
+                        {% endif %}
+                        
+                        <div class="structure-item">
+                            <span class="label">Payment Schedule:</span>
+                            <span class="value">Monthly</span>
+                        </div>
+                        
+                        <div class="structure-item">
+                            <span class="label">Next Payment:</span>
+                            <span class="value">{{ next_payment_date.strftime('%d %b %Y') if next_payment_date else 'TBD' }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Performance Metrics -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="card-title mb-0">
+                        <i class="fas fa-chart-line"></i>
+                        Performance Metrics
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="performance-metrics">
+                        <div class="metric-item">
+                            <div class="metric-label">Attendance Rate</div>
+                            <div class="metric-value">
+                                <div class="progress">
+                                    <div class="progress-bar bg-success" style="width: {{ attendance_rate|default(0) }}%"></div>
+                                </div>
+                                <span>{{ "{:.1f}".format(attendance_rate|default(0)) }}%</span>
+                            </div>
+                        </div>
+                        
+                        <div class="metric-item">
+                            <div class="metric-label">Punctuality Score</div>
+                            <div class="metric-value">
+                                <div class="progress">
+                                    <div class="progress-bar bg-info" style="width: {{ punctuality_score|default(0) }}%"></div>
+                                </div>
+                                <span>{{ "{:.1f}".format(punctuality_score|default(0)) }}%</span>
+                            </div>
+                        </div>
+                        
+                        <div class="metric-item">
+                            <div class="metric-label">Student Rating</div>
+                            <div class="metric-value">
+                                <div class="rating-stars">
+                                    {% for i in range(1, 6) %}
+                                    <i class="fas fa-star {{ 'text-warning' if i <= (tutor.rating or 0) else 'text-muted' }}"></i>
+                                    {% endfor %}
+                                </div>
+                                <span>{{ "{:.1f}".format(tutor.rating or 0) }}/5</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="card-title mb-0">
+                        <i class="fas fa-bolt"></i>
+                        Quick Actions
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <button class="btn btn-outline-primary" onclick="requestAdvance()">
+                            <i class="fas fa-hand-holding-usd"></i>
+                            Request Advance
+                        </button>
+                        <button class="btn btn-outline-info" onclick="viewTaxInfo()">
+                            <i class="fas fa-file-invoice"></i>
+                            Tax Information
+                        </button>
+                        <button class="btn btn-outline-success" onclick="updateBankDetails()">
+                            <i class="fas fa-university"></i>
+                            Update Bank Details
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Salary Calculator Modal -->
+<div class="modal fade" id="salaryCalculatorModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Salary Calculator</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label">Number of Classes</label>
+                        <input type="number" id="calcClasses" class="form-control" placeholder="Enter number of classes">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Rate per Class</label>
+                        <input type="number" id="calcRate" class="form-control" value="{{ tutor.hourly_rate or 0 }}">
+                    </div>
+                    <div class="col-12">
+                        <div class="alert alert-info">
+                            <strong>Estimated Earnings: </strong>
+                            <span id="calculatedAmount">₹0</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" onclick="calculateSalary()">Calculate</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.salary-card {
+    background: white;
+    border-radius: 15px;
+    padding: 1.5rem;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    border: 1px solid #e9ecef;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    height: 100%;
+    position: relative;
+    overflow: hidden;
+}
+
+.salary-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+}
+
+.salary-card.primary::before { background: linear-gradient(90deg, #007bff, #0056b3); }
+.salary-card.success::before { background: linear-gradient(90deg, #28a745, #1e7e34); }
+.salary-card.warning::before { background: linear-gradient(90deg, #ffc107, #e0a800); }
+.salary-card.info::before { background: linear-gradient(90deg, #17a2b8, #138496); }
+
+.salary-icon {
+    width: 70px;
+    height: 70px;
+    border-radius: 15px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.8rem;
+    color: white;
+}
+
+.salary-card.primary .salary-icon { background: linear-gradient(135deg, #007bff, #0056b3); }
+.salary-card.success .salary-icon { background: linear-gradient(135deg, #28a745, #1e7e34); }
+.salary-card.warning .salary-icon { background: linear-gradient(135deg, #ffc107, #e0a800); }
+.salary-card.info .salary-icon { background: linear-gradient(135deg, #17a2b8, #138496); }
+
+.salary-content h3 {
+    margin: 0;
+    font-size: 2.2rem;
+    font-weight: 700;
+    color: #2c3e50;
+}
+
+.salary-content p {
+    margin: 0;
+    color: #495057;
+    font-weight: 500;
+}
+
+.salary-breakdown {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.breakdown-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem;
+    background: #f8f9fa;
+    border-radius: 10px;
+    border-left: 4px solid #e9ecef;
+}
+
+.breakdown-item.positive {
+    background: #f0f9f0;
+    border-left-color: #28a745;
+}
+
+.breakdown-item.negative {
+    background: #fff5f5;
+    border-left-color: #dc3545;
+}
+
+.breakdown-total {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.5rem;
+    background: #e3f2fd;
+    border-radius: 10px;
+    border: 2px solid #2196f3;
+}
+
+.breakdown-label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 500;
+}
+
+.breakdown-value .amount {
+    font-size: 1.2rem;
+    font-weight: 600;
+}
+
+.salary-structure, .performance-metrics {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.structure-item, .metric-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 0;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.structure-item:last-child, .metric-item:last-child {
+    border-bottom: none;
+}
+
+.metric-value {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.progress {
+    width: 60px;
+    height: 6px;
+}
+
+.rating-stars {
+    display: flex;
+    gap: 2px;
+}
+
+@media (max-width: 768px) {
+    .salary-card {
+        margin-bottom: 1rem;
+    }
+    
+    .breakdown-item, .breakdown-total {
+        flex-direction: column;
+        text-align: center;
+        gap: 0.5rem;
+    }
+    
+    .structure-item, .metric-item {
+        flex-direction: column;
+        text-align: center;
+        gap: 0.25rem;
+    }
+}
+</style>
+
+<script>
+function calculateSalary() {
+    const classes = parseInt(document.getElementById('calcClasses').value) || 0;
+    const rate = parseFloat(document.getElementById('calcRate').value) || 0;
+    const amount = classes * rate;
+    document.getElementById('calculatedAmount').textContent = `₹${amount.toLocaleString()}`;
+}
+
+function downloadSalarySlip() {
+    alert('Salary slip download functionality will be implemented soon.');
+}
+
+function requestAdvance() {
+    alert('Advance request functionality will be implemented soon.');
+}
+
+function viewTaxInfo() {
+    alert('Tax information functionality will be implemented soon.');
+}
+
+function updateBankDetails() {
+    alert('Bank details update functionality will be implemented soon.');
+}
+
+function viewPaymentDetails(paymentId) {
+    alert(`Payment details for ID: ${paymentId} will be shown here.`);
+}
+
+function downloadPayslip(paymentId) {
+    alert(`Downloading payslip for payment ID: ${paymentId}`);
+}
+
+// Auto-calculate when inputs change
+document.addEventListener('DOMContentLoaded', function() {
+    const calcInputs = document.querySelectorAll('#calcClasses, #calcRate');
+    calcInputs.forEach(input => {
+        input.addEventListener('input', calculateSalary);
+    });
+});
+</script>
+{% endblock %}

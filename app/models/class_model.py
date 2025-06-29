@@ -329,3 +329,23 @@ class Class(db.Model):
     
     def __repr__(self):
         return f'<Class {self.subject} - {self.scheduled_date} {self.scheduled_time}>'
+    
+    def get_scheduled_datetime(self):
+        """Get combined scheduled datetime"""
+        if self.scheduled_date and self.scheduled_time:
+            return datetime.combine(self.scheduled_date, self.scheduled_time)
+        return None
+    
+    @property
+    def scheduled_datetime(self):
+        """Property to get scheduled datetime"""
+        return self.get_scheduled_datetime()
+    
+    def can_start_soon(self, minutes_before=15):
+        """Check if class can be started (within X minutes of start time)"""
+        if not self.scheduled_datetime:
+            return False
+        
+        now = datetime.now()
+        time_diff = (self.scheduled_datetime - now).total_seconds()
+        return 0 <= time_diff <= (minutes_before * 60)

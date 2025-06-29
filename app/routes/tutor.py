@@ -9,6 +9,7 @@ from app.models.student import Student
 from app.models.class_model import Class
 from app.models.attendance import Attendance
 from functools import wraps
+
 bp = Blueprint('tutor', __name__)
 
 def tutor_required(f):
@@ -519,3 +520,81 @@ def get_status_color(status):
         'rescheduled': '#FFC107'
     }
     return colors.get(status, '#6C757D')
+
+@bp.route('/student/<int:student_id>')
+@login_required
+@tutor_required
+def student_profile(student_id):
+    """View student profile - redirect to admin view"""
+    return redirect(url_for('student.student_profile', student_id=student_id))
+
+
+@bp.route('/student/<int:student_id>/classes')
+@login_required
+@tutor_required
+def student_classes(student_id):
+    """View student's classes with this tutor"""
+    tutor = get_current_tutor()
+    if not tutor:
+        flash('Tutor profile not found.', 'error')
+        return redirect(url_for('dashboard.index'))
+    
+    student = Student.query.get_or_404(student_id)
+    
+    # Get classes taught by this tutor for this student
+    student_classes = []
+    all_classes = Class.query.filter_by(tutor_id=tutor.id).order_by(Class.scheduled_date.desc()).all()
+    
+    has_access = False
+    for cls in all_classes:
+        if student.id in cls.get_students():
+            student_classes.append(cls)
+            has_access = True
+    
+    if not has_access:
+        flash('You do not have access to view this student.', 'error')
+        return redirect(url_for('tutor.my_students'))
+    
+    # Get attendance summary for this student with this tutor
+    attendance_summary = Attendance.get_attendance_summary(student_id=student.id, tutor_id=tutor.id)
+    
+    return render_template('tutor/student_classes.html',
+                         student=student,
+                         classes=student_classes,
+                         attendance_summary=attendance_summary,
+                         tutor=tutor)
+
+@bp.route('/student/<int:student_id>/attendance')
+@login_required
+@tutor_required
+def student_attendance(student_id):
+    """View student's attendance with this tutor"""
+    tutor = get_current_tutor()
+    if not tutor:
+        flash('Tutor profile not found.', 'error')
+        return redirect(url_for('dashboard.index'))
+    
+    student = Student.query.get_or_404(student_id)
+    
+    # Verify tutor has access to this student
+    student_classes = Class.query.filter_by(tutor_id=tutor.id).all()
+    has_access = any(student.id in cls.get_students() for cls in student_classes)
+    
+    if not has_access:
+        flash('You do not have access to view this student.', 'error')
+        return redirect(url_for('tutor.my_students'))
+    
+    # Get attendance records
+    attendance_records = Attendance.query.filter_by(
+        tutor_id=tutor.id, 
+        student_id=student.id
+    ).order_by(Attendance.class_date.desc()).all()
+    
+    # Get attendance summary
+    attendance_summary = Attendance.get_attendance_summary(student_id=student.id, tutor_id=tutor.id)
+    
+    return render_template('tutor/student_attendance.html',
+                         student=student,
+                         attendance_records=attendance_records,
+                         attendance_summary=attendance_summary,
+                         tutor=tutor)

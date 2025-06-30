@@ -869,7 +869,7 @@
                 <!-- Tutor Management -->
                 {% if current_user.has_permission('tutor_management') %}
                 <li class="nav-item">
-                    <a href="{{ url_for('admin.tutors') }}" class="nav-link {% if 'tutors' in request.endpoint %}active{% endif %}">
+                    <a href="{{ url_for('admin.tutors') }}" class="nav-link {% if request.endpoint and 'tutors' in request.endpoint %}active{% endif %}">
                         <i class="fas fa-chalkboard-teacher"></i>
                         <span>Tutors</span>
                     </a>

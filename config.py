@@ -30,8 +30,8 @@ class Config:
     PERMANENT_SESSION_LIFETIME = 3600  # 1 hour
     
     # Default Admin Settings
-    DEFAULT_ADMIN_EMAIL = 'admin@i2global.co.in'
-    DEFAULT_ADMIN_PASSWORD = 'admin123'
+    DEFAULT_ADMIN_EMAIL = 'care@i2global.co.in'
+    DEFAULT_ADMIN_PASSWORD = 'i2global123'
     
     # Application Settings
     APP_NAME = 'I2Global LMS'

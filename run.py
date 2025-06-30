@@ -1,6 +1,7 @@
 from app import create_app, db
 from app.models import User, Department, Tutor, Student, Class, Attendance
 from config import Config
+from flask import url_for, redirect
 
 app = create_app()
 
@@ -16,22 +17,59 @@ def make_shell_context():
         'Attendance': Attendance
     }
 
+@app.route('/')
+def index():
+    """Main index route - redirect based on setup status"""
+    with app.app_context():
+        # Check if system needs setup
+        if not User.query.filter_by(role='superadmin').first():
+            return redirect(url_for('setup.initial_setup'))
+        else:
+            return redirect(url_for('auth.login'))
+
+def check_database():
+    """Check if database exists and create if not"""
+    with app.app_context():
+        try:
+            # Try to query users table
+            User.query.first()
+            return True
+        except Exception:
+            # Database doesn't exist or is corrupted
+            print("📋 Database not found. Creating tables...")
+            db.create_all()
+            return False
 
 def create_default_data():
     """Create default admin user and departments on first run"""
     with app.app_context():
-        # Create all database tables
-        db.create_all()
+        print("🔄 Checking database status...")
         
-        # Create default departments
-        Department.create_default_departments()
+        # Create tables if they don't exist
+        if not check_database():
+            print("✅ Database tables created")
         
-        # Create default admin user
-        User.create_default_admin()
+        # Check if superadmin exists
+        superadmin = User.query.filter_by(role='superadmin').first()
         
-        print("Default data created successfully!")
+        if not superadmin:
+            print("⚠️  No superadmin found. Please visit /setup to complete initial setup.")
+            return
+        
+        # Create default departments if they don't exist
+        if not Department.query.first():
+            Department.create_default_departments()
+            print("✅ Default departments created")
+        
+        print(f"✅ System ready! Superadmin: {superadmin.email}")
 
 if __name__ == '__main__':
-    # Create default data on first run
+    # Check and create default data
     create_default_data()
+    
+    # Run the application
+    print("🚀 Starting I2Global LMS...")
+    print("📊 Access the application at: http://localhost:5001")
+    print("=" * 50)
+    
     app.run(debug=True, host='0.0.0.0', port=5001)

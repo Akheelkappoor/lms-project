@@ -4,112 +4,142 @@
 
 {% block extra_css %}
 <style>
-    /*
-     * The main-content container needs to be a flex container with centered
-     * items to ensure the page header and the student container are aligned
-     * to the center of the available space.
-     */
-    .main-content {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
+    /* Reset and base layout */
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
     }
 
-    .main-content .page-header .page-header-content {
-        max-width: 1400px;
-        width: 100%; /* Ensure it takes the full width up to max-width */
-        margin: 0 auto;
-        padding: 0 1rem;
+    /* Main layout container */
+    .app-layout {
+        display: flex;
+        min-height: 100vh;
+        width: 100%;
+    }
+
+    /* Sidebar styles */
+    .sidebar {
+        width: 250px;
+        background: #f8f9fa;
+        flex-shrink: 0;
+        /* Sidebar content styles here */
+    }
+
+    /* Main content area - takes remaining space */
+    .main-content {
+        flex: 1;
+        width: calc(100% - 250px);
+        min-width: 0; /* Prevents flex overflow */
+        background: #ffffff;
+        padding: 0;
+        margin: 0;
+    }
+
+    /* Page content wrapper */
+    .page-content {
+        padding: 1.5rem;
+        width: 100%;
+        max-width: none;
+    }
+
+    .page-header {
+        width: 100%;
+        margin-bottom: 2rem;
+        padding: 0;
+    }
+
+    .page-header-content {
+        width: 100%;
         display: flex;
         justify-content: space-between;
         align-items: center;
+        flex-wrap: wrap;
+        gap: 1rem;
     }
     
     .students-container {
-        max-width: 1400px;
-        width: 100%; /* Ensure it takes the full width up to max-width */
-        margin: 0 auto;
-        padding: 0 1rem;
+        width: 100%;
+        max-width: none;
     }
     
     .filter-section {
-        background: var(--bg-white);
-        border-radius: var(--border-radius-lg);
+        background: #ffffff;
+        border-radius: 12px;
         padding: 1.5rem;
         margin-bottom: 2rem;
-        box-shadow: var(--shadow);
+        box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+        border: 1px solid #e9ecef;
+        width: 100%;
     }
     
     .filter-row {
         display: grid;
         grid-template-columns: 2fr 1fr 1fr auto;
-        gap: 1rem;
+        gap: 1.5rem;
         align-items: end;
+        width: 100%;
     }
     
     .form-group {
         display: flex;
         flex-direction: column;
         gap: 0.5rem;
+        width: 100%;
     }
     
     .form-label {
         font-size: 0.875rem;
         font-weight: 500;
-        color: var(--text-primary);
+        color: #2c3e50;
         margin: 0;
     }
     
     .form-control, .form-select {
         width: 100%;
         padding: 0.75rem 1rem;
-        border: 2px solid var(--border-color);
-        border-radius: var(--border-radius);
+        border: 2px solid #e9ecef;
+        border-radius: 8px;
         font-size: 0.875rem;
-        transition: var(--transition);
-        background: var(--bg-white);
+        transition: all 0.3s ease;
+        background: #ffffff;
         min-height: 44px;
+        box-sizing: border-box;
     }
     
     .form-control:focus, .form-select:focus {
         outline: none;
-        border-color: var(--primary-color);
-        box-shadow: 0 0 0 3px rgba(241, 161, 80, 0.1);
+        border-color: #007bff;
+        box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
     }
     
     .filter-buttons {
         display: flex;
-        gap: 0.5rem;
+        gap: 0.75rem;
         align-items: end;
         height: fit-content;
     }
     
-    .filter-buttons .btn {
-        min-height: 44px;
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        white-space: nowrap;
-    }
-    
     .search-group {
         position: relative;
+        width: 100%;
     }
     
     .search-input {
         width: 100%;
         padding: 0.75rem 1rem 0.75rem 3rem;
-        border: 2px solid var(--border-color);
-        border-radius: var(--border-radius);
+        border: 2px solid #e9ecef;
+        border-radius: 8px;
         font-size: 0.875rem;
-        transition: var(--transition);
+        transition: all 0.3s ease;
         min-height: 44px;
+        box-sizing: border-box;
     }
     
     .search-input:focus {
         outline: none;
-        border-color: var(--primary-color);
-        box-shadow: 0 0 0 3px rgba(241, 161, 80, 0.1);
+        border-color: #007bff;
+        box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
     }
     
     .search-icon {
@@ -117,29 +147,31 @@
         left: 1rem;
         top: 50%;
         transform: translateY(-50%);
-        color: var(--text-muted);
+        color: #6c757d;
         z-index: 1;
     }
     
     .students-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
         gap: 1.5rem;
         margin-bottom: 2rem;
+        width: 100%;
     }
     
     .student-card {
-        background: var(--bg-white);
-        border-radius: var(--border-radius-lg);
+        background: #ffffff;
+        border-radius: 12px;
         padding: 1.5rem;
-        box-shadow: var(--shadow);
-        transition: var(--transition);
-        border: 1px solid var(--border-color);
+        box-shadow: 0 2px 15px rgba(0,0,0,0.08);
+        transition: all 0.3s ease;
+        border: 1px solid #e9ecef;
+        width: 100%;
     }
     
     .student-card:hover {
-        transform: translateY(-4px);
-        box-shadow: var(--shadow-lg);
+        transform: translateY(-3px);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.12);
     }
     
     .student-header {
@@ -153,26 +185,38 @@
         width: 50px;
         height: 50px;
         border-radius: 50%;
-        background: var(--primary-light);
-        color: var(--primary-dark);
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        color: white;
         display: flex;
         align-items: center;
         justify-content: center;
         font-weight: 600;
         font-size: 1.25rem;
+        flex-shrink: 0;
+    }
+    
+    .student-info {
+        flex: 1;
+        min-width: 0;
     }
     
     .student-info h3 {
         font-size: 1.1rem;
         font-weight: 600;
-        color: var(--text-primary);
+        color: #2c3e50;
         margin: 0 0 0.25rem 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
     }
     
     .student-info p {
         font-size: 0.875rem;
-        color: var(--text-muted);
+        color: #6c757d;
         margin: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
     }
     
     .student-details {
@@ -188,13 +232,19 @@
     }
     
     .detail-label {
-        color: var(--text-muted);
+        color: #6c757d;
         font-weight: 500;
+        flex-shrink: 0;
     }
     
     .detail-value {
-        color: var(--text-primary);
+        color: #2c3e50;
         font-weight: 500;
+        text-align: right;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        margin-left: 1rem;
     }
     
     .student-badges {
@@ -206,7 +256,7 @@
     
     .status-badge {
         padding: 0.25rem 0.75rem;
-        border-radius: var(--border-radius);
+        border-radius: 20px;
         font-size: 0.75rem;
         font-weight: 500;
         display: flex;
@@ -216,37 +266,37 @@
     
     .status-badge.active {
         background: rgba(40, 167, 69, 0.1);
-        color: var(--success-color);
+        color: #28a745;
     }
     
     .status-badge.paused {
         background: rgba(255, 193, 7, 0.1);
-        color: var(--warning-color);
+        color: #ffc107;
     }
     
     .status-badge.completed {
         background: rgba(23, 162, 184, 0.1);
-        color: var(--info-color);
+        color: #17a2b8;
     }
     
     .status-badge.dropped {
         background: rgba(220, 53, 69, 0.1);
-        color: var(--danger-color);
+        color: #dc3545;
     }
     
     .fee-badge.paid {
         background: rgba(40, 167, 69, 0.1);
-        color: var(--success-color);
+        color: #28a745;
     }
     
     .fee-badge.partial {
         background: rgba(255, 193, 7, 0.1);
-        color: var(--warning-color);
+        color: #ffc107;
     }
     
     .fee-badge.pending {
         background: rgba(220, 53, 69, 0.1);
-        color: var(--danger-color);
+        color: #dc3545;
     }
     
     .subjects-list {
@@ -257,10 +307,10 @@
     }
     
     .subject-tag {
-        background: var(--bg-light);
-        color: var(--text-secondary);
+        background: #f8f9fa;
+        color: #495057;
         padding: 0.125rem 0.5rem;
-        border-radius: var(--border-radius);
+        border-radius: 15px;
         font-size: 0.75rem;
         font-weight: 500;
     }
@@ -276,44 +326,138 @@
         gap: 0.5rem;
     }
     
+    .btn {
+        padding: 0.5rem 1rem;
+        border-radius: 6px;
+        font-weight: 500;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        border: 2px solid transparent;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        font-size: 0.875rem;
+    }
+    
+    .btn-primary {
+        background: #007bff;
+        color: white;
+        border-color: #007bff;
+    }
+    
+    .btn-primary:hover {
+        background: #0056b3;
+        border-color: #0056b3;
+        transform: translateY(-1px);
+    }
+    
+    .btn-outline {
+        background: transparent;
+        color: #007bff;
+        border-color: #007bff;
+    }
+    
+    .btn-outline:hover {
+        background: #007bff;
+        color: white;
+        transform: translateY(-1px);
+    }
+    
     .btn-sm {
         padding: 0.375rem 0.75rem;
         font-size: 0.75rem;
-        border-radius: var(--border-radius);
+        border-radius: 4px;
+    }
+    
+    .btn-warning {
+        background: #ffc107;
+        color: #856404;
+        border-color: #ffc107;
+    }
+    
+    .btn-success {
+        background: #28a745;
+        color: white;
+        border-color: #28a745;
+    }
+    
+    .btn-danger {
+        background: #dc3545;
+        color: white;
+        border-color: #dc3545;
     }
     
     .stats-section {
-        background: var(--bg-white);
-        border-radius: var(--border-radius-lg);
+        background: #ffffff;
+        border-radius: 12px;
         padding: 1.5rem;
         margin-bottom: 2rem;
-        box-shadow: var(--shadow);
+        box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+        border: 1px solid #e9ecef;
+        width: 100%;
     }
     
     .stats-grid {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
         gap: 1.5rem;
+        width: 100%;
     }
     
     .stat-card {
         text-align: center;
-        padding: 1rem;
-        background: var(--bg-light);
-        border-radius: var(--border-radius);
+        padding: 1.5rem;
+        background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+        border-radius: 10px;
+        border: 1px solid #dee2e6;
     }
     
     .stat-value {
-        font-size: 2rem;
+        font-size: 2.5rem;
         font-weight: 700;
-        color: var(--primary-color);
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
         display: block;
+        line-height: 1.2;
     }
     
     .stat-label {
         font-size: 0.875rem;
-        color: var(--text-muted);
-        margin-top: 0.25rem;
+        color: #6c757d;
+        margin-top: 0.5rem;
+        font-weight: 500;
+    }
+    
+    .no-students {
+        text-align: center;
+        padding: 4rem 2rem;
+        color: #6c757d;
+    }
+    
+    .no-students i {
+        font-size: 4rem;
+        margin-bottom: 1.5rem;
+        color: #dee2e6;
+    }
+    
+    .no-students h3 {
+        color: #495057;
+        margin-bottom: 1rem;
+    }
+    
+    .page-title h1 {
+        margin: 0;
+        color: #2c3e50;
+        font-size: 1.75rem;
+    }
+    
+    .page-title p {
+        margin: 0.5rem 0 0 0;
+        color: #6c757d;
+        font-size: 1rem;
     }
     
     .pagination-section {
@@ -322,21 +466,43 @@
         margin-top: 2rem;
     }
     
-    .no-students {
-        text-align: center;
-        padding: 3rem;
-        color: var(--text-muted);
+    .pagination {
+        display: flex;
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        gap: 0.25rem;
     }
     
-    .no-students i {
-        font-size: 3rem;
-        margin-bottom: 1rem;
-        color: var(--text-muted);
+    .page-item {
+        display: flex;
     }
     
-    @media (max-width: 1024px) {
+    .page-link {
+        padding: 0.5rem 0.75rem;
+        text-decoration: none;
+        color: #007bff;
+        border: 1px solid #dee2e6;
+        border-radius: 6px;
+        transition: all 0.3s ease;
+    }
+    
+    .page-link:hover {
+        background: #007bff;
+        color: white;
+        border-color: #007bff;
+    }
+    
+    .page-item.active .page-link {
+        background: #007bff;
+        color: white;
+        border-color: #007bff;
+    }
+    
+    /* Responsive design */
+    @media (max-width: 1200px) {
         .filter-row {
-            grid-template-columns: 1fr 1fr;
+            grid-template-columns: 1fr 1fr 1fr;
             gap: 1rem;
         }
         
@@ -344,17 +510,29 @@
             grid-column: 1 / -1;
         }
         
-        .filter-buttons {
-            grid-column: 1 / -1;
-            justify-content: center;
-        }
-        
         .students-grid {
-            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
         }
     }
     
     @media (max-width: 768px) {
+        .sidebar {
+            width: 200px;
+        }
+        
+        .main-content {
+            width: calc(100% - 200px);
+        }
+        
+        .page-content {
+            padding: 1rem;
+        }
+        
+        .page-header-content {
+            flex-direction: column;
+            align-items: stretch;
+        }
+        
         .filter-row {
             grid-template-columns: 1fr;
             gap: 1rem;
@@ -368,19 +546,55 @@
             grid-template-columns: 1fr;
         }
         
-        .student-actions {
-            flex-direction: column;
-        }
-        
         .stats-grid {
             grid-template-columns: repeat(2, 1fr);
         }
+        
+        .student-actions {
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+    }
+    
+    @media (max-width: 480px) {
+        .sidebar {
+            width: 60px;
+        }
+        
+        .main-content {
+            width: calc(100% - 60px);
+        }
+        
+        .page-content {
+            padding: 0.75rem;
+        }
+        
+        .stats-grid {
+            grid-template-columns: 1fr;
+        }
+        
+        .stat-card {
+            padding: 1rem;
+        }
+        
+        .stat-value {
+            font-size: 2rem;
+        }
+    }
+
+    /* Override any base template styles that might cause gaps */
+    .container-fluid,
+    .container {
+        padding: 0 !important;
+        margin: 0 !important;
+        max-width: none !important;
+        width: 100% !important;
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="main-content">
+<div class="page-content">
     <div class="page-header">
         <div class="page-header-content">
             <div class="page-title">
@@ -564,12 +778,12 @@
                 <div class="student-actions">
                     <div class="btn-group">
                         <a href="{{ url_for('admin.student_details', student_id=student.id) }}" 
-                           class="btn btn-primary btn-sm" data-bs-toggle="tooltip" title="View Details">
+                           class="btn btn-primary btn-sm" title="View Details">
                             <i class="fas fa-eye"></i>
                         </a>
                         
                         <a href="{{ url_for('admin.edit_student', student_id=student.id) }}" 
-                           class="btn btn-outline btn-sm" data-bs-toggle="tooltip" title="Edit Student">
+                           class="btn btn-outline btn-sm" title="Edit Student">
                             <i class="fas fa-edit"></i>
                         </a>
                     </div>
@@ -578,13 +792,13 @@
                         {% if student.is_active %}
                             <button type="button" class="btn btn-warning btn-sm" 
                                     onclick="toggleStudentStatus({{ student.id }}, false)"
-                                    data-bs-toggle="tooltip" title="Deactivate Student">
+                                    title="Deactivate Student">
                                 <i class="fas fa-pause"></i>
                             </button>
                         {% else %}
                             <button type="button" class="btn btn-success btn-sm" 
                                     onclick="toggleStudentStatus({{ student.id }}, true)"
-                                    data-bs-toggle="tooltip" title="Activate Student">
+                                    title="Activate Student">
                                 <i class="fas fa-play"></i>
                             </button>
                         {% endif %}
@@ -592,7 +806,7 @@
                         {% if current_user.role == 'superadmin' %}
                         <button type="button" class="btn btn-danger btn-sm" 
                                 onclick="deleteStudent({{ student.id }}, '{{ student.full_name }}')"
-                                data-bs-toggle="tooltip" title="Delete Student">
+                                title="Delete Student">
                             <i class="fas fa-trash"></i>
                         </button>
                         {% endif %}
@@ -677,12 +891,6 @@
 {% block extra_js %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Initialize tooltips
-    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-    tooltipTriggerList.map(function (tooltipTriggerEl) {
-        return new bootstrap.Tooltip(tooltipTriggerEl);
-    });
-    
     // Auto-submit form on filter change
     const filterForm = document.querySelector('.filter-form');
     const filterSelects = filterForm.querySelectorAll('select');
@@ -701,26 +909,8 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
-        fetch(`/admin/students/${studentId}/${activate ? 'reactivate' : 'deactivate'}`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': document.querySelector('meta[name=csrf-token]')?.getAttribute('content')
-            }
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                showAlert(`Student ${action}d successfully`, 'success');
-                setTimeout(() => location.reload(), 1000);
-            } else {
-                showAlert(data.error || `Error ${action}ing student`, 'error');
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            showAlert(`Error ${action}ing student`, 'error');
-        });
+        // Add your AJAX call here
+        console.log(`${action} student ${studentId}`);
     };
     
     // Delete student
@@ -731,56 +921,13 @@ document.addEventListener('DOMContentLoaded', function() {
         
         const secondConfirm = prompt('Type "DELETE" to confirm:', '');
         if (secondConfirm !== 'DELETE') {
-            showAlert('Deletion cancelled.', 'info');
+            alert('Deletion cancelled.');
             return;
         }
         
-        fetch(`/admin/students/${studentId}/delete`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': document.querySelector('meta[name=csrf-token]')?.getAttribute('content')
-            }
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                showAlert('Student deleted successfully', 'success');
-                setTimeout(() => location.reload(), 1000);
-            } else {
-                showAlert(data.error || 'Error deleting student', 'error');
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            showAlert('Error deleting student', 'error');
-        });
+        // Add your AJAX call here
+        console.log(`Delete student ${studentId}`);
     };
-    
-    // Show alert function
-    function showAlert(message, type) {
-        // Simple alert implementation - you can replace with your preferred notification system
-        const alertClass = type === 'success' ? 'alert-success' : 
-                          type === 'error' ? 'alert-danger' : 
-                          type === 'warning' ? 'alert-warning' : 'alert-info';
-        
-        const alertHtml = `
-            <div class="alert ${alertClass} alert-dismissible fade show" role="alert" style="position: fixed; top: 20px; right: 20px; z-index: 9999;">
-                ${message}
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            </div>
-        `;
-        
-        document.body.insertAdjacentHTML('beforeend', alertHtml);
-        
-        // Auto-remove after 5 seconds
-        setTimeout(() => {
-            const alert = document.querySelector('.alert');
-            if (alert) {
-                alert.remove();
-            }
-        }, 5000);
-    }
     
     // Search with debounce
     const searchInput = document.querySelector('input[name="search"]');

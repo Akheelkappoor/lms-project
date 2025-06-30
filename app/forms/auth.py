@@ -1,6 +1,7 @@
 from flask_wtf import FlaskForm
 from wtforms import StringField, PasswordField, BooleanField, SubmitField, SelectField
 from wtforms.validators import DataRequired, Email, EqualTo, Length, ValidationError
+
 from app.models.user import User
 
 class LoginForm(FlaskForm):
@@ -41,3 +42,50 @@ class ChangePasswordForm(FlaskForm):
                                    validators=[DataRequired(), EqualTo('new_password')],
                                    render_kw={'placeholder': 'Confirm new password'})
     submit = SubmitField('Change Password')
+
+# Add this to your existing app/forms/auth.py file
+
+
+class SetupForm(FlaskForm):
+    """Initial setup form for creating superadmin"""
+    
+    full_name = StringField('Full Name', validators=[
+        DataRequired(),
+        Length(min=2, max=100)
+    ])
+    
+    username = StringField('Username', validators=[
+        DataRequired(),
+        Length(min=3, max=20)
+    ])
+    
+    email = StringField('Email', validators=[
+        DataRequired(),
+        Email()
+    ])
+    
+    phone = StringField('Phone Number', validators=[
+        Length(min=10, max=15)
+    ])
+    
+    password = PasswordField('Password', validators=[
+        DataRequired(),
+        Length(min=6)
+    ])
+    
+    confirm_password = PasswordField('Confirm Password', validators=[
+        DataRequired(),
+        EqualTo('password', message='Passwords must match')
+    ])
+    
+    submit = SubmitField('Complete Setup')
+    
+    def validate_username(self, username):
+        user = User.query.filter_by(username=username.data).first()
+        if user:
+            raise ValidationError('Username already exists.')
+    
+    def validate_email(self, email):
+        user = User.query.filter_by(email=email.data).first()
+        if user:
+            raise ValidationError('Email already registered.')

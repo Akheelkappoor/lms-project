@@ -40,6 +40,9 @@ def create_app(config_class=Config):
             os.makedirs(path)
 
     # Register Blueprints
+    from app.routes.setup import bp as setup_bp
+    app.register_blueprint(setup_bp)
+    
     from app.routes.auth import bp as auth_bp
     app.register_blueprint(auth_bp, url_prefix='/auth')
 

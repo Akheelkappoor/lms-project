@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Initial Setup - I2Global LMS</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        .setup-container {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .setup-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            max-width: 500px;
+            width: 100%;
+            padding: 40px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .setup-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .setup-icon {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 20px;
+            color: white;
+            font-size: 2rem;
+        }
+        
+        .setup-title {
+            color: #2c3e50;
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+        
+        .setup-subtitle {
+            color: #7f8c8d;
+            font-size: 1rem;
+        }
+        
+        .form-floating {
+            margin-bottom: 20px;
+        }
+        
+        .form-control {
+            border: 2px solid #e9ecef;
+            border-radius: 10px;
+            padding: 12px 15px;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+        
+        .form-control:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+        }
+        
+        .btn-setup {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border: none;
+            border-radius: 10px;
+            padding: 12px 30px;
+            font-weight: 600;
+            font-size: 1.1rem;
+            color: white;
+            width: 100%;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-setup:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.3);
+            color: white;
+        }
+        
+        .alert {
+            border-radius: 10px;
+            border: none;
+        }
+        
+        .progress-steps {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 30px;
+        }
+        
+        .step {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #667eea;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            margin: 0 10px;
+        }
+        
+        .step.completed {
+            background: #28a745;
+        }
+        
+        .step-line {
+            width: 50px;
+            height: 2px;
+            background: #e9ecef;
+            margin-top: 19px;
+        }
+        
+        .setup-info {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 30px;
+            border-left: 4px solid #667eea;
+        }
+        
+        .info-title {
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+        
+        .info-text {
+            color: #6c757d;
+            font-size: 0.95rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="setup-container">
+        <div class="setup-card">
+            <div class="setup-header">
+                <div class="setup-icon">
+                    <i class="fas fa-cog"></i>
+                </div>
+                <h2 class="setup-title">Welcome to I2Global LMS</h2>
+                <p class="setup-subtitle">Let's set up your system administrator account</p>
+            </div>
+            
+            <div class="progress-steps">
+                <div class="step completed">1</div>
+                <div class="step-line"></div>
+                <div class="step">2</div>
+                <div class="step-line"></div>
+                <div class="step">3</div>
+            </div>
+            
+            <div class="setup-info">
+                <div class="info-title">
+                    <i class="fas fa-info-circle me-2"></i>
+                    Setup Information
+                </div>
+                <div class="info-text">
+                    You're creating the main administrator account for your LMS. This account will have full system access and cannot be deleted.
+                </div>
+            </div>
+            
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show" role="alert">
+                            <i class="fas fa-{{ 'exclamation-triangle' if category == 'error' else 'check-circle' }} me-2"></i>
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+            
+            <form method="POST" novalidate>
+                {{ form.hidden_tag() }}
+                
+                <div class="form-floating">
+                    {{ form.full_name(class="form-control", placeholder="Full Name") }}
+                    {{ form.full_name.label }}
+                    {% if form.full_name.errors %}
+                        <div class="text-danger small mt-1">
+                            {% for error in form.full_name.errors %}
+                                <i class="fas fa-exclamation-circle me-1"></i>{{ error }}
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+                
+                <div class="form-floating">
+                    {{ form.username(class="form-control", placeholder="Username") }}
+                    {{ form.username.label }}
+                    {% if form.username.errors %}
+                        <div class="text-danger small mt-1">
+                            {% for error in form.username.errors %}
+                                <i class="fas fa-exclamation-circle me-1"></i>{{ error }}
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+                
+                <div class="form-floating">
+                    {{ form.email(class="form-control", placeholder="Email Address") }}
+                    {{ form.email.label }}
+                    {% if form.email.errors %}
+                        <div class="text-danger small mt-1">
+                            {% for error in form.email.errors %}
+                                <i class="fas fa-exclamation-circle me-1"></i>{{ error }}
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+                
+                <div class="form-floating">
+                    {{ form.phone(class="form-control", placeholder="Phone Number") }}
+                    {{ form.phone.label }}
+                    {% if form.phone.errors %}
+                        <div class="text-danger small mt-1">
+                            {% for error in form.phone.errors %}
+                                <i class="fas fa-exclamation-circle me-1"></i>{{ error }}
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+                
+                <div class="form-floating">
+                    {{ form.password(class="form-control", placeholder="Password") }}
+                    {{ form.password.label }}
+                    {% if form.password.errors %}
+                        <div class="text-danger small mt-1">
+                            {% for error in form.password.errors %}
+                                <i class="fas fa-exclamation-circle me-1"></i>{{ error }}
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+                
+                <div class="form-floating">
+                    {{ form.confirm_password(class="form-control", placeholder="Confirm Password") }}
+                    {{ form.confirm_password.label }}
+                    {% if form.confirm_password.errors %}
+                        <div class="text-danger small mt-1">
+                            {% for error in form.confirm_password.errors %}
+                                <i class="fas fa-exclamation-circle me-1"></i>{{ error }}
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+                
+                <button type="submit" class="btn btn-setup">
+                    <i class="fas fa-rocket me-2"></i>
+                    Complete Setup
+                </button>
+            </form>
+            
+            <div class="text-center mt-4">
+                <small class="text-muted">
+                    <i class="fas fa-shield-alt me-1"></i>
+                    Your data is secure and encrypted
+                </small>
+            </div>
+        </div>
+    </div>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

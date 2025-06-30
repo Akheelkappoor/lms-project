@@ -28,6 +28,20 @@
         display: flex;
         justify-content: space-between;
         align-items: center;
+        flex-wrap: wrap;
+        gap: 1rem;
+    }
+
+    .header-left {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+
+    .header-right {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
     }
 
     .view-toggle {
@@ -56,7 +70,7 @@
 
     .calendar-layout {
         display: flex;
-        height: calc(100vh - 64px);
+        height: calc(100vh - 80px);
     }
 
     .sidebar-panel {
@@ -64,6 +78,7 @@
         background: white;
         border-right: 1px solid #e2e8f0;
         overflow-y: auto;
+        flex-shrink: 0;
     }
 
     .calendar-main {
@@ -76,28 +91,35 @@
     .calendar-grid {
         flex: 1;
         overflow: auto;
+        background: white;
+    }
+
+    .weekly-view {
+        display: grid;
+        grid-template-columns: 80px 1fr;
+        height: 100%;
     }
 
     .time-column {
-        width: 80px;
         background: #f8fafc;
         border-right: 1px solid #e2e8f0;
     }
 
     .day-columns {
-        flex: 1;
         display: grid;
         grid-template-columns: repeat(7, 1fr);
+        grid-template-rows: 60px 1fr;
     }
 
     .day-header {
-        height: 60px;
+        background: #f8fafc;
         border-bottom: 1px solid #e2e8f0;
+        border-right: 1px solid #e2e8f0;
         display: flex;
         align-items: center;
         justify-content: center;
-        background: #f8fafc;
         font-weight: 600;
+        font-size: 0.875rem;
     }
 
     .day-header.today {
@@ -105,10 +127,15 @@
         color: var(--primary-color);
     }
 
+    .day-content {
+        border-right: 1px solid #e2e8f0;
+        position: relative;
+        min-height: 600px;
+    }
+
     .time-slot {
         height: 60px;
         border-bottom: 1px solid #f1f5f9;
-        border-right: 1px solid #f1f5f9;
         position: relative;
         cursor: pointer;
     }
@@ -123,6 +150,8 @@
         left: 8px;
         font-size: 0.75rem;
         color: #64748b;
+        width: 60px;
+        text-align: center;
     }
 
     .class-block {
@@ -135,6 +164,7 @@
         transition: all 0.2s;
         z-index: 10;
         box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        margin: 2px 0;
     }
 
     .class-block:hover {
@@ -142,18 +172,23 @@
         box-shadow: 0 4px 8px rgba(0,0,0,0.15);
     }
 
-    .class-block.primary {
+    .class-block.scheduled {
         background: linear-gradient(135deg, var(--primary-color) 0%, #e8974a 100%);
         color: white;
     }
 
-    .class-block.secondary {
-        background: linear-gradient(135deg, var(--secondary-color) 0%, #5a6268 100%);
+    .class-block.ongoing {
+        background: linear-gradient(135deg, var(--success-color) 0%, #1e7e34 100%);
         color: white;
     }
 
-    .class-block.success {
-        background: linear-gradient(135deg, var(--success-color) 0%, #1e7e34 100%);
+    .class-block.completed {
+        background: linear-gradient(135deg, var(--info-color) 0%, #117a8b 100%);
+        color: white;
+    }
+
+    .class-block.cancelled {
+        background: linear-gradient(135deg, var(--danger-color) 0%, #bd2130 100%);
         color: white;
     }
 
@@ -161,11 +196,17 @@
         font-size: 0.75rem;
         font-weight: 600;
         margin-bottom: 2px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
 
     .class-details {
         font-size: 0.625rem;
         opacity: 0.9;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
 
     .panel-section {
@@ -216,27 +257,54 @@
     }
 
     .status-dot.scheduled { background: var(--primary-color); }
-    .status-dot.ongoing { background: var(--warning-color); }
-    .status-dot.completed { background: var(--success-color); }
+    .status-dot.ongoing { background: var(--success-color); }
+    .status-dot.completed { background: var(--info-color); }
     .status-dot.cancelled { background: var(--danger-color); }
 
+    /* Daily View */
+    .daily-view {
+        padding: 1rem;
+    }
+
+    .today-classes {
+        display: grid;
+        gap: 1rem;
+    }
+
+    .today-class-card {
+        background: white;
+        border: 1px solid #e2e8f0;
+        border-radius: 0.5rem;
+        padding: 1rem;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .today-class-card:hover {
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        transform: translateY(-1px);
+    }
+
+    /* Modal Styles */
     .modal-overlay {
         position: fixed;
-        inset: 0;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
         background: rgba(0, 0, 0, 0.5);
-        z-index: 1000;
         display: flex;
         align-items: center;
         justify-content: center;
-        padding: 1rem;
+        z-index: 1000;
     }
 
     .modal-content {
         background: white;
-        border-radius: 0.75rem;
+        border-radius: 0.5rem;
         padding: 2rem;
-        max-width: 600px;
-        width: 100%;
+        max-width: 500px;
+        width: 90%;
         max-height: 90vh;
         overflow-y: auto;
     }
@@ -253,19 +321,17 @@
 
     .form-label {
         display: block;
-        font-size: 0.875rem;
+        margin-bottom: 0.5rem;
         font-weight: 500;
         color: #374151;
-        margin-bottom: 0.5rem;
     }
 
     .form-input {
         width: 100%;
-        padding: 0.5rem 0.75rem;
+        padding: 0.5rem;
         border: 1px solid #d1d5db;
         border-radius: 0.375rem;
         font-size: 0.875rem;
-        transition: border-color 0.2s;
     }
 
     .form-input:focus {
@@ -277,7 +343,6 @@
     .btn {
         padding: 0.5rem 1rem;
         border-radius: 0.375rem;
-        font-size: 0.875rem;
         font-weight: 500;
         cursor: pointer;
         transition: all 0.2s;
@@ -285,6 +350,7 @@
         display: inline-flex;
         align-items: center;
         gap: 0.5rem;
+        text-decoration: none;
     }
 
     .btn-primary {
@@ -294,53 +360,51 @@
 
     .btn-primary:hover {
         background: #e8974a;
-        transform: translateY(-1px);
     }
 
     .btn-secondary {
-        background: #f8fafc;
-        color: #374151;
-        border: 1px solid #d1d5db;
+        background: #6c757d;
+        color: white;
     }
 
     .btn-secondary:hover {
-        background: #f1f5f9;
+        background: #5a6268;
+    }
+
+    .btn-success {
+        background: var(--success-color);
+        color: white;
+    }
+
+    .btn-success:hover {
+        background: #1e7e34;
     }
 
     .loading {
-        pointer-events: none;
         opacity: 0.7;
+        pointer-events: none;
     }
 
-    .loading i {
-        animation: spin 1s linear infinite;
-    }
-
-    @keyframes spin {
-        from { transform: rotate(0deg); }
-        to { transform: rotate(360deg); }
-    }
-
-    .alert {
-        position: fixed;
-        top: 20px;
-        right: 20px;
-        padding: 1rem 1.5rem;
-        border-radius: 0.5rem;
-        color: white;
-        font-weight: 500;
-        z-index: 1100;
-        animation: slideInRight 0.3s ease-out;
-    }
-
-    .alert.success { background: var(--success-color); }
-    .alert.error { background: var(--danger-color); }
-    .alert.warning { background: var(--warning-color); }
-    .alert.info { background: var(--info-color); }
-
-    @keyframes slideInRight {
-        from { transform: translateX(100%); opacity: 0; }
-        to { transform: translateX(0); opacity: 1; }
+    /* Responsive */
+    @media (max-width: 768px) {
+        .calendar-layout {
+            flex-direction: column;
+        }
+        
+        .sidebar-panel {
+            width: 100%;
+            height: auto;
+            max-height: 300px;
+        }
+        
+        .form-grid {
+            grid-template-columns: 1fr;
+        }
+        
+        .header-left, .header-right {
+            flex-direction: column;
+            align-items: flex-start;
+        }
     }
 </style>
 {% endblock %}
@@ -348,111 +412,121 @@
 {% block content %}
 <!-- Calendar Header -->
 <div class="calendar-header">
-    <div class="flex items-center gap-4">
-        <h1 class="text-2xl font-bold text-gray-900" id="currentMonth">December 2024</h1>
+    <div class="header-left">
+        <h1 class="text-xl font-bold text-gray-900">Class Timetable</h1>
+        
+        <!-- Navigation Controls -->
         <div class="flex items-center gap-2">
-            <button class="btn btn-secondary" id="prevWeek">
+            <button onclick="navigateWeek(-1)" class="btn btn-secondary btn-sm">
                 <i class="fas fa-chevron-left"></i>
             </button>
-            <button class="btn btn-secondary" id="nextWeek">
+            <button onclick="goToToday()" class="btn btn-primary btn-sm">Today</button>
+            <button onclick="navigateWeek(1)" class="btn btn-secondary btn-sm">
                 <i class="fas fa-chevron-right"></i>
             </button>
-            <button class="btn btn-secondary" id="todayBtn">Today</button>
+        </div>
+        
+        <div class="text-lg font-semibold text-gray-700" id="currentMonth">
+            June 2025
         </div>
     </div>
-
-    <div class="flex items-center gap-4">
+    
+    <div class="header-right">
         <!-- View Toggle -->
         <div class="view-toggle">
-            <button class="view-btn active" data-view="week">Weekly</button>
-            <button class="view-btn" data-view="month">Monthly</button>
-            <button class="view-btn" data-view="today">Daily</button>
+            <button class="view-btn" onclick="switchView('today')">Today</button>
+            <button class="view-btn active" onclick="switchView('week')">Week</button>
+            <button class="view-btn" onclick="switchView('month')">Month</button>
         </div>
-
-        <!-- Filter -->
-        <select class="form-input" id="filterSelect" style="width: 200px;">
-            <option value="all">All Classes</option>
-            {% for dept in departments %}
-            <option value="department-{{ dept.id }}">{{ dept.name }}</option>
-            {% endfor %}
-        </select>
+        
+        <!-- Quick Actions -->
+        <button onclick="openQuickClassModal()" class="btn btn-primary">
+            <i class="fas fa-plus"></i>
+            Quick Class
+        </button>
     </div>
 </div>
 
 <!-- Calendar Layout -->
 <div class="calendar-layout">
-    <!-- Left Sidebar Panel -->
+    <!-- Sidebar Panel -->
     <div class="sidebar-panel">
-        <!-- Quick Actions -->
+        <!-- Statistics Section -->
         <div class="panel-section">
-            <div class="section-title">Quick Actions</div>
-            <button class="btn btn-primary w-full mb-2" onclick="openQuickClassModal()">
-                <i class="fas fa-plus"></i>
-                Create New Class
-            </button>
-            <button class="btn btn-secondary w-full">
-                <i class="fas fa-users"></i>
-                Create Group Class
-            </button>
-        </div>
-
-        <!-- Today's Statistics -->
-        <div class="panel-section">
-            <div class="section-title">Today's Status</div>
-            <div class="stats-grid">
+            <h3 class="section-title">Today's Overview</h3>
+            <div class="stats-grid" id="todayStats">
                 <div class="stat-item">
-                    <div class="stat-label">
-                        <div class="status-dot scheduled"></div>
+                    <span class="stat-label">
+                        <span class="status-dot scheduled"></span>
                         Scheduled
-                    </div>
-                    <div class="stat-value" id="scheduledCount">0</div>
+                    </span>
+                    <span class="stat-value" id="scheduledCount">0</span>
                 </div>
                 <div class="stat-item">
-                    <div class="stat-label">
-                        <div class="status-dot ongoing"></div>
+                    <span class="stat-label">
+                        <span class="status-dot ongoing"></span>
                         Ongoing
-                    </div>
-                    <div class="stat-value" id="ongoingCount">0</div>
+                    </span>
+                    <span class="stat-value" id="ongoingCount">0</span>
                 </div>
                 <div class="stat-item">
-                    <div class="stat-label">
-                        <div class="status-dot completed"></div>
+                    <span class="stat-label">
+                        <span class="status-dot completed"></span>
                         Completed
-                    </div>
-                    <div class="stat-value" id="completedCount">0</div>
+                    </span>
+                    <span class="stat-value" id="completedCount">0</span>
                 </div>
                 <div class="stat-item">
-                    <div class="stat-label">
-                        <div class="status-dot cancelled"></div>
+                    <span class="stat-label">
+                        <span class="status-dot cancelled"></span>
                         Cancelled
-                    </div>
-                    <div class="stat-value" id="cancelledCount">0</div>
+                    </span>
+                    <span class="stat-value" id="cancelledCount">0</span>
                 </div>
             </div>
         </div>
-
-        <!-- Available Tutors -->
+        
+        <!-- Filters Section -->
         <div class="panel-section">
-            <div class="section-title">Available Tutors</div>
-            <div id="availableTutors" class="space-y-2">
-                <!-- Dynamically loaded -->
+            <h3 class="section-title">Filters</h3>
+            <div class="space-y-3">
+                <div class="form-group">
+                    <label class="form-label">Filter by:</label>
+                    <select class="form-input" onchange="applyFilter(this.value)">
+                        <option value="all">All Classes</option>
+                        <option value="tutor">By Tutor</option>
+                        <option value="subject">By Subject</option>
+                        <option value="grade">By Grade</option>
+                    </select>
+                </div>
             </div>
         </div>
-
-        <!-- Recent Activities -->
+        
+        <!-- Quick Stats -->
         <div class="panel-section">
-            <div class="section-title">Recent Activities</div>
-            <div id="recentActivities" class="space-y-2">
-                <!-- Dynamically loaded -->
+            <h3 class="section-title">Quick Stats</h3>
+            <div class="space-y-2 text-sm">
+                <div class="flex justify-between">
+                    <span class="text-gray-600">Active Tutors:</span>
+                    <span class="font-medium">{{ tutors|length }}</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-gray-600">Active Students:</span>
+                    <span class="font-medium">{{ students|length }}</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-gray-600">Departments:</span>
+                    <span class="font-medium">{{ departments|length }}</span>
+                </div>
             </div>
         </div>
     </div>
-
-    <!-- Calendar Main Area -->
+    
+    <!-- Main Calendar Area -->
     <div class="calendar-main">
         <!-- Weekly View -->
         <div id="weeklyView" class="calendar-grid">
-            <div class="flex">
+            <div class="weekly-view">
                 <!-- Time Column -->
                 <div class="time-column">
                     <div class="day-header"></div>
@@ -465,154 +539,156 @@
                     <div class="day-header" data-day="0">
                         <div class="text-center">
                             <div class="text-xs text-gray-500">MON</div>
-                            <div class="text-sm font-medium" id="day-0">16</div>
+                            <div class="text-sm font-medium" id="day-0">30</div>
                         </div>
                     </div>
                     <div class="day-header" data-day="1">
                         <div class="text-center">
                             <div class="text-xs text-gray-500">TUE</div>
-                            <div class="text-sm font-medium" id="day-1">17</div>
+                            <div class="text-sm font-medium" id="day-1">1</div>
                         </div>
                     </div>
                     <div class="day-header today" data-day="2">
                         <div class="text-center">
                             <div class="text-xs">WED</div>
-                            <div class="text-sm font-medium" id="day-2">18</div>
+                            <div class="text-sm font-medium" id="day-2">2</div>
                         </div>
                     </div>
                     <div class="day-header" data-day="3">
                         <div class="text-center">
                             <div class="text-xs text-gray-500">THU</div>
-                            <div class="text-sm font-medium" id="day-3">19</div>
+                            <div class="text-sm font-medium" id="day-3">3</div>
                         </div>
                     </div>
                     <div class="day-header" data-day="4">
                         <div class="text-center">
                             <div class="text-xs text-gray-500">FRI</div>
-                            <div class="text-sm font-medium" id="day-4">20</div>
+                            <div class="text-sm font-medium" id="day-4">4</div>
                         </div>
                     </div>
                     <div class="day-header" data-day="5">
                         <div class="text-center">
                             <div class="text-xs text-gray-500">SAT</div>
-                            <div class="text-sm font-medium" id="day-5">21</div>
+                            <div class="text-sm font-medium" id="day-5">5</div>
                         </div>
                     </div>
                     <div class="day-header" data-day="6">
                         <div class="text-center">
                             <div class="text-xs text-gray-500">SUN</div>
-                            <div class="text-sm font-medium" id="day-6">22</div>
+                            <div class="text-sm font-medium" id="day-6">6</div>
                         </div>
                     </div>
 
-                    <!-- Calendar Grid Content -->
-                    <div id="calendarGrid"></div>
+                    <!-- Day Content Areas -->
+                    <div class="day-content" data-day="0" id="calendarGrid-0"></div>
+                    <div class="day-content" data-day="1" id="calendarGrid-1"></div>
+                    <div class="day-content" data-day="2" id="calendarGrid-2"></div>
+                    <div class="day-content" data-day="3" id="calendarGrid-3"></div>
+                    <div class="day-content" data-day="4" id="calendarGrid-4"></div>
+                    <div class="day-content" data-day="5" id="calendarGrid-5"></div>
+                    <div class="day-content" data-day="6" id="calendarGrid-6"></div>
                 </div>
             </div>
         </div>
 
-        <!-- Monthly View (Initially Hidden) -->
-        <div id="monthlyView" class="calendar-grid" style="display: none;">
-            <div id="monthGrid" class="p-4">
-                <!-- Monthly calendar will be generated here -->
+        <!-- Daily View -->
+        <div id="dailyView" class="daily-view" style="display: none;">
+            <div class="today-classes" id="dailyClasses">
+                <!-- Daily classes will be loaded here -->
             </div>
         </div>
 
-        <!-- Daily View (Initially Hidden) -->
-        <div id="dailyView" class="calendar-grid" style="display: none;">
-            <div id="dailyClasses" class="p-4">
-                <!-- Daily classes will be listed here -->
+        <!-- Monthly View -->
+        <div id="monthlyView" class="daily-view" style="display: none;">
+            <div id="monthGrid">
+                <!-- Monthly calendar will be loaded here -->
             </div>
         </div>
     </div>
 </div>
 
-<!-- Quick Class Creation Modal -->
+<!-- Quick Class Modal -->
 <div id="quickClassModal" class="modal-overlay" style="display: none;">
     <div class="modal-content">
         <div class="flex items-center justify-between mb-6">
-            <h2 class="text-xl font-bold text-gray-900">Create New Class</h2>
+            <h2 class="text-xl font-bold text-gray-900">Create Quick Class</h2>
             <button onclick="closeQuickClassModal()" class="text-gray-500 hover:text-gray-700">
                 <i class="fas fa-times text-xl"></i>
             </button>
         </div>
 
-        <form id="quickClassForm" class="space-y-4">
-            <!-- Class Type -->
-            <div class="form-group">
-                <label class="form-label">Class Type</label>
-                <div class="grid grid-cols-2 gap-4">
-                    <label class="flex items-center p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
-                        <input type="radio" name="class_type" value="one_on_one" class="mr-3" checked />
-                        <div>
-                            <div class="font-medium text-gray-900">One-on-One</div>
-                            <div class="text-sm text-gray-600">Individual tutoring</div>
-                        </div>
-                    </label>
-                    <label class="flex items-center p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
-                        <input type="radio" name="class_type" value="group" class="mr-3" />
-                        <div>
-                            <div class="font-medium text-gray-900">Group Class</div>
-                            <div class="text-sm text-gray-600">Multiple students</div>
-                        </div>
-                    </label>
-                </div>
-            </div>
-
-            <div class="form-grid">
-                <!-- Tutor Selection -->
-                <div class="form-group">
-                    <label class="form-label">Select Tutor</label>
-                    <select name="tutor_id" class="form-input" required>
-                        <option value="">Choose a tutor...</option>
-                        {% for tutor in tutors %}
-                        <option value="{{ tutor.id }}">{{ tutor.user.full_name }} - {{ tutor.subjects }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-
-                <!-- Student Selection -->
-                <div class="form-group">
-                    <label class="form-label">Select Student</label>
-                    <select name="student_id" class="form-input" required>
-                        <option value="">Choose a student...</option>
-                        {% for student in students %}
-                        <option value="{{ student.id }}">{{ student.full_name }} - Grade {{ student.grade }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-            </div>
-
+        <form id="quickClassForm" onsubmit="createQuickClass(event)">
+            <!-- Basic Info -->
             <div class="form-grid">
                 <!-- Subject -->
                 <div class="form-group">
-                    <label class="form-label">Subject</label>
-                    <input type="text" name="subject" class="form-input" placeholder="Enter subject" required />
+                    <label class="form-label">Subject *</label>
+                    <input type="text" name="subject" class="form-input" required placeholder="e.g., Mathematics" />
                 </div>
 
-                <!-- Duration -->
+                <!-- Class Type -->
                 <div class="form-group">
-                    <label class="form-label">Duration (minutes)</label>
-                    <select name="duration" class="form-input" required>
-                        <option value="60">1 hour</option>
-                        <option value="90">1.5 hours</option>
-                        <option value="120">2 hours</option>
+                    <label class="form-label">Type</label>
+                    <select name="class_type" class="form-input">
+                        <option value="regular">Regular Class</option>
+                        <option value="demo">Demo Class</option>
+                        <option value="makeup">Makeup Class</option>
+                        <option value="assessment">Assessment</option>
                     </select>
                 </div>
             </div>
 
+            <!-- Tutor Selection -->
+            <div class="form-group">
+                <label class="form-label">Tutor *</label>
+                <select name="tutor_id" class="form-input" required>
+                    <option value="">Select a tutor</option>
+                    {% for tutor in tutors %}
+                    <option value="{{ tutor.id }}">{{ tutor.full_name or tutor.user.full_name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Grade -->
+            <div class="form-group">
+                <label class="form-label">Grade</label>
+                <select name="grade" class="form-input">
+                    <option value="">Select grade</option>
+                    <option value="6">Grade 6</option>
+                    <option value="7">Grade 7</option>
+                    <option value="8">Grade 8</option>
+                    <option value="9">Grade 9</option>
+                    <option value="10">Grade 10</option>
+                    <option value="11">Grade 11</option>
+                    <option value="12">Grade 12</option>
+                </select>
+            </div>
+
+            <!-- Scheduling -->
             <div class="form-grid">
                 <!-- Date -->
                 <div class="form-group">
-                    <label class="form-label">Date</label>
+                    <label class="form-label">Date *</label>
                     <input type="date" name="scheduled_date" class="form-input" required />
                 </div>
 
                 <!-- Time -->
                 <div class="form-group">
-                    <label class="form-label">Time</label>
+                    <label class="form-label">Time *</label>
                     <input type="time" name="scheduled_time" class="form-input" required />
                 </div>
+            </div>
+
+            <!-- Duration -->
+            <div class="form-group">
+                <label class="form-label">Duration (minutes)</label>
+                <select name="duration" class="form-input">
+                    <option value="30">30 minutes</option>
+                    <option value="45">45 minutes</option>
+                    <option value="60" selected>60 minutes</option>
+                    <option value="90">90 minutes</option>
+                    <option value="120">120 minutes</option>
+                </select>
             </div>
 
             <!-- Notes -->
@@ -671,9 +747,20 @@ function initializeCalendar() {
     updateDateDisplay();
 }
 
+// Setup event listeners
+function setupEventListeners() {
+    // Set default date to today
+    const dateInput = document.querySelector('[name="scheduled_date"]');
+    if (dateInput) {
+        dateInput.value = new Date().toISOString().split('T')[0];
+    }
+}
+
 // Generate time slots (9 AM to 6 PM)
 function generateTimeSlots() {
     const container = document.getElementById('timeSlots');
+    if (!container) return;
+    
     const times = [];
     
     for (let hour = 9; hour <= 18; hour++) {
@@ -686,21 +773,17 @@ function generateTimeSlots() {
 
 // Generate calendar grid for weekly view
 function generateCalendarGrid() {
-    const container = document.getElementById('calendarGrid');
-    const rows = 10; // 9 AM to 6 PM
-    const cols = 7; // Days of week
-    
-    let grid = '';
-    for (let row = 0; row < rows; row++) {
-        for (let col = 0; col < cols; col++) {
-            grid += `<div class="time-slot" data-day="${col}" data-hour="${row + 9}" onclick="handleTimeSlotClick(${col}, ${row + 9})"></div>`;
+    for (let day = 0; day < 7; day++) {
+        const container = document.getElementById(`calendarGrid-${day}`);
+        if (!container) continue;
+        
+        const slots = [];
+        for (let hour = 9; hour <= 18; hour++) {
+            slots.push(`<div class="time-slot" data-day="${day}" data-hour="${hour}" onclick="handleTimeSlotClick(${day}, ${hour})"></div>`);
         }
+        
+        container.innerHTML = slots.join('');
     }
-    
-    container.innerHTML = grid;
-    container.style.display = 'grid';
-    container.style.gridTemplateColumns = 'repeat(7, 1fr)';
-    container.style.gridTemplateRows = 'repeat(10, 60px)';
 }
 
 // Load timetable data from API
@@ -708,9 +791,10 @@ async function loadTimetableData() {
     try {
         showLoading(true);
         
-        const endpoint = currentView === 'today' ? '/api/v1/timetable/today' : 
-                        currentView === 'month' ? '/api/v1/timetable/month' : 
-                        '/api/v1/timetable/week';
+        // FIX: Add /admin prefix to API endpoints
+        const endpoint = currentView === 'today' ? '/admin/api/v1/timetable/today' : 
+                        currentView === 'month' ? '/admin/api/v1/timetable/month' : 
+                        '/admin/api/v1/timetable/week';
         
         const params = new URLSearchParams({
             date: currentDate.toISOString().split('T')[0],
@@ -718,21 +802,43 @@ async function loadTimetableData() {
             filter_value: ''
         });
         
+        console.log('Calling API:', `${endpoint}?${params}`);
+        
         const response = await fetch(`${endpoint}?${params}`);
         const data = await response.json();
+        
+        console.log('API Response:', data);
         
         if (data.success) {
             classesData = data.classes || [];
             updateStats(data.stats || {});
             renderClasses();
+            console.log('Loaded classes:', classesData.length);
         } else {
-            showAlert('Error loading timetable data', 'error');
+            console.error('API Error:', data.error);
+            showAlert('Error loading timetable data: ' + (data.error || 'Unknown error'), 'error');
         }
     } catch (error) {
         console.error('Error loading timetable:', error);
-        showAlert('Failed to load timetable data', 'error');
+        showAlert('Failed to load timetable data: ' + error.message, 'error');
     } finally {
         showLoading(false);
+    }
+}
+
+// Update statistics display
+function updateStats(stats) {
+    if (stats.today) {
+        document.getElementById('scheduledCount').textContent = stats.today.scheduled || 0;
+        document.getElementById('ongoingCount').textContent = stats.today.ongoing || 0;
+        document.getElementById('completedCount').textContent = stats.today.completed || 0;
+        document.getElementById('cancelledCount').textContent = stats.today.cancelled || 0;
+    } else {
+        // Use week stats if today stats not available
+        document.getElementById('scheduledCount').textContent = stats.scheduled_classes || 0;
+        document.getElementById('ongoingCount').textContent = 0;
+        document.getElementById('completedCount').textContent = stats.completed_classes || 0;
+        document.getElementById('cancelledCount').textContent = stats.cancelled_classes || 0;
     }
 }
 
@@ -755,84 +861,48 @@ function renderWeeklyClasses() {
     classesData.forEach(cls => {
         const classDate = new Date(cls.scheduled_date);
         const dayOfWeek = classDate.getDay();
-        const hour = parseInt(cls.scheduled_time.split(':')[0]);
         
-        // Find the corresponding time slot
-        const timeSlot = document.querySelector(`[data-day="${dayOfWeek}"][data-hour="${hour}"]`);
-        if (timeSlot) {
-            const classBlock = createClassBlock(cls);
-            timeSlot.appendChild(classBlock);
+        // Adjust for Monday start (0 = Monday, 6 = Sunday)
+        const adjustedDay = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+        
+        const container = document.getElementById(`calendarGrid-${adjustedDay}`);
+        if (!container) return;
+        
+        // Calculate position based on time
+        const timeSlots = container.querySelectorAll('.time-slot');
+        const classHour = parseInt(cls.scheduled_time.split(':')[0]);
+        const slotIndex = classHour - 9; // 9 AM is index 0
+        
+        if (slotIndex >= 0 && slotIndex < timeSlots.length) {
+            const slot = timeSlots[slotIndex];
+            
+            // Create class block
+            const classBlock = document.createElement('div');
+            classBlock.className = `class-block ${cls.status}`;
+            classBlock.innerHTML = `
+                <div class="class-title">${cls.subject}</div>
+                <div class="class-details">${cls.tutor_name}</div>
+                <div class="class-details">${cls.scheduled_time}</div>
+            `;
+            classBlock.onclick = () => openClassDetails(cls.id);
+            
+            // Position the class block
+            const duration = cls.duration || 60;
+            const height = (duration / 60) * 60; // 60px per hour
+            classBlock.style.height = `${height - 4}px`;
+            
+            slot.appendChild(classBlock);
         }
     });
 }
 
-// Create class block element
-function createClassBlock(cls) {
-    const block = document.createElement('div');
-    block.className = `class-block ${getStatusClass(cls.status)}`;
-    block.dataset.classId = cls.id;
-    block.onclick = () => openClassDetails(cls.id);
-    
-    block.innerHTML = `
-        <div class="class-title">${cls.subject}</div>
-        <div class="class-details">${cls.tutor_name}</div>
-        <div class="class-details">${cls.student_name}</div>
-        <div class="class-details">${cls.scheduled_time}</div>
-    `;
-    
-    return block;
-}
-
-// Get status class for styling
-function getStatusClass(status) {
-    const statusMap = {
-        'scheduled': 'primary',
-        'ongoing': 'secondary',
-        'completed': 'success',
-        'cancelled': 'danger'
-    };
-    return statusMap[status] || 'primary';
-}
-
-// Update statistics display
-function updateStats(stats) {
-    document.getElementById('scheduledCount').textContent = stats.scheduled || 0;
-    document.getElementById('ongoingCount').textContent = stats.ongoing || 0;
-    document.getElementById('completedCount').textContent = stats.completed || 0;
-    document.getElementById('cancelledCount').textContent = stats.cancelled || 0;
-}
-
-// Setup event listeners
-function setupEventListeners() {
-    // View toggle buttons
-    document.querySelectorAll('.view-btn').forEach(btn => {
-        btn.addEventListener('click', function() {
-            switchView(this.dataset.view);
-        });
-    });
-    
-    // Navigation buttons
-    document.getElementById('prevWeek').addEventListener('click', () => navigateWeek(-1));
-    document.getElementById('nextWeek').addEventListener('click', () => navigateWeek(1));
-    document.getElementById('todayBtn').addEventListener('click', () => goToToday());
-    
-    // Filter select
-    document.getElementById('filterSelect').addEventListener('change', function() {
-        applyFilter(this.value);
-    });
-    
-    // Quick class form
-    document.getElementById('quickClassForm').addEventListener('submit', handleQuickClassSubmit);
-}
-
-// Switch calendar view
+// Switch view
 function switchView(view) {
     currentView = view;
     
     // Update button states
-    document.querySelectorAll('.view-btn').forEach(btn => {
-        btn.classList.toggle('active', btn.dataset.view === view);
-    });
+    document.querySelectorAll('.view-btn').forEach(btn => btn.classList.remove('active'));
+    event.target.classList.add('active');
     
     // Show/hide views
     document.getElementById('weeklyView').style.display = view === 'week' ? 'block' : 'none';
@@ -867,24 +937,32 @@ function updateDateDisplay() {
     
     // Update day headers for weekly view
     const startOfWeek = new Date(currentDate);
-    startOfWeek.setDate(currentDate.getDate() - currentDate.getDay());
+    startOfWeek.setDate(currentDate.getDate() - currentDate.getDay() + 1); // Monday start
     
     for (let i = 0; i < 7; i++) {
         const day = new Date(startOfWeek);
         day.setDate(startOfWeek.getDate() + i);
-        document.getElementById(`day-${i}`).textContent = day.getDate();
+        const dayElement = document.getElementById(`day-${i}`);
+        if (dayElement) {
+            dayElement.textContent = day.getDate();
+        }
         
         // Mark today
         const header = document.querySelector(`[data-day="${i}"]`);
-        const isToday = day.toDateString() === new Date().toDateString();
-        header.classList.toggle('today', isToday);
+        if (header) {
+            const isToday = day.toDateString() === new Date().toDateString();
+            header.classList.toggle('today', isToday);
+        }
     }
 }
 
 // Handle time slot clicks
 function handleTimeSlotClick(day, hour) {
-    const selectedDate = new Date(currentDate);
-    selectedDate.setDate(currentDate.getDate() - currentDate.getDay() + day);
+    const startOfWeek = new Date(currentDate);
+    startOfWeek.setDate(currentDate.getDate() - currentDate.getDay() + 1); // Monday start
+    
+    const selectedDate = new Date(startOfWeek);
+    selectedDate.setDate(startOfWeek.getDate() + day);
     
     // Pre-fill quick class modal with selected time
     document.querySelector('[name="scheduled_date"]').value = selectedDate.toISOString().split('T')[0];
@@ -920,26 +998,31 @@ function closeClassDetailsModal() {
 // Load class details
 async function loadClassDetails(classId) {
     try {
-        const response = await fetch(`/api/v1/classes/${classId}`);
+        // FIX: Add /admin prefix
+        const response = await fetch(`/admin/api/v1/classes/${classId}`);
         const data = await response.json();
         
         if (data.success) {
             const cls = data.data;
             document.getElementById('classDetailsContent').innerHTML = `
                 <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
-                    <h3 class="font-semibold text-blue-800 mb-2">${cls.subject}</h3>
+                    <h3 class="font-semibold text-blue-900 mb-2">${cls.subject}</h3>
                     <div class="space-y-2 text-sm">
                         <div class="flex justify-between">
                             <span class="text-gray-600">Tutor:</span>
                             <span class="font-medium">${cls.tutor_name}</span>
                         </div>
                         <div class="flex justify-between">
-                            <span class="text-gray-600">Student:</span>
-                            <span class="font-medium">${cls.student_name}</span>
+                            <span class="text-gray-600">Date:</span>
+                            <span class="font-medium">${cls.scheduled_date}</span>
                         </div>
                         <div class="flex justify-between">
                             <span class="text-gray-600">Time:</span>
-                            <span class="font-medium">${cls.scheduled_time} - ${cls.end_time}</span>
+                            <span class="font-medium">${cls.scheduled_time}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-600">Duration:</span>
+                            <span class="font-medium">${cls.duration} minutes</span>
                         </div>
                         <div class="flex justify-between">
                             <span class="text-gray-600">Status:</span>
@@ -948,28 +1031,19 @@ async function loadClassDetails(classId) {
                     </div>
                 </div>
                 
-                <div class="grid grid-cols-2 gap-3 mb-4">
-                    <button class="btn btn-primary">
-                        <i class="fas fa-video"></i>
-                        Join Class
+                <div class="flex gap-3 mb-4">
+                    <button class="btn btn-primary" onclick="window.open('/admin/classes/${cls.id}', '_blank')">
+                        <i class="fas fa-external-link-alt"></i>
+                        View Details
                     </button>
-                    <button class="btn btn-secondary">
-                        <i class="fas fa-edit"></i>
-                        Edit Class
-                    </button>
-                </div>
-                
-                <div class="space-y-2">
-                    <button class="w-full text-left p-2 text-sm text-gray-700 hover:bg-gray-50 rounded-lg transition-colors">
-                        <i class="fas fa-bell mr-2"></i>
-                        Send Reminder
-                    </button>
-                    <button class="w-full text-left p-2 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors" onclick="cancelClass(${classId})">
-                        <i class="fas fa-times mr-2"></i>
-                        Cancel Class
+                    <button class="btn btn-secondary" onclick="cancelClass(${cls.id})">
+                        <i class="fas fa-times"></i>
+                        Cancel
                     </button>
                 </div>
             `;
+        } else {
+            showAlert('Error loading class details', 'error');
         }
     } catch (error) {
         console.error('Error loading class details:', error);
@@ -977,28 +1051,29 @@ async function loadClassDetails(classId) {
     }
 }
 
-// Handle quick class form submission
-async function handleQuickClassSubmit(e) {
-    e.preventDefault();
+// Create quick class
+async function createQuickClass(event) {
+    event.preventDefault();
     
-    const formData = new FormData(e.target);
-    const data = Object.fromEntries(formData);
+    const formData = new FormData(event.target);
+    const classData = Object.fromEntries(formData.entries());
     
     try {
         showLoading(true);
         
-        const response = await fetch('/api/v1/timetable/temp-class', {
+        // FIX: Add /admin prefix
+        const response = await fetch('/admin/api/v1/classes/create', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify(data)
+            body: JSON.stringify(classData)
         });
         
         const result = await response.json();
         
         if (result.success) {
-            showAlert('Class created successfully!', 'success');
+            showAlert('Class created successfully', 'success');
             closeQuickClassModal();
             loadTimetableData(); // Refresh the calendar
         } else {
@@ -1017,7 +1092,8 @@ async function cancelClass(classId) {
     if (!confirm('Are you sure you want to cancel this class?')) return;
     
     try {
-        const response = await fetch(`/api/v1/classes/${classId}/cancel`, {
+        // FIX: Add /admin prefix
+        const response = await fetch(`/admin/api/v1/classes/${classId}/cancel`, {
             method: 'POST'
         });
         
@@ -1038,33 +1114,50 @@ async function cancelClass(classId) {
 
 // Utility functions
 function showLoading(show) {
-    const elements = document.querySelectorAll('.btn');
-    elements.forEach(el => {
+    const buttons = document.querySelectorAll('.btn');
+    buttons.forEach(btn => {
         if (show) {
-            el.classList.add('loading');
-            el.disabled = true;
+            btn.classList.add('loading');
+            btn.disabled = true;
         } else {
-            el.classList.remove('loading');
-            el.disabled = false;
+            btn.classList.remove('loading');
+            btn.disabled = false;
         }
     });
 }
 
 function showAlert(message, type = 'info') {
+    // Create alert element
     const alert = document.createElement('div');
-    alert.className = `alert ${type}`;
-    alert.innerHTML = `<i class="fas fa-${type === 'success' ? 'check' : type === 'error' ? 'exclamation-triangle' : 'info-circle'} mr-2"></i>${message}`;
+    alert.className = `alert alert-${type === 'error' ? 'danger' : type}`;
+    alert.innerHTML = `
+        <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle'}"></i>
+        <span>${message}</span>
+        <button class="alert-close" onclick="this.parentElement.remove()">
+            <i class="fas fa-times"></i>
+        </button>
+    `;
     
-    document.body.appendChild(alert);
+    // Add to flash messages container
+    let container = document.querySelector('.flash-messages');
+    if (!container) {
+        container = document.createElement('div');
+        container.className = 'flash-messages';
+        document.body.appendChild(container);
+    }
     
+    container.appendChild(alert);
+    
+    // Auto remove after 5 seconds
     setTimeout(() => {
-        alert.remove();
+        if (alert.parentElement) {
+            alert.remove();
+        }
     }, 5000);
 }
 
 // Apply filter
 function applyFilter(filterValue) {
-    // This would implement filtering logic
     console.log('Applying filter:', filterValue);
     loadTimetableData();
 }
@@ -1072,11 +1165,10 @@ function applyFilter(filterValue) {
 // Render daily classes
 function renderDailyClasses() {
     const container = document.getElementById('dailyClasses');
-    const todayClasses = classesData.filter(cls => {
-        const classDate = new Date(cls.scheduled_date);
-        const today = new Date();
-        return classDate.toDateString() === today.toDateString();
-    });
+    if (!container) return;
+    
+    const today = new Date().toISOString().split('T')[0];
+    const todayClasses = classesData.filter(cls => cls.scheduled_date === today);
     
     if (todayClasses.length === 0) {
         container.innerHTML = `
@@ -1090,15 +1182,19 @@ function renderDailyClasses() {
     }
     
     const classesHtml = todayClasses.map(cls => `
-        <div class="bg-white border border-gray-200 rounded-lg p-4 mb-3 hover:shadow-md transition-shadow cursor-pointer" onclick="openClassDetails(${cls.id})">
+        <div class="today-class-card" onclick="openClassDetails(${cls.id})">
             <div class="flex items-center justify-between">
                 <div>
                     <h3 class="font-semibold text-gray-900">${cls.subject}</h3>
-                    <p class="text-sm text-gray-600">${cls.tutor_name} • ${cls.student_name}</p>
+                    <p class="text-sm text-gray-600">${cls.tutor_name}</p>
+                    <div class="flex items-center gap-2 mt-1">
+                        <span class="status-dot ${cls.status}"></span>
+                        <span class="text-xs text-gray-500 capitalize">${cls.status}</span>
+                    </div>
                 </div>
                 <div class="text-right">
                     <div class="text-sm font-medium">${cls.scheduled_time}</div>
-                    <div class="text-xs text-gray-500">${cls.duration} min</div>
+                    <div class="text-xs text-gray-500">${cls.duration || 60} min</div>
                 </div>
             </div>
         </div>
@@ -1107,13 +1203,17 @@ function renderDailyClasses() {
     container.innerHTML = classesHtml;
 }
 
-// Render monthly classes (simplified)
+// Render monthly classes (placeholder)
 function renderMonthlyClasses() {
     const container = document.getElementById('monthGrid');
+    if (!container) return;
+    
     container.innerHTML = `
         <div class="text-center py-8">
+            <i class="fas fa-calendar-alt text-4xl text-gray-400 mb-4"></i>
             <h3 class="text-lg font-medium text-gray-900 mb-2">Monthly View</h3>
             <p class="text-gray-600">Monthly calendar view will be implemented here</p>
+            <p class="text-sm text-gray-500 mt-2">Classes this month: ${classesData.length}</p>
         </div>
     `;
 }

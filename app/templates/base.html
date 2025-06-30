@@ -879,7 +879,7 @@
                 <!-- Student Management -->
                 {% if current_user.has_permission('student_management') %}
                 <li class="nav-item">
-                    <a href="{{ url_for('admin.students') }}" class="nav-link {% if 'students' in request.endpoint %}active{% endif %}">
+                    <a href="{{ url_for('admin.students') }}" class="nav-link {% if request.endpoint and 'students' in request.endpoint %}active{% endif %}">
                         <i class="fas fa-user-graduate"></i>
                         <span>Students</span>
                     </a>

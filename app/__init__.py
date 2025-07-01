@@ -96,6 +96,3 @@ def create_app(config_class=Config):
         }
 
     return app
-
-# Import models to ensure they are registered with SQLAlchemy
-from app.models import user, department, tutor, student, class_model, attendance

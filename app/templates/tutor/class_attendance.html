@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+
+{% block title %}Class Attendance - {{ class_obj.subject }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h2 class="h3 mb-1">Class Attendance</h2>
+                    <p class="text-muted">{{ class_obj.subject }} - {{ class_obj.scheduled_date.strftime('%d %b %Y') }}</p>
+                </div>
+                <div>
+                    <a href="{{ url_for('tutor.class_details', class_id=class_obj.id) }}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left"></i> Back to Class
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Attendance Records</h5>
+                </div>
+                <div class="card-body">
+                    {% if attendance_records %}
+                        <div class="table-responsive">
+                            <table class="table table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>Student</th>
+                                        <th>Present</th>
+                                        <th>Join Time</th>
+                                        <th>Leave Time</th>
+                                        <th>Duration</th>
+                                        <th>Engagement</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for record in attendance_records %}
+                                    <tr>
+                                        <td>{{ record.student.full_name }}</td>
+                                        <td>
+                                            <span class="badge badge-{{ 'success' if record.student_present else 'danger' }}">
+                                                {{ 'Present' if record.student_present else 'Absent' }}
+                                            </span>
+                                        </td>
+                                        <td>{{ record.student_join_time.strftime('%H:%M') if record.student_join_time else '-' }}</td>
+                                        <td>{{ record.student_leave_time.strftime('%H:%M') if record.student_leave_time else '-' }}</td>
+                                        <td>{{ record.actual_duration }} min</td>
+                                        <td>{{ record.student_engagement or '-' }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <p class="text-muted text-center py-4">No attendance records found for this class.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

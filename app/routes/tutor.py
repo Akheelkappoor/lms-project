@@ -598,3 +598,183 @@ def student_attendance(student_id):
                          attendance_records=attendance_records,
                          attendance_summary=attendance_summary,
                          tutor=tutor)
+
+@bp.route('/class/<int:class_id>/mark-attendance', methods=['POST'])
+@login_required
+@tutor_required
+def mark_class_attendance(class_id):
+    """Mark attendance for a specific class with automatic calculations"""
+    tutor = get_current_tutor()
+    if not tutor:
+        return jsonify({'error': 'Tutor profile not found'}), 400
+    
+    class_obj = Class.query.filter_by(id=class_id, tutor_id=tutor.id).first_or_404()
+    
+    try:
+        data = request.get_json()
+        current_time = datetime.now()
+        
+        # Get or create attendance records for this class
+        attendance_records = Attendance.query.filter_by(class_id=class_id).all()
+        
+        if not attendance_records:
+            # Create attendance records for all students in this class
+            student_ids = class_obj.get_students()
+            for student_id in student_ids:
+                attendance = Attendance(
+                    class_id=class_id,
+                    tutor_id=tutor.id,
+                    student_id=student_id,
+                    class_date=class_obj.scheduled_date,
+                    scheduled_start=class_obj.scheduled_time,
+                    scheduled_end=class_obj.end_time if hasattr(class_obj, 'end_time') else None
+                )
+                db.session.add(attendance)
+            db.session.commit()
+            attendance_records = Attendance.query.filter_by(class_id=class_id).all()
+        
+        # Mark tutor attendance
+        tutor_present = data.get('tutor_present', True)
+        tutor_join_time = current_time if tutor_present else None
+        tutor_leave_time = data.get('tutor_leave_time')
+        if tutor_leave_time:
+            tutor_leave_time = datetime.strptime(tutor_leave_time, '%H:%M')
+            tutor_leave_time = tutor_leave_time.replace(
+                year=current_time.year,
+                month=current_time.month,
+                day=current_time.day
+            )
+        
+        # Process each student's attendance
+        students_attendance = data.get('students', [])
+        
+        penalty_settings = {
+            'late_penalty_per_minute': 10,  # ₹10 per minute late
+            'absence_penalty': 500,  # ₹500 for unexcused absence
+            'early_leave_penalty_per_minute': 5  # ₹5 per minute early leave
+        }
+        
+        total_penalties = 0
+        attendance_summary = []
+        
+        for attendance in attendance_records:
+            # Mark tutor attendance on each record
+            attendance.mark_tutor_attendance(
+                present=tutor_present,
+                join_time=tutor_join_time,
+                leave_time=tutor_leave_time,
+                absence_reason=data.get('tutor_absence_reason')
+            )
+            
+            # Find student attendance data
+            student_data = next(
+                (s for s in students_attendance if s.get('student_id') == attendance.student_id),
+                None
+            )
+            
+            if student_data:
+                student_present = student_data.get('present', False)
+                student_join_time = None
+                student_leave_time = None
+                
+                if student_present:
+                    # Parse join time
+                    join_time_str = student_data.get('join_time')
+                    if join_time_str:
+                        join_time_parsed = datetime.strptime(join_time_str, '%H:%M')
+                        student_join_time = join_time_parsed.replace(
+                            year=current_time.year,
+                            month=current_time.month,
+                            day=current_time.day
+                        )
+                    
+                    # Parse leave time
+                    leave_time_str = student_data.get('leave_time')
+                    if leave_time_str:
+                        leave_time_parsed = datetime.strptime(leave_time_str, '%H:%M')
+                        student_leave_time = leave_time_parsed.replace(
+                            year=current_time.year,
+                            month=current_time.month,
+                            day=current_time.day
+                        )
+                
+                # Mark student attendance
+                attendance.mark_student_attendance(
+                    present=student_present,
+                    join_time=student_join_time,
+                    leave_time=student_leave_time,
+                    absence_reason=student_data.get('absence_reason'),
+                    engagement=student_data.get('engagement')
+                )
+            
+            # Calculate actual duration
+            attendance.calculate_actual_duration()
+            
+            # Calculate tutor penalty (automatic calculations)
+            penalty = attendance.calculate_tutor_penalty(penalty_settings)
+            total_penalties += penalty
+            
+            # Set marking details
+            attendance.marked_by = current_user.id
+            attendance.marked_at = current_time
+            
+            # Add to summary
+            attendance_summary.append({
+                'student_id': attendance.student_id,
+                'student_name': attendance.student.full_name,
+                'present': attendance.student_present,
+                'late_minutes': attendance.student_late_minutes,
+                'engagement': attendance.student_engagement,
+                'tutor_penalty': penalty
+            })
+        
+        # Update class status
+        if class_obj.status == 'ongoing':
+            class_obj.status = 'completed'
+            class_obj.actual_end_time = current_time
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Attendance marked successfully',
+            'summary': {
+                'total_students': len(attendance_records),
+                'present_students': sum(1 for a in attendance_records if a.student_present),
+                'absent_students': sum(1 for a in attendance_records if not a.student_present),
+                'tutor_late_minutes': attendance_records[0].tutor_late_minutes if attendance_records else 0,
+                'total_penalties': total_penalties,
+                'class_duration': attendance_records[0].class_duration_actual if attendance_records else 0
+            },
+            'attendance_details': attendance_summary
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'Error marking attendance: {str(e)}'}), 500
+
+
+@bp.route('/class/<int:class_id>/attendance-form')
+@login_required
+@tutor_required
+def attendance_form(class_id):
+    """Show attendance marking form for a class"""
+    tutor = get_current_tutor()
+    if not tutor:
+        flash('Tutor profile not found.', 'error')
+        return redirect(url_for('dashboard.index'))
+    
+    class_obj = Class.query.filter_by(id=class_id, tutor_id=tutor.id).first_or_404()
+    
+    # Get students for this class
+    student_ids = class_obj.get_students()
+    students = Student.query.filter(Student.id.in_(student_ids)).all() if student_ids else []
+    
+    # Check if attendance already marked
+    existing_attendance = Attendance.query.filter_by(class_id=class_id).first()
+    
+    return render_template('tutor/mark_attendance.html',
+                         class_obj=class_obj,
+                         students=students,
+                         existing_attendance=existing_attendance,
+                         current_time=datetime.now())

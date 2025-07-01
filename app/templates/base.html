@@ -920,7 +920,7 @@
                 <!-- Tutor Specific Features -->
                 {% if current_user.role == 'tutor' %}
                 <li class="nav-item">
-                    <a href="{{ url_for('tutor.my_classes') }}" class="nav-link {% if 'tutor.my_classes' in request.endpoint %}active{% endif %}">
+                    <a href="{{ url_for('tutor.my_classes') }}" class="nav-link {% if request.endpoint and 'tutor.my_classes' in request.endpoint %}active{% endif %}">
                         <i class="fas fa-chalkboard"></i>
                         <span>My Classes</span>
                     </a>

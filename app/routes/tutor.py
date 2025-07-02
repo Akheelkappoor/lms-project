@@ -36,6 +36,12 @@ def my_classes():
         flash('Tutor profile not found.', 'error')
         return redirect(url_for('dashboard.index'))
     
+    # Check if tutor has set availability
+    availability = tutor.get_availability()
+    if not availability:
+        flash('Please set your availability first before viewing classes.', 'warning')
+        return redirect(url_for('tutor.availability'))
+    
     # Get filter parameters
     date_filter = request.args.get('date', '')
     status_filter = request.args.get('status', '')
@@ -778,3 +784,110 @@ def attendance_form(class_id):
                          students=students,
                          existing_attendance=existing_attendance,
                          current_time=datetime.now())
+
+
+@bp.route('/availability')
+@login_required
+@tutor_required
+def availability():
+    """Tutor availability management page"""
+    tutor = get_current_tutor()
+    if not tutor:
+        flash('Tutor profile not found.', 'error')
+        return redirect(url_for('dashboard.index'))
+    
+    current_availability = tutor.get_availability()
+    
+    return render_template('tutor/availability.html', 
+                         tutor=tutor, 
+                         availability=current_availability)
+
+@bp.route('/availability/update', methods=['POST'])
+@login_required
+@tutor_required
+def update_availability():
+    """Update tutor availability"""
+    tutor = get_current_tutor()
+    if not tutor:
+        flash('Tutor profile not found.', 'error')
+        return redirect(url_for('dashboard.index'))
+    
+    try:
+        # Get form data and build availability dict
+        availability = {}
+        days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
+        
+        for day in days:
+            day_slots = []
+            
+            # Get start and end times for each day
+            start_times = request.form.getlist(f'{day}_start')
+            end_times = request.form.getlist(f'{day}_end')
+            
+            # Pair up start and end times
+            for start_time, end_time in zip(start_times, end_times):
+                if start_time and end_time:
+                    # Validate time format and order
+                    if start_time < end_time:
+                        day_slots.append({
+                            'start': start_time,
+                            'end': end_time
+                        })
+            
+            if day_slots:
+                availability[day] = day_slots
+        
+        # Update tutor availability
+        tutor.set_availability(availability)
+        
+        # Update status to indicate availability is set
+        if tutor.status == 'pending' and availability:
+            tutor.status = 'active'
+        
+        db.session.commit()
+        flash('Availability updated successfully! You can now be assigned to classes.', 'success')
+        
+        return redirect(url_for('tutor.availability'))
+        
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error updating availability: {str(e)}', 'error')
+        return redirect(url_for('tutor.availability'))
+
+@bp.route('/api/check-availability')
+@login_required
+@tutor_required
+def check_availability():
+    """Check if tutor is available for specific time"""
+    tutor = get_current_tutor()
+    if not tutor:
+        return jsonify({'available': False, 'reason': 'Tutor not found'})
+    
+    day = request.args.get('day')  # monday, tuesday, etc.
+    time = request.args.get('time')  # HH:MM format
+    
+    if not day or not time:
+        return jsonify({'available': False, 'reason': 'Missing day or time'})
+    
+    is_available = tutor.is_available_at(day, time)
+    
+    return jsonify({
+        'available': is_available,
+        'reason': 'Available' if is_available else 'Not available at this time'
+    })
+
+@bp.route('/availability-status')
+@login_required
+@tutor_required
+def availability_status():
+    """Check if tutor has set availability"""
+    tutor = get_current_tutor()
+    if not tutor:
+        return jsonify({'has_availability': False})
+    
+    availability = tutor.get_availability()
+    return jsonify({
+        'has_availability': bool(availability),
+        'status': tutor.status,
+        'can_teach': tutor.status == 'active' and bool(availability)
+    })

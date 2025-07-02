@@ -7,6 +7,10 @@ class Tutor(db.Model):
     
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), unique=True, nullable=False)
+
+    date_of_birth = db.Column(db.Date)
+    state = db.Column(db.String(50))
+    pin_code = db.Column(db.String(10))
     
     # Professional Information
     qualification = db.Column(db.String(200), nullable=False)

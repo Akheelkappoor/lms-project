@@ -308,3 +308,74 @@ class Student(db.Model):
     
     def __repr__(self):
         return f'<Student {self.full_name}>'
+    
+    # ADD THESE METHODS TO YOUR Student CLASS in app/models/student.py
+    def get_compatible_tutors(self):
+        """Get tutors compatible with this student"""
+        from app.models.tutor import Tutor
+        # Import here to avoid circular imports
+        tutors = Tutor.query.filter_by(status='active').all()
+        compatible_tutors = []
+        for tutor in tutors:
+            # Must have availability
+            if not tutor.get_availability():
+                continue
+
+        # Check grade compatibility
+            tutor_grades = [str(g) for g in tutor.get_grades()]
+            if tutor_grades and str(self.grade) not in tutor_grades:
+                continue
+        
+        # Check board compatibility
+            tutor_boards = [b.lower() for b in tutor.get_boards()]
+            if tutor_boards and self.board.lower() not in tutor_boards:
+                continue
+
+        # Check subject compatibility
+            student_subjects = [s.lower() for s in self.get_subjects_enrolled()]
+            tutor_subjects = [s.lower() for s in tutor.get_subjects()]
+        
+            if student_subjects and tutor_subjects:
+                has_common_subject = any(
+                    any(ss in ts or ts in ss for ts in tutor_subjects)
+                    for ss in student_subjects
+                )
+                if not has_common_subject:
+                  continue
+        
+        compatible_tutors.append(tutor)
+    
+        return compatible_tutors
+    @staticmethod
+    def find_students_for_tutor(tutor, subject=None):
+       """Find students compatible with a specific tutor"""
+       query = Student.query.filter_by(is_active=True, enrollment_status='active')
+    
+       compatible_students = []
+       students = query.all()
+    
+       for student in students:
+        # Check grade compatibility
+           tutor_grades = [str(g) for g in tutor.get_grades()]
+           if tutor_grades and str(student.grade) not in tutor_grades:
+               continue
+        
+        # Check board compatibility
+           tutor_boards = [b.lower() for b in tutor.get_boards()]
+           if tutor_boards and student.board.lower() not in tutor_boards:
+              continue
+        
+        # Check subject compatibility if specified
+           if subject:
+               student_subjects = [s.lower() for s in student.get_subjects_enrolled()]
+               if student_subjects and subject.lower() not in student_subjects:
+                   continue
+        
+           compatible_students.append(student)
+    
+       return compatible_students
+
+
+
+
+

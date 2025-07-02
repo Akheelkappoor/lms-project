@@ -1,0 +1,304 @@
+{% extends "base.html" %}
+
+{% block title %}Set Availability - {{ APP_NAME }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h1 class="page-title">
+                <i class="fas fa-calendar-check"></i>
+                Set Your Availability
+            </h1>
+            <p class="page-subtitle">Define your weekly schedule to start teaching</p>
+        </div>
+        <div class="header-actions">
+            <a href="{{ url_for('tutor.profile') }}" class="btn btn-outline-secondary">
+                <i class="fas fa-user"></i>
+                Back to Profile
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="container-fluid">
+    {% if not availability %}
+    <div class="alert alert-warning">
+        <i class="fas fa-exclamation-triangle"></i>
+        <strong>Important:</strong> You must set your availability before classes can be assigned to you.
+    </div>
+    {% endif %}
+
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-clock"></i>
+                        Weekly Schedule
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form id="availabilityForm" action="{{ url_for('tutor.update_availability') }}" method="POST">
+                        {% for day in ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] %}
+                        <div class="day-schedule mb-4">
+                            <div class="day-header">
+                                <h6 class="mb-3">
+                                    <i class="fas fa-calendar-day"></i>
+                                    {{ day.title() }}
+                                </h6>
+                            </div>
+                            
+                            <div id="{{ day }}_slots" class="time-slots">
+                                {% set day_availability = availability.get(day, []) %}
+                                {% if day_availability %}
+                                    {% for slot in day_availability %}
+                                    <div class="time-slot-row mb-2">
+                                        <div class="row">
+                                            <div class="col-md-4">
+                                                <label class="form-label">Start Time</label>
+                                                <input type="time" name="{{ day }}_start" class="form-control" value="{{ slot.start }}">
+                                            </div>
+                                            <div class="col-md-4">
+                                                <label class="form-label">End Time</label>
+                                                <input type="time" name="{{ day }}_end" class="form-control" value="{{ slot.end }}">
+                                            </div>
+                                            <div class="col-md-4 d-flex align-items-end">
+                                                <button type="button" class="btn btn-outline-danger btn-sm remove-slot">
+                                                    <i class="fas fa-trash"></i>
+                                                    Remove
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                {% else %}
+                                    <div class="time-slot-row mb-2">
+                                        <div class="row">
+                                            <div class="col-md-4">
+                                                <label class="form-label">Start Time</label>
+                                                <input type="time" name="{{ day }}_start" class="form-control">
+                                            </div>
+                                            <div class="col-md-4">
+                                                <label class="form-label">End Time</label>
+                                                <input type="time" name="{{ day }}_end" class="form-control">
+                                            </div>
+                                            <div class="col-md-4 d-flex align-items-end">
+                                                <button type="button" class="btn btn-outline-danger btn-sm remove-slot">
+                                                    <i class="fas fa-trash"></i>
+                                                    Remove
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                {% endif %}
+                            </div>
+                            
+                            <button type="button" class="btn btn-outline-primary btn-sm add-slot" data-day="{{ day }}">
+                                <i class="fas fa-plus"></i>
+                                Add Time Slot
+                            </button>
+                        </div>
+                        <hr>
+                        {% endfor %}
+                        
+                        <div class="text-center mt-4">
+                            <button type="submit" class="btn btn-success btn-lg">
+                                <i class="fas fa-save"></i>
+                                Save Availability
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-4">
+            <!-- Current Status -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="card-title mb-0">
+                        <i class="fas fa-info-circle"></i>
+                        Current Status
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="status-item mb-3">
+                        <label>Profile Status:</label>
+                        <span class="badge badge-{{ 'success' if tutor.status == 'active' else 'warning' if tutor.status == 'pending' else 'danger' }}">
+                            {{ tutor.status.title() }}
+                        </span>
+                    </div>
+                    
+                    <div class="status-item mb-3">
+                        <label>Availability Set:</label>
+                        <span class="badge badge-{{ 'success' if availability else 'warning' }}">
+                            {{ 'Yes' if availability else 'No' }}
+                        </span>
+                    </div>
+                    
+                    <div class="status-item mb-3">
+                        <label>Can Teach:</label>
+                        <span class="badge badge-{{ 'success' if (tutor.status == 'active' and availability) else 'danger' }}">
+                            {{ 'Yes' if (tutor.status == 'active' and availability) else 'No' }}
+                        </span>
+                    </div>
+                    
+                    {% if not availability %}
+                    <div class="alert alert-warning mt-3">
+                        <small>
+                            <i class="fas fa-exclamation-triangle"></i>
+                            Set your availability to start receiving class assignments.
+                        </small>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <!-- Guidelines -->
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="card-title mb-0">
+                        <i class="fas fa-lightbulb"></i>
+                        Guidelines
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <ul class="guidelines-list">
+                        <li>Set realistic time slots you can consistently maintain</li>
+                        <li>Include buffer time between classes (15-30 minutes recommended)</li>
+                        <li>Consider your personal schedule and commitments</li>
+                        <li>You can add multiple time slots per day</li>
+                        <li>Update your availability whenever your schedule changes</li>
+                        <li>Classes will only be scheduled during your available hours</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Add slot functionality
+    document.querySelectorAll('.add-slot').forEach(button => {
+        button.addEventListener('click', function() {
+            const day = this.getAttribute('data-day');
+            const slotsContainer = document.getElementById(day + '_slots');
+            
+            const newSlot = document.createElement('div');
+            newSlot.className = 'time-slot-row mb-2';
+            newSlot.innerHTML = `
+                <div class="row">
+                    <div class="col-md-4">
+                        <label class="form-label">Start Time</label>
+                        <input type="time" name="${day}_start" class="form-control">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">End Time</label>
+                        <input type="time" name="${day}_end" class="form-control">
+                    </div>
+                    <div class="col-md-4 d-flex align-items-end">
+                        <button type="button" class="btn btn-outline-danger btn-sm remove-slot">
+                            <i class="fas fa-trash"></i>
+                            Remove
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            slotsContainer.appendChild(newSlot);
+            attachRemoveListener(newSlot.querySelector('.remove-slot'));
+        });
+    });
+    
+    // Remove slot functionality
+    function attachRemoveListener(button) {
+        button.addEventListener('click', function() {
+            this.closest('.time-slot-row').remove();
+        });
+    }
+    
+    // Attach to existing remove buttons
+    document.querySelectorAll('.remove-slot').forEach(attachRemoveListener);
+    
+    // Form validation
+    document.getElementById('availabilityForm').addEventListener('submit', function(e) {
+        const timeSlots = document.querySelectorAll('.time-slot-row');
+        let hasValidSlot = false;
+        
+        timeSlots.forEach(slot => {
+            const startTime = slot.querySelector('input[name$="_start"]').value;
+            const endTime = slot.querySelector('input[name$="_end"]').value;
+            
+            if (startTime && endTime) {
+                if (startTime >= endTime) {
+                    e.preventDefault();
+                    alert('End time must be after start time');
+                    return;
+                }
+                hasValidSlot = true;
+            }
+        });
+        
+        if (!hasValidSlot) {
+            e.preventDefault();
+            alert('Please add at least one valid time slot');
+            return;
+        }
+    });
+});
+</script>
+
+<style>
+.day-schedule {
+    background: #f8f9fa;
+    padding: 1rem;
+    border-radius: 0.5rem;
+    border-left: 4px solid #007bff;
+}
+
+.day-header h6 {
+    color: #007bff;
+    font-weight: 600;
+}
+
+.time-slot-row {
+    background: white;
+    padding: 1rem;
+    border-radius: 0.375rem;
+    border: 1px solid #dee2e6;
+}
+
+.guidelines-list {
+    list-style: none;
+    padding: 0;
+}
+
+.guidelines-list li {
+    padding: 0.5rem 0;
+    border-bottom: 1px solid #f0f0f0;
+    position: relative;
+    padding-left: 1.5rem;
+}
+
+.guidelines-list li:before {
+    content: '✓';
+    color: #28a745;
+    font-weight: bold;
+    position: absolute;
+    left: 0;
+}
+
+.status-item label {
+    font-weight: 600;
+    color: #6c757d;
+    display: inline-block;
+    width: 120px;
+}
+
+.badge-success { background-color: #28a745; }
+.badge-warning { background-color: #ffc107; color: #000; }
+.badge-danger { background-color: #dc3545; }
+</style>
+{% endblock %}

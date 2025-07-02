@@ -20,25 +20,39 @@ def make_shell_context():
 @app.route('/')
 def index():
     """Main index route - redirect based on setup status"""
-    try:
-        # Check if system needs setup
-        if not User.query.filter_by(role='superadmin').first():
+    with app.app_context():
+        try:
+            # Check if system needs setup
+            if not User.query.filter_by(role='superadmin').first():
+                return redirect(url_for('setup.initial_setup'))
+            else:
+                return redirect(url_for('auth.login'))
+        except Exception as e:
+            # Database tables don't exist, redirect to setup
+            print(f"Database not ready: {str(e)}")
             return redirect(url_for('setup.initial_setup'))
-        else:
-            return redirect(url_for('auth.login'))
-    except Exception:
-        # Database tables don't exist, redirect to setup
-        return redirect(url_for('setup.initial_setup'))
 
-# Initialize database on import (for production)
-with app.app_context():
-    try:
-        # Test if tables exist
-        User.query.first()
-    except Exception:
-        # Create all tables
-        db.create_all()
+def initialize_database():
+    """Initialize database tables if needed"""
+    with app.app_context():
+        try:
+            # Test if tables exist by making a simple query
+            User.query.first()
+            print("✅ Database tables already exist")
+        except Exception as e:
+            print(f"⚠️  Creating database tables: {str(e)}")
+            try:
+                db.create_all()
+                print("✅ Database tables created successfully")
+            except Exception as create_error:
+                print(f"❌ Error creating tables: {str(create_error)}")
 
 if __name__ == '__main__':
     print("🚀 Starting I2Global LMS...")
+    print("📊 Checking database...")
+    
+    # Initialize database tables if needed
+    initialize_database()
+    
+    print("🌐 Server starting on http://0.0.0.0:5001")
     app.run(debug=True, host='0.0.0.0', port=5001)

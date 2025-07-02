@@ -14,6 +14,11 @@
         </div>
         <div class="header-actions">
             <div class="btn-group">
+                {% if tutors %}
+                <button class="btn btn-outline-info" data-bs-toggle="modal" data-bs-target="#tutorAvailabilityModal">
+                    <i class="fas fa-calendar-check"></i>
+                    Check Availability
+                </button>
                 <a href="#" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#bulkCreateModal">
                     <i class="fas fa-layer-group"></i>
                     Bulk Create
@@ -22,12 +27,39 @@
                     <i class="fas fa-plus"></i>
                     Create Class
                 </a>
+                {% else %}
+                <button class="btn btn-secondary" disabled title="No tutors with availability available">
+                    <i class="fas fa-plus"></i>
+                    Create Class (No Available Tutors)
+                </button>
+                {% endif %}
             </div>
         </div>
     </div>
 </div>
 
 <div class="container-fluid">
+    <!-- Availability Warnings -->
+    {% if tutors_without_availability %}
+    <div class="alert alert-warning">
+        <h6><i class="fas fa-exclamation-triangle"></i> Tutors Need to Set Availability</h6>
+        <p>The following tutors haven't set their availability yet and cannot be assigned to classes:</p>
+        <ul class="mb-0">
+            {% for tutor in tutors_without_availability %}
+            <li>{{ tutor.user.full_name }} - <small>Status: {{ tutor.status }}</small></li>
+            {% endfor %}
+        </ul>
+        <small class="text-muted">Ask these tutors to log in and set their weekly schedule.</small>
+    </div>
+    {% endif %}
+
+    {% if not tutors %}
+    <div class="alert alert-danger">
+        <h6><i class="fas fa-times-circle"></i> No Available Tutors</h6>
+        <p>No tutors have set their availability yet. Classes cannot be created until at least one tutor sets their schedule.</p>
+    </div>
+    {% endif %}
+
     <!-- Filters -->
     <div class="card mb-4">
         <div class="card-body">
@@ -41,9 +73,10 @@
                     <label class="form-label">Tutor</label>
                     <select name="tutor" class="form-select">
                         <option value="">All Tutors</option>
-                        {% for tutor in tutors %}
+                        {% for tutor in all_tutors %}
                         <option value="{{ tutor.id }}" {{ 'selected' if request.args.get('tutor')|int == tutor.id }}>
                             {{ tutor.user.full_name }}
+                            {% if not tutor.get_availability() %} (No Availability){% endif %}
                         </option>
                         {% endfor %}
                     </select>
@@ -170,7 +203,7 @@
                             </td>
                             <td>
                                 <div>
-                                    <strong>{{ class.subject }}</strong><br>
+                                    <strong>{{ class.subject or 'N/A' }}</strong><br>
                                     {% if class.grade %}
                                     <small class="text-muted">Grade {{ class.grade }}</small>
                                     {% endif %}
@@ -178,7 +211,7 @@
                             </td>
                             <td>
                                 <span class="badge badge-{{ 'info' if class.class_type == 'one_on_one' else 'success' if class.class_type == 'group' else 'warning' }}">
-                                    {{ class.class_type|replace('_', ' ')|title }}
+                                    {{ (class.class_type or 'regular')|replace('_', ' ')|title }}
                                 </span>
                             </td>
                             <td>
@@ -186,32 +219,39 @@
                                 <div>
                                     <strong>{{ class.tutor.user.full_name }}</strong><br>
                                     <small class="text-muted">{{ class.tutor.user.email }}</small>
+                                    {% if not class.tutor.get_availability() %}
+                                    <br><small class="text-danger">No availability set</small>
+                                    {% endif %}
                                 </div>
                                 {% else %}
                                 <span class="text-muted">No tutor assigned</span>
                                 {% endif %}
                             </td>
                             <td>
-                                {% set student_ids = class.get_students() %}
-                                {% if student_ids %}
-                                <div>
-                                    {% for student_id in student_ids[:2] %}
-                                        {% set student = students_dict.get(student_id) %}
-                                        {% if student %}
-                                        <div>{{ student.full_name }}</div>
+                                {% if hasattr(class, 'get_students') %}
+                                    {% set student_ids = class.get_students() %}
+                                    {% if student_ids %}
+                                    <div>
+                                        {% for student_id in student_ids[:2] %}
+                                            {% set student = students_dict.get(student_id) %}
+                                            {% if student %}
+                                            <div>{{ student.full_name }}</div>
+                                            {% endif %}
+                                        {% endfor %}
+                                        {% if student_ids|length > 2 %}
+                                        <small class="text-muted">+{{ student_ids|length - 2 }} more</small>
                                         {% endif %}
-                                    {% endfor %}
-                                    {% if student_ids|length > 2 %}
-                                    <small class="text-muted">+{{ student_ids|length - 2 }} more</small>
+                                    </div>
+                                    {% else %}
+                                    <span class="text-muted">No students</span>
                                     {% endif %}
-                                </div>
                                 {% else %}
                                 <span class="text-muted">No students</span>
                                 {% endif %}
                             </td>
                             <td>
                                 <span class="badge badge-{{ 'warning' if class.status == 'scheduled' else 'success' if class.status == 'completed' else 'danger' if class.status == 'cancelled' else 'primary' }}">
-                                    {{ class.status|title }}
+                                    {{ (class.status or 'scheduled')|title }}
                                 </span>
                             </td>
                             <td>
@@ -235,43 +275,21 @@
                 </table>
             </div>
 
-            <!-- Fixed Pagination -->
+            <!-- Pagination -->
             {% if classes.pages > 1 %}
             <nav aria-label="Classes pagination" class="mt-4">
                 <ul class="pagination justify-content-center">
-                    <!-- Previous page -->
                     {% if classes.has_prev %}
                     <li class="page-item">
-                        <a class="page-link" href="{{ url_for('admin.classes', 
-                            page=classes.prev_num,
-                            date=request.args.get('date', ''),
-                            tutor=request.args.get('tutor', ''),
-                            status=request.args.get('status', ''),
-                            class_type=request.args.get('class_type', '')) }}">
-                            <i class="fas fa-chevron-left"></i>
-                            Previous
-                        </a>
-                    </li>
-                    {% else %}
-                    <li class="page-item disabled">
-                        <span class="page-link">
-                            <i class="fas fa-chevron-left"></i>
-                            Previous
-                        </span>
+                        <a class="page-link" href="{{ url_for('admin.classes', page=classes.prev_num) }}">Previous</a>
                     </li>
                     {% endif %}
 
-                    <!-- Page numbers -->
                     {% for page_num in classes.iter_pages() %}
                         {% if page_num %}
                             {% if page_num != classes.page %}
                             <li class="page-item">
-                                <a class="page-link" href="{{ url_for('admin.classes', 
-                                    page=page_num,
-                                    date=request.args.get('date', ''),
-                                    tutor=request.args.get('tutor', ''),
-                                    status=request.args.get('status', ''),
-                                    class_type=request.args.get('class_type', '')) }}">{{ page_num }}</a>
+                                <a class="page-link" href="{{ url_for('admin.classes', page=page_num) }}">{{ page_num }}</a>
                             </li>
                             {% else %}
                             <li class="page-item active">
@@ -285,35 +303,12 @@
                         {% endif %}
                     {% endfor %}
 
-                    <!-- Next page -->
                     {% if classes.has_next %}
                     <li class="page-item">
-                        <a class="page-link" href="{{ url_for('admin.classes', 
-                            page=classes.next_num,
-                            date=request.args.get('date', ''),
-                            tutor=request.args.get('tutor', ''),
-                            status=request.args.get('status', ''),
-                            class_type=request.args.get('class_type', '')) }}">
-                            Next
-                            <i class="fas fa-chevron-right"></i>
-                        </a>
-                    </li>
-                    {% else %}
-                    <li class="page-item disabled">
-                        <span class="page-link">
-                            Next
-                            <i class="fas fa-chevron-right"></i>
-                        </span>
+                        <a class="page-link" href="{{ url_for('admin.classes', page=classes.next_num) }}">Next</a>
                     </li>
                     {% endif %}
                 </ul>
-                
-                <!-- Page info -->
-                <div class="text-center text-muted mt-2">
-                    Showing {{ classes.per_page * (classes.page - 1) + 1 }} to 
-                    {{ classes.per_page * (classes.page - 1) + classes.items|length }} of 
-                    {{ classes.total }} classes
-                </div>
             </nav>
             {% endif %}
             
@@ -322,17 +317,90 @@
                 <i class="fas fa-chalkboard fa-3x text-muted mb-3"></i>
                 <h5>No Classes Found</h5>
                 <p class="text-muted">Try adjusting your filters or create a new class.</p>
+                {% if tutors %}
                 <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createClassModal">
                     <i class="fas fa-plus"></i>
                     Create First Class
                 </button>
+                {% else %}
+                <p class="text-muted">No tutors available. Please ensure tutors have set their availability.</p>
+                {% endif %}
             </div>
             {% endif %}
         </div>
     </div>
 </div>
 
-<!-- Create Class Modal -->
+<!-- Tutor Availability Modal -->
+<div class="modal fade" id="tutorAvailabilityModal" tabindex="-1" aria-labelledby="tutorAvailabilityModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="tutorAvailabilityModalLabel">
+                    <i class="fas fa-calendar-check"></i>
+                    Check Tutor Availability
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="mb-3">
+                            <label class="form-label">Select Tutor</label>
+                            <select id="availabilityTutorSelect" class="form-select" onchange="showTutorAvailability()">
+                                <option value="">Choose a tutor</option>
+                                {% for tutor in all_tutors %}
+                                <option value="{{ tutor.id }}">{{ tutor.user.full_name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="mb-3">
+                            <label class="form-label">Select Date</label>
+                            <input type="date" id="availabilityDate" class="form-control" onchange="showTutorAvailability()">
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="mb-3">
+                            <label class="form-label">Select Time</label>
+                            <input type="time" id="availabilityTime" class="form-control" onchange="showTutorAvailability()">
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="availabilityResult" class="mt-4" style="display: none;">
+                    <div class="card">
+                        <div class="card-body">
+                            <h6 class="card-title">Availability Status</h6>
+                            <div id="availabilityStatus"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="tutorSchedule" class="mt-4" style="display: none;">
+                    <h6>Weekly Schedule</h6>
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Day</th>
+                                    <th>Available Times</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="scheduleTableBody">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Create Class Modal with Smart Filtering -->
+{% if tutors %}
 <div class="modal fade" id="createClassModal" tabindex="-1" aria-labelledby="createClassModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
@@ -344,14 +412,21 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
+                <div id="availabilityAlert" class="alert alert-warning" style="display: none;">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <span id="availabilityMessage"></span>
+                </div>
+                
                 <form id="createClassForm" action="{{ url_for('admin.create_class') }}" method="POST">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    {% if csrf_token %}
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    {% endif %}
                     
                     <div class="row">
                         <div class="col-md-6">
                             <div class="mb-3">
                                 <label class="form-label">Subject *</label>
-                                <input type="text" name="subject" class="form-control" required>
+                                <input type="text" name="subject" class="form-control" id="subjectInput" required onchange="filterCompatibleTutors()">
                             </div>
                         </div>
                         <div class="col-md-6">
@@ -371,13 +446,13 @@
                         <div class="col-md-4">
                             <div class="mb-3">
                                 <label class="form-label">Date *</label>
-                                <input type="date" name="scheduled_date" class="form-control" required>
+                                <input type="date" name="scheduled_date" class="form-control" id="classDate" required onchange="checkAvailability()">
                             </div>
                         </div>
                         <div class="col-md-4">
                             <div class="mb-3">
                                 <label class="form-label">Start Time *</label>
-                                <input type="time" name="scheduled_time" class="form-control" required>
+                                <input type="time" name="scheduled_time" class="form-control" id="classTime" required onchange="checkAvailability()">
                             </div>
                         </div>
                         <div class="col-md-4">
@@ -387,32 +462,56 @@
                             </div>
                         </div>
                     </div>
+
+                    <!-- Student Selection First (for smart filtering) -->
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="mb-3">
+                                <label class="form-label">Select Student First (for tutor filtering) *</label>
+                                <select id="primaryStudentSelect" class="form-select" onchange="filterCompatibleTutors()">
+                                    <option value="">Choose Student</option>
+                                    {% for student in students %}
+                                    <option value="{{ student.id }}" 
+                                            data-grade="{{ student.grade }}" 
+                                            data-board="{{ student.board }}" 
+                                            data-subjects="{{ student.get_subjects_enrolled()|join(',') if student.get_subjects_enrolled() else '' }}">
+                                        {{ student.full_name }} - Grade {{ student.grade }} ({{ student.board }})
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                                <small class="form-text text-muted">Select a student first to show only compatible tutors</small>
+                            </div>
+                        </div>
+                    </div>
                     
                     <div class="row">
                         <div class="col-md-6">
                             <div class="mb-3">
-                                <label class="form-label">Tutor *</label>
-                                <select name="tutor_id" class="form-select" required>
-                                    <option value="">Select Tutor</option>
-                                    {% for tutor in tutors %}
-                                    <option value="{{ tutor.id }}">{{ tutor.user.full_name }}</option>
-                                    {% endfor %}
+                                <label class="form-label">Compatible Tutors *</label>
+                                <select name="tutor_id" class="form-select" id="tutorSelect" required onchange="checkAvailability()">
+                                    <option value="">Select Student First</option>
                                 </select>
+                                <div id="tutorInfo" class="mt-2" style="display: none;">
+                                    <small class="text-info">
+                                        <i class="fas fa-info-circle"></i>
+                                        <span id="tutorInfoText"></span>
+                                    </small>
+                                </div>
                             </div>
                         </div>
                         <div class="col-md-6">
                             <div class="mb-3">
                                 <label class="form-label">Grade</label>
-                                <input type="text" name="grade" class="form-control" placeholder="e.g., 10, 12">
+                                <input type="text" name="grade" class="form-control" id="gradeInput" placeholder="e.g., 10, 12">
                             </div>
                         </div>
                     </div>
 
-                    <!-- Student Selection Fields -->
+                    <!-- Student Selection Fields (Hidden initially) -->
                     <div id="oneOnOneStudent" class="student-selection" style="display: none;">
                         <div class="mb-3">
-                            <label class="form-label">Select Student *</label>
-                            <select name="primary_student_id" class="form-select">
+                            <label class="form-label">Confirm Student *</label>
+                            <select name="primary_student_id" class="form-select" id="confirmStudentSelect">
                                 <option value="">Choose Student</option>
                                 {% for student in students %}
                                 <option value="{{ student.id }}">{{ student.full_name }} - Grade {{ student.grade }}</option>
@@ -455,7 +554,7 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="submit" form="createClassForm" class="btn btn-primary">
+                <button type="submit" form="createClassForm" class="btn btn-primary" id="createClassBtn">
                     <i class="fas fa-plus"></i>
                     Create Class
                 </button>
@@ -476,8 +575,15 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i>
+                    <strong>Note:</strong> Classes will only be created during the tutor's available time slots. Conflicting times will be automatically skipped.
+                </div>
+                
                 <form id="bulkCreateForm" action="{{ url_for('admin.bulk_create_classes') }}" method="POST">
+                    {% if csrf_token %}
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    {% endif %}
                     
                     <div class="row">
                         <div class="col-md-6">
@@ -620,8 +726,13 @@
         </div>
     </div>
 </div>
+{% endif %}
 
 <script>
+// Store tutor data for filtering
+const tutorData = {{ tutors_dict_data|tojson }};
+const studentData = {{ students_dict_data|tojson }};
+
 function toggleStudentFields() {
     const classType = document.getElementById('classType').value;
     const oneOnOneField = document.getElementById('oneOnOneStudent');
@@ -639,17 +750,218 @@ function toggleStudentFields() {
     if (classType === 'one_on_one' || classType === 'demo') {
         oneOnOneField.style.display = 'block';
         oneOnOneField.querySelector('select').setAttribute('required', 'required');
+        
+        // Copy selected student from primary selection
+        const primaryStudent = document.getElementById('primaryStudentSelect').value;
+        if (primaryStudent) {
+            document.getElementById('confirmStudentSelect').value = primaryStudent;
+        }
     } else if (classType === 'group') {
         groupField.style.display = 'block';
-        // At least one checkbox should be checked for group classes
-        const checkboxes = groupField.querySelectorAll('input[type="checkbox"]');
-        checkboxes.forEach(cb => cb.setAttribute('required', 'required'));
     }
+}
+
+function filterCompatibleTutors() {
+    const selectedStudentId = document.getElementById('primaryStudentSelect').value;
+    const subject = document.getElementById('subjectInput').value.toLowerCase();
+    const tutorSelect = document.getElementById('tutorSelect');
+    const tutorInfo = document.getElementById('tutorInfo');
+    const tutorInfoText = document.getElementById('tutorInfoText');
+    const gradeInput = document.getElementById('gradeInput');
+    
+    // Clear tutor selection
+    tutorSelect.innerHTML = '<option value="">Loading compatible tutors...</option>';
+    tutorInfo.style.display = 'none';
+    
+    if (!selectedStudentId) {
+        tutorSelect.innerHTML = '<option value="">Select Student First</option>';
+        return;
+    }
+    
+    // Find selected student
+    const selectedStudent = studentData.find(s => s.id == selectedStudentId);
+    if (!selectedStudent) return;
+    
+    // Auto-fill grade
+    gradeInput.value = selectedStudent.grade;
+    
+    // Filter compatible tutors
+    const compatibleTutors = tutorData.filter(tutor => {
+        // Check if tutor has availability
+        if (!tutor.has_availability) return false;
+        
+        // Check grade compatibility
+        if (tutor.grades && tutor.grades.length > 0) {
+            if (!tutor.grades.includes(selectedStudent.grade)) return false;
+        }
+        
+        // Check subject compatibility if subject is specified
+        if (subject && tutor.subjects && tutor.subjects.length > 0) {
+            const tutorSubjects = tutor.subjects.map(s => s.toLowerCase());
+            if (!tutorSubjects.some(s => s.includes(subject) || subject.includes(s))) return false;
+        }
+        
+        // Check board compatibility
+        if (tutor.boards && tutor.boards.length > 0) {
+            if (!tutor.boards.includes(selectedStudent.board)) return false;
+        }
+        
+        return true;
+    });
+    
+    // Populate tutor dropdown
+    tutorSelect.innerHTML = '<option value="">Choose Compatible Tutor</option>';
+    
+    if (compatibleTutors.length === 0) {
+        tutorSelect.innerHTML = '<option value="">No compatible tutors found</option>';
+        tutorInfo.style.display = 'block';
+        tutorInfoText.textContent = 'No tutors match this student\'s grade, board, or subject requirements.';
+        tutorInfo.className = 'mt-2';
+        tutorInfoText.className = 'text-warning';
+        return;
+    }
+    
+    compatibleTutors.forEach(tutor => {
+        const option = document.createElement('option');
+        option.value = tutor.id;
+        option.textContent = `${tutor.user_name} (${tutor.subjects ? tutor.subjects.join(', ') : 'All subjects'})`;
+        tutorSelect.appendChild(option);
+    });
+    
+    // Show compatibility info
+    tutorInfo.style.display = 'block';
+    tutorInfoText.textContent = `Found ${compatibleTutors.length} compatible tutor(s) for ${selectedStudent.full_name} (Grade ${selectedStudent.grade}, ${selectedStudent.board})`;
+    tutorInfoText.className = 'text-success';
+}
+
+function checkAvailability() {
+    const tutorId = document.getElementById('tutorSelect').value;
+    const classDate = document.getElementById('classDate').value;
+    const classTime = document.getElementById('classTime').value;
+    const alertDiv = document.getElementById('availabilityAlert');
+    const messageSpan = document.getElementById('availabilityMessage');
+    const createBtn = document.getElementById('createClassBtn');
+    
+    if (!tutorId || !classDate || !classTime) {
+        alertDiv.style.display = 'none';
+        return;
+    }
+    
+    // Check availability via API
+    fetch(`/admin/api/v1/check-class-conflict?tutor_id=${tutorId}&date=${classDate}&time=${classTime}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.can_schedule) {
+                alertDiv.style.display = 'none';
+                createBtn.disabled = false;
+            } else {
+                alertDiv.style.display = 'block';
+                alertDiv.className = 'alert alert-danger';
+                messageSpan.textContent = data.message;
+                createBtn.disabled = true;
+            }
+        })
+        .catch(error => {
+            console.error('Error checking availability:', error);
+        });
+}
+
+function showTutorAvailability() {
+    const tutorId = document.getElementById('availabilityTutorSelect').value;
+    const date = document.getElementById('availabilityDate').value;
+    const time = document.getElementById('availabilityTime').value;
+    const resultDiv = document.getElementById('availabilityResult');
+    const statusDiv = document.getElementById('availabilityStatus');
+    const scheduleDiv = document.getElementById('tutorSchedule');
+    const scheduleBody = document.getElementById('scheduleTableBody');
+    
+    if (!tutorId) {
+        resultDiv.style.display = 'none';
+        scheduleDiv.style.display = 'none';
+        return;
+    }
+    
+    // Show tutor's weekly schedule
+    fetch(`/admin/api/v1/tutor/${tutorId}/availability`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                scheduleDiv.style.display = 'block';
+                scheduleBody.innerHTML = '';
+                
+                const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+                const availability = data.availability || {};
+                
+                days.forEach(day => {
+                    const row = document.createElement('tr');
+                    const daySlots = availability[day] || [];
+                    
+                    let timeSlotsText = 'Not available';
+                    let statusBadge = '<span class="badge bg-danger">Unavailable</span>';
+                    
+                    if (daySlots.length > 0) {
+                        timeSlotsText = daySlots.map(slot => `${slot.start} - ${slot.end}`).join(', ');
+                        statusBadge = '<span class="badge bg-success">Available</span>';
+                    }
+                    
+                    row.innerHTML = `
+                        <td><strong>${day.charAt(0).toUpperCase() + day.slice(1)}</strong></td>
+                        <td>${timeSlotsText}</td>
+                        <td>${statusBadge}</td>
+                    `;
+                    scheduleBody.appendChild(row);
+                });
+                
+                // Check specific time if provided
+                if (date && time) {
+                    const checkDate = new Date(date);
+                    const dayName = checkDate.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
+                    
+                    fetch(`/admin/api/v1/check-class-conflict?tutor_id=${tutorId}&date=${date}&time=${time}`)
+                        .then(response => response.json())
+                        .then(data => {
+                            resultDiv.style.display = 'block';
+                            
+                            if (data.can_schedule) {
+                                statusDiv.innerHTML = `
+                                    <div class="alert alert-success">
+                                        <i class="fas fa-check-circle"></i>
+                                        <strong>Available!</strong> Tutor is available on ${dayName} at ${time}
+                                    </div>
+                                `;
+                            } else {
+                                statusDiv.innerHTML = `
+                                    <div class="alert alert-danger">
+                                        <i class="fas fa-times-circle"></i>
+                                        <strong>Not Available:</strong> ${data.message}
+                                    </div>
+                                `;
+                            }
+                        });
+                }
+            }
+        })
+        .catch(error => {
+            console.error('Error fetching availability:', error);
+        });
 }
 
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', function() {
     toggleStudentFields();
+    
+    // Set minimum date to today
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('classDate').min = today;
+    document.getElementById('availabilityDate').min = today;
+    
+    // Set default date to today
+    if (!document.getElementById('classDate').value) {
+        document.getElementById('classDate').value = today;
+    }
+    if (!document.getElementById('availabilityDate').value) {
+        document.getElementById('availabilityDate').value = today;
+    }
 });
 
 function rescheduleClass(classId) {
@@ -717,5 +1029,43 @@ function cancelClass(classId) {
     background-color: #f8f9fa;
     margin-bottom: 1rem;
 }
+
+.student-checkbox-list {
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.form-check {
+    margin-bottom: 0.5rem;
+}
+
+.alert {
+    margin-bottom: 1rem;
+}
+
+.page-header {
+    margin-bottom: 2rem;
+}
+
+.btn-group .btn {
+    margin: 0;
+}
+
+.table th {
+    background-color: #f8f9fa;
+    font-weight: 600;
+    border-bottom: 2px solid #dee2e6;
+}
+
+.modal-lg {
+    max-width: 800px;
+}
+
+.modal-xl {
+    max-width: 1140px;
+}
+
+.bg-success { background-color: #198754 !important; }
+.bg-danger { background-color: #dc3545 !important; }
 </style>
 {% endblock %}

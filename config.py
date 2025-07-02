@@ -10,9 +10,9 @@ class Config:
         'sqlite:///' + os.path.join(basedir, 'app.db')
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     
-    # File Upload Settings
+    # File Upload Settings - INCREASED LIMITS
     UPLOAD_FOLDER = os.path.join(basedir, 'app', 'static', 'uploads')
-    MAX_CONTENT_LENGTH = 50 * 1024 * 1024  # 50MB max file size
+    MAX_CONTENT_LENGTH = int(os.environ.get('MAX_CONTENT_LENGTH', 5 * 1024 * 1024 * 1024))  # 5GB max file size
     ALLOWED_EXTENSIONS = {'txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif', 'doc', 'docx', 'mp4', 'avi', 'mov'}
     
     # Email Settings

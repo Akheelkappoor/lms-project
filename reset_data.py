@@ -23,9 +23,14 @@ def reset_database():
         
         try:
             # Drop all tables
-            print("📋 Dropping all tables...")
-            db.drop_all()
+# Drop all tables, even with circular dependencies
+            print("📋 Reflecting and dropping all tables (even with circular FKs)...")
+            from sqlalchemy import MetaData
+            meta = MetaData()
+            meta.reflect(bind=db.engine)
+            meta.drop_all(bind=db.engine)
             print("✅ All tables dropped successfully")
+
             
             # Create all tables
             print("🏗️  Creating tables...")

@@ -270,12 +270,17 @@ class Class(db.Model):
             query = query.filter(Class.id != exclude_class_id)
         
         existing_classes = query.all()
-        
+
         for existing_class in existing_classes:
-            existing_end = existing_class.end_time
-            
+            # Ensure we have a valid end time for comparison
+            existing_end = existing_class.get_end_time()
+
+            # If for some reason end time could not be determined, skip this class
+            if not existing_end:
+                continue
+
             # Check for overlap
-            if (start_time < existing_end and end_time > existing_class.scheduled_time):
+            if start_time < existing_end and end_time > existing_class.scheduled_time:
                 return True, existing_class
         
         return False, None

@@ -1,0 +1,160 @@
+{% extends "base.html" %}
+
+{% block title %}Finance Dashboard{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row">
+        <div class="col-12">
+            <h2>Finance Dashboard - {{ month }}/{{ year }}</h2>
+        </div>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <h5>Total Salary Expense</h5>
+                    <h3>₹{{ "{:,.2f}".format(total_salary_expense) }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-white">
+                <div class="card-body">
+                    <h5>Outstanding Fees</h5>
+                    <h3>₹{{ "{:,.2f}".format(total_outstanding) }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <h5>Active Tutors</h5>
+                    <h3>{{ tutor_salaries|length }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-danger text-white">
+                <div class="card-body">
+                    <h5>Fee Defaulters</h5>
+                    <h3>{{ fee_defaulters|length }}</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <a href="{{ url_for('admin.salary_generation') }}" class="btn btn-primary mr-2">
+                <i class="fas fa-money-bill"></i> Generate Salaries
+            </a>
+            <a href="{{ url_for('admin.fee_collection') }}" class="btn btn-warning mr-2">
+                <i class="fas fa-credit-card"></i> Fee Collection
+            </a>
+            <button class="btn btn-success" onclick="exportFinanceData()">
+                <i class="fas fa-download"></i> Export Reports
+            </button>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Tutor Salaries -->
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Tutor Salary Summary</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Tutor</th>
+                                    <th>Classes</th>
+                                    <th>Hours</th>
+                                    <th>Net Salary</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in tutor_salaries[:10] %}
+                                <tr>
+                                    <td>{{ item.tutor.user.full_name if item.tutor.user else 'N/A' }}</td>
+                                    <td>{{ item.calculation.total_classes }}</td>
+                                    <td>{{ "%.1f"|format(item.calculation.total_hours) }}</td>
+                                    <td>₹{{ "{:,.0f}".format(item.calculation.net_salary) }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% if tutor_salaries|length > 10 %}
+                    <p class="text-muted">Showing top 10 of {{ tutor_salaries|length }} tutors</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Fee Defaulters -->
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Fee Defaulters</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Student</th>
+                                    <th>Grade</th>
+                                    <th>Outstanding</th>
+                                    <th>Overdue</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in fee_defaulters[:10] %}
+                                <tr>
+                                    <td>{{ item.student.full_name }}</td>
+                                    <td>{{ item.student.grade }}</td>
+                                    <td>₹{{ "{:,.0f}".format(item.outstanding.outstanding_amount) }}</td>
+                                    <td>
+                                        {% if item.outstanding.overdue_amount > 0 %}
+                                        <span class="badge badge-danger">₹{{ "{:,.0f}".format(item.outstanding.overdue_amount) }}</span>
+                                        {% else %}
+                                        <span class="badge badge-success">Current</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% if fee_defaulters|length > 10 %}
+                    <p class="text-muted">Showing top 10 of {{ fee_defaulters|length }} defaulters</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function exportFinanceData() {
+    // Call API to export finance data
+    fetch('/api/v1/finance/dashboard')
+        .then(response => response.json())
+        .then(data => {
+            console.log('Finance data:', data);
+            alert('Export functionality will download CSV file');
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error fetching finance data');
+        });
+}
+</script>
+{% endblock %}

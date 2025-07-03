@@ -375,7 +375,69 @@ class Student(db.Model):
     
        return compatible_students
 
+    def calculate_outstanding_fees(self):
+        """Calculate outstanding fees"""
+        fee_structure = self.get_fee_structure()
+        if not fee_structure:
+            return 0
+        
+        total_fee = fee_structure.get('total_fee', 0)
+        amount_paid = fee_structure.get('amount_paid', 0)
+        return max(0, total_fee - amount_paid)
 
+    def get_monthly_fee_due(self, month=None, year=None):
+        """Get monthly fee due amount"""
+        from datetime import datetime
+        
+        if not month:
+            month = datetime.now().month
+        if not year:
+            year = datetime.now().year
+        
+        fee_structure = self.get_fee_structure()
+        if not fee_structure:
+            return 0
+        
+        payment_schedule = fee_structure.get('payment_schedule', 'monthly')
+        total_fee = fee_structure.get('total_fee', 0)
+        
+        if payment_schedule == 'monthly':
+            return total_fee / 12
+        elif payment_schedule == 'quarterly':
+            return total_fee / 4
+        else:
+            return total_fee
 
+    def add_fee_payment(self, amount, payment_mode, payment_date=None, notes=''):
+        """Add fee payment record"""
+        from datetime import datetime
+        
+        fee_structure = self.get_fee_structure()
+        current_paid = fee_structure.get('amount_paid', 0)
+        
+        # Update amounts
+        fee_structure['amount_paid'] = current_paid + amount
+        fee_structure['balance_amount'] = fee_structure.get('total_fee', 0) - fee_structure['amount_paid']
+        
+        # Add to history
+        if 'payment_history' not in fee_structure:
+            fee_structure['payment_history'] = []
+        
+        payment_record = {
+            'id': len(fee_structure['payment_history']) + 1,
+            'amount': amount,
+            'payment_mode': payment_mode,
+            'payment_date': payment_date.isoformat() if payment_date else datetime.now().date().isoformat(),
+            'notes': notes,
+            'recorded_at': datetime.now().isoformat()
+        }
+        
+        fee_structure['payment_history'].append(payment_record)
+        self.set_fee_structure(fee_structure)
+        
+        return payment_record
 
-
+    def get_fee_payment_history(self):
+        """Get fee payment history"""
+        fee_structure = self.get_fee_structure()
+        return fee_structure.get('payment_history', [])

@@ -58,6 +58,9 @@ def create_app(config_class=Config):
     from app.routes.student import bp as student_bp
     app.register_blueprint(student_bp, url_prefix='/student')
 
+    from app.routes.finance import bp as finance_bp
+    app.register_blueprint(finance_bp)
+
     # Error handlers
     @app.errorhandler(404)
     def not_found_error(error):

@@ -847,7 +847,7 @@
             <ul class="nav-menu">
                 <!-- Dashboard -->
                 <li class="nav-item">
-                    <a href="{{ url_for('dashboard.index') }}" class="nav-link {% if request.endpoint == 'dashboard.admin_dashboard' or request.endpoint == 'dashboard.tutor_dashboard' %}active{% endif %}">
+                    <a href="{{ url_for('dashboard.index') }}" class="nav-link {% if request.endpoint and (request.endpoint == 'dashboard.admin_dashboard' or request.endpoint == 'dashboard.tutor_dashboard') %}active{% endif %}">
                         <i class="fas fa-home"></i>
                         <span>Dashboard</span>
                     </a>
@@ -889,7 +889,7 @@
                 <!-- Class Management -->
                 {% if current_user.has_permission('class_management') %}
                 <li class="nav-item">
-                    <a href="{{ url_for('admin.classes') }}" class="nav-link {% if 'classes' in request.endpoint %}active{% endif %}">
+                    <a href="{{ url_for('admin.classes') }}" class="nav-link {% if request.endpoint and 'classes' in request.endpoint %}active{% endif %}">
                         <i class="fas fa-chalkboard"></i>
                         <span>Classes</span>
                     </a>
@@ -898,17 +898,26 @@
 
                 {% if current_user.has_permission('timetable_management') %}
                 <li class="nav-item">
-                    <a href="{{ url_for('admin.timetable') }}" class="nav-link {% if 'timetable' in request.endpoint %}active{% endif %}">
+                    <a href="{{ url_for('admin.timetable') }}" class="nav-link {% if request.endpoint and 'timetable' in request.endpoint %}active{% endif %}">
                         <i class="fas fa-calendar-alt"></i>
                         <span>Timetable</span>
                     </a>
                 </li>
                 {% endif %}
 
+                {% if current_user.role in ['superadmin','admin'] %}
+                <li class="nav-item">
+                    <a href="{{ url_for('admin.finance_dashboard') }}" class="nav-link {% if request.endpoint and 'finance_dashboard' in request.endpoint %}active{% endif %}">
+                        <i class="fa-solid fa-coins"></i>
+                        <span>Finance</span>
+                    </a>
+                </li>
+                {% endif %}
+                
                 <!-- Department Management (Super Admin Only) -->
                 {% if current_user.role in ['superadmin', 'admin'] %}
                 <li class="nav-item">
-                    <a href="{{ url_for('admin.departments') }}" class="nav-link {% if 'departments' in request.endpoint %}active{% endif %}">
+                    <a href="{{ url_for('admin.departments') }}" class="nav-link {% if request.endpoint and 'departments' in request.endpoint %}active{% endif %}">
                         <i class="fas fa-building"></i>
                         <span>Departments</span>
                     </a>
@@ -920,7 +929,7 @@
                 <!-- Tutor Specific Features -->
                 {% if current_user.role == 'tutor' %}
                 <li class="nav-item">
-                    <a href="{{ url_for('tutor.availability') }}" class="nav-link {% if 'availability' in request.endpoint %}active{% endif %}">
+                    <a href="{{ url_for('tutor.availability') }}" class="nav-link {% if request.endpoint and 'availability' in request.endpoint %}active{% endif %}">
                         <i class="fas fa-calendar-check"></i>
                         <span>Set Availability</span>
                         {% if current_user.tutor and not current_user.tutor.get_availability() %}
@@ -937,21 +946,21 @@
                 </li>
                 
                 <li class="nav-item">
-                    <a href="{{ url_for('tutor.my_students') }}" class="nav-link {% if 'tutor.my_students' in request.endpoint %}active{% endif %}">
+                    <a href="{{ url_for('tutor.my_students') }}" class="nav-link {% if request.endpoint and 'tutor.my_students' in request.endpoint %}active{% endif %}">
                         <i class="fas fa-user-graduate"></i>
                         <span>My Students</span>
                     </a>
                 </li>
                 
                 <li class="nav-item">
-                    <a href="{{ url_for('tutor.attendance') }}" class="nav-link {% if 'tutor.attendance' in request.endpoint %}active{% endif %}">
+                    <a href="{{ url_for('tutor.attendance') }}" class="nav-link {% if request.endpoint and 'tutor.attendance' in request.endpoint %}active{% endif %}">
                         <i class="fas fa-calendar-check"></i>
                         <span>Attendance</span>
                     </a>
                 </li>
                 
                 <li class="nav-item">
-                    <a href="{{ url_for('tutor.salary') }}" class="nav-link {% if 'tutor.salary' in request.endpoint %}active{% endif %}">
+                    <a href="{{ url_for('tutor.salary') }}" class="nav-link {% if request.endpoint and 'tutor.salary' in request.endpoint %}active{% endif %}">
                         <i class="fas fa-money-bill-wave"></i>
                         <span>Salary</span>
                     </a>
@@ -968,7 +977,7 @@
                 
                 <!-- Change Password -->
                 <li class="nav-item">
-                    <a href="{{ url_for('auth.change_password') }}" class="nav-link {% if 'change_password' in request.endpoint %}active{% endif %}">
+                    <a href="{{ url_for('auth.change_password') }}" class="nav-link {% if request.endpoint and 'change_password' in request.endpoint %}active{% endif %}">
                         <i class="fas fa-key"></i>
                         <span>Change Password</span>
                     </a>

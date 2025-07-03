@@ -46,6 +46,9 @@ class Tutor(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     last_class = db.Column(db.DateTime)
     
+    #salary 
+    salary_payments = db.Column(db.Text)
+
     def __init__(self, **kwargs):
         super(Tutor, self).__init__(**kwargs)
     
@@ -242,5 +245,99 @@ class Tutor(db.Model):
             'created_at': self.created_at.isoformat() if self.created_at else None
         }
     
+    # Basic representation
     def __repr__(self):
         return f'<Tutor {self.user.full_name if self.user else self.id}>'
+
+    # Salary calculation methods
+    def calculate_monthly_salary(self, month=None, year=None):
+        """Calculate monthly salary based on attendance and performance"""
+        from datetime import datetime, date
+        from app.models.attendance import Attendance
+        
+        # Set default month/year if not provided
+        if not month:
+            month = datetime.now().month
+        if not year:
+            year = datetime.now().year
+
+        # Initialize salary calculation components
+        base_salary = self.monthly_salary or 0
+        attendance_records = self._get_monthly_attendance_records(month, year)
+        attended_classes = [att for att in attendance_records if att.status == 'present']
+
+        # Calculate salary based on type
+        if self.salary_type == 'hourly':
+            calculated_salary = self._calculate_hourly_salary(attended_classes)
+        else:
+            calculated_salary = self._calculate_fixed_monthly_salary(base_salary, attendance_records, attended_classes)
+
+        return {
+            'base_salary': base_salary,
+            'calculated_salary': calculated_salary,
+            'total_classes': len(attendance_records),
+            'attended_classes': len(attended_classes),
+            'month': month,
+            'year': year
+        }
+
+    def _get_monthly_attendance_records(self, month, year):
+        """Helper method to get attendance records for a specific month"""
+        from datetime import date
+        from app.models.attendance import Attendance
+        
+        start_date = date(year, month, 1)
+        end_date = date(year + 1, 1, 1) if month == 12 else date(year, month + 1, 1)
+        
+        return Attendance.query.filter(
+            Attendance.tutor_id == self.id,
+            Attendance.class_date >= start_date,
+            Attendance.class_date < end_date
+        ).all()
+
+    def _calculate_hourly_salary(self, attended_classes):
+        """Helper method to calculate hourly-based salary"""
+        total_hours = sum(att.duration_hours or 1 for att in attended_classes)
+        return total_hours * (self.hourly_rate or 0)
+
+    def _calculate_fixed_monthly_salary(self, base_salary, all_classes, attended_classes):
+        """Helper method to calculate fixed monthly salary with attendance adjustment"""
+        total_classes = len(all_classes)
+        if total_classes > 0:
+            attendance_rate = len(attended_classes) / total_classes
+            return base_salary * attendance_rate
+        return base_salary
+
+    # Salary history and payment methods
+    def get_salary_history(self):
+        """Get salary payment history"""
+        if hasattr(self, 'salary_payments') and self.salary_payments:
+            try:
+                return json.loads(self.salary_payments)
+            except:
+                return []
+        return []
+
+    def get_outstanding_salary(self):
+        """Get pending salary payments"""
+        salary_history = self.get_salary_history()
+        return sum(payment['amount'] for payment in salary_history if payment['status'] == 'pending')
+
+    def add_salary_payment(self, amount, month, year, status='pending', payment_date=None):
+        """Add salary payment record"""
+        from datetime import datetime
+        
+        salary_history = self.get_salary_history()
+        payment_record = {
+            'id': len(salary_history) + 1,
+            'amount': amount,
+            'month': month,
+            'year': year,
+            'status': status,
+            'payment_date': payment_date.isoformat() if payment_date else None,
+            'created_at': datetime.now().isoformat()
+        }
+        
+        salary_history.append(payment_record)
+        self.salary_payments = json.dumps(salary_history)
+        return payment_record

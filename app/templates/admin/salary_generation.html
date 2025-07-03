@@ -1,0 +1,247 @@
+{% extends "base.html" %}
+
+{% block title %}Salary Generation{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2>Salary Generation - {{ current_month }}/{{ current_year }}</h2>
+                <div>
+                    <button class="btn btn-success" onclick="generateAllSalaries()">
+                        <i class="fas fa-cog"></i> Generate All
+                    </button>
+                    <button class="btn btn-primary" onclick="exportSalaryData()">
+                        <i class="fas fa-download"></i> Export CSV
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card bg-info text-white">
+                <div class="card-body">
+                    <h5>Total Tutors</h5>
+                    <h3>{{ tutors|length }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <h5>Total Salary</h5>
+                    <h3>₹{{ "{:,.0f}".format(tutors|sum(attribute='calculation.calculated_salary')) }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card bg-warning text-white">
+                <div class="card-body">
+                    <h5>Outstanding</h5>
+                    <h3>₹{{ "{:,.0f}".format(tutors|sum(attribute='outstanding')) }}</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tutors Table -->
+    <div class="card">
+        <div class="card-header">
+            <h5>Tutor Salary Details</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Tutor Name</th>
+                            <th>Salary Type</th>
+                            <th>Classes</th>
+                            <th>Attended</th>
+                            <th>Base Amount</th>
+                            <th>Calculated</th>
+                            <th>Outstanding</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in tutors %}
+                        <tr>
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    <div class="avatar-sm bg-light rounded-circle d-flex align-items-center justify-content-center me-2">
+                                        <i class="fas fa-user-tie"></i>
+                                    </div>
+                                    <div>
+                                        <strong>{{ item.tutor.user.full_name if item.tutor.user else 'N/A' }}</strong>
+                                        <br><small class="text-muted">{{ item.tutor.user.email if item.tutor.user else '' }}</small>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <span class="badge badge-info">{{ item.tutor.salary_type.title() if item.tutor.salary_type else 'Fixed' }}</span>
+                            </td>
+                            <td>{{ item.calculation.total_classes }}</td>
+                            <td>
+                                {{ item.calculation.attended_classes }}
+                                {% if item.calculation.total_classes > 0 %}
+                                <br><small class="text-muted">{{ "%.1f"|format((item.calculation.attended_classes / item.calculation.total_classes * 100)) }}%</small>
+                                {% endif %}
+                            </td>
+                            <td>₹{{ "{:,.0f}".format(item.calculation.base_salary) }}</td>
+                            <td>
+                                <strong>₹{{ "{:,.0f}".format(item.calculation.calculated_salary) }}</strong>
+                            </td>
+                            <td>
+                                {% if item.outstanding > 0 %}
+                                <span class="text-warning">₹{{ "{:,.0f}".format(item.outstanding) }}</span>
+                                {% else %}
+                                <span class="text-success">Paid</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="btn-group btn-group-sm">
+                                    <button class="btn btn-outline-primary" onclick="viewSalaryDetails({{ item.tutor.id }})">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                    <button class="btn btn-outline-success" onclick="generateSalary({{ item.tutor.id }})">
+                                        <i class="fas fa-money-bill"></i>
+                                    </button>
+                                    <button class="btn btn-outline-info" onclick="downloadPayslip({{ item.tutor.id }})">
+                                        <i class="fas fa-download"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Salary Generation Modal -->
+<div class="modal fade" id="salaryModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Generate Salary</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="salaryForm">
+                    <input type="hidden" id="tutorId">
+                    <div class="mb-3">
+                        <label class="form-label">Month/Year</label>
+                        <input type="text" class="form-control" value="{{ current_month }}/{{ current_year }}" readonly>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Amount</label>
+                        <input type="number" class="form-control" id="salaryAmount" step="0.01" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Notes</label>
+                        <textarea class="form-control" id="salaryNotes" rows="3"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="processSalary()">Generate</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function generateAllSalaries() {
+    if (confirm('Generate salaries for all tutors?')) {
+        fetch('/api/v1/finance/salary/generate-all', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                month: {{ current_month }},
+                year: {{ current_year }}
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Salaries generated successfully!');
+                location.reload();
+            } else {
+                alert('Error: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error generating salaries');
+        });
+    }
+}
+
+function generateSalary(tutorId) {
+    document.getElementById('tutorId').value = tutorId;
+    
+    // Get calculated salary for this tutor
+    const row = event.target.closest('tr');
+    const calculatedAmount = row.cells[5].textContent.replace(/[₹,]/g, '');
+    document.getElementById('salaryAmount').value = calculatedAmount;
+    
+    new bootstrap.Modal(document.getElementById('salaryModal')).show();
+}
+
+function processSalary() {
+    const tutorId = document.getElementById('tutorId').value;
+    const amount = document.getElementById('salaryAmount').value;
+    const notes = document.getElementById('salaryNotes').value;
+    
+    fetch('/api/v1/finance/salary/generate', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            tutor_id: tutorId,
+            amount: parseFloat(amount),
+            month: {{ current_month }},
+            year: {{ current_year }},
+            notes: notes
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('Salary generated successfully!');
+            bootstrap.Modal.getInstance(document.getElementById('salaryModal')).hide();
+            location.reload();
+        } else {
+            alert('Error: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error generating salary');
+    });
+}
+
+function viewSalaryDetails(tutorId) {
+    window.open(`/admin/tutors/${tutorId}/salary`, '_blank');
+}
+
+function downloadPayslip(tutorId) {
+    window.open(`/api/v1/finance/salary/${tutorId}/payslip?month={{ current_month }}&year={{ current_year }}`, '_blank');
+}
+
+function exportSalaryData() {
+    window.open('/api/v1/finance/salary/export?month={{ current_month }}&year={{ current_year }}', '_blank');
+}
+</script>
+{% endblock %}

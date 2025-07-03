@@ -1422,3 +1422,170 @@ def api_timetable_today():
 def admin_dashboard():
     """Admin dashboard - redirect to main dashboard"""
     return redirect(url_for('dashboard.index'))
+
+
+@bp.route('/finance')
+@login_required
+@admin_required
+def finance_dashboard():
+    """Finance dashboard"""
+    from datetime import datetime, date
+    from sqlalchemy import func
+    
+    current_month = datetime.now().month
+    current_year = datetime.now().year
+    
+    try:
+        # Get all active tutors
+        tutors = Tutor.query.filter_by(status='active').all()
+        
+        # Calculate tutor salary data
+        total_salary_expense = 0
+        tutor_salaries = []
+        
+        for tutor in tutors:
+            salary_calc = tutor.calculate_monthly_salary(current_month, current_year)
+            outstanding = tutor.get_outstanding_salary()
+            
+            # Create calculation object that matches template expectations
+            calculation_data = {
+                'total_classes': salary_calc['total_classes'],
+                'total_hours': salary_calc['total_classes'] * 1.0,  # Assuming 1 hour per class
+                'net_salary': salary_calc['calculated_salary']
+            }
+            
+            tutor_salaries.append({
+                'tutor': tutor,
+                'calculation': type('obj', (object,), calculation_data)  # Convert dict to object
+            })
+            
+            total_salary_expense += salary_calc['calculated_salary']
+        
+        # Get all active students
+        students = Student.query.filter_by(is_active=True).all()
+        
+        # Calculate fee defaulters
+        total_outstanding = 0
+        fee_defaulters = []
+        
+        for student in students:
+            outstanding_amount = student.calculate_outstanding_fees()
+            
+            if outstanding_amount > 0:
+                # Create outstanding object that matches template expectations
+                outstanding_data = {
+                    'outstanding_amount': outstanding_amount,
+                    'overdue_amount': outstanding_amount  # Assuming all outstanding is overdue for now
+                }
+                
+                fee_defaulters.append({
+                    'student': student,
+                    'outstanding': type('obj', (object,), outstanding_data)  # Convert dict to object
+                })
+                
+                total_outstanding += outstanding_amount
+        
+        # Sort fee defaulters by outstanding amount (highest first)
+        fee_defaulters.sort(key=lambda x: x['outstanding'].outstanding_amount, reverse=True)
+        
+        return render_template('admin/finance_dashboard.html',
+                             month=current_month,
+                             year=current_year,
+                             total_salary_expense=total_salary_expense,
+                             total_outstanding=total_outstanding,
+                             tutor_salaries=tutor_salaries,
+                             fee_defaulters=fee_defaulters)
+                             
+    except Exception as e:
+        flash(f'Error loading finance dashboard: {str(e)}', 'error')
+        return render_template('admin/finance_dashboard.html',
+                             month=current_month,
+                             year=current_year,
+                             total_salary_expense=0,
+                             total_outstanding=0,
+                             tutor_salaries=[],
+                             fee_defaulters=[])
+    
+@bp.route('/salary-generation')
+@login_required
+@admin_required
+def salary_generation():
+    """Salary generation page"""
+    from datetime import datetime
+    
+    current_month = datetime.now().month
+    current_year = datetime.now().year
+    
+    # Get all active tutors
+    tutors = Tutor.query.filter_by(status='active').all()
+    
+    tutor_salary_data = []
+    for tutor in tutors:
+        salary_calc = tutor.calculate_monthly_salary(current_month, current_year)
+        tutor_salary_data.append({
+            'tutor': tutor,
+            'calculation': salary_calc,
+            'outstanding': tutor.get_outstanding_salary()
+        })
+    
+    return render_template('admin/salary_generation.html',
+                         tutors=tutor_salary_data,
+                         current_month=current_month,
+                         current_year=current_year)
+
+@bp.route('/fee-collection')
+@login_required
+@admin_required
+def fee_collection():
+    """Fee collection page"""
+    # Get students with outstanding fees
+    students = Student.query.filter_by(is_active=True).all()
+    
+    students_with_fees = []
+    for student in students:
+        outstanding = student.calculate_outstanding_fees()
+        if outstanding > 0:
+            students_with_fees.append({
+                'student': student,
+                'outstanding': outstanding,
+                'fee_structure': student.get_fee_structure()
+            })
+    
+    # Sort by outstanding amount (highest first)
+    students_with_fees.sort(key=lambda x: x['outstanding'], reverse=True)
+    
+    return render_template('admin/fee_collection.html',
+                         students_with_fees=students_with_fees)
+
+@bp.route('/api/v1/finance/dashboard')
+@login_required
+@admin_required
+def finance_dashboard_api():
+    """API endpoint for finance dashboard data"""
+    from datetime import datetime
+    
+    current_month = datetime.now().month
+    current_year = datetime.now().year
+    
+    # Get summary data
+    tutors = Tutor.query.filter_by(status='active').all()
+    students = Student.query.filter_by(is_active=True).all()
+    
+    total_salary_expense = sum(
+        tutor.calculate_monthly_salary(current_month, current_year)['calculated_salary'] 
+        for tutor in tutors
+    )
+    
+    total_outstanding_fees = sum(
+        student.calculate_outstanding_fees() 
+        for student in students
+    )
+    
+    return jsonify({
+        'month': current_month,
+        'year': current_year,
+        'total_salary_expense': total_salary_expense,
+        'total_outstanding_fees': total_outstanding_fees,
+        'total_tutors': len(tutors),
+        'total_students': len(students)
+    })

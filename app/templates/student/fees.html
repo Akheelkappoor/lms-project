@@ -1,0 +1,542 @@
+{% extends "base.html" %}
+
+{% block title %}Student Fees - {{ student.full_name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Page Header -->
+    <div class="page-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h1 class="page-title">
+                    <i class="fas fa-money-bill-wave"></i>
+                    Fee Details - {{ student.full_name }}
+                </h1>
+                <p class="page-subtitle">Manage and track student fee payments</p>
+            </div>
+            <div>
+                <a href="{{ url_for('admin.students') }}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left"></i>
+                    Back to Students
+                </a>
+                {% if current_user.has_permission('student_management') %}
+                <button class="btn btn-success" onclick="recordNewPayment()">
+                    <i class="fas fa-plus"></i>
+                    Record Payment
+                </button>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Student Info Sidebar -->
+        <div class="col-lg-4">
+            <!-- Student Basic Info -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="card-title mb-0">
+                        <i class="fas fa-user-graduate"></i>
+                        Student Information
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="text-center mb-3">
+                        <div class="avatar-lg bg-primary text-white rounded-circle d-flex align-items-center justify-content-center mx-auto mb-3">
+                            <i class="fas fa-user fa-2x"></i>
+                        </div>
+                        <h5 class="mb-1">{{ student.full_name }}</h5>
+                        <p class="text-muted mb-0">Grade {{ student.grade }} - {{ student.board }}</p>
+                    </div>
+                    
+                    <div class="student-details">
+                        <div class="detail-item d-flex justify-content-between py-2 border-bottom">
+                            <span class="text-muted">Student ID:</span>
+                            <span class="fw-bold">{{ student.id }}</span>
+                        </div>
+                        <div class="detail-item d-flex justify-content-between py-2 border-bottom">
+                            <span class="text-muted">Email:</span>
+                            <span>{{ student.email or 'Not provided' }}</span>
+                        </div>
+                        <div class="detail-item d-flex justify-content-between py-2 border-bottom">
+                            <span class="text-muted">Phone:</span>
+                            <span>{{ student.phone or 'Not provided' }}</span>
+                        </div>
+                        <div class="detail-item d-flex justify-content-between py-2 border-bottom">
+                            <span class="text-muted">Department:</span>
+                            <span>{{ student.department.name if student.department else 'Not assigned' }}</span>
+                        </div>
+                        <div class="detail-item d-flex justify-content-between py-2">
+                            <span class="text-muted">Status:</span>
+                            <span class="badge badge-{{ 'success' if student.is_active else 'danger' }}">
+                                {{ 'Active' if student.is_active else 'Inactive' }}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Fee Summary -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="card-title mb-0">
+                        <i class="fas fa-chart-pie"></i>
+                        Fee Summary
+                    </h6>
+                </div>
+                <div class="card-body">
+                    {% if fee_structure %}
+                    <div class="fee-summary">
+                        <div class="summary-item d-flex justify-content-between py-2 border-bottom">
+                            <span class="text-muted">Total Fee:</span>
+                            <span class="fw-bold">₹{{ "{:,.0f}".format(fee_structure.get('total_fee', 0)) }}</span>
+                        </div>
+                        <div class="summary-item d-flex justify-content-between py-2 border-bottom">
+                            <span class="text-success">Amount Paid:</span>
+                            <span class="text-success fw-bold">₹{{ "{:,.0f}".format(fee_structure.get('amount_paid', 0)) }}</span>
+                        </div>
+                        <div class="summary-item d-flex justify-content-between py-2 border-bottom">
+                            <span class="text-danger">Outstanding:</span>
+                            <span class="text-danger fw-bold">₹{{ "{:,.0f}".format(student.calculate_outstanding_fees()) }}</span>
+                        </div>
+                        <div class="summary-item d-flex justify-content-between py-2">
+                            <span class="text-muted">Payment Mode:</span>
+                            <span class="badge badge-info">{{ fee_structure.get('payment_mode', 'Not set').title() }}</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Progress Bar -->
+                    <div class="mt-3">
+                        <div class="d-flex justify-content-between small mb-1">
+                            <span>Payment Progress</span>
+                            <span>{{ "%.1f"|format((fee_structure.get('amount_paid', 0) / fee_structure.get('total_fee', 1) * 100)) }}%</span>
+                        </div>
+                        <div class="progress" style="height: 8px;">
+                            <div class="progress-bar bg-success" style="width: {{ (fee_structure.get('amount_paid', 0) / fee_structure.get('total_fee', 1) * 100) }}%"></div>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-exclamation-triangle fa-2x text-warning mb-3"></i>
+                        <h6 class="text-muted">No Fee Structure</h6>
+                        <p class="text-muted small">Fee structure not configured for this student</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            {% if current_user.has_permission('student_management') %}
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="card-title mb-0">
+                        <i class="fas fa-bolt"></i>
+                        Quick Actions
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <button class="btn btn-success btn-sm" onclick="recordNewPayment()">
+                            <i class="fas fa-plus"></i> Record Payment
+                        </button>
+                        <button class="btn btn-warning btn-sm" onclick="sendReminder()">
+                            <i class="fas fa-bell"></i> Send Reminder
+                        </button>
+                        <button class="btn btn-info btn-sm" onclick="downloadStatement()">
+                            <i class="fas fa-download"></i> Download Statement
+                        </button>
+                        <button class="btn btn-secondary btn-sm" onclick="editFeeStructure()">
+                            <i class="fas fa-edit"></i> Edit Fee Structure
+                        </button>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Payment History -->
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h6 class="card-title mb-0">
+                            <i class="fas fa-history"></i>
+                            Payment History
+                        </h6>
+                        <div>
+                            <select class="form-select form-select-sm" id="filterPayments">
+                                <option value="">All Payments</option>
+                                <option value="cash">Cash</option>
+                                <option value="online">Online</option>
+                                <option value="bank_transfer">Bank Transfer</option>
+                                <option value="cheque">Cheque</option>
+                                <option value="upi">UPI</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    {% if fee_structure and fee_structure.get('payment_history') %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Amount</th>
+                                    <th>Mode</th>
+                                    <th>Notes</th>
+                                    <th>Recorded By</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="paymentHistoryTable">
+                                {% for payment in fee_structure.get('payment_history', []) %}
+                                <tr data-payment-mode="{{ payment.payment_mode }}">
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <i class="fas fa-calendar text-muted me-2"></i>
+                                            <div>
+                                                <div>{{ payment.payment_date }}</div>
+                                                <small class="text-muted">{{ payment.recorded_at[:10] if payment.recorded_at else '' }}</small>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="fw-bold text-success">₹{{ "{:,.0f}".format(payment.amount) }}</span>
+                                    </td>
+                                    <td>
+                                        <span class="badge badge-{{ 'primary' if payment.payment_mode == 'online' else 'secondary' if payment.payment_mode == 'cash' else 'info' }}">
+                                            {{ payment.payment_mode.replace('_', ' ').title() }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div class="text-truncate" style="max-width: 150px;" title="{{ payment.notes or 'No notes' }}">
+                                            {{ payment.notes or '-' }}
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <i class="fas fa-user-circle text-muted me-2"></i>
+                                            <span>{{ payment.recorded_by if payment.recorded_by else 'System' }}</span>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            <button class="btn btn-outline-primary" onclick="viewPaymentDetails({{ loop.index }})">
+                                                <i class="fas fa-eye"></i>
+                                            </button>
+                                            <button class="btn btn-outline-success" onclick="downloadReceipt({{ loop.index }})">
+                                                <i class="fas fa-receipt"></i>
+                                            </button>
+                                            {% if current_user.has_permission('student_management') %}
+                                            <button class="btn btn-outline-warning" onclick="editPayment({{ loop.index }})">
+                                                <i class="fas fa-edit"></i>
+                                            </button>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <!-- Payment Summary -->
+                    <div class="row mt-4">
+                        <div class="col-md-4">
+                            <div class="stat-card border">
+                                <div class="stat-icon success">
+                                    <i class="fas fa-coins"></i>
+                                </div>
+                                <div class="stat-content">
+                                    <h3>{{ fee_structure.get('payment_history', [])|length }}</h3>
+                                    <p>Total Payments</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="stat-card border">
+                                <div class="stat-icon primary">
+                                    <i class="fas fa-rupee-sign"></i>
+                                </div>
+                                <div class="stat-content">
+                                    <h3>₹{{ "{:,.0f}".format(fee_structure.get('amount_paid', 0)) }}</h3>
+                                    <p>Total Collected</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="stat-card border">
+                                <div class="stat-icon {% if student.calculate_outstanding_fees() > 0 %}danger{% else %}success{% endif %}">
+                                    <i class="fas fa-{% if student.calculate_outstanding_fees() > 0 %}exclamation-triangle{% else %}check-circle{% endif %}"></i>
+                                </div>
+                                <div class="stat-content">
+                                    <h3>₹{{ "{:,.0f}".format(student.calculate_outstanding_fees()) }}</h3>
+                                    <p>Outstanding</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-money-bill-wave fa-3x text-muted mb-3"></i>
+                        <h5 class="text-muted">No Payment History</h5>
+                        <p class="text-muted">No payments have been recorded for this student yet.</p>
+                        {% if current_user.has_permission('student_management') %}
+                        <button class="btn btn-primary" onclick="recordNewPayment()">
+                            <i class="fas fa-plus"></i> Record First Payment
+                        </button>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Payment Recording Modal -->
+{% if current_user.has_permission('student_management') %}
+<div class="modal fade" id="paymentModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Record New Payment</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="paymentForm">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Student Name</label>
+                                <input type="text" class="form-control" value="{{ student.full_name }}" readonly>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Outstanding Amount</label>
+                                <input type="text" class="form-control" value="₹{{ '{:,.0f}'.format(student.calculate_outstanding_fees()) }}" readonly>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Payment Amount *</label>
+                                <input type="number" class="form-control" id="paymentAmount" step="0.01" max="{{ student.calculate_outstanding_fees() }}" required>
+                                <div class="form-text">Maximum: ₹{{ '{:,.0f}'.format(student.calculate_outstanding_fees()) }}</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Payment Mode *</label>
+                                <select class="form-select" id="paymentMode" required>
+                                    <option value="">Select Payment Mode</option>
+                                    <option value="cash">Cash</option>
+                                    <option value="online">Online Transfer</option>
+                                    <option value="bank_transfer">Bank Transfer</option>
+                                    <option value="cheque">Cheque</option>
+                                    <option value="upi">UPI</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Payment Date</label>
+                                <input type="date" class="form-control" id="paymentDate">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Reference Number</label>
+                                <input type="text" class="form-control" id="referenceNumber" placeholder="Transaction/Receipt number">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Notes</label>
+                        <textarea class="form-control" id="paymentNotes" rows="3" placeholder="Add any additional notes about this payment..."></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-success" onclick="processPayment()">
+                    <i class="fas fa-save"></i> Record Payment
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<script>
+// Set today's date as default
+document.addEventListener('DOMContentLoaded', function() {
+    const today = new Date().toISOString().split('T')[0];
+    const paymentDate = document.getElementById('paymentDate');
+    if (paymentDate) {
+        paymentDate.value = today;
+    }
+});
+
+// Filter payments by mode
+document.getElementById('filterPayments').addEventListener('change', function() {
+    const filterValue = this.value;
+    const rows = document.querySelectorAll('#paymentHistoryTable tr');
+    
+    rows.forEach(row => {
+        if (!filterValue || row.getAttribute('data-payment-mode') === filterValue) {
+            row.style.display = '';
+        } else {
+            row.style.display = 'none';
+        }
+    });
+});
+
+function recordNewPayment() {
+    new bootstrap.Modal(document.getElementById('paymentModal')).show();
+}
+
+function processPayment() {
+    const amount = document.getElementById('paymentAmount').value;
+    const mode = document.getElementById('paymentMode').value;
+    const date = document.getElementById('paymentDate').value;
+    const notes = document.getElementById('paymentNotes').value;
+    const reference = document.getElementById('referenceNumber').value;
+    
+    if (!amount || !mode) {
+        alert('Please fill all required fields');
+        return;
+    }
+    
+    if (parseFloat(amount) <= 0) {
+        alert('Please enter a valid amount');
+        return;
+    }
+    
+    const notesWithRef = reference ? `${notes} [Ref: ${reference}]` : notes;
+    
+    fetch('/student/students/{{ student.id }}/fees/payment', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            amount: parseFloat(amount),
+            payment_mode: mode,
+            payment_date: date,
+            notes: notesWithRef
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('Payment recorded successfully!');
+            bootstrap.Modal.getInstance(document.getElementById('paymentModal')).hide();
+            location.reload();
+        } else {
+            alert('Error: ' + (data.error || 'Failed to record payment'));
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error recording payment');
+    });
+}
+
+function viewPaymentDetails(paymentIndex) {
+    alert(`Viewing details for payment #${paymentIndex}`);
+}
+
+function downloadReceipt(paymentIndex) {
+    alert(`Downloading receipt for payment #${paymentIndex}`);
+}
+
+function editPayment(paymentIndex) {
+    alert(`Editing payment #${paymentIndex}`);
+}
+
+function sendReminder() {
+    if (confirm('Send payment reminder to this student?')) {
+        fetch('/api/v1/finance/fees/reminder', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                student_id: {{ student.id }}
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Reminder sent successfully!');
+            } else {
+                alert('Error: ' + (data.error || 'Failed to send reminder'));
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error sending reminder');
+        });
+    }
+}
+
+function downloadStatement() {
+    window.open(`/student/students/{{ student.id }}/fees/statement`, '_blank');
+}
+
+function editFeeStructure() {
+    alert('Fee structure editing functionality will be implemented soon.');
+}
+</script>
+
+<style>
+.avatar-lg {
+    width: 80px;
+    height: 80px;
+}
+
+.detail-item, .summary-item {
+    font-size: 0.9rem;
+}
+
+.stat-card {
+    padding: 1.5rem;
+    text-align: center;
+}
+
+.stat-card .stat-icon {
+    width: 50px;
+    height: 50px;
+    font-size: 1.5rem;
+    margin: 0 auto 1rem;
+}
+
+.stat-card h3 {
+    font-size: 1.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.stat-card p {
+    margin: 0;
+    font-size: 0.875rem;
+}
+
+.progress {
+    background-color: #e9ecef;
+}
+
+.form-text {
+    color: #6c757d;
+    font-size: 0.875rem;
+}
+</style>
+{% endblock %}

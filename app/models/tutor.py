@@ -46,9 +46,6 @@ class Tutor(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     last_class = db.Column(db.DateTime)
     
-    #salary 
-    salary_payments = db.Column(db.Text)
-
     def __init__(self, **kwargs):
         super(Tutor, self).__init__(**kwargs)
     
@@ -245,11 +242,9 @@ class Tutor(db.Model):
             'created_at': self.created_at.isoformat() if self.created_at else None
         }
     
-    # Basic representation
     def __repr__(self):
         return f'<Tutor {self.user.full_name if self.user else self.id}>'
-
-    # Salary calculation methods
+    
     def calculate_monthly_salary(self, month=None, year=None):
         """Calculate monthly salary based on attendance and performance"""
         from datetime import datetime, date

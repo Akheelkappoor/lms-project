@@ -158,9 +158,4 @@ if __name__ == '__main__':
     print("⏳ Large file uploads (up to 5GB) supported")
     print("🔄 Press Ctrl+C to stop the server")
     
-    try:
-        app.run(debug=True, host='0.0.0.0', port=5001, threaded=True)
-    except KeyboardInterrupt:
-        print("\n👋 Server stopped by user")
-    except Exception as e:
-        print(f"❌ Server error: {str(e)}")
+    

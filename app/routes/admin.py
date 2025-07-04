@@ -1423,6 +1423,7 @@ def admin_dashboard():
     """Admin dashboard - redirect to main dashboard"""
     return redirect(url_for('dashboard.index'))
 
+# ========== finance ========
 
 @bp.route('/finance')
 @login_required

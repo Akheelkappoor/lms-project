@@ -9,6 +9,7 @@ from app.models.student import Student
 from app.models.class_model import Class
 from app.models.attendance import Attendance
 from functools import wraps
+from app.utils.helper import upload_file_to_s3
 
 bp = Blueprint('tutor', __name__)
 
@@ -437,19 +438,20 @@ def upload_video(class_id):
         return jsonify({'error': 'Invalid video format'}), 400
     
     try:
-        # Save video file
-        filename = secure_filename(video_file.filename)
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S_')
-        filename = f"class_{class_id}_{timestamp}{filename}"
-        
-        video_path = os.path.join(current_app.config['UPLOAD_FOLDER'], 'videos', filename)
-        os.makedirs(os.path.dirname(video_path), exist_ok=True)
-        video_file.save(video_path)
-        
-        # Update class record
-        class_obj.video_link = filename
-        db.session.commit()
-        
+        if video_file and video_file.filename:
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            filename = secure_filename(video_file.filename)
+            filename = f"class_{class_id}_{timestamp}_{filename}"
+            
+            s3_url = upload_file_to_s3(video_file, folder=f"{current_app.config['UPLOAD_FOLDER']}/videos")
+            
+            if not s3_url:
+                raise ValueError("Video upload failed.")
+            
+            # Update class record with S3 video link
+            class_obj.video_link = s3_url
+            db.session.commit()
+                
         return jsonify({'success': True, 'message': 'Video uploaded successfully'})
         
     except Exception as e:

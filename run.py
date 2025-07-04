@@ -132,7 +132,7 @@ def initialize_database():
 def display_config_info():
     """Display important configuration information"""
     max_size_gb = app.config.get('MAX_CONTENT_LENGTH', 5368709120) / (1024**3)
-    upload_folder = app.config.get('UPLOAD_FOLDER', 'app/static/uploads')
+    upload_folder = app.config.get('UPLOAD_FOLDER')
     
     print("=" * 60)
     print("🚀 I2Global LMS - Configuration")

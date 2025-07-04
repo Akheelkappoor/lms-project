@@ -28,16 +28,16 @@ def create_app(config_class=Config):
     login.login_message_category = 'info'
 
     # Create upload directories
-    upload_dir = app.config['UPLOAD_FOLDER']
-    if not os.path.exists(upload_dir):
-        os.makedirs(upload_dir)
+    # upload_dir = app.config['UPLOAD_FOLDER']
+    # if not os.path.exists(upload_dir):
+    #     os.makedirs(upload_dir)
         
-    # Create subdirectories for different file types
-    subdirs = ['documents', 'videos', 'images', 'profiles']
-    for subdir in subdirs:
-        path = os.path.join(upload_dir, subdir)
-        if not os.path.exists(path):
-            os.makedirs(path)
+    # # Create subdirectories for different file types
+    # subdirs = ['documents', 'videos', 'images', 'profiles']
+    # for subdir in subdirs:
+    #     path = os.path.join(upload_dir, subdir)
+    #     if not os.path.exists(path):
+    #         os.makedirs(path)
 
     # Register Blueprints
     from app.routes.setup import bp as setup_bp

@@ -29,8 +29,8 @@ class Tutor(db.Model):
     
     # Documents and Media
     documents = db.Column(db.Text)  # JSON object with document file paths
-    demo_video = db.Column(db.String(200))
-    interview_video = db.Column(db.String(200))
+    demo_video = db.Column(db.String(2000))
+    interview_video = db.Column(db.String(2000))
     
     # Banking Information
     bank_details = db.Column(db.Text)  # JSON object with banking info

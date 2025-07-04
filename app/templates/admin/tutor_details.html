@@ -332,8 +332,7 @@
         <div class="profile-header">
             <div class="profile-avatar">
                 {% if tutor.user.profile_picture %}
-                    <img src="{{ url_for('static', filename='uploads/profiles/' + tutor.user.profile_picture) }}" 
-                         alt="Profile Picture" class="profile-avatar">
+                    <img src="{{ tutor.user.profile_picture }}" alt="Profile Picture" class="profile-avatar">
                 {% else %}
                     <i class="fas fa-user"></i>
                 {% endif %}
@@ -439,9 +438,9 @@
                         <div class="info-item">
                             <span class="info-label">Compensation</span>
                             <span class="info-value">
-                                {% if tutor.salary_type == 'monthly' %}
+                                {% if tutor.salary_type == 'monthly' and tutor.monthly_salary is not none %}
                                     ₹{{ "{:,.0f}".format(tutor.monthly_salary) }}/month
-                                {% elif tutor.salary_type == 'hourly' %}
+                                {% elif tutor.salary_type == 'hourly' and tutor.hourly_rate is not none %}
                                     ₹{{ "{:,.0f}".format(tutor.hourly_rate) }}/hour
                                 {% else %}
                                     Not specified
@@ -468,7 +467,7 @@
                             <div class="document-name">Aadhaar Card</div>
                             <div class="document-status {% if documents.get('aadhaar') %}available{% else %}missing{% endif %}">
                                 {% if documents.get('aadhaar') %}
-                                    <a href="{{ url_for('static', filename='uploads/documents/' + documents.aadhaar) }}" target="_blank">View</a>
+                                    <a href="{{ documents.aadhaar }}" target="_blank">View Aadhaar</a>
                                 {% else %}
                                     Not uploaded
                                 {% endif %}
@@ -482,7 +481,7 @@
                             <div class="document-name">PAN Card</div>
                             <div class="document-status {% if documents.get('pan') %}available{% else %}missing{% endif %}">
                                 {% if documents.get('pan') %}
-                                    <a href="{{ url_for('static', filename='uploads/documents/' + documents.pan) }}" target="_blank">View</a>
+                                    <a href="{{ documents.pan }}" target="_blank">View PAN</a>
                                 {% else %}
                                     Not uploaded
                                 {% endif %}
@@ -496,7 +495,7 @@
                             <div class="document-name">Resume</div>
                             <div class="document-status {% if documents.get('resume') %}available{% else %}missing{% endif %}">
                                 {% if documents.get('resume') %}
-                                    <a href="{{ url_for('static', filename='uploads/documents/' + documents.resume) }}" target="_blank">Download</a>
+                                    <a href="{{ documents.resume }}" target="_blank" download>Download Resume</a>
                                 {% else %}
                                     Not uploaded
                                 {% endif %}
@@ -510,7 +509,7 @@
                             <div class="document-name">Degree Certificate</div>
                             <div class="document-status {% if documents.get('degree') %}available{% else %}missing{% endif %}">
                                 {% if documents.get('degree') %}
-                                    <a href="{{ url_for('static', filename='uploads/documents/' + documents.degree) }}" target="_blank">View</a>
+                                    <a href="{{ documents.degree }}" target="_blank">View Degree</a>
                                 {% else %}
                                     Not uploaded
                                 {% endif %}
@@ -524,7 +523,7 @@
                             <div class="document-name">Demo Video</div>
                             <div class="document-status {% if tutor.demo_video %}available{% else %}missing{% endif %}">
                                 {% if tutor.demo_video %}
-                                    <a href="{{ url_for('static', filename='uploads/videos/' + tutor.demo_video) }}" target="_blank">Watch</a>
+                                    <a href="{{ tutor.demo_video }}" target="_blank">Watch Demo Video</a>
                                 {% else %}
                                     Not uploaded
                                 {% endif %}
@@ -538,7 +537,7 @@
                             <div class="document-name">Interview Video</div>
                             <div class="document-status {% if tutor.interview_video %}available{% else %}missing{% endif %}">
                                 {% if tutor.interview_video %}
-                                    <a href="{{ url_for('static', filename='uploads/videos/' + tutor.interview_video) }}" target="_blank">Watch</a>
+                                    <a href="{{ tutor.interview_video }}" target="_blank">Watch Interview Video</a>
                                 {% else %}
                                     Not uploaded
                                 {% endif %}

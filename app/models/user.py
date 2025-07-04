@@ -21,7 +21,7 @@ class User(UserMixin, db.Model):
     full_name = db.Column(db.String(100), nullable=False)
     phone = db.Column(db.String(20))
     address = db.Column(db.Text)
-    profile_picture = db.Column(db.String(100))
+    profile_picture = db.Column(db.String(1000))
     
     # Role and Department
     role = db.Column(db.String(20), nullable=False, default='tutor')  # superadmin, admin, coordinator, tutor

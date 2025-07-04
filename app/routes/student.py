@@ -1,3 +1,4 @@
+import os
 from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify
 from flask_login import login_required, current_user
 from datetime import datetime, date, timedelta
@@ -411,3 +412,36 @@ def search_students():
         })
     
     return jsonify(results)
+
+    """
+    Trigger folder uploads to S3 via API call.
+    """
+    try:
+        # Get folders to upload from request or use defaults
+        folders_to_upload = request.json.get('folders', ['static', 'uploaded'])
+
+        bucket_name = current_app.config["S3_BUCKET_NAME"]
+        if not bucket_name:
+            return jsonify({"message": "S3_BUCKET_NAME not configured."}), 500
+
+        uploaded_summary = {}
+
+        for folder in folders_to_upload:
+            if not os.path.exists(folder):
+                uploaded_summary[folder] = "Folder not found locally, skipping."
+                continue
+
+            uploaded_files = upload_directory_to_s3(
+                local_directory=folder,
+                bucket=bucket_name,
+                s3_prefix=f"HRMS/{folder}"
+            )
+            uploaded_summary[folder] = f"{len(uploaded_files)} files uploaded."
+
+        return jsonify({
+            "message": "Folders uploaded to S3 successfully.",
+            "details": uploaded_summary
+        }), 200
+
+    except Exception as e:
+        return jsonify({"message": "Folder upload to S3 failed.", "error": str(e)}), 500

@@ -204,7 +204,7 @@
                 <div class="avatar-section">
                     <div class="avatar-preview">
                         {% if user.profile_picture %}
-                            <img src="{{ url_for('static', filename='uploads/profiles/' + user.profile_picture) }}" alt="Profile Picture">
+                            <img src="{{ user.profile_picture }}" alt="Profile Picture">
                         {% else %}
                             <i class="fas fa-user"></i>
                         {% endif %}

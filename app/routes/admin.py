@@ -3,6 +3,7 @@ from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
 from datetime import datetime, date, timedelta
 import os
+from app.utils.helper import upload_file_to_s3
 import json
 from flask_wtf.csrf import generate_csrf
 from app import db
@@ -40,7 +41,6 @@ def save_uploaded_file(file, subfolder):
         return filename
     return None
 
-# ============ USER MANAGEMENT ROUTES ============
 
 @bp.route('/users')
 @login_required
@@ -120,9 +120,9 @@ def create_user():
                 # Handle profile picture upload
                 if form.profile_picture.data:
                     print("Processing profile picture...")
-                    filename = save_uploaded_file(form.profile_picture.data, 'profiles')
-                    user.profile_picture = filename
-                    print(f"Profile picture saved: {filename}")
+                    s3_url = upload_file_to_s3(form.profile_picture.data, folder=f"{current_app.config['UPLOAD_FOLDER']}/profiles")
+                    user.profile_picture = s3_url
+                    print(f"Profile picture saved: {s3_url}")
                 
                 # Handle emergency contact
                 emergency_contact = {
@@ -186,8 +186,8 @@ def edit_user(user_id):
             
             # Handle profile picture upload
             if form.profile_picture.data:
-                filename = save_uploaded_file(form.profile_picture.data, 'profiles')
-                user.profile_picture = filename
+                s3_url = upload_file_to_s3(form.profile_picture.data, folder=f"{current_app.config['UPLOAD_FOLDER']}/profiles")
+                user.profile_picture = s3_url
             
             db.session.commit()
             flash(f'User {user.full_name} updated successfully!', 'success')
@@ -347,6 +347,7 @@ def tutors():
     
     return render_template('admin/tutors.html', tutors=tutors, departments=departments)
 
+
 @bp.route('/tutors/register', methods=['GET', 'POST'])
 @login_required
 @admin_required
@@ -411,8 +412,12 @@ def register_tutor():
             for doc_name in required_docs:
                 file_field = getattr(form, doc_name).data
                 if has_file_content(file_field):
-                    documents[doc_name.replace('_card', '').replace('_certificate', '')] = \
-                        save_uploaded_file(file_field, 'documents')
+                    s3_url = upload_file_to_s3(file_field, folder=f"{current_app.config['UPLOAD_FOLDER']}/documents")
+                    if s3_url:
+                        documents[doc_name.replace('_card', '').replace('_certificate', '')] = s3_url
+                    else:
+                        raise ValueError(f"{doc_name.replace('_', ' ').title()} upload failed.")
+                        
                 else:
                     raise ValueError(f"{doc_name.replace('_', ' ').title()} is required")
             
@@ -423,7 +428,11 @@ def register_tutor():
             for video_name in required_videos:
                 file_field = getattr(form, video_name).data
                 if has_file_content(file_field):
-                    setattr(tutor, video_name, save_uploaded_file(file_field, 'videos'))
+                    s3_url = upload_file_to_s3(file_field, folder=f"{current_app.config['UPLOAD_FOLDER']}/videos")
+                    if s3_url:
+                        setattr(tutor, video_name, s3_url)
+                    else:
+                        raise ValueError(f"{video_name.replace('_', ' ').title()} upload failed.")
                 else:
                     raise ValueError(f"{video_name.replace('_', ' ').title()} is required")
             
@@ -616,11 +625,23 @@ def register_student():
             # Handle document uploads
             documents = {}
             if form.marksheet.data:
-                documents['marksheet'] = save_uploaded_file(form.marksheet.data, 'documents')
+                s3_url = upload_file_to_s3(form.marksheet.data, folder=f"{current_app.config['UPLOAD_FOLDER']}/documents")
+                
+            if s3_url:
+                documents['marksheet'] = s3_url
+
             if form.student_aadhaar.data:
-                documents['aadhaar'] = save_uploaded_file(form.student_aadhaar.data, 'documents')
+                s3_url = upload_file_to_s3(form.student_aadhaar.data, folder=f"{current_app.config['UPLOAD_FOLDER']}/documents")
+                
+            if s3_url:
+                documents['aadhaar'] = s3_url
+
             if form.school_id.data:
-                documents['school_id'] = save_uploaded_file(form.school_id.data, 'documents')
+                s3_url = upload_file_to_s3(form.school_id.data, folder=f"{current_app.config['UPLOAD_FOLDER']}/documents")
+                
+            if s3_url:
+                documents['school_id'] = s3_url
+
             
             student.set_documents(documents)
             

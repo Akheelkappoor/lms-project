@@ -1,5 +1,5 @@
 from flask_wtf import FlaskForm
-from flask_wtf.file import FileField, FileAllowed
+from flask_wtf.file import FileField, FileAllowed, FileRequired
 from wtforms import StringField, PasswordField, SelectField, TextAreaField, BooleanField, SubmitField, DateField, FloatField, SelectMultipleField, widgets
 from wtforms.validators import DataRequired, Email, Length, Optional, ValidationError, NumberRange, EqualTo
 from app.models.user import User
@@ -160,24 +160,24 @@ class TutorRegistrationForm(FlaskForm):
     
     # Documents
     aadhaar_card = FileField('Aadhaar Card', validators=[
-        DataRequired(), FileAllowed(['jpg', 'png', 'jpeg', 'pdf'], 'Images and PDF only!')
+        FileRequired(), FileAllowed(['jpg', 'png', 'jpeg', 'pdf'], 'Images and PDF only!')
     ])
     pan_card = FileField('PAN Card', validators=[
-        DataRequired(), FileAllowed(['jpg', 'png', 'jpeg', 'pdf'], 'Images and PDF only!')
+        FileRequired(), FileAllowed(['jpg', 'png', 'jpeg', 'pdf'], 'Images and PDF only!')
     ])
     resume = FileField('Resume/CV', validators=[
-        DataRequired(), FileAllowed(['pdf', 'doc', 'docx'], 'Documents only!')
+        FileRequired(), FileAllowed(['pdf', 'doc', 'docx'], 'Documents only!')
     ])
     degree_certificate = FileField('Degree Certificate', validators=[
-        DataRequired(), FileAllowed(['jpg', 'png', 'jpeg', 'pdf'], 'Images and PDF only!')
+        FileRequired(), FileAllowed(['jpg', 'png', 'jpeg', 'pdf'], 'Images and PDF only!')
     ])
     
     # Videos
     demo_video = FileField('Demo Video', validators=[
-        DataRequired(), FileAllowed(['mp4', 'avi', 'mov', 'wmv'], 'Video files only!')
+        FileRequired(), FileAllowed(['mp4', 'avi', 'mov', 'wmv'], 'Video files only!')
     ])
     interview_video = FileField('Interview Video', validators=[
-        DataRequired(), FileAllowed(['mp4', 'avi', 'mov', 'wmv'], 'Video files only!')
+        FileRequired(), FileAllowed(['mp4', 'avi', 'mov', 'wmv'], 'Video files only!')
     ])
     
     # Banking Information

@@ -61,6 +61,9 @@ def create_app(config_class=Config):
     from app.routes.finance import bp as finance_bp
     app.register_blueprint(finance_bp)
 
+    from app.routes.profile import bp as profile_bp
+    app.register_blueprint(profile_bp)
+
     # Error handlers
     @app.errorhandler(404)
     def not_found_error(error):
@@ -89,6 +92,13 @@ def create_app(config_class=Config):
         if amount:
             return f"₹{amount:,.2f}"
         return "₹0.00"
+    
+    @app.template_filter('format_emp_id')
+    def format_emp_id_filter(user_id):
+        """Format user ID as employee ID"""
+        if user_id:
+            return f"EMP{user_id:04d}"  # e.g., EMP0001, EMP0023
+        return "EMP0000"
 
     # Context processors
     @app.context_processor

@@ -1658,3 +1658,178 @@ def finance_dashboard_api():
         'total_tutors': len(tutors),
         'total_students': len(students)
     })
+
+# Add these routes to your app/routes/admin.py file
+
+@bp.route('/system-documents')
+@login_required
+@admin_required
+def system_documents():
+    """Manage system documents"""
+    from app.models.system_document import SystemDocument
+    
+    documents = SystemDocument.query.order_by(SystemDocument.updated_at.desc()).all()
+    document_types = SystemDocument.get_document_types()
+    
+    return render_template('admin/system_documents.html', 
+                         documents=documents,
+                         document_types=document_types)
+
+@bp.route('/system-documents/upload', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def upload_system_document():
+    """Upload system document"""
+    from app.models.system_document import SystemDocument
+    
+    if request.method == 'POST':
+        try:
+            document_type = request.form.get('document_type')
+            title = request.form.get('title')
+            description = request.form.get('description', '')
+            available_roles = request.form.getlist('available_roles')
+            
+            if 'document_file' not in request.files:
+                flash('No file selected', 'error')
+                return redirect(request.url)
+            
+            file = request.files['document_file']
+            if file.filename == '':
+                flash('No file selected', 'error')
+                return redirect(request.url)
+            
+            # Check if document type already exists
+            existing_doc = SystemDocument.query.filter_by(document_type=document_type).first()
+            if existing_doc:
+                flash('Document type already exists. Please update the existing document.', 'error')
+                return redirect(request.url)
+            
+            # Save file
+            filename = save_uploaded_file(file, 'system_documents')
+            if not filename:
+                flash('Error uploading file', 'error')
+                return redirect(request.url)
+            
+            # Create document record
+            doc = SystemDocument(
+                document_type=document_type,
+                title=title,
+                description=description,
+                filename=filename,
+                file_path=f'system_documents/{filename}',
+                file_size=len(file.read()),
+                mime_type=file.content_type,
+                uploaded_by=current_user.id
+            )
+            
+            # Reset file pointer after reading size
+            file.seek(0)
+            
+            doc.set_available_roles(available_roles)
+            
+            db.session.add(doc)
+            db.session.commit()
+            
+            flash(f'System document "{title}" uploaded successfully!', 'success')
+            return redirect(url_for('admin.system_documents'))
+            
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Error uploading document: {str(e)}', 'error')
+    
+    document_types = SystemDocument.get_document_types()
+    roles = ['superadmin', 'admin', 'coordinator', 'tutor', 'student']
+    
+    return render_template('admin/upload_system_document.html',
+                         document_types=document_types,
+                         roles=roles)
+
+@bp.route('/system-documents/<int:doc_id>/edit', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def edit_system_document(doc_id):
+    """Edit system document"""
+    from app.models.system_document import SystemDocument
+    
+    doc = SystemDocument.query.get_or_404(doc_id)
+    
+    if request.method == 'POST':
+        try:
+            doc.title = request.form.get('title')
+            doc.description = request.form.get('description', '')
+            available_roles = request.form.getlist('available_roles')
+            doc.set_available_roles(available_roles)
+            
+            # Handle file replacement
+            if 'document_file' in request.files and request.files['document_file'].filename:
+                file = request.files['document_file']
+                
+                # Delete old file
+                old_file_path = os.path.join(current_app.config['UPLOAD_FOLDER'], doc.file_path)
+                if os.path.exists(old_file_path):
+                    os.remove(old_file_path)
+                
+                # Save new file
+                filename = save_uploaded_file(file, 'system_documents')
+                if filename:
+                    doc.filename = filename
+                    doc.file_path = f'system_documents/{filename}'
+                    doc.file_size = len(file.read())
+                    doc.mime_type = file.content_type
+                    file.seek(0)
+            
+            doc.updated_at = datetime.now()
+            db.session.commit()
+            
+            flash(f'Document "{doc.title}" updated successfully!', 'success')
+            return redirect(url_for('admin.system_documents'))
+            
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Error updating document: {str(e)}', 'error')
+    
+    roles = ['superadmin', 'admin', 'coordinator', 'tutor', 'student']
+    return render_template('admin/edit_system_document.html', doc=doc, roles=roles)
+
+@bp.route('/system-documents/<int:doc_id>/delete', methods=['POST'])
+@login_required
+@admin_required
+def delete_system_document(doc_id):
+    """Delete system document"""
+    from app.models.system_document import SystemDocument
+    
+    try:
+        doc = SystemDocument.query.get_or_404(doc_id)
+        
+        # Delete physical file
+        file_path = os.path.join(current_app.config['UPLOAD_FOLDER'], doc.file_path)
+        if os.path.exists(file_path):
+            os.remove(file_path)
+        
+        db.session.delete(doc)
+        db.session.commit()
+        
+        return jsonify({'success': True, 'message': 'Document deleted successfully'})
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+@bp.route('/system-documents/<int:doc_id>/toggle-status', methods=['POST'])
+@login_required
+@admin_required
+def toggle_document_status(doc_id):
+    """Toggle document active status"""
+    from app.models.system_document import SystemDocument
+    
+    try:
+        doc = SystemDocument.query.get_or_404(doc_id)
+        doc.is_active = not doc.is_active
+        db.session.commit()
+        
+        status = 'activated' if doc.is_active else 'deactivated'
+        return jsonify({'success': True, 'message': f'Document {status} successfully'})
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500

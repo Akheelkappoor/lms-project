@@ -7,8 +7,9 @@ import json
 from app import db
 from app.models.user import User
 from app.models.tutor import Tutor
-from app.forms.user import EditProfileForm, ChangePasswordForm, BankingDetailsForm
+from app.forms.profile import EditProfileForm, ChangePasswordForm, BankingDetailsForm
 from functools import wraps
+from flask import send_file
 
 bp = Blueprint('profile', __name__)
 
@@ -291,55 +292,96 @@ def delete_document(document_type):
 @login_required
 def system_documents():
     """Download system documents (offer letter, policies, etc.)"""
-    documents = {
-        'offer_letter': {
-            'title': 'Offer Letter',
-            'description': 'Your employment offer letter',
-            'available': True
-        },
-        'company_policies': {
-            'title': 'Company Policies',
-            'description': 'HR policies and code of conduct',
-            'available': True
-        },
-        'handbook': {
-            'title': 'Employee Handbook',
-            'description': 'Guidelines and procedures',
-            'available': True
-        },
-        'certificates': {
-            'title': 'Training Certificates',
-            'description': 'Completion certificates for training programs',
-            'available': current_user.role == 'tutor'
-        }
-    }
+    from app.models.system_document import SystemDocument
     
-    return render_template('profile/system_documents.html', documents=documents)
+    # Get all active documents from database
+    all_documents = SystemDocument.query.filter_by(is_active=True).order_by(SystemDocument.document_type).all()
+    
+    # Filter documents available for current user role
+    available_documents = {}
+    for doc in all_documents:
+        if doc.is_available_for_user(current_user):
+            available_documents[doc.document_type] = {
+                'title': doc.title,
+                'description': doc.description,
+                'available': True,
+                'filename': doc.filename,
+                'uploaded_at': doc.uploaded_at,
+                'version': doc.version
+            }
+    
+    # Fallback to default documents if database is empty (for initial setup)
+    if not available_documents:
+        available_documents = {
+            'offer_letter': {
+                'title': 'Offer Letter',
+                'description': 'Your employment offer letter',
+                'available': True,
+                'filename': None,
+                'uploaded_at': None,
+                'version': '1.0'
+            },
+            'company_policies': {
+                'title': 'Company Policies', 
+                'description': 'HR policies and code of conduct',
+                'available': True,
+                'filename': None,
+                'uploaded_at': None,
+                'version': '1.0'
+            },
+            'employee_handbook': {
+                'title': 'Employee Handbook',
+                'description': 'Guidelines and procedures',
+                'available': True,
+                'filename': None,
+                'uploaded_at': None,
+                'version': '1.0'
+            },
+            'training_certificate': {
+                'title': 'Training Certificates',
+                'description': 'Completion certificates for training programs',
+                'available': current_user.role == 'tutor',
+                'filename': None,
+                'uploaded_at': None,
+                'version': '1.0'
+            }
+        }
+    
+    return render_template('profile/system_documents.html', documents=available_documents)
 
 @bp.route('/profile/system-documents/download/<doc_type>')
 @login_required
 def download_system_document(doc_type):
     """Download system-generated documents"""
-    # This would typically generate or serve pre-made documents
-    # For now, we'll create placeholder functionality
+    from app.models.system_document import SystemDocument
     
-    document_mapping = {
-        'offer_letter': 'offer_letter_template.pdf',
-        'company_policies': 'company_policies.pdf',
-        'handbook': 'employee_handbook.pdf',
-        'certificates': 'training_certificates.pdf'
-    }
+    # Try to get document from database first
+    doc = SystemDocument.query.filter_by(
+        document_type=doc_type, 
+        is_active=True
+    ).first()
     
-    if doc_type not in document_mapping:
-        flash('Invalid document type.', 'error')
-        return redirect(url_for('profile.system_documents'))
+    if doc and doc.is_available_for_user(current_user):
+        try:
+            file_path = os.path.join(current_app.config['UPLOAD_FOLDER'], doc.file_path)
+            
+            if os.path.exists(file_path):
+                # Log download (optional)
+                # create_download_log(current_user.id, doc.id)
+                
+                return send_file(
+                    file_path, 
+                    as_attachment=True, 
+                    download_name=f"{doc.title.replace(' ', '_')}.{doc.filename.split('.')[-1]}"
+                )
+            else:
+                flash('Document file not found on server.', 'error')
+        except Exception as e:
+            flash(f'Error downloading document: {str(e)}', 'error')
+    else:
+        # Fallback for documents not yet uploaded to system
+        flash(f'{doc_type.replace("_", " ").title()} is not available for download yet. Please contact administrator.', 'warning')
     
-    # In a real implementation, you would:
-    # 1. Generate personalized documents (offer letter with user details)
-    # 2. Serve from a secure documents folder
-    # 3. Log document downloads for audit purposes
-    
-    flash(f'{doc_type.replace("_", " ").title()} download functionality will be implemented.', 'info')
     return redirect(url_for('profile.system_documents'))
 
 @bp.route('/profile/notifications', methods=['GET', 'POST'])

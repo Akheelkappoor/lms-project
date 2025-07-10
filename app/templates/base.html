@@ -970,9 +970,16 @@
                 </li>
                 {% endif %}
                 
+                <li class="nav-item">
+                    <a href="{{ url_for('admin.system_documents') }}" class="nav-link {% if request.endpoint and 'system_documents' in request.endpoint %}active{% endif %}">
+                        <i class="fas fa-file-alt"></i>
+                        <span>System Documents</span>
+                    </a>
+                </li>
+
                 <!-- Profile -->
                 <li class="nav-item">
-                    <a href="#" class="nav-link">
+                    <a href="{{ url_for('profile.view_profile') }}" class="nav-link {% if request.endpoint and 'profile' in request.endpoint %}active{% endif %}">
                         <i class="fas fa-user-circle"></i>
                         <span>Profile</span>
                     </a>

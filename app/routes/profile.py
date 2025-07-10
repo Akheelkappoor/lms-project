@@ -297,55 +297,75 @@ def system_documents():
     # Get all active documents from database
     all_documents = SystemDocument.query.filter_by(is_active=True).order_by(SystemDocument.document_type).all()
     
-    # Filter documents available for current user role
-    available_documents = {}
+    # Initialize with required keys that template expects
+    available_documents = {
+        'offer_letter': {
+            'title': 'Offer Letter',
+            'description': 'Your employment offer letter',
+            'available': False,
+            'filename': None,
+            'uploaded_at': None,
+            'version': '1.0'
+        },
+        'handbook': {  # Template expects 'handbook', not 'employee_handbook'
+            'title': 'Employee Handbook',
+            'description': 'Complete guide to company policies and procedures',
+            'available': False,
+            'filename': None,
+            'uploaded_at': None,
+            'version': '1.0'
+        },
+        'company_policies': {
+            'title': 'Company Policies', 
+            'description': 'HR policies and code of conduct',
+            'available': False,
+            'filename': None,
+            'uploaded_at': None,
+            'version': '1.0'
+        },
+        'certificates': {
+            'title': 'Training Certificates',
+            'description': 'Completion certificates for training programs',
+            'available': current_user.role == 'tutor',
+            'filename': None,
+            'uploaded_at': None,
+            'version': '1.0'
+        },
+        'safety_guidelines': {
+            'title': 'Safety Guidelines',
+            'description': 'Workplace safety and health guidelines',
+            'available': True,
+            'filename': None,
+            'uploaded_at': None,
+            'version': '1.0'
+        }
+    }
+    
+    # Update with actual documents from database if they exist
     for doc in all_documents:
         if doc.is_available_for_user(current_user):
-            available_documents[doc.document_type] = {
-                'title': doc.title,
-                'description': doc.description,
-                'available': True,
-                'filename': doc.filename,
-                'uploaded_at': doc.uploaded_at,
-                'version': doc.version
-            }
-    
-    # Fallback to default documents if database is empty (for initial setup)
-    if not available_documents:
-        available_documents = {
-            'offer_letter': {
-                'title': 'Offer Letter',
-                'description': 'Your employment offer letter',
-                'available': True,
-                'filename': None,
-                'uploaded_at': None,
-                'version': '1.0'
-            },
-            'company_policies': {
-                'title': 'Company Policies', 
-                'description': 'HR policies and code of conduct',
-                'available': True,
-                'filename': None,
-                'uploaded_at': None,
-                'version': '1.0'
-            },
-            'handbook': {
-                'title': 'Employee Handbook',
-                'description': 'Guidelines and procedures',
-                'available': True,
-                'filename': None,
-                'uploaded_at': None,
-                'version': '1.0'
-            },
-            'training_certificate': {
-                'title': 'Training Certificates',
-                'description': 'Completion certificates for training programs',
-                'available': current_user.role == 'tutor',
-                'filename': None,
-                'uploaded_at': None,
-                'version': '1.0'
-            }
-        }
+            # Map database document types to template keys
+            template_key = None
+            if doc.document_type == 'employee_handbook':
+                template_key = 'handbook'
+            elif doc.document_type == 'offer_letter':
+                template_key = 'offer_letter'
+            elif doc.document_type in ['company_policies', 'hr_policies']:
+                template_key = 'company_policies'
+            elif doc.document_type == 'training_certificate':
+                template_key = 'certificates'
+            elif doc.document_type == 'safety_guidelines':
+                template_key = 'safety_guidelines'
+            
+            if template_key and template_key in available_documents:
+                available_documents[template_key] = {
+                    'title': doc.title,
+                    'description': doc.description,
+                    'available': True,
+                    'filename': doc.filename,
+                    'uploaded_at': doc.uploaded_at,
+                    'version': doc.version
+                }
     
     return render_template('profile/system_documents.html', documents=available_documents)
 

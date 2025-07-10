@@ -107,6 +107,16 @@ def create_app(config_class=Config):
             return f"EMP{user_id:04d}"  # e.g., EMP0001, EMP0023
         return "EMP0000"
     
+    @app.template_filter('mask_account')
+    def mask_account_filter(account_number):
+        """Mask account number for security"""
+        if not account_number or len(str(account_number)) < 4:
+            return account_number or 'Not provided'
+        account_str = str(account_number)
+        visible_chars = 4
+        return '*' * (len(account_str) - visible_chars) + account_str[-visible_chars:]
+
+
     @app.template_global()
     def hasattr_filter(obj, name):
         return hasattr(obj, name)

@@ -624,18 +624,17 @@ def register_student():
             
             # Handle document uploads
             documents = {}
+            s3_url = None
             if form.marksheet.data:
                 s3_url = upload_file_to_s3(form.marksheet.data, folder=f"{current_app.config['UPLOAD_FOLDER']}/documents")
-                
             if s3_url:
                 documents['marksheet'] = s3_url
-
+            s3_url = None    
             if form.student_aadhaar.data:
                 s3_url = upload_file_to_s3(form.student_aadhaar.data, folder=f"{current_app.config['UPLOAD_FOLDER']}/documents")
-                
             if s3_url:
                 documents['aadhaar'] = s3_url
-
+            s3_url = None
             if form.school_id.data:
                 s3_url = upload_file_to_s3(form.school_id.data, folder=f"{current_app.config['UPLOAD_FOLDER']}/documents")
                 

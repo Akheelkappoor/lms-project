@@ -844,7 +844,14 @@ document.addEventListener('DOMContentLoaded', function() {
         let missingFields = [];
         
         requiredFields.forEach(field => {
-            if (!field.value.trim()) {
+            if (field.type === 'file'){
+                if (!field.files || field.files.length === 0) {
+                    missingFields.push(field.name);
+                    field.classList.add('is-invalid')
+                } else {
+                    field.classList.remove('is-invalid');
+                }
+            } else if  (!field.value.trim()) {
                 missingFields.push(field.name);
                 field.classList.add('is-invalid');
             } else {

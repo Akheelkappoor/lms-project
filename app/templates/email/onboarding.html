@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Welcome to {{ app_name }}</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f8f9fa;
+        }
+        .email-container {
+            background: white;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .email-header {
+            background: linear-gradient(135deg, #28a745, #20c997);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        .email-header h1 {
+            margin: 0;
+            font-size: 24px;
+            font-weight: 600;
+        }
+        .email-body {
+            padding: 40px 30px;
+        }
+        .greeting {
+            font-size: 18px;
+            margin-bottom: 20px;
+            color: #2c3e50;
+        }
+        .message {
+            margin-bottom: 25px;
+            line-height: 1.8;
+            color: #555;
+        }
+        .credentials-box {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 25px 0;
+        }
+        .credentials-box h4 {
+            color: #2c3e50;
+            margin-bottom: 15px;
+            font-size: 16px;
+        }
+        .credential-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            padding: 8px 0;
+            border-bottom: 1px solid #e9ecef;
+        }
+        .credential-item:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+        }
+        .credential-label {
+            font-weight: 600;
+            color: #495057;
+        }
+        .credential-value {
+            font-family: monospace;
+            background: #fff;
+            padding: 4px 8px;
+            border-radius: 4px;
+            border: 1px solid #dee2e6;
+        }
+        .login-button {
+            display: inline-block;
+            background: linear-gradient(135deg, #28a745, #20c997);
+            color: white;
+            text-decoration: none;
+            padding: 15px 30px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 16px;
+            margin: 20px 0;
+            transition: transform 0.2s ease;
+        }
+        .login-button:hover {
+            transform: translateY(-2px);
+            color: white;
+            text-decoration: none;
+        }
+        .features-section {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 25px 0;
+        }
+        .features-section h4 {
+            color: #2c3e50;
+            margin-bottom: 15px;
+        }
+        .feature-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+            color: #555;
+        }
+        .feature-icon {
+            color: #28a745;
+            margin-right: 10px;
+            width: 20px;
+        }
+        .security-notice {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 6px;
+            padding: 15px;
+            margin: 20px 0;
+            color: #856404;
+        }
+        .email-footer {
+            background: #f8f9fa;
+            padding: 20px 30px;
+            text-align: center;
+            border-top: 1px solid #dee2e6;
+            color: #6c757d;
+            font-size: 14px;
+        }
+        .company-info {
+            margin-top: 15px;
+            font-size: 12px;
+            color: #868e96;
+        }
+        @media (max-width: 600px) {
+            body {
+                padding: 10px;
+            }
+            .email-body {
+                padding: 30px 20px;
+            }
+            .email-header {
+                padding: 20px;
+            }
+            .login-button {
+                display: block;
+                text-align: center;
+                padding: 15px 20px;
+            }
+            .credential-item {
+                flex-direction: column;
+                gap: 5px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <div class="email-header">
+            <h1>🎉 Welcome to {{ app_name }}!</h1>
+        </div>
+        
+        <div class="email-body">
+            <div class="greeting">
+                Hello {{ user.full_name }},
+            </div>
+            
+            <div class="message">
+                Welcome to {{ app_name }}! We're excited to have you join our learning management system. 
+                Your account has been successfully created with {{ user.role|title }} privileges.
+            </div>
+            
+            <div class="credentials-box">
+                <h4>🔐 Your Login Credentials</h4>
+                <div class="credential-item">
+                    <span class="credential-label">Username:</span>
+                    <span class="credential-value">{{ user.username }}</span>
+                </div>
+                <div class="credential-item">
+                    <span class="credential-label">Email:</span>
+                    <span class="credential-value">{{ user.email }}</span>
+                </div>
+                <div class="credential-item">
+                    <span class="credential-label">Password:</span>
+                    <span class="credential-value">{{ password }}</span>
+                </div>
+                <div class="credential-item">
+                    <span class="credential-label">Role:</span>
+                    <span class="credential-value">{{ user.role|title }}</span>
+                </div>
+                {% if user.department %}
+                <div class="credential-item">
+                    <span class="credential-label">Department:</span>
+                    <span class="credential-value">{{ user.department.name }}</span>
+                </div>
+                {% endif %}
+            </div>
+            
+            <div style="text-align: center;">
+                <a href="{{ url_for('auth.login', _external=True) }}" class="login-button">
+                    🚀 Login to Your Account
+                </a>
+            </div>
+            
+            <div class="features-section">
+                <h4>✨ What you can do with your account:</h4>
+                {% if user.role == 'tutor' %}
+                <div class="feature-item">
+                    <span class="feature-icon">📚</span>
+                    <span>Manage your classes and students</span>
+                </div>
+                <div class="feature-item">
+                    <span class="feature-icon">📊</span>
+                    <span>Track attendance and progress</span>
+                </div>
+                <div class="feature-item">
+                    <span class="feature-icon">💬</span>
+                    <span>Communicate with students and coordinators</span>
+                </div>
+                <div class="feature-item">
+                    <span class="feature-icon">📈</span>
+                    <span>View performance analytics</span>
+                </div>
+                {% elif user.role in ['admin', 'coordinator'] %}
+                <div class="feature-item">
+                    <span class="feature-icon">👥</span>
+                    <span>Manage users and permissions</span>
+                </div>
+                <div class="feature-item">
+                    <span class="feature-icon">📅</span>
+                    <span>Schedule and organize classes</span>
+                </div>
+                <div class="feature-item">
+                    <span class="feature-icon">📊</span>
+                    <span>Generate comprehensive reports</span>
+                </div>
+                <div class="feature-item">
+                    <span class="feature-icon">⚙️</span>
+                    <span>Configure system settings</span>
+                </div>
+                {% else %}
+                <div class="feature-item">
+                    <span class="feature-icon">📚</span>
+                    <span>Access your learning dashboard</span>
+                </div>
+                <div class="feature-item">
+                    <span class="feature-icon">📊</span>
+                    <span>Track your progress</span>
+                </div>
+                <div class="feature-item">
+                    <span class="feature-icon">💬</span>
+                    <span>Communicate with tutors</span>
+                </div>
+                {% endif %}
+            </div>
+            
+            <div class="security-notice">
+                <strong>🔒 Security Reminder:</strong> For your account security, please change your password 
+                after your first login. You can do this by going to your profile settings.
+            </div>
+            
+            <div class="message">
+                If you have any questions or need assistance getting started, please don't hesitate to contact our support team. 
+                We're here to help you make the most of your {{ app_name }} experience!
+            </div>
+        </div>
+        
+        <div class="email-footer">
+            <div>
+                Best regards,<br>
+                The {{ app_name }} Team
+            </div>
+            
+            <div class="company-info">
+                I2Global Virtual Learning<br>
+                48, 4th Block, Koramangala, Bengaluru, Karnataka 560034<br>
+                Email: care@i2global.co.in | Phone: +91 9600127000
+            </div>
+        </div>
+    </div>
+</body>
+</html>

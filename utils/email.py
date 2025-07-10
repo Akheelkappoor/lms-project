@@ -55,3 +55,50 @@ Best regards,
         text_body=text_body,
         html_body=html_body
     )
+
+def send_onboarding_email(user, password):
+    """Send onboarding email to new user"""
+    subject = f'Welcome to {current_app.config["APP_NAME"]} - Your Account is Ready!'
+    
+    html_body = render_template(
+        'email/onboarding.html',
+        user=user,
+        password=password,
+        app_name=current_app.config['APP_NAME']
+    )
+    
+    text_body = f"""
+Welcome to {current_app.config['APP_NAME']}!
+
+Hello {user.full_name},
+
+Your account has been successfully created with {user.role.title()} privileges.
+
+Your Login Credentials:
+- Username: {user.username}
+- Email: {user.email}
+- Password: {password}
+- Role: {user.role.title()}
+{f"- Department: {user.department.name}" if user.department else ""}
+
+Login URL: {current_app.config.get('BASE_URL', 'http://localhost:5000')}/auth/login
+
+For your account security, please change your password after your first login.
+
+If you have any questions, please contact our support team.
+
+Best regards,
+{current_app.config['APP_NAME']} Team
+
+---
+I2Global Virtual Learning
+48, 4th Block, Koramangala, Bengaluru, Karnataka 560034
+Email: care@i2global.co.in | Phone: +91 9600127000
+    """
+    
+    send_email(
+        subject=subject,
+        recipients=[user.email],
+        text_body=text_body,
+        html_body=html_body
+    )

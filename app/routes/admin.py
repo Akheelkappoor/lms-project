@@ -15,7 +15,7 @@ from app.models.class_model import Class
 from app.models.attendance import Attendance
 from app.forms.user import CreateUserForm, EditUserForm, TutorRegistrationForm, StudentRegistrationForm
 from functools import wraps
-
+from app.utils.email import send_password_reset_email, send_onboarding_email
 bp = Blueprint('admin', __name__)
 
 def admin_required(f):
@@ -79,7 +79,7 @@ def users():
 @login_required
 @admin_required
 def create_user():
-    """Create new user - DEBUG VERSION"""
+    """Create new user - DEBUG VERSION WITH ONBOARDING EMAIL"""
     form = CreateUserForm()
     
     if request.method == 'POST':
@@ -94,6 +94,10 @@ def create_user():
             print("=== FORM VALIDATION PASSED ===")
             try:
                 print("Creating user object...")
+                
+                # Store password before hashing for email
+                plain_password = form.password.data
+                print(f"Plain password stored for email: {plain_password}")
                 
                 # Create user object
                 user = User(
@@ -114,7 +118,7 @@ def create_user():
                 print(f"User object created: {user.username}")
                 
                 # Set password
-                user.set_password(form.password.data)
+                user.set_password(plain_password)
                 print("Password set")
                 
                 # Handle profile picture upload
@@ -142,7 +146,27 @@ def create_user():
                 db.session.commit()
                 print("DATABASE COMMIT SUCCESSFUL!")
                 
-                flash(f'User {user.full_name} created successfully!', 'success')
+                # Send onboarding email
+                try:
+                    print("=== SENDING ONBOARDING EMAIL ===")
+                    print(f"Email: {user.email}")
+                    print(f"User: {user.full_name}")
+                    print(f"Role: {user.role}")
+                    
+                    send_onboarding_email(user, plain_password)
+                    print("=== ONBOARDING EMAIL SENT SUCCESSFULLY ===")
+                    
+                    flash(f'User {user.full_name} created successfully! Onboarding email sent to {user.email}.', 'success')
+                    
+                except Exception as email_error:
+                    print(f"=== EMAIL SENDING FAILED ===")
+                    print(f"Email error type: {type(email_error)}")
+                    print(f"Email error message: {str(email_error)}")
+                    import traceback
+                    print(f"Email traceback: {traceback.format_exc()}")
+                    
+                    flash(f'User {user.full_name} created successfully, but failed to send onboarding email. Please send credentials manually to {user.email}.', 'warning')
+                
                 print("=== SUCCESS: REDIRECTING ===")
                 return redirect(url_for('admin.users'))
                 
@@ -352,7 +376,7 @@ def tutors():
 @login_required
 @admin_required
 def register_tutor():
-    """Register new tutor - FIXED VERSION"""
+    """Register new tutor - FIXED VERSION WITH ONBOARDING EMAIL"""
     form = TutorRegistrationForm()
     
     if request.method == 'POST':
@@ -365,6 +389,10 @@ def register_tutor():
             # Validate department selection
             if form.department_id.data == 0:
                 raise ValueError("Please select a valid department")
+            
+            # Store password before hashing for email
+            plain_password = form.password.data
+            print(f"Plain password stored for email: {plain_password}")
             
             # Create user account
             user = User(
@@ -379,7 +407,7 @@ def register_tutor():
                 is_verified=False,
                 joining_date=datetime.now().date()
             )
-            user.set_password(form.password.data)
+            user.set_password(plain_password)
             
             db.session.add(user)
             db.session.flush()  # Get user ID
@@ -450,7 +478,28 @@ def register_tutor():
             db.session.commit()
             
             print("=== SUCCESS: TUTOR REGISTERED ===")
-            flash(f'Tutor {user.full_name} registered successfully!', 'success')
+            
+            # Send onboarding email
+            try:
+                print("=== SENDING TUTOR ONBOARDING EMAIL ===")
+                print(f"Email: {user.email}")
+                print(f"Tutor: {user.full_name}")
+                print(f"Role: {user.role}")
+                
+                send_onboarding_email(user, plain_password)
+                print("=== TUTOR ONBOARDING EMAIL SENT SUCCESSFULLY ===")
+                
+                flash(f'Tutor {user.full_name} registered successfully! Onboarding email sent to {user.email}.', 'success')
+                
+            except Exception as email_error:
+                print(f"=== EMAIL SENDING FAILED ===")
+                print(f"Email error type: {type(email_error)}")
+                print(f"Email error message: {str(email_error)}")
+                import traceback
+                print(f"Email traceback: {traceback.format_exc()}")
+                
+                flash(f'Tutor {user.full_name} registered successfully, but failed to send onboarding email. Please send credentials manually to {user.email}.', 'warning')
+            
             return redirect(url_for('admin.tutors'))
             
         except ValueError as ve:

@@ -340,6 +340,58 @@ def department_permissions(dept_id):
     return render_template('admin/department_permissions.html', 
                          department=department, all_permissions=all_permissions)
 
+@bp.route('/departments/<int:dept_id>/data')
+@login_required
+@admin_required
+def get_department_data(dept_id):
+    """Get department data for editing"""
+    department = Department.query.get_or_404(dept_id)
+    return jsonify({
+        'success': True,
+        'department': {
+            'id': department.id,
+            'name': department.name,
+            'code': department.code,
+            'description': department.description
+        }
+    })
+
+@bp.route('/departments/<int:dept_id>/update', methods=['POST'])
+@login_required
+@admin_required
+def update_department(dept_id):
+    """Update department"""
+    department = Department.query.get_or_404(dept_id)
+    data = request.get_json()
+    
+    try:
+        department.name = data['name']
+        department.code = data['code']
+        department.description = data.get('description', '')
+        
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'Department updated successfully'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': 'Error updating department'}), 500
+
+@bp.route('/departments/<int:dept_id>/toggle-status', methods=['POST'])
+@login_required
+@admin_required
+def toggle_department_status(dept_id):
+    """Toggle department active status"""
+    department = Department.query.get_or_404(dept_id)
+    
+    try:
+        department.is_active = not department.is_active
+        db.session.commit()
+        
+        status = 'activated' if department.is_active else 'deactivated'
+        return jsonify({'success': True, 'message': f'Department {status} successfully'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': 'Error updating department status'}), 500
+
 # ============ TUTOR MANAGEMENT ROUTES ============
 
 @bp.route('/tutors')

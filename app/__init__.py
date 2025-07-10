@@ -4,6 +4,7 @@ from flask_migrate import Migrate
 from flask_login import LoginManager
 from flask_mail import Mail
 from config import Config
+from flask_wtf.csrf import CSRFProtect, generate_csrf
 import os
 from flask import render_template
 
@@ -11,6 +12,7 @@ db = SQLAlchemy()
 migrate = Migrate()
 login = LoginManager()
 mail = Mail()
+csrf = CSRFProtect()
 
 def create_app(config_class=Config):
     app = Flask(__name__)

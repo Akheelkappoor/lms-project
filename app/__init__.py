@@ -15,6 +15,13 @@ mail = Mail()
 def create_app(config_class=Config):
     app = Flask(__name__)
     app.config.from_object(config_class)
+    
+    print("=== S3 CONFIG DEBUG ===")
+    print(f"S3_BUCKET: {app.config.get('S3_BUCKET')}")
+    print(f"S3_REGION: {app.config.get('S3_REGION')}")
+    print(f"S3_ACCESS_KEY: {app.config.get('S3_ACCESS_KEY')}")
+    print(f"S3_SECRET_KEY: {app.config.get('S3_SECRET_KEY')}")
+    print("========================")
 
     # Initialize Flask extensions
     db.init_app(app)

@@ -16,6 +16,7 @@ class Config:
     S3_ACCESS_KEY = os.environ.get('AWS_ACCESS_KEY_ID')
     S3_SECRET_KEY = os.environ.get('AWS_SECRET_ACCESS_KEY')
     S3_URL = f"https://{os.environ.get('S3_BUCKET')}.s3.{os.environ.get('S3_REGION', 'ap-south-1')}.amazonaws.com"
+    print(f"Loading S3_BUCKET from env: {os.environ.get('S3_BUCKET')}")
 
     # S3 Upload Settings
     UPLOAD_FOLDER = 'lms'  # S3 logical folder

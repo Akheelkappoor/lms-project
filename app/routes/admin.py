@@ -439,14 +439,27 @@ def register_tutor():
             
             for doc_name in required_docs:
                 file_field = getattr(form, doc_name).data
+                print(f"=== DEBUG {doc_name} ===")
+                print(f"File field: {file_field}")
+                print(f"File field type: {type(file_field)}")
+                if file_field:
+                    print(f"Has filename attr: {hasattr(file_field, 'filename')}")
+                    if hasattr(file_field, 'filename'):
+                        print(f"Filename: {file_field.filename}")
+                print(f"Has file content: {has_file_content(file_field)}")
+                print("========================")
+
                 if has_file_content(file_field):
                     s3_url = upload_file_to_s3(file_field, folder=f"{current_app.config['UPLOAD_FOLDER']}/documents")
                     if s3_url:
                         documents[doc_name.replace('_card', '').replace('_certificate', '')] = s3_url
+                        print(f"✅ SUCCESS: {doc_name} uploaded to {s3_url}")
                     else:
+                        print(f"❌ FAILED: {doc_name} upload returned None")
                         raise ValueError(f"{doc_name.replace('_', ' ').title()} upload failed.")
                         
                 else:
+                    print(f"⚠️ No file content for {doc_name}")
                     raise ValueError(f"{doc_name.replace('_', ' ').title()} is required")
             
             tutor.set_documents(documents)
@@ -455,13 +468,20 @@ def register_tutor():
             required_videos = ['demo_video', 'interview_video']
             for video_name in required_videos:
                 file_field = getattr(form, video_name).data
+                print(f"=== DEBUG VIDEO {video_name} ===")
+                print(f"File field: {file_field}")
+                print(f"Has file content: {has_file_content(file_field)}")
+                print("===============================")
                 if has_file_content(file_field):
                     s3_url = upload_file_to_s3(file_field, folder=f"{current_app.config['UPLOAD_FOLDER']}/videos")
                     if s3_url:
                         setattr(tutor, video_name, s3_url)
+                        print(f"✅ SUCCESS: {video_name} uploaded to {s3_url}")
                     else:
+                        print(f"❌ FAILED: {video_name} upload returned None")
                         raise ValueError(f"{video_name.replace('_', ' ').title()} upload failed.")
                 else:
+                    print(f"⚠️ No file content for {video_name}")
                     raise ValueError(f"{video_name.replace('_', ' ').title()} is required")
             
             # Set bank details
@@ -518,7 +538,10 @@ def register_tutor():
 
 def has_file_content(file_field):
     """Check if file field actually has a file"""
-    return file_field and hasattr(file_field, 'filename') and file_field.filename and file_field.filename.strip()
+    return (file_field and 
+            hasattr(file_field, 'filename') and 
+            file_field.filename and 
+            file_field.filename.strip() != '')
 
 @bp.route('/tutors/<int:tutor_id>')
 @login_required

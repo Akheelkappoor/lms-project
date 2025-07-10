@@ -106,6 +106,10 @@ def create_app(config_class=Config):
         if user_id:
             return f"EMP{user_id:04d}"  # e.g., EMP0001, EMP0023
         return "EMP0000"
+    
+    @app.template_global()
+    def hasattr_filter(obj, name):
+        return hasattr(obj, name)
 
     # Context processors
     @app.context_processor

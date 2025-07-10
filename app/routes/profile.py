@@ -329,7 +329,7 @@ def system_documents():
                 'uploaded_at': None,
                 'version': '1.0'
             },
-            'employee_handbook': {
+            'handbook': {
                 'title': 'Employee Handbook',
                 'description': 'Guidelines and procedures',
                 'available': True,
@@ -355,9 +355,18 @@ def download_system_document(doc_type):
     """Download system-generated documents"""
     from app.models.system_document import SystemDocument
     
+    # Map template keys to database document types
+    doc_type_mapping = {
+        'handbook': 'employee_handbook',
+        'certificates': 'training_certificate'
+    }
+    
+    # Get actual document type for database lookup
+    actual_doc_type = doc_type_mapping.get(doc_type, doc_type)
+    
     # Try to get document from database first
     doc = SystemDocument.query.filter_by(
-        document_type=doc_type, 
+        document_type=actual_doc_type, 
         is_active=True
     ).first()
     

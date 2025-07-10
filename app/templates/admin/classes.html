@@ -228,7 +228,7 @@
                                 {% endif %}
                             </td>
                             <td>
-                                {% if hasattr(class, 'get_students') %}
+                                {% if class.get_students %}
                                     {% set student_ids = class.get_students() %}
                                     {% if student_ids %}
                                     <div>

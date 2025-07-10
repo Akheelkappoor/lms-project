@@ -71,6 +71,9 @@ def create_app(config_class=Config):
     from app.routes.profile import bp as profile_bp
     app.register_blueprint(profile_bp)
 
+    from app.routes.escalation import bp as escalation_bp
+    app.register_blueprint(escalation_bp)
+    
     # Error handlers
     @app.errorhandler(404)
     def not_found_error(error):

@@ -889,6 +889,15 @@
                 </li>
                 {% endif %}
 
+                <li class="nav-item">
+                    <a class="nav-link {% if active_page == 'escalations' %}active{% endif %}" 
+                       href="{{ url_for('escalation.list_escalations') }}">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <span>Escalations</span>
+                        <span id="escalation-count" class="badge bg-danger ms-auto" style="display: none;"></span>
+                    </a>
+                </li>
+
                 <!-- Class Management -->
                 {% if current_user.has_permission('class_management') %}
                 <li class="nav-item">
@@ -1102,6 +1111,18 @@
                 });
             }
         }
+
+        fetch('/escalations/dashboard-stats')
+            .then(response => response.json())
+            .then(data => {
+                const badge = document.getElementById('escalation-count');
+                if (data.stats.overdue > 0) {
+                    badge.textContent = data.stats.overdue;
+                    badge.style.display = 'inline';
+                }
+            })
+        .catch(error => console.error('Error loading escalation stats:', error));
+                    
 
         // Global utility functions
         window.LMS = window.LMS || {};

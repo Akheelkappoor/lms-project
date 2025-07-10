@@ -1,5 +1,5 @@
 from app import create_app, db
-from app.models import User, Department, Tutor, Student, Class, Attendance
+from app.models import User, Department, Tutor, Student, Class, Attendance, Escalation
 from flask import url_for, redirect, request, jsonify, render_template
 
 # Create Flask application instance
@@ -14,7 +14,8 @@ def make_shell_context():
         'Tutor': Tutor, 
         'Student': Student, 
         'Class': Class, 
-        'Attendance': Attendance
+        'Attendance': Attendance,
+        'Escalation': Escalation
     }
 
 @app.route('/')

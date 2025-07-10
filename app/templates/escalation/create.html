@@ -1,0 +1,251 @@
+{% extends "layouts/base.html" %}
+{% set active_page = "escalations" %}
+
+{% block title %}Create Escalation{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-0">Create New Escalation</h1>
+            <p class="text-muted">Report and track issues that need attention</p>
+        </div>
+        <a href="{{ url_for('escalation.list_escalations') }}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> Back to List
+        </a>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Escalation Details</h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST" id="escalationForm">
+                        {{ csrf_token() }}
+                        
+                        <!-- Title -->
+                        <div class="mb-3">
+                            <label for="title" class="form-label">Title <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="title" name="title" required maxlength="200"
+                                   placeholder="Brief summary of the issue">
+                            <div class="form-text">Provide a clear, concise title for the escalation</div>
+                        </div>
+
+                        <!-- Category and Priority -->
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="category" class="form-label">Category <span class="text-danger">*</span></label>
+                                    <select class="form-select" id="category" name="category" required>
+                                        <option value="">Select Category</option>
+                                        {% for value, label in categories %}
+                                            <option value="{{ value }}">{{ label }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="priority" class="form-label">Priority</label>
+                                    <select class="form-select" id="priority" name="priority">
+                                        {% for value, label in priorities %}
+                                            <option value="{{ value }}" {% if value == 'medium' %}selected{% endif %}>{{ label }}</option>
+                                        {% endfor %}
+                                    </select>
+                                    <div class="form-text">Priority determines response time expectations</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Description -->
+                        <div class="mb-3">
+                            <label for="description" class="form-label">Description <span class="text-danger">*</span></label>
+                            <textarea class="form-control" id="description" name="description" rows="6" required
+                                      placeholder="Detailed description of the issue, including steps to reproduce, expected vs actual behavior, etc."></textarea>
+                            <div class="form-text">Provide as much detail as possible to help resolve the issue quickly</div>
+                        </div>
+
+                        <!-- Related Records -->
+                        <div class="card bg-light mb-3">
+                            <div class="card-header">
+                                <h6 class="mb-0">Related Records (Optional)</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="student_id" class="form-label">Related Student</label>
+                                            <select class="form-select" id="student_id" name="student_id">
+                                                <option value="">Select Student (if applicable)</option>
+                                                {% for student in students %}
+                                                    <option value="{{ student.id }}">{{ student.full_name }} ({{ student.student_id }})</option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="tutor_id" class="form-label">Related Tutor</label>
+                                            <select class="form-select" id="tutor_id" name="tutor_id">
+                                                <option value="">Select Tutor (if applicable)</option>
+                                                {% for tutor in tutors %}
+                                                    <option value="{{ tutor.id }}">{{ tutor.user.full_name }} ({{ tutor.employee_id }})</option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="form-text">Link this escalation to specific students or tutors if relevant</div>
+                            </div>
+                        </div>
+
+                        <!-- Submit Buttons -->
+                        <div class="d-flex justify-content-end gap-2">
+                            <a href="{{ url_for('escalation.list_escalations') }}" class="btn btn-secondary">Cancel</a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save"></i> Create Escalation
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <!-- Help Card -->
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="fas fa-info-circle"></i> Guidelines</h6>
+                </div>
+                <div class="card-body">
+                    <h6>When to Create an Escalation:</h6>
+                    <ul class="small">
+                        <li>Technical issues affecting platform functionality</li>
+                        <li>Academic concerns about teaching quality</li>
+                        <li>Payment disputes or billing issues</li>
+                        <li>Scheduling conflicts that can't be resolved</li>
+                        <li>Behavioral issues requiring management attention</li>
+                    </ul>
+
+                    <h6>Priority Levels:</h6>
+                    <ul class="small">
+                        <li><strong>High:</strong> Critical issues requiring immediate attention (&lt; 2 hours)</li>
+                        <li><strong>Medium:</strong> Important but not urgent (&lt; 24 hours)</li>
+                        <li><strong>Low:</strong> General concerns (&lt; 72 hours)</li>
+                    </ul>
+
+                    <h6>Categories:</h6>
+                    <ul class="small">
+                        <li><strong>Technical:</strong> Platform, system, or software issues</li>
+                        <li><strong>Academic:</strong> Teaching quality, curriculum concerns</li>
+                        <li><strong>Payment:</strong> Billing, refunds, payment processing</li>
+                        <li><strong>Scheduling:</strong> Class timing, availability conflicts</li>
+                        <li><strong>Behavioral:</strong> Conduct, communication issues</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Recent Escalations -->
+            <div class="card mt-3">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="fas fa-clock"></i> Recent Escalations</h6>
+                </div>
+                <div class="card-body">
+                    <div id="recentEscalations">
+                        <div class="text-center">
+                            <div class="spinner-border spinner-border-sm" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <p class="small text-muted mt-2">Loading recent escalations...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Load recent escalations
+    fetch('/escalations/dashboard-stats')
+        .then(response => response.json())
+        .then(data => {
+            const container = document.getElementById('recentEscalations');
+            if (data.recent && data.recent.length > 0) {
+                container.innerHTML = data.recent.slice(0, 5).map(esc => `
+                    <div class="d-flex justify-content-between align-items-start mb-2 pb-2 border-bottom">
+                        <div>
+                            <div class="fw-bold small">#${esc.id}</div>
+                            <div class="small text-muted">${esc.title.length > 30 ? esc.title.substring(0, 30) + '...' : esc.title}</div>
+                            <div class="small">
+                                <span class="badge bg-${esc.priority === 'high' ? 'danger' : esc.priority === 'medium' ? 'warning' : 'info'} me-1">${esc.priority}</span>
+                                <span class="badge bg-secondary">${esc.category}</span>
+                            </div>
+                        </div>
+                        <div class="text-end">
+                            <div class="small text-muted">${new Date(esc.created_at).toLocaleDateString()}</div>
+                            ${esc.is_overdue ? '<i class="fas fa-exclamation-triangle text-danger"></i>' : ''}
+                        </div>
+                    </div>
+                `).join('');
+            } else {
+                container.innerHTML = '<p class="text-muted small">No recent escalations</p>';
+            }
+        })
+        .catch(error => {
+            console.error('Error loading recent escalations:', error);
+            document.getElementById('recentEscalations').innerHTML = '<p class="text-muted small">Error loading data</p>';
+        });
+
+    // Form validation
+    const form = document.getElementById('escalationForm');
+    form.addEventListener('submit', function(e) {
+        const title = document.getElementById('title').value.trim();
+        const description = document.getElementById('description').value.trim();
+        const category = document.getElementById('category').value;
+
+        if (!title || !description || !category) {
+            e.preventDefault();
+            alert('Please fill in all required fields');
+            return false;
+        }
+
+        if (title.length < 5) {
+            e.preventDefault();
+            alert('Title must be at least 5 characters long');
+            return false;
+        }
+
+        if (description.length < 20) {
+            e.preventDefault();
+            alert('Description must be at least 20 characters long');
+            return false;
+        }
+    });
+
+    // Character counters
+    const titleInput = document.getElementById('title');
+    const descriptionInput = document.getElementById('description');
+
+    function addCharCounter(input, maxLength) {
+        const counter = document.createElement('div');
+        counter.className = 'form-text text-end';
+        counter.textContent = `0/${maxLength}`;
+        input.parentNode.appendChild(counter);
+
+        input.addEventListener('input', function() {
+            const length = this.value.length;
+            counter.textContent = `${length}/${maxLength}`;
+            counter.className = `form-text text-end ${length > maxLength * 0.9 ? 'text-warning' : ''}`;
+        });
+    }
+
+    addCharCounter(titleInput, 200);
+    addCharCounter(descriptionInput, 2000);
+});
+</script>
+{% endblock %}

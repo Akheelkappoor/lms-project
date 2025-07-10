@@ -637,7 +637,6 @@ def register_student():
             s3_url = None
             if form.school_id.data:
                 s3_url = upload_file_to_s3(form.school_id.data, folder=f"{current_app.config['UPLOAD_FOLDER']}/documents")
-                
             if s3_url:
                 documents['school_id'] = s3_url
 

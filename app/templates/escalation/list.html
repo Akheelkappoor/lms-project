@@ -1,4 +1,4 @@
-{% extends "layouts/base.html" %}
+{% extends "base.html" %}
 {% set active_page = "escalations" %}
 
 {% block title %}Escalation Management{% endblock %}
@@ -347,6 +347,9 @@ document.addEventListener('DOMContentLoaded', function() {
     let currentEscalationId = null;
     const assignModal = new bootstrap.Modal(document.getElementById('assignModal'));
     
+    // Get CSRF token from meta tag
+    const csrfToken = document.querySelector('meta[name=csrf-token]').getAttribute('content');
+    
     // Assignment handlers
     document.querySelectorAll('.assign-btn').forEach(btn => {
         btn.addEventListener('click', function() {
@@ -366,7 +369,7 @@ document.addEventListener('DOMContentLoaded', function() {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'X-CSRFToken': '{{ csrf_token() }}'
+                'X-CSRFToken': csrfToken
             },
             body: JSON.stringify({user_id: parseInt(userId)})
         })

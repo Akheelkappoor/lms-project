@@ -1,4 +1,4 @@
-{% extends "layouts/base.html" %}
+{% extends "base.html" %}
 {% set active_page = "escalations" %}
 
 {% block title %}Escalation #{{ escalation.id }}{% endblock %}
@@ -110,16 +110,16 @@
                                 {% if student %}
                                     <div class="d-inline-block me-3">
                                         <span class="badge bg-primary">Student</span>
-                                        <a href="{{ url_for('admin.view_student', student_id=student.id) }}" class="ms-1">
-                                            {{ student.full_name }} ({{ student.student_id }})
+                                        <a href="{{ url_for('student.student_profile', student_id=student.id) }}" class="ms-1">
+                                            {{ student.full_name }} (ID: {{ student.id }})
                                         </a>
                                     </div>
                                 {% endif %}
                                 {% if tutor %}
                                     <div class="d-inline-block">
                                         <span class="badge bg-success">Tutor</span>
-                                        <a href="{{ url_for('admin.view_tutor', tutor_id=tutor.id) }}" class="ms-1">
-                                            {{ tutor.user.full_name }} ({{ tutor.employee_id }})
+                                        <a href="{{ url_for('admin.tutor_details', tutor_id=tutor.id) }}" class="ms-1">
+                                            {{ tutor.user.full_name }} (ID: {{ tutor.id }})
                                         </a>
                                     </div>
                                 {% endif %}
@@ -329,7 +329,7 @@ document.addEventListener('DOMContentLoaded', function() {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'X-CSRFToken': '{{ csrf_token() }}'
+                'X-CSRFToken': csrfToken
             },
             body: JSON.stringify({comment: comment})
         })
@@ -352,7 +352,7 @@ document.addEventListener('DOMContentLoaded', function() {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'X-CSRFToken': '{{ csrf_token() }}'
+                'X-CSRFToken': csrfToken
             },
             body: JSON.stringify({user_id: parseInt(userId)})
         })

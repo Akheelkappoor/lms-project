@@ -2,6 +2,8 @@ from flask import Blueprint, render_template, redirect, url_for, flash, request,
 from flask_login import login_required, current_user
 from datetime import datetime, timedelta
 from sqlalchemy import or_, and_
+import json
+import traceback
 from app import db
 from app.models.user import User
 from app.models.department import Department
@@ -25,7 +27,7 @@ def admin_required(f):
 @bp.route('/')
 @login_required
 def list_escalations():
-    """List all escalations"""
+    """List all escalations - accessible to all authenticated users"""
     page = request.args.get('page', 1, type=int)
     status_filter = request.args.get('status', '')
     category_filter = request.args.get('category', '')
@@ -86,6 +88,8 @@ def list_escalations():
         users_query = users_query.filter_by(department_id=current_user.department_id)
     users = users_query.all()
     
+    print(f"DEBUG: User {current_user.full_name} ({current_user.role}) viewing {escalations.total} escalations")
+    
     return render_template('escalation/list.html',
                          escalations=escalations,
                          stats=stats,
@@ -104,7 +108,7 @@ def list_escalations():
 @bp.route('/create', methods=['GET', 'POST'])
 @login_required
 def create_escalation():
-    """Create new escalation"""
+    """Create new escalation - accessible to all authenticated users"""
     if request.method == 'POST':
         try:
             # Get form data
@@ -156,17 +160,67 @@ def create_escalation():
         except Exception as e:
             db.session.rollback()
             flash(f'Error creating escalation: {str(e)}', 'error')
+            import traceback
+            print(f"Error creating escalation: {traceback.format_exc()}")
     
     # GET request - show form
     categories = Escalation.get_categories()
     priorities = Escalation.get_priorities()
     
-    # Get students and tutors for related records
+    # Get students and tutors based on user role and department
     students = []
     tutors = []
-    if current_user.department_id:
-        students = Student.query.filter_by(department_id=current_user.department_id, is_active=True).all()
-        tutors = Tutor.query.filter_by(department_id=current_user.department_id, is_active=True).all()
+    
+    try:
+        # Superadmin and Admin can see all
+        if current_user.role in ['superadmin', 'admin']:
+            print(f"DEBUG: Loading all students/tutors for {current_user.role}")
+            students = Student.query.filter_by(is_active=True).limit(100).all()
+            tutors = Tutor.query.filter_by(status='active').limit(100).all()
+            
+        # Coordinator can see only their department
+        elif current_user.role == 'coordinator' and current_user.department_id:
+            print(f"DEBUG: Loading dept {current_user.department_id} students/tutors for coordinator")
+            students = Student.query.filter_by(
+                department_id=current_user.department_id, 
+                is_active=True
+            ).all()
+            
+            # Get tutors from coordinator's department
+            tutors = db.session.query(Tutor).join(User).filter(
+                User.department_id == current_user.department_id,
+                Tutor.status == 'active'
+            ).all()
+            
+        # Regular users (like tutors) can see their department
+        elif current_user.department_id:
+            print(f"DEBUG: Loading dept {current_user.department_id} students/tutors for {current_user.role}")
+            students = Student.query.filter_by(
+                department_id=current_user.department_id, 
+                is_active=True
+            ).all()
+            
+            tutors = db.session.query(Tutor).join(User).filter(
+                User.department_id == current_user.department_id,
+                Tutor.status == 'active'
+            ).all()
+        
+        print(f"DEBUG: User {current_user.full_name} ({current_user.role}) found {len(students)} students and {len(tutors)} tutors")
+        
+        # Debug first few items
+        if students:
+            print(f"DEBUG: First student: {students[0].full_name} (Dept: {students[0].department_id})")
+        if tutors:
+            tutor_name = tutors[0].user.full_name if tutors[0].user else 'No User'
+            tutor_dept = tutors[0].user.department_id if tutors[0].user else 'No Dept'
+            print(f"DEBUG: First tutor: {tutor_name} (Dept: {tutor_dept})")
+        
+    except Exception as e:
+        print(f"DEBUG: Error loading students/tutors: {str(e)}")
+        import traceback
+        print(f"DEBUG: Traceback: {traceback.format_exc()}")
+        students = []
+        tutors = []
     
     return render_template('escalation/create.html',
                          categories=categories,
@@ -431,3 +485,43 @@ def get_auto_assignee(category, department_id):
         return User.query.filter_by(role='admin', is_active=True).first()
     
     return None
+
+@bp.route('/test-data')
+@login_required
+def test_data():
+    """Simple test to show available data"""
+    try:
+        students = Student.query.filter_by(is_active=True).limit(5).all()
+        tutors = Tutor.query.filter_by(status='active').limit(5).all()
+        
+        output = f"""
+        <h2>Test Data Available</h2>
+        <h3>Current User:</h3>
+        <p>Name: {current_user.full_name}</p>
+        <p>Role: {current_user.role}</p>
+        <p>Department ID: {current_user.department_id}</p>
+        
+        <h3>Students Found: {len(students)}</h3>
+        <ul>
+        """
+        
+        for student in students:
+            output += f"<li>ID: {student.id}, Name: {student.full_name}, Dept: {student.department_id}</li>"
+        
+        output += f"""
+        </ul>
+        
+        <h3>Tutors Found: {len(tutors)}</h3>
+        <ul>
+        """
+        
+        for tutor in tutors:
+            dept_id = tutor.user.department_id if tutor.user else 'None'
+            output += f"<li>ID: {tutor.id}, Name: {tutor.user.full_name if tutor.user else 'No User'}, Dept: {dept_id}, Status: {tutor.status}</li>"
+        
+        output += "</ul>"
+        
+        return output
+        
+    except Exception as e:
+        return f"<h2>Error:</h2><pre>{str(e)}</pre>"

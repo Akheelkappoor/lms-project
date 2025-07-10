@@ -118,6 +118,13 @@ def create_app(config_class=Config):
         account_str = str(account_number)
         visible_chars = 4
         return '*' * (len(account_str) - visible_chars) + account_str[-visible_chars:]
+    
+    @app.template_filter('nl2br')
+    def nl2br_filter(value):
+        """Convert newlines to <br> tags"""
+        if not value:
+            return value
+        return value.replace('\n', '<br>')
 
 
     @app.template_global()

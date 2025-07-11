@@ -7,6 +7,7 @@ from config import Config
 from flask_wtf.csrf import CSRFProtect, generate_csrf
 import os
 from flask import render_template
+from datetime import datetime
 
 db = SQLAlchemy()
 migrate = Migrate()
@@ -89,9 +90,30 @@ def create_app(config_class=Config):
     # Template filters
     @app.template_filter('datetime')
     def datetime_filter(datetime_obj):
-        if datetime_obj:
+        if not datetime_obj:
+            return ''
+    
+        if hasattr(datetime_obj, 'strftime'):
             return datetime_obj.strftime('%d %b %Y, %I:%M %p')
-        return ''
+
+        if isinstance(datetime_obj, str):
+            try:
+                # Try parsing ISO format (from JSON timestamps)
+                if 'T' in datetime_obj:
+                    # Remove Z or timezone info and parse
+                    clean_str = datetime_obj.replace('Z', '').split('.')[0]
+                    parsed_dt = datetime.fromisoformat(clean_str)
+                    return parsed_dt.strftime('%d %b %Y, %I:%M %p')
+                else:
+                    # Try standard datetime format
+                    parsed_dt = datetime.strptime(datetime_obj, '%Y-%m-%d %H:%M:%S')
+                    return parsed_dt.strftime('%d %b %Y, %I:%M %p')
+            except (ValueError, AttributeError):
+                # If can't parse, return original string
+                return datetime_obj
+        
+        # Fallback - return as string
+        return str(datetime_obj)
 
     @app.template_filter('date')
     def date_filter(date_obj):
@@ -132,6 +154,10 @@ def create_app(config_class=Config):
     @app.template_global()
     def hasattr_filter(obj, name):
         return hasattr(obj, name)
+
+    @app.template_global()
+    def csrf_token():
+        return generate_csrf()
 
     # Context processors
     @app.context_processor

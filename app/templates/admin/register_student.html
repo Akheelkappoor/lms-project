@@ -33,6 +33,51 @@
         margin: 0;
         padding: 0;
     }
+
+    /* Enhanced Form Error Display */
+    .form-errors-summary {
+        background: linear-gradient(135deg, #dc3545, #c82333);
+        color: white;
+        padding: 1.5rem;
+        border-radius: 12px;
+        margin-bottom: 2rem;
+        display: none;
+        box-shadow: 0 4px 12px rgba(220, 53, 69, 0.3);
+    }
+
+    .form-errors-summary.show {
+        display: block;
+        animation: slideDown 0.5s ease-out;
+    }
+
+    @keyframes slideDown {
+        from {
+            opacity: 0;
+            transform: translateY(-20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .form-errors-summary h4 {
+        margin: 0 0 1rem 0;
+        font-size: 1.2rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .form-errors-summary ul {
+        margin: 0;
+        padding-left: 1.5rem;
+    }
+
+    .form-errors-summary li {
+        margin-bottom: 0.5rem;
+        line-height: 1.4;
+    }
     
     .form-section {
         background: #ffffff;
@@ -100,12 +145,30 @@
     .form-control.is-invalid {
         border-color: #dc3545;
         box-shadow: 0 0 0 3px rgba(220, 53, 69, 0.1);
+        background-color: rgba(220, 53, 69, 0.02);
+    }
+
+    .form-control.is-valid {
+        border-color: #28a745;
+        box-shadow: 0 0 0 3px rgba(40, 167, 69, 0.1);
+        background-color: rgba(40, 167, 69, 0.02);
     }
     
+    /* Enhanced Error Display */
     .invalid-feedback {
         color: #dc3545;
-        font-size: 0.75rem;
-        margin-top: 0.25rem;
+        font-size: 0.8rem;
+        margin-top: 0.5rem;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .invalid-feedback::before {
+        content: '\f071';
+        font-family: 'Font Awesome 5 Free';
+        font-weight: 900;
     }
     
     .form-control:focus {
@@ -132,6 +195,7 @@
         margin-top: 0.25rem;
     }
     
+    /* Enhanced File Upload */
     .file-upload-area {
         border: 2px dashed #e9ecef;
         border-radius: 8px;
@@ -141,17 +205,61 @@
         background: #f8f9fa;
         width: 100%;
         box-sizing: border-box;
+        cursor: pointer;
+        position: relative;
     }
     
     .file-upload-area:hover {
         border-color: #007bff;
         background: rgba(0, 123, 255, 0.05);
     }
+
+    .file-upload-area.has-error {
+        border-color: #dc3545;
+        background: rgba(220, 53, 69, 0.05);
+    }
+
+    .file-upload-area.has-file {
+        border-color: #28a745;
+        background: rgba(40, 167, 69, 0.05);
+    }
     
     .file-upload-icon {
         font-size: 2rem;
         color: #6c757d;
         margin-bottom: 0.5rem;
+        transition: all 0.3s ease;
+    }
+
+    .file-upload-area.has-file .file-upload-icon {
+        color: #28a745;
+    }
+
+    .file-upload-area.has-error .file-upload-icon {
+        color: #dc3545;
+    }
+
+    .file-upload-area input[type="file"] {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        opacity: 0;
+        cursor: pointer;
+    }
+
+    .file-upload-area p {
+        margin: 0;
+        color: #6c757d;
+        font-size: 0.9rem;
+    }
+
+    .file-info {
+        font-size: 0.8rem;
+        color: #6c757d;
+        margin-top: 0.5rem;
+        font-style: italic;
     }
     
     .form-actions {
@@ -255,6 +363,12 @@
         background: #0056b3;
         border-color: #0056b3;
         transform: translateY(-1px);
+    }
+
+    .btn-primary:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        transform: none !important;
     }
     
     .btn-outline {
@@ -391,6 +505,12 @@
     </div>
 
     <div class="registration-container">
+        <!-- Form Errors Summary -->
+        <div id="formErrorsSummary" class="form-errors-summary">
+            <h4><i class="fas fa-exclamation-triangle"></i> Please fix the following errors:</h4>
+            <ul id="errorsList"></ul>
+        </div>
+
         <!-- Progress Indicator -->
         <div class="progress-indicator">
             <div class="progress-step active" data-step="1">
@@ -411,7 +531,7 @@
             </div>
         </div>
 
-        <form method="POST" enctype="multipart/form-data" id="studentRegistrationForm">
+        <form method="POST" enctype="multipart/form-data" id="studentRegistrationForm" novalidate>
             {{ form.hidden_tag() }}
             
             <!-- Step 1: Student Information -->
@@ -425,7 +545,7 @@
                     <div class="form-row">
                         <div class="form-group">
                             {{ form.full_name.label(class="form-label") }} <span class="required">*</span>
-                            {{ form.full_name(class="form-control") }}
+                            {{ form.full_name(class="form-control", required=true) }}
                             {% if form.full_name.errors %}
                                 <div class="invalid-feedback d-block">
                                     {% for error in form.full_name.errors %}
@@ -437,7 +557,7 @@
                         
                         <div class="form-group">
                             {{ form.email.label(class="form-label") }} <span class="required">*</span>
-                            {{ form.email(class="form-control") }}
+                            {{ form.email(class="form-control", required=true) }}
                             {% if form.email.errors %}
                                 <div class="invalid-feedback d-block">
                                     {% for error in form.email.errors %}
@@ -463,7 +583,7 @@
                         
                         <div class="form-group">
                             {{ form.date_of_birth.label(class="form-label") }} <span class="required">*</span>
-                            {{ form.date_of_birth(class="form-control") }}
+                            {{ form.date_of_birth(class="form-control", required=true) }}
                             {% if form.date_of_birth.errors %}
                                 <div class="invalid-feedback d-block">
                                     {% for error in form.date_of_birth.errors %}
@@ -477,7 +597,7 @@
                     <div class="form-row single">
                         <div class="form-group">
                             {{ form.address.label(class="form-label") }} <span class="required">*</span>
-                            {{ form.address(class="form-control", rows="3") }}
+                            {{ form.address(class="form-control", rows="3", required=true) }}
                             {% if form.address.errors %}
                                 <div class="invalid-feedback d-block">
                                     {% for error in form.address.errors %}
@@ -491,7 +611,7 @@
                     <div class="form-row">
                         <div class="form-group">
                             {{ form.state.label(class="form-label") }} <span class="required">*</span>
-                            {{ form.state(class="form-control") }}
+                            {{ form.state(class="form-control", required=true) }}
                             {% if form.state.errors %}
                                 <div class="invalid-feedback d-block">
                                     {% for error in form.state.errors %}
@@ -503,7 +623,7 @@
                         
                         <div class="form-group">
                             {{ form.pin_code.label(class="form-label") }} <span class="required">*</span>
-                            {{ form.pin_code(class="form-control") }}
+                            {{ form.pin_code(class="form-control", required=true) }}
                             {% if form.pin_code.errors %}
                                 <div class="invalid-feedback d-block">
                                     {% for error in form.pin_code.errors %}
@@ -527,7 +647,7 @@
                     <div class="form-row">
                         <div class="form-group">
                             {{ form.grade.label(class="form-label") }} <span class="required">*</span>
-                            {{ form.grade(class="form-control") }}
+                            {{ form.grade(class="form-control", required=true) }}
                             {% if form.grade.errors %}
                                 <div class="invalid-feedback d-block">
                                     {% for error in form.grade.errors %}
@@ -540,7 +660,7 @@
                         
                         <div class="form-group">
                             {{ form.board.label(class="form-label") }} <span class="required">*</span>
-                            {{ form.board(class="form-control") }}
+                            {{ form.board(class="form-control", required=true) }}
                             {% if form.board.errors %}
                                 <div class="invalid-feedback d-block">
                                     {% for error in form.board.errors %}
@@ -555,7 +675,7 @@
                     <div class="form-row">
                         <div class="form-group">
                             {{ form.school_name.label(class="form-label") }} <span class="required">*</span>
-                            {{ form.school_name(class="form-control") }}
+                            {{ form.school_name(class="form-control", required=true) }}
                             {% if form.school_name.errors %}
                                 <div class="invalid-feedback d-block">
                                     {% for error in form.school_name.errors %}
@@ -567,7 +687,7 @@
                         
                         <div class="form-group">
                             {{ form.academic_year.label(class="form-label") }} <span class="required">*</span>
-                            {{ form.academic_year(class="form-control") }}
+                            {{ form.academic_year(class="form-control", required=true) }}
                             {% if form.academic_year.errors %}
                                 <div class="invalid-feedback d-block">
                                     {% for error in form.academic_year.errors %}
@@ -582,7 +702,7 @@
                     <div class="form-row">
                         <div class="form-group">
                             {{ form.course_start_date.label(class="form-label") }} <span class="required">*</span>
-                            {{ form.course_start_date(class="form-control") }}
+                            {{ form.course_start_date(class="form-control", required=true) }}
                             {% if form.course_start_date.errors %}
                                 <div class="invalid-feedback d-block">
                                     {% for error in form.course_start_date.errors %}
@@ -594,7 +714,7 @@
                         
                         <div class="form-group">
                             {{ form.department_id.label(class="form-label") }} <span class="required">*</span>
-                            {{ form.department_id(class="form-control form-select") }}
+                            {{ form.department_id(class="form-control form-select", required=true) }}
                             {% if form.department_id.errors %}
                                 <div class="invalid-feedback d-block">
                                     {% for error in form.department_id.errors %}
@@ -608,7 +728,7 @@
                     <div class="form-row">
                         <div class="form-group">
                             {{ form.subjects_enrolled.label(class="form-label") }} <span class="required">*</span>
-                            {{ form.subjects_enrolled(class="form-control") }}
+                            {{ form.subjects_enrolled(class="form-control", required=true) }}
                             {% if form.subjects_enrolled.errors %}
                                 <div class="invalid-feedback d-block">
                                     {% for error in form.subjects_enrolled.errors %}
@@ -643,7 +763,7 @@
                     <div class="form-row">
                         <div class="form-group">
                             {{ form.total_fee.label(class="form-label") }} <span class="required">*</span>
-                            {{ form.total_fee(class="form-control") }}
+                            {{ form.total_fee(class="form-control", required=true) }}
                             {% if form.total_fee.errors %}
                                 <div class="invalid-feedback d-block">
                                     {% for error in form.total_fee.errors %}
@@ -670,7 +790,7 @@
                     <div class="form-row">
                         <div class="form-group">
                             {{ form.payment_mode.label(class="form-label") }} <span class="required">*</span>
-                            {{ form.payment_mode(class="form-control form-select") }}
+                            {{ form.payment_mode(class="form-control form-select", required=true) }}
                             {% if form.payment_mode.errors %}
                                 <div class="invalid-feedback d-block">
                                     {% for error in form.payment_mode.errors %}
@@ -682,7 +802,7 @@
                         
                         <div class="form-group">
                             {{ form.payment_schedule.label(class="form-label") }} <span class="required">*</span>
-                            {{ form.payment_schedule(class="form-control form-select") }}
+                            {{ form.payment_schedule(class="form-control form-select", required=true) }}
                             {% if form.payment_schedule.errors %}
                                 <div class="invalid-feedback d-block">
                                     {% for error in form.payment_schedule.errors %}
@@ -706,7 +826,7 @@
                     <div class="form-row">
                         <div class="form-group">
                             {{ form.father_name.label(class="form-label") }} <span class="required">*</span>
-                            {{ form.father_name(class="form-control") }}
+                            {{ form.father_name(class="form-control", required=true) }}
                             {% if form.father_name.errors %}
                                 <div class="invalid-feedback d-block">
                                     {% for error in form.father_name.errors %}
@@ -718,7 +838,7 @@
                         
                         <div class="form-group">
                             {{ form.father_phone.label(class="form-label") }} <span class="required">*</span>
-                            {{ form.father_phone(class="form-control") }}
+                            {{ form.father_phone(class="form-control", required=true) }}
                             {% if form.father_phone.errors %}
                                 <div class="invalid-feedback d-block">
                                     {% for error in form.father_phone.errors %}
@@ -779,7 +899,7 @@
                     <div class="form-row">
                         <div class="form-group">
                             {{ form.mother_name.label(class="form-label") }} <span class="required">*</span>
-                            {{ form.mother_name(class="form-control") }}
+                            {{ form.mother_name(class="form-control", required=true) }}
                             {% if form.mother_name.errors %}
                                 <div class="invalid-feedback d-block">
                                     {% for error in form.mother_name.errors %}
@@ -960,12 +1080,13 @@
                     <div class="form-row">
                         <div class="form-group">
                             {{ form.marksheet.label(class="form-label") }}
-                            <div class="file-upload-area">
+                            <div class="file-upload-area" data-field="marksheet">
                                 <div class="file-upload-icon">
                                     <i class="fas fa-file-alt"></i>
                                 </div>
-                                {{ form.marksheet(class="form-control") }}
+                                {{ form.marksheet(class="form-control", accept=".jpg,.jpeg,.png,.pdf") }}
                                 <p>Upload Previous Year's Mark Sheet</p>
+                                <div class="file-info">Max size: 5MB | Formats: JPG, PNG, PDF</div>
                             </div>
                             {% if form.marksheet.errors %}
                                 <div class="invalid-feedback d-block">
@@ -978,12 +1099,13 @@
                         
                         <div class="form-group">
                             {{ form.student_aadhaar.label(class="form-label") }}
-                            <div class="file-upload-area">
+                            <div class="file-upload-area" data-field="student_aadhaar">
                                 <div class="file-upload-icon">
                                     <i class="fas fa-id-card"></i>
                                 </div>
-                                {{ form.student_aadhaar(class="form-control") }}
+                                {{ form.student_aadhaar(class="form-control", accept=".jpg,.jpeg,.png,.pdf") }}
                                 <p>Upload Student Aadhaar Card</p>
+                                <div class="file-info">Max size: 5MB | Formats: JPG, PNG, PDF</div>
                             </div>
                             {% if form.student_aadhaar.errors %}
                                 <div class="invalid-feedback d-block">
@@ -998,12 +1120,13 @@
                     <div class="form-row single">
                         <div class="form-group">
                             {{ form.school_id.label(class="form-label") }}
-                            <div class="file-upload-area">
+                            <div class="file-upload-area" data-field="school_id">
                                 <div class="file-upload-icon">
                                     <i class="fas fa-school"></i>
                                 </div>
-                                {{ form.school_id(class="form-control") }}
+                                {{ form.school_id(class="form-control", accept=".jpg,.jpeg,.png,.pdf") }}
                                 <p>Upload School ID (if available)</p>
+                                <div class="file-info">Max size: 5MB | Formats: JPG, PNG, PDF</div>
                             </div>
                             {% if form.school_id.errors %}
                                 <div class="invalid-feedback d-block">
@@ -1042,6 +1165,8 @@
 {% block extra_js %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('=== STUDENT REGISTRATION FORM INITIALIZED ===');
+    
     let currentStep = 1;
     const totalSteps = 4;
     
@@ -1050,7 +1175,28 @@ document.addEventListener('DOMContentLoaded', function() {
     const nextBtn = document.getElementById('nextBtn');
     const prevBtn = document.getElementById('prevBtn');
     const submitBtn = document.getElementById('submitBtn');
+    const errorsSummary = document.getElementById('formErrorsSummary');
+    const errorsList = document.getElementById('errorsList');
     
+    // File validation rules
+    const fileValidation = {
+        marksheet: {
+            types: ['image/jpeg', 'image/jpg', 'image/png', 'application/pdf'],
+            maxSize: 5 * 1024 * 1024, // 5MB
+            extensions: ['.jpg', '.jpeg', '.png', '.pdf']
+        },
+        student_aadhaar: {
+            types: ['image/jpeg', 'image/jpg', 'image/png', 'application/pdf'],
+            maxSize: 5 * 1024 * 1024, // 5MB
+            extensions: ['.jpg', '.jpeg', '.png', '.pdf']
+        },
+        school_id: {
+            types: ['image/jpeg', 'image/jpg', 'image/png', 'application/pdf'],
+            maxSize: 5 * 1024 * 1024, // 5MB
+            extensions: ['.jpg', '.jpeg', '.png', '.pdf']
+        }
+    };
+
     // Step management
     function showStep(step) {
         // Hide all steps
@@ -1077,31 +1223,61 @@ document.addEventListener('DOMContentLoaded', function() {
         prevBtn.style.display = step === 1 ? 'none' : 'inline-flex';
         nextBtn.style.display = step === totalSteps ? 'none' : 'inline-flex';
         submitBtn.style.display = step === totalSteps ? 'inline-flex' : 'none';
+        
+        // Hide errors summary when navigating steps
+        errorsSummary.classList.remove('show');
     }
     
-    // Step validation
+    // Enhanced step validation
     function validateStep(step) {
         const stepElement = document.querySelector(`.form-step[data-step="${step}"]`);
         let isValid = true;
+        const errors = [];
         
-        // Check custom required fields (marked with required asterisk)
+        // Check required fields (marked with required asterisk)
         stepElement.querySelectorAll('.required').forEach(asterisk => {
             const formGroup = asterisk.closest('.form-group');
             if (formGroup) {
                 const input = formGroup.querySelector('input, select, textarea');
-                if (input && !input.value.trim()) {
+                const label = formGroup.querySelector('label');
+                const fieldName = label ? label.textContent.replace(' *', '').trim() : input?.name || 'Field';
+                
+                if (input && input.type === 'file') {
+                    // File field validation
+                    if (!input.files || input.files.length === 0) {
+                        isValid = false;
+                        errors.push(`${fieldName} is required`);
+                        input.classList.add('is-invalid');
+                        input.closest('.file-upload-area')?.classList.add('has-error');
+                    }
+                } else if (input && !input.value.trim()) {
                     isValid = false;
+                    errors.push(`${fieldName} is required`);
                     input.classList.add('is-invalid');
                 } else if (input) {
                     input.classList.remove('is-invalid');
+                    input.closest('.file-upload-area')?.classList.remove('has-error');
                 }
             }
         });
         
-        return isValid;
+        // Email validation
+        const emailFields = stepElement.querySelectorAll('input[type="email"]');
+        emailFields.forEach(email => {
+            if (email.value.trim()) {
+                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                if (!emailRegex.test(email.value)) {
+                    isValid = false;
+                    errors.push('Please enter a valid email address');
+                    email.classList.add('is-invalid');
+                }
+            }
+        });
+        
+        return { isValid, errors };
     }
     
-    // File upload handling
+    // Enhanced file upload handling
     function setupFileUploads() {
         const fileInputs = document.querySelectorAll('input[type="file"]');
         
@@ -1109,32 +1285,96 @@ document.addEventListener('DOMContentLoaded', function() {
             const uploadArea = input.closest('.file-upload-area');
             if (!uploadArea) return;
             
-            // File selection
             input.addEventListener('change', function(e) {
+                const fieldName = this.name;
+                const validation = fileValidation[fieldName];
+                
+                // Clear previous states
+                uploadArea.classList.remove('has-error', 'has-file');
+                this.classList.remove('is-invalid', 'is-valid');
+                
+                // Remove existing error messages
+                const existingError = uploadArea.parentNode.querySelector('.invalid-feedback.js-error');
+                if (existingError) {
+                    existingError.remove();
+                }
+                
                 if (e.target.files.length > 0) {
-                    updateFileDisplay(input, e.target.files[0]);
+                    const file = e.target.files[0];
+                    let isValid = true;
+                    let errorMessage = '';
+                    
+                    // Validate file type
+                    if (validation && !validation.types.includes(file.type)) {
+                        const ext = '.' + file.name.split('.').pop().toLowerCase();
+                        if (!validation.extensions.includes(ext)) {
+                            isValid = false;
+                            errorMessage = `Invalid file type. Allowed: ${validation.extensions.join(', ')}`;
+                        }
+                    }
+                    
+                    // Validate file size
+                    if (validation && file.size > validation.maxSize) {
+                        isValid = false;
+                        const maxSizeMB = (validation.maxSize / (1024 * 1024)).toFixed(0);
+                        errorMessage = `File too large. Max size: ${maxSizeMB}MB`;
+                    }
+                    
+                    if (isValid) {
+                        // File is valid
+                        updateFileDisplay(input, file, true);
+                    } else {
+                        // File is invalid
+                        updateFileDisplay(input, file, false, errorMessage);
+                    }
                 }
             });
         });
     }
     
-    function updateFileDisplay(input, file) {
+    function updateFileDisplay(input, file, isValid, errorMessage = '') {
         const uploadArea = input.closest('.file-upload-area');
         const icon = uploadArea.querySelector('.file-upload-icon i');
         const text = uploadArea.querySelector('p');
         
-        icon.className = 'fas fa-check-circle';
-        icon.style.color = '#28a745';
-        text.textContent = `Selected: ${file.name}`;
+        if (isValid) {
+            uploadArea.classList.add('has-file');
+            input.classList.add('is-valid');
+            icon.className = 'fas fa-check-circle';
+            icon.style.color = '#28a745';
+            text.textContent = `✓ Selected: ${file.name}`;
+            text.style.color = '#28a745';
+        } else {
+            uploadArea.classList.add('has-error');
+            input.classList.add('is-invalid');
+            icon.className = 'fas fa-exclamation-triangle';
+            icon.style.color = '#dc3545';
+            text.textContent = `✗ ${errorMessage}`;
+            text.style.color = '#dc3545';
+            
+            // Add error message
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'invalid-feedback js-error';
+            errorDiv.textContent = errorMessage;
+            uploadArea.parentNode.appendChild(errorDiv);
+            
+            // Clear the invalid file
+            input.value = '';
+        }
     }
     
     // Event listeners
     nextBtn.addEventListener('click', function() {
-        if (validateStep(currentStep)) {
+        const validation = validateStep(currentStep);
+        
+        if (validation.isValid) {
             currentStep++;
             showStep(currentStep);
         } else {
-            alert('Please fill in all required fields before proceeding.');
+            // Show errors
+            errorsList.innerHTML = validation.errors.map(error => `<li>${error}</li>`).join('');
+            errorsSummary.classList.add('show');
+            errorsSummary.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
     });
     
@@ -1143,26 +1383,164 @@ document.addEventListener('DOMContentLoaded', function() {
         showStep(currentStep);
     });
     
-    // Form submission
+    // Enhanced form submission
     form.addEventListener('submit', function(e) {
-        // Final validation
+        console.log('=== FORM SUBMISSION STARTED ===');
+        
+        // Disable submit button
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Registering...';
+        
+        // Validate all steps
+        let allErrors = [];
+        let hasErrors = false;
+        
         for (let step = 1; step <= totalSteps; step++) {
-            if (!validateStep(step)) {
-                e.preventDefault();
-                currentStep = step;
-                showStep(currentStep);
-                alert(`Please complete all required fields in step ${step}.`);
-                return;
+            const validation = validateStep(step);
+            if (!validation.isValid) {
+                hasErrors = true;
+                allErrors = allErrors.concat(validation.errors.map(error => `Step ${step}: ${error}`));
             }
         }
         
-        submitBtn.disabled = true;
-        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Registering...';
+        // Check for file validation errors
+        const fileInputs = document.querySelectorAll('input[type="file"]');
+        let hasFileErrors = false;
+        fileInputs.forEach(input => {
+            if (input.classList.contains('is-invalid')) {
+                hasFileErrors = true;
+            }
+        });
+        
+        if (hasFileErrors) {
+            allErrors.push('Please fix file upload errors');
+        }
+        
+        if (hasErrors || hasFileErrors) {
+            console.log('=== VALIDATION ERRORS ===', allErrors);
+            
+            // Show errors summary
+            errorsList.innerHTML = allErrors.map(error => `<li>${error}</li>`).join('');
+            errorsSummary.classList.add('show');
+            errorsSummary.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            
+            // Re-enable submit button
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="fas fa-save"></i> Register Student';
+            
+            // Go to first step with errors
+            for (let step = 1; step <= totalSteps; step++) {
+                const validation = validateStep(step);
+                if (!validation.isValid) {
+                    currentStep = step;
+                    showStep(currentStep);
+                    break;
+                }
+            }
+            
+            e.preventDefault();
+            return false;
+        }
+        
+        console.log('=== FORM VALIDATION PASSED ===');
+        
+        // Log form data for debugging
+        const formData = new FormData(this);
+        console.log('Form data being submitted:');
+        for (let [key, value] of formData.entries()) {
+            if (value instanceof File) {
+                console.log(key + ':', value.name, '(' + value.size + ' bytes)');
+            } else {
+                console.log(key + ':', value);
+            }
+        }
+        
+        return true;
     });
+    
+    // Real-time validation for input fields
+    document.querySelectorAll('.form-control, .form-select').forEach(function(input) {
+        if (input.type !== 'file') {
+            input.addEventListener('blur', function() {
+                validateField(this);
+            });
+            
+            input.addEventListener('input', function() {
+                if (this.classList.contains('is-invalid')) {
+                    validateField(this);
+                }
+                
+                // Hide errors summary when user starts fixing errors
+                if (errorsSummary.classList.contains('show')) {
+                    errorsSummary.classList.remove('show');
+                }
+            });
+        }
+    });
+
+    function validateField(field) {
+        const value = field.value.trim();
+        
+        // Remove existing validation classes
+        field.classList.remove('is-valid', 'is-invalid');
+        
+        // Skip validation for non-required fields that are empty
+        const isRequired = field.closest('.form-group')?.querySelector('.required');
+        if (!isRequired && !value) {
+            return;
+        }
+        
+        // Email validation
+        if (field.type === 'email' && value) {
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (emailRegex.test(value)) {
+                field.classList.add('is-valid');
+            } else {
+                field.classList.add('is-invalid');
+            }
+            return;
+        }
+        
+        // Required field validation
+        if (isRequired) {
+            if (!value) {
+                field.classList.add('is-invalid');
+            } else {
+                field.classList.add('is-valid');
+            }
+        }
+    }
+
+    // Show server-side errors if any exist
+    const serverErrors = document.querySelectorAll('.invalid-feedback:not(.js-error)');
+    if (serverErrors.length > 0) {
+        const errors = [];
+        serverErrors.forEach(errorDiv => {
+            const errorText = errorDiv.textContent.trim();
+            if (errorText) {
+                errors.push(errorText);
+                // Mark the associated field as invalid
+                const field = errorDiv.parentNode.querySelector('.form-control');
+                if (field) {
+                    field.classList.add('is-invalid');
+                    if (field.type === 'file') {
+                        field.closest('.file-upload-area')?.classList.add('has-error');
+                    }
+                }
+            }
+        });
+        
+        if (errors.length > 0) {
+            errorsList.innerHTML = errors.map(error => `<li>${error}</li>`).join('');
+            errorsSummary.classList.add('show');
+        }
+    }
     
     // Initialize
     showStep(1);
     setupFileUploads();
+    
+    console.log('=== INITIALIZATION COMPLETE ===');
 });
 </script>
 {% endblock %}

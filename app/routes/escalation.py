@@ -11,6 +11,7 @@ from app.models.student import Student
 from app.models.tutor import Tutor
 from app.models.escalation import Escalation
 from functools import wraps
+from flask_wtf.csrf import generate_csrf
 
 bp = Blueprint('escalation', __name__, url_prefix='/escalations')
 
@@ -270,7 +271,8 @@ def view_escalation(id):
                          comments=comments,
                          users=users,
                          priorities=Escalation.get_priorities(),
-                         statuses=Escalation.get_statuses())
+                         statuses=Escalation.get_statuses(),
+                         csrf_token=generate_csrf)
 
 @bp.route('/<int:id>/assign', methods=['POST'])
 @login_required

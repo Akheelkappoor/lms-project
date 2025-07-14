@@ -142,6 +142,18 @@ class TutorRegistrationForm(FlaskForm):
     experience = TextAreaField('Experience', validators=[DataRequired()], 
                               render_kw={'placeholder': 'Years and relevant background', 'rows': 4})
     
+    # Test Score Information - NEW FIELDS ADDED
+    test_score = FloatField('Test Score', validators=[
+        DataRequired(), 
+        NumberRange(min=0, max=100, message='Test score must be between 0 and 100')
+    ], render_kw={'placeholder': 'Enter total test score (0-100)', 'step': '0.1'})
+    
+    test_date = DateField('Test Date', validators=[DataRequired()],
+                         render_kw={'placeholder': 'Date when test was taken'})
+    
+    test_notes = TextAreaField('Test Performance Notes', validators=[Optional()], 
+                              render_kw={'placeholder': 'Additional notes about test performance', 'rows': 3})
+    
     # Teaching Details
     subjects = StringField('Subjects', validators=[DataRequired()], 
                           render_kw={'placeholder': 'Enter subjects separated by commas'})
@@ -193,7 +205,7 @@ class TutorRegistrationForm(FlaskForm):
                            render_kw={'placeholder': 'Enter IFSC code'})
     
     submit = SubmitField('Register Tutor')
-    
+
     def __init__(self, *args, **kwargs):
         super(TutorRegistrationForm, self).__init__(*args, **kwargs)
         self.department_id.choices = [(0, 'Select Department')] + \
@@ -208,6 +220,24 @@ class TutorRegistrationForm(FlaskForm):
         user = User.query.filter_by(email=email.data).first()
         if user:
             raise ValidationError('Email already registered. Please choose a different one.')
+    
+    # NEW VALIDATION METHODS FOR TEST SCORE FIELDS
+    def validate_test_score(self, test_score):
+        if test_score.data is not None:
+            if test_score.data < 0 or test_score.data > 100:
+                raise ValidationError('Test score must be between 0 and 100.')
+    
+    def validate_test_date(self, test_date):
+        from datetime import date
+        if test_date.data:
+            if test_date.data > date.today():
+                raise ValidationError('Test date cannot be in the future.')
+    
+    def validate_salary_type(self, salary_type):
+        if salary_type.data == 'monthly' and not self.monthly_salary.data:
+            raise ValidationError('Monthly salary is required when salary type is monthly.')
+        elif salary_type.data == 'hourly' and not self.hourly_rate.data:
+            raise ValidationError('Hourly rate is required when salary type is hourly.')
 
 class StudentRegistrationForm(FlaskForm):
     # Basic Information
@@ -322,3 +352,4 @@ class StudentRegistrationForm(FlaskForm):
         student = Student.query.filter_by(email=email.data).first()
         if student:
             raise ValidationError('Email already registered. Please choose a different one.')
+        

@@ -1,0 +1,239 @@
+<!-- app/templates/demo/demo_classes.html -->
+{% extends "base.html" %}
+
+{% block title %}Demo Classes{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="page-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h1 class="page-title">
+                    <i class="fas fa-chalkboard"></i>
+                    Demo Classes
+                </h1>
+                <p class="page-subtitle">Manage all demo class sessions</p>
+            </div>
+            <div>
+                <a href="{{ url_for('demo.schedule_demo_class') }}" class="btn btn-primary">
+                    <i class="fas fa-calendar-plus"></i>
+                    Schedule New Demo
+                </a>
+                <a href="{{ url_for('demo.register_demo_student') }}" class="btn btn-secondary">
+                    <i class="fas fa-user-plus"></i>
+                    Add Demo Student
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="GET" class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label">Status</label>
+                    <select name="status" class="form-select">
+                        <option value="">All Statuses</option>
+                        <option value="scheduled" {{ 'selected' if request.args.get('status') == 'scheduled' }}>Scheduled</option>
+                        <option value="completed" {{ 'selected' if request.args.get('status') == 'completed' }}>Completed</option>
+                        <option value="cancelled" {{ 'selected' if request.args.get('status') == 'cancelled' }}>Cancelled</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Tutor</label>
+                    <select name="tutor" class="form-select">
+                        <option value="">All Tutors</option>
+                        {% for tutor in tutors %}
+                        <option value="{{ tutor.id }}" {{ 'selected' if request.args.get('tutor') == tutor.id|string }}>
+                            {{ tutor.user.full_name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Date</label>
+                    <input type="date" name="date" class="form-control" value="{{ request.args.get('date', '') }}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">&nbsp;</label>
+                    <div>
+                        <button type="submit" class="btn btn-primary">Filter</button>
+                        <a href="{{ url_for('demo.demo_classes') }}" class="btn btn-secondary">Clear</a>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Demo Classes List -->
+    <div class="card">
+        <div class="card-header">
+            <h6 class="card-title mb-0">
+                <i class="fas fa-list"></i>
+                Demo Classes List
+            </h6>
+        </div>
+        <div class="card-body">
+            {% if demo_classes.items %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Demo Student</th>
+                            <th>Subject</th>
+                            <th>Tutor</th>
+                            <th>Date & Time</th>
+                            <th>Duration</th>
+                            <th>Status</th>
+                            <th>Platform</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for demo_class in demo_classes.items %}
+                        <tr>
+                            <td>
+                                {% if demo_class.demo_student_profile %}
+                                <div>
+                                    <strong>{{ demo_class.demo_student_profile.full_name }}</strong>
+                                    <small class="text-muted d-block">Grade {{ demo_class.demo_student_profile.grade }}</small>
+                                </div>
+                                {% else %}
+                                <span class="text-muted">No demo student</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ demo_class.subject }}</td>
+                            <td>
+                                {% if demo_class.tutor %}
+                                {{ demo_class.tutor.user.full_name }}
+                                {% else %}
+                                <span class="text-muted">No tutor assigned</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div>{{ demo_class.scheduled_date.strftime('%Y-%m-%d') }}</div>
+                                <small class="text-muted">{{ demo_class.scheduled_time.strftime('%I:%M %p') }}</small>
+                            </td>
+                            <td>{{ demo_class.duration }} min</td>
+                            <td>
+                                {% if demo_class.status == 'scheduled' %}
+                                <span class="badge bg-warning">Scheduled</span>
+                                {% elif demo_class.status == 'completed' %}
+                                <span class="badge bg-success">Completed</span>
+                                {% elif demo_class.status == 'cancelled' %}
+                                <span class="badge bg-danger">Cancelled</span>
+                                {% else %}
+                                <span class="badge bg-secondary">{{ demo_class.status.title() }}</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if demo_class.meeting_link %}
+                                <a href="{{ demo_class.meeting_link }}" target="_blank" class="btn btn-sm btn-outline-primary">
+                                    <i class="fas fa-video"></i> Join
+                                </a>
+                                {% else %}
+                                <span class="text-muted">No link</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="btn-group" role="group">
+                                    <a href="{{ url_for('demo.demo_class_details', class_id=demo_class.id) }}" 
+                                       class="btn btn-sm btn-outline-info">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    {% if demo_class.status == 'completed' and demo_class.demo_student_profile %}
+                                    <a href="{{ url_for('demo.convert_to_regular', demo_student_id=demo_class.demo_student_profile.id) }}" 
+                                       class="btn btn-sm btn-outline-success">
+                                        <i class="fas fa-user-graduate"></i>
+                                    </a>
+                                    {% endif %}
+                                    {% if demo_class.status == 'scheduled' %}
+                                    <button class="btn btn-sm btn-outline-danger" onclick="cancelDemoClass({{ demo_class.id }})">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pagination -->
+            {% if demo_classes.pages > 1 %}
+            <nav aria-label="Demo classes pagination">
+                <ul class="pagination justify-content-center">
+                    {% if demo_classes.has_prev %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('demo.demo_classes', page=demo_classes.prev_num) }}">Previous</a>
+                    </li>
+                    {% endif %}
+                    
+                    {% for page_num in demo_classes.iter_pages() %}
+                        {% if page_num %}
+                            {% if page_num != demo_classes.page %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('demo.demo_classes', page=page_num) }}">{{ page_num }}</a>
+                            </li>
+                            {% else %}
+                            <li class="page-item active">
+                                <span class="page-link">{{ page_num }}</span>
+                            </li>
+                            {% endif %}
+                        {% else %}
+                        <li class="page-item disabled">
+                            <span class="page-link">...</span>
+                        </li>
+                        {% endif %}
+                    {% endfor %}
+                    
+                    {% if demo_classes.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('demo.demo_classes', page=demo_classes.next_num) }}">Next</a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+            {% endif %}
+            
+            {% else %}
+            <div class="text-center py-4">
+                <i class="fas fa-chalkboard fa-3x text-muted mb-3"></i>
+                <h5>No Demo Classes Found</h5>
+                <p class="text-muted">Start by registering demo students and scheduling classes.</p>
+                <a href="{{ url_for('demo.register_demo_student') }}" class="btn btn-primary">
+                    <i class="fas fa-user-plus"></i> Register Demo Student
+                </a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+function cancelDemoClass(classId) {
+    if (confirm('Are you sure you want to cancel this demo class?')) {
+        fetch(`/demo/classes/${classId}/cancel`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('meta[name=csrf-token]').getAttribute('content')
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Error cancelling demo class: ' + data.error);
+            }
+        })
+        .catch(error => {
+            alert('Error cancelling demo class');
+        });
+    }
+}
+</script>
+{% endblock %}

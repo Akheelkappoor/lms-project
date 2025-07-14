@@ -2,8 +2,7 @@ from app import create_app, db
 from app.models import User, Department, Tutor, Student, Class, Attendance, Escalation
 from flask import url_for, redirect, request, jsonify, render_template
 
-# Create Flask application instance
-app = create_app()
+app = create_app()  
 
 @app.shell_context_processor
 def make_shell_context():

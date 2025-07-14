@@ -19,6 +19,11 @@ class Tutor(db.Model):
     grades = db.Column(db.Text)  # JSON array of grade levels
     boards = db.Column(db.Text)  # JSON array of education boards
     
+    # Test Score Information - NEW FIELDS ADDED
+    test_score = db.Column(db.Float)  # Total test score (out of 100)
+    test_date = db.Column(db.Date)  # Date when test was taken
+    test_notes = db.Column(db.Text)  # Additional notes about the test performance
+    
     # Availability
     availability = db.Column(db.Text)  # JSON object for weekly schedule
     
@@ -133,6 +138,63 @@ class Tutor(db.Model):
         """Set bank details from dict"""
         self.bank_details = json.dumps(bank_dict)
     
+    # NEW TEST SCORE METHODS ADDED
+    def get_test_score_grade(self):
+        """Get test score as letter grade"""
+        if not self.test_score:
+            return 'Not Tested'
+        
+        score = self.test_score
+        if score >= 90:
+            return 'A+'
+        elif score >= 85:
+            return 'A'
+        elif score >= 80:
+            return 'B+'
+        elif score >= 75:
+            return 'B'
+        elif score >= 70:
+            return 'C+'
+        elif score >= 65:
+            return 'C'
+        elif score >= 60:
+            return 'D'
+        else:
+            return 'F'
+    
+    def is_test_score_excellent(self):
+        """Check if test score is excellent (85+)"""
+        return self.test_score and self.test_score >= 85
+    
+    def is_test_score_good(self):
+        """Check if test score is good (75+)"""
+        return self.test_score and self.test_score >= 75
+    
+    def calculate_overall_score(self):
+        """Calculate overall tutor score combining test score and performance"""
+        base_score = self.test_score or 0
+        
+        # Add performance bonuses
+        if self.total_classes > 0:
+            completion_rate = (self.completed_classes / self.total_classes) * 100
+            if completion_rate >= 95:
+                base_score += 5
+            elif completion_rate >= 90:
+                base_score += 3
+            elif completion_rate >= 85:
+                base_score += 1
+        
+        # Add rating bonus
+        if self.rating:
+            if self.rating >= 4.5:
+                base_score += 3
+            elif self.rating >= 4.0:
+                base_score += 2
+            elif self.rating >= 3.5:
+                base_score += 1
+        
+        return min(base_score, 100)  # Cap at 100
+    
     def is_available_at(self, day_of_week, time_str):
         """Check if tutor is available at specific day and time
         Args:
@@ -233,12 +295,16 @@ class Tutor(db.Model):
             'salary_type': self.salary_type,
             'monthly_salary': self.monthly_salary,
             'hourly_rate': self.hourly_rate,
+            'test_score': self.test_score,  # NEW FIELD ADDED
+            'test_grade': self.get_test_score_grade(),  # NEW FIELD ADDED
+            'test_date': self.test_date.isoformat() if self.test_date else None,  # NEW FIELD ADDED
             'status': self.status,
             'verification_status': self.verification_status,
             'rating': self.rating,
             'total_classes': self.total_classes,
             'completed_classes': self.completed_classes,
             'completion_rate': self.get_completion_rate(),
+            'overall_score': self.calculate_overall_score(),  # NEW FIELD ADDED
             'created_at': self.created_at.isoformat() if self.created_at else None
         }
     

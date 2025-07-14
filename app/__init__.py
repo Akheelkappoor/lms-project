@@ -9,6 +9,7 @@ import os
 from flask import render_template
 from datetime import datetime
 
+
 db = SQLAlchemy()
 migrate = Migrate()
 login = LoginManager()
@@ -67,6 +68,9 @@ def create_app(config_class=Config):
 
     from app.routes.student import bp as student_bp
     app.register_blueprint(student_bp, url_prefix='/student')
+
+    from app.routes import demo
+    app.register_blueprint(demo.bp, url_prefix='/demo')
 
     from app.routes.finance import bp as finance_bp
     app.register_blueprint(finance_bp)

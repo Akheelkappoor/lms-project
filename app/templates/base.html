@@ -306,6 +306,84 @@
             font-size: 14px;
         }
 
+        /* Demo Submenu Styles */
+        .dropdown-toggle {
+            position: relative;
+        }
+
+        .dropdown-toggle::after {
+            content: none; /* Remove Bootstrap default arrow */
+        }
+
+        .dropdown-toggle i.fa-chevron-down {
+            font-size: 12px;
+            transition: var(--transition);
+        }
+
+        .dropdown-toggle[aria-expanded="true"] i.fa-chevron-down {
+            transform: rotate(180deg);
+        }
+
+        /* Submenu styles */
+        .nav-menu .nav-menu {
+            background: rgba(241, 161, 80, 0.05);
+            border-radius: var(--border-radius);
+            margin: 8px 0;
+            padding: 8px 0;
+            border-left: 2px solid rgba(241, 161, 80, 0.2);
+        }
+
+        .nav-menu .nav-menu .nav-link {
+            padding: 10px 16px;
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin: 0 4px;
+        }
+
+        .nav-menu .nav-menu .nav-link:hover,
+        .nav-menu .nav-menu .nav-link.active {
+            background: rgba(241, 161, 80, 0.1);
+            color: var(--primary-color);
+            transform: translateX(4px);
+        }
+
+        .nav-menu .nav-menu .nav-link i {
+            font-size: 14px;
+            width: 16px;
+        }
+
+        /* Collapse animation */
+        .collapse {
+            transition: height 0.3s ease;
+        }
+
+        .collapse:not(.show) {
+            height: 0;
+            overflow: hidden;
+        }
+
+        .collapse.show {
+            height: auto;
+        }
+
+        /* Demo badge indicator */
+        .demo-badge {
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+            color: white;
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 10px;
+            margin-left: 8px;
+            font-weight: 600;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.7; }
+            100% { opacity: 1; }
+        }
+
         /* Main Content */
         .main-content {
             margin-left: var(--sidebar-width);
@@ -724,6 +802,17 @@
             .stat-card {
                 padding: 1.5rem;
             }
+
+            /* Mobile responsive adjustments for demo nav */
+            .nav-menu .nav-menu {
+                margin-left: 0;
+                border-left: none;
+                border-top: 1px solid rgba(241, 161, 80, 0.2);
+            }
+            
+            .nav-menu .nav-menu .nav-link {
+                padding-left: 40px;
+            }
         }
 
         /* Loading Animations */
@@ -889,6 +978,45 @@
                 </li>
                 {% endif %}
 
+                <!-- Demo Management -->
+                {% if current_user.has_permission('demo_management') or current_user.role in ['superadmin', 'admin', 'coordinator'] %}
+                <li class="nav-item">
+                    <a href="#" class="nav-link dropdown-toggle" data-bs-target="#demoSubmenu" aria-expanded="false">
+                        <i class="fas fa-play-circle"></i>
+                        <span>Demo Classes</span>
+                        <i class="fas fa-chevron-down ms-auto"></i>
+                    </a>
+                    <div class="collapse" id="demoSubmenu">
+                        <ul class="nav-menu ps-4">
+                            <li class="nav-item">
+                                <a href="{{ url_for('demo.demo_students') }}" class="nav-link {% if request.endpoint and 'demo_students' in request.endpoint %}active{% endif %}">
+                                    <i class="fas fa-list"></i>
+                                    <span>All Demo Students</span>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="{{ url_for('demo.register_demo_student') }}" class="nav-link {% if request.endpoint and 'register_demo_student' in request.endpoint %}active{% endif %}">
+                                    <i class="fas fa-user-plus"></i>
+                                    <span>Register Demo Student</span>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="{{ url_for('demo.demo_classes') }}" class="nav-link {% if request.endpoint and 'demo_classes' in request.endpoint %}active{% endif %}">
+                                    <i class="fas fa-chalkboard"></i>
+                                    <span>All Demo Classes</span>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="{{ url_for('demo.schedule_demo_class') }}" class="nav-link {% if request.endpoint and 'schedule_demo_class' in request.endpoint %}active{% endif %}">
+                                    <i class="fas fa-calendar-plus"></i>
+                                    <span>Schedule Demo</span>
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+                </li>
+                {% endif %}
+
                 <li class="nav-item">
                     <a class="nav-link {% if active_page == 'escalations' %}active{% endif %}" 
                        href="{{ url_for('escalation.list_escalations') }}">
@@ -1046,6 +1174,7 @@
             initAlerts();
             initAnimations();
             initTooltips();
+            initDemoNavigation();
         });
 
         function initSidebar() {
@@ -1112,6 +1241,57 @@
             }
         }
 
+        function initDemoNavigation() {
+            // Handle demo submenu toggle
+            const demoToggle = document.querySelector('[data-bs-target="#demoSubmenu"]');
+            const demoSubmenu = document.getElementById('demoSubmenu');
+            
+            if (demoToggle && demoSubmenu) {
+                // Handle toggle click
+                demoToggle.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    
+                    const isExpanded = this.getAttribute('aria-expanded') === 'true';
+                    this.setAttribute('aria-expanded', !isExpanded);
+                    
+                    if (demoSubmenu.classList.contains('show')) {
+                        demoSubmenu.classList.remove('show');
+                    } else {
+                        demoSubmenu.classList.add('show');
+                    }
+                });
+                
+                // Auto-expand if current page is in demo section
+                const currentPath = window.location.pathname;
+                const demoPages = ['/demo/', '/register_demo_student', '/demo_classes', '/schedule_demo_class'];
+                
+                if (demoPages.some(page => currentPath.includes(page))) {
+                    demoSubmenu.classList.add('show');
+                    demoToggle.setAttribute('aria-expanded', 'true');
+                }
+            }
+        }
+
+        // Load demo stats
+        function loadDemoStats() {
+            fetch('/demo/api/v1/demo/statistics')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && data.statistics.scheduled_demos > 0) {
+                        const demoToggle = document.querySelector('[data-bs-target="#demoSubmenu"] span');
+                        if (demoToggle) {
+                            // Add a small badge to show pending demos
+                            const badge = document.createElement('span');
+                            badge.className = 'demo-badge';
+                            badge.textContent = data.statistics.scheduled_demos;
+                            badge.title = `${data.statistics.scheduled_demos} pending demo classes`;
+                            demoToggle.appendChild(badge);
+                        }
+                    }
+                })
+                .catch(error => console.error('Error loading demo stats:', error));
+        }
+
         fetch('/escalations/dashboard-stats')
             .then(response => response.json())
             .then(data => {
@@ -1123,6 +1303,11 @@
             })
         .catch(error => console.error('Error loading escalation stats:', error));
                     
+        // Load demo stats on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            // Delay to ensure the navigation is rendered
+            setTimeout(loadDemoStats, 1000);
+        });
 
         // Global utility functions
         window.LMS = window.LMS || {};

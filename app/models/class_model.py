@@ -22,6 +22,9 @@ class Class(db.Model):
     # Assignments
     tutor_id = db.Column(db.Integer, db.ForeignKey('tutors.id'), nullable=False)
     primary_student_id = db.Column(db.Integer, db.ForeignKey('students.id'))  # For one-on-one
+
+    # ADD THIS NEW FIELD - Demo student relationship
+    demo_student_id = db.Column(db.Integer, db.ForeignKey('demo_students.id'), nullable=True)
     
     # Group Classes
     students = db.Column(db.Text)  # JSON array of student IDs for group classes
@@ -65,6 +68,9 @@ class Class(db.Model):
     recurring_pattern = db.Column(db.Text)  # JSON with recurrence details
     parent_class_id = db.Column(db.Integer, db.ForeignKey('classes.id'))
     
+    # ADD THIS RELATIONSHIP
+    demo_student_profile = db.relationship('DemoStudent', foreign_keys=[demo_student_id])
+
     # Relationships
     tutor = db.relationship('Tutor', backref='classes', lazy=True)
     primary_student = db.relationship('Student', backref='primary_classes', lazy=True)
@@ -87,6 +93,8 @@ class Class(db.Model):
         """Get list of student IDs for this class"""
         if self.class_type == 'one_on_one':
             return [self.primary_student_id] if self.primary_student_id else []
+        elif self.class_type == 'demo': 
+            return [self.demo_student_id] if self.demo_student_id else []
         elif self.students:
             try:
                 return json.loads(self.students)
@@ -100,6 +108,8 @@ class Class(db.Model):
             self.students = json.dumps(student_ids)
         elif self.class_type == 'one_on_one' and student_ids:
             self.primary_student_id = student_ids[0]
+        elif self.class_type == 'demo' and student_ids:  # ADD THIS
+            self.demo_student_id = student_ids[0] 
     
     def add_student(self, student_id):
         """Add a student to group class"""
@@ -323,9 +333,18 @@ class Class(db.Model):
     
     def get_student_objects(self):
         """Get actual student objects for this class"""
-        from app.models.student import Student
-        student_ids = self.get_students()
-        return Student.query.filter(Student.id.in_(student_ids)).all() if student_ids else []
+        if self.class_type == 'demo':
+            # For demo classes, return demo student objects
+            from app.models.demo_student import DemoStudent
+            if self.demo_student_id:
+                demo_student = DemoStudent.query.get(self.demo_student_id)
+                return [demo_student] if demo_student else []
+            return []
+        else:
+            # For regular classes, return regular student objects
+            from app.models.student import Student
+            student_ids = self.get_students()
+            return Student.query.filter(Student.id.in_(student_ids)).all() if student_ids else []
     
     def __repr__(self):
         return f'<Class {self.subject} - {self.scheduled_date} {self.scheduled_time}>'

@@ -428,13 +428,8 @@ def tutors():
 @login_required
 @admin_required
 def register_tutor():
-    """Register new tutor - FIXED VERSION WITH ONBOARDING EMAIL"""
+    """Register new tutor with test score"""
     form = TutorRegistrationForm()
-    
-    if request.method == 'POST':
-        print("=== SERVER DEBUG ===")
-        print(f"Form validates: {form.validate()}")
-        print(f"Form errors: {form.errors}")
     
     if form.validate_on_submit():
         try:
@@ -442,9 +437,12 @@ def register_tutor():
             if form.department_id.data == 0:
                 raise ValueError("Please select a valid department")
             
+            # Validate test score
+            if form.test_score.data is None or form.test_score.data < 0 or form.test_score.data > 100:
+                raise ValueError("Test score must be between 0 and 100")
+            
             # Store password before hashing for email
             plain_password = form.password.data
-            print(f"Plain password stored for email: {plain_password}")
             
             # Create user account
             user = User(
@@ -464,7 +462,7 @@ def register_tutor():
             db.session.add(user)
             db.session.flush()  # Get user ID
             
-            # Create tutor profile
+            # Create tutor profile with test score
             tutor = Tutor(
                 user_id=user.id,
                 qualification=form.qualification.data,
@@ -472,9 +470,12 @@ def register_tutor():
                 salary_type=form.salary_type.data,
                 monthly_salary=form.monthly_salary.data,
                 hourly_rate=form.hourly_rate.data,
+                # Test Score Information - NEW FIELDS
+                test_score=form.test_score.data,
+                test_date=form.test_date.data,
+                test_notes=form.test_notes.data,
                 status='pending',
                 verification_status='pending',
-                # Add missing fields:
                 date_of_birth=form.date_of_birth.data,
                 state=form.state.data,
                 pin_code=form.pin_code.data
@@ -485,33 +486,20 @@ def register_tutor():
             tutor.set_grades([g.strip() for g in form.grades.data.split(',')])
             tutor.set_boards([b.strip() for b in form.boards.data.split(',')])
             
-            # Validate and handle document uploads
+            # Handle document uploads
             documents = {}
             required_docs = ['aadhaar_card', 'pan_card', 'resume', 'degree_certificate']
             
             for doc_name in required_docs:
                 file_field = getattr(form, doc_name).data
-                print(f"=== DEBUG {doc_name} ===")
-                print(f"File field: {file_field}")
-                print(f"File field type: {type(file_field)}")
-                if file_field:
-                    print(f"Has filename attr: {hasattr(file_field, 'filename')}")
-                    if hasattr(file_field, 'filename'):
-                        print(f"Filename: {file_field.filename}")
-                print(f"Has file content: {has_file_content(file_field)}")
-                print("========================")
 
                 if has_file_content(file_field):
                     s3_url = upload_file_to_s3(file_field, folder=f"{current_app.config['UPLOAD_FOLDER']}/documents")
                     if s3_url:
                         documents[doc_name.replace('_card', '').replace('_certificate', '')] = s3_url
-                        print(f"✅ SUCCESS: {doc_name} uploaded to {s3_url}")
                     else:
-                        print(f"❌ FAILED: {doc_name} upload returned None")
                         raise ValueError(f"{doc_name.replace('_', ' ').title()} upload failed.")
-                        
                 else:
-                    print(f"⚠️ No file content for {doc_name}")
                     raise ValueError(f"{doc_name.replace('_', ' ').title()} is required")
             
             tutor.set_documents(documents)
@@ -520,20 +508,13 @@ def register_tutor():
             required_videos = ['demo_video', 'interview_video']
             for video_name in required_videos:
                 file_field = getattr(form, video_name).data
-                print(f"=== DEBUG VIDEO {video_name} ===")
-                print(f"File field: {file_field}")
-                print(f"Has file content: {has_file_content(file_field)}")
-                print("===============================")
                 if has_file_content(file_field):
                     s3_url = upload_file_to_s3(file_field, folder=f"{current_app.config['UPLOAD_FOLDER']}/videos")
                     if s3_url:
                         setattr(tutor, video_name, s3_url)
-                        print(f"✅ SUCCESS: {video_name} uploaded to {s3_url}")
                     else:
-                        print(f"❌ FAILED: {video_name} upload returned None")
                         raise ValueError(f"{video_name.replace('_', ' ').title()} upload failed.")
                 else:
-                    print(f"⚠️ No file content for {video_name}")
                     raise ValueError(f"{video_name.replace('_', ' ').title()} is required")
             
             # Set bank details
@@ -549,41 +530,28 @@ def register_tutor():
             db.session.add(tutor)
             db.session.commit()
             
-            print("=== SUCCESS: TUTOR REGISTERED ===")
-            
             # Send onboarding email
             try:
-                print("=== SENDING TUTOR ONBOARDING EMAIL ===")
-                print(f"Email: {user.email}")
-                print(f"Tutor: {user.full_name}")
-                print(f"Role: {user.role}")
-                
                 send_onboarding_email(user, plain_password)
-                print("=== TUTOR ONBOARDING EMAIL SENT SUCCESSFULLY ===")
                 
-                flash(f'Tutor {user.full_name} registered successfully! Onboarding email sent to {user.email}.', 'success')
+                # Success message with test score info
+                test_grade = tutor.get_test_score_grade()
+                success_message = f'Tutor {user.full_name} registered successfully with test score {tutor.test_score}/100 ({test_grade}). Onboarding email sent to {user.email}.'
+                flash(success_message, 'success')
                 
             except Exception as email_error:
-                print(f"=== EMAIL SENDING FAILED ===")
-                print(f"Email error type: {type(email_error)}")
-                print(f"Email error message: {str(email_error)}")
-                import traceback
-                print(f"Email traceback: {traceback.format_exc()}")
-                
-                flash(f'Tutor {user.full_name} registered successfully, but failed to send onboarding email. Please send credentials manually to {user.email}.', 'warning')
+                # Warning message with test score info
+                test_grade = tutor.get_test_score_grade()
+                warning_message = f'Tutor {user.full_name} registered successfully with test score {tutor.test_score}/100 ({test_grade}), but failed to send onboarding email. Please send credentials manually to {user.email}.'
+                flash(warning_message, 'warning')
             
             return redirect(url_for('admin.tutors'))
             
         except ValueError as ve:
             db.session.rollback()
-            print(f"VALIDATION ERROR: {str(ve)}")
             flash(str(ve), 'error')
         except Exception as e:
             db.session.rollback()
-            print(f"SYSTEM ERROR: {str(e)}")
-            print(f"ERROR TYPE: {type(e)}")
-            import traceback
-            print(f"TRACEBACK: {traceback.format_exc()}")
             flash(f'Error registering tutor: {str(e)}', 'error')
     
     return render_template('admin/register_tutor.html', form=form)

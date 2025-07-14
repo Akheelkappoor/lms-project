@@ -219,6 +219,47 @@
         font-style: italic;
     }
 
+    /* Salary Fields Transition */
+    #monthly-salary-group, #hourly-rate-group {
+        transition: all 0.3s ease;
+    }
+
+    /* Test Score Specific Styling */
+    .test-score-indicator {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-top: 0.5rem;
+        padding: 0.5rem 1rem;
+        border-radius: 6px;
+        font-size: 0.85rem;
+        font-weight: 600;
+    }
+
+    .test-score-excellent {
+        background: rgba(40, 167, 69, 0.1);
+        color: #28a745;
+        border: 1px solid rgba(40, 167, 69, 0.3);
+    }
+
+    .test-score-good {
+        background: rgba(255, 193, 7, 0.1);
+        color: #ffc107;
+        border: 1px solid rgba(255, 193, 7, 0.3);
+    }
+
+    .test-score-average {
+        background: rgba(255, 152, 0, 0.1);
+        color: #ff9800;
+        border: 1px solid rgba(255, 152, 0, 0.3);
+    }
+
+    .test-score-poor {
+        background: rgba(220, 53, 69, 0.1);
+        color: #dc3545;
+        border: 1px solid rgba(220, 53, 69, 0.3);
+    }
+
     /* Enhanced Error Display */
     .invalid-feedback {
         color: var(--danger-color);
@@ -574,18 +615,6 @@
                         </div>
                     {% endif %}
                 </div>
-                
-                <div class="form-group">
-                    <label for="{{ form.salary_type.id }}">{{ form.salary_type.label.text }} <span class="required">*</span></label>
-                    {{ form.salary_type(class="form-control form-select", required=true) }}
-                    {% if form.salary_type.errors %}
-                        <div class="invalid-feedback">
-                            {% for error in form.salary_type.errors %}
-                                {{ error }}
-                            {% endfor %}
-                        </div>
-                    {% endif %}
-                </div>
             </div>
             
             <div class="form-row single">
@@ -604,6 +633,61 @@
             </div>
         </div>
 
+        <!-- Test Score Section -->
+        <div class="form-section">
+            <div class="section-title">
+                <i class="fas fa-clipboard-check"></i>
+                Test Score Information
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="{{ form.test_score.id }}">{{ form.test_score.label.text }} <span class="required">*</span></label>
+                    {{ form.test_score(class="form-control", required=true, id="testScore") }}
+                    {% if form.test_score.errors %}
+                        <div class="invalid-feedback">
+                            {% for error in form.test_score.errors %}
+                                {{ error }}
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                    <div class="help-text">Enter total test score out of 100</div>
+                    <div id="testScoreIndicator" class="test-score-indicator" style="display: none;">
+                        <i class="fas fa-star"></i>
+                        <span id="scoreGrade"></span>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="{{ form.test_date.id }}">{{ form.test_date.label.text }} <span class="required">*</span></label>
+                    {{ form.test_date(class="form-control", required=true) }}
+                    {% if form.test_date.errors %}
+                        <div class="invalid-feedback">
+                            {% for error in form.test_date.errors %}
+                                {{ error }}
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                    <div class="help-text">Date when the test was conducted</div>
+                </div>
+            </div>
+            
+            <div class="form-row single">
+                <div class="form-group">
+                    <label for="{{ form.test_notes.id }}">{{ form.test_notes.label.text }}</label>
+                    {{ form.test_notes(class="form-control", rows="3") }}
+                    {% if form.test_notes.errors %}
+                        <div class="invalid-feedback">
+                            {% for error in form.test_notes.errors %}
+                                {{ error }}
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                    <div class="help-text">Optional notes about test performance or special circumstances</div>
+                </div>
+            </div>
+        </div>
+
         <!-- Teaching Details -->
         <div class="form-section">
             <div class="section-title">
@@ -611,6 +695,53 @@
                 Teaching Details
             </div>
             
+            <!-- Salary Type Selection -->
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="{{ form.salary_type.id }}">{{ form.salary_type.label.text }} <span class="required">*</span></label>
+                    {{ form.salary_type(class="form-control form-select", id="salary_type", required=true, onchange="toggleSalaryFields()") }}
+                    {% if form.salary_type.errors %}
+                        <div class="invalid-feedback">
+                            {% for error in form.salary_type.errors %}
+                                {{ error }}
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <!-- Salary Amount Fields -->
+            <div class="form-row" id="monthly-salary-group">
+                <div class="form-group">
+                    <label for="{{ form.monthly_salary.id }}">Monthly Salary (₹) <span class="required">*</span></label>
+                    {{ form.monthly_salary(class="form-control", id="monthly_salary", placeholder="Enter monthly salary") }}
+                    {% if form.monthly_salary.errors %}
+                        <div class="invalid-feedback">
+                            {% for error in form.monthly_salary.errors %}
+                                {{ error }}
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                    <div class="help-text">Fixed monthly salary amount</div>
+                </div>
+            </div>
+            
+            <div class="form-row" id="hourly-rate-group" style="display: none;">
+                <div class="form-group">
+                    <label for="{{ form.hourly_rate.id }}">Hourly Rate (₹) <span class="required">*</span></label>
+                    {{ form.hourly_rate(class="form-control", id="hourly_rate", placeholder="Enter hourly rate") }}
+                    {% if form.hourly_rate.errors %}
+                        <div class="invalid-feedback">
+                            {% for error in form.hourly_rate.errors %}
+                                {{ error }}
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                    <div class="help-text">Rate per hour</div>
+                </div>
+            </div>
+            
+            <!-- Subject and Grade Fields -->
             <div class="form-row">
                 <div class="form-group">
                     <label for="{{ form.subjects.id }}">{{ form.subjects.label.text }} <span class="required">*</span></label>
@@ -651,30 +782,6 @@
                         </div>
                     {% endif %}
                     <div class="help-text">Comma-separated list (e.g., CBSE, ICSE, State Board)</div>
-                </div>
-                
-                <div class="form-group">
-                    {% if form.salary_type.data == 'monthly' or not form.salary_type.data %}
-                        <label for="{{ form.monthly_salary.id }}">{{ form.monthly_salary.label.text }} <span class="required">*</span></label>
-                        {{ form.monthly_salary(class="form-control", required=true) }}
-                        {% if form.monthly_salary.errors %}
-                            <div class="invalid-feedback">
-                                {% for error in form.monthly_salary.errors %}
-                                    {{ error }}
-                                {% endfor %}
-                            </div>
-                        {% endif %}
-                    {% else %}
-                        <label for="{{ form.hourly_rate.id }}">{{ form.hourly_rate.label.text }} <span class="required">*</span></label>
-                        {{ form.hourly_rate(class="form-control", required=true) }}
-                        {% if form.hourly_rate.errors %}
-                            <div class="invalid-feedback">
-                                {% for error in form.hourly_rate.errors %}
-                                    {{ error }}
-                                {% endfor %}
-                            </div>
-                        {% endif %}
-                    {% endif %}
                 </div>
             </div>
         </div>
@@ -906,6 +1013,44 @@ document.addEventListener('DOMContentLoaded', function() {
     const submitBtn = document.getElementById('submitBtn');
     const errorsSummary = document.getElementById('formErrorsSummary');
     const errorsList = document.getElementById('errorsList');
+    const testScoreField = document.getElementById('testScore');
+    const testScoreIndicator = document.getElementById('testScoreIndicator');
+    const scoreGrade = document.getElementById('scoreGrade');
+    
+    // Test Score Real-time Feedback
+    if (testScoreField) {
+        testScoreField.addEventListener('input', function() {
+            const score = parseFloat(this.value);
+            
+            if (isNaN(score) || score < 0 || score > 100) {
+                testScoreIndicator.style.display = 'none';
+                return;
+            }
+            
+            testScoreIndicator.style.display = 'flex';
+            testScoreIndicator.className = 'test-score-indicator';
+            
+            if (score >= 90) {
+                testScoreIndicator.classList.add('test-score-excellent');
+                scoreGrade.textContent = 'Excellent (A+)';
+            } else if (score >= 85) {
+                testScoreIndicator.classList.add('test-score-excellent');
+                scoreGrade.textContent = 'Excellent (A)';
+            } else if (score >= 75) {
+                testScoreIndicator.classList.add('test-score-good');
+                scoreGrade.textContent = 'Good (B+/B)';
+            } else if (score >= 65) {
+                testScoreIndicator.classList.add('test-score-average');
+                scoreGrade.textContent = 'Average (C+/C)';
+            } else if (score >= 60) {
+                testScoreIndicator.classList.add('test-score-poor');
+                scoreGrade.textContent = 'Below Average (D)';
+            } else {
+                testScoreIndicator.classList.add('test-score-poor');
+                scoreGrade.textContent = 'Poor (F)';
+            }
+        });
+    }
     
     // File type validation rules
     const fileValidation = {
@@ -1011,6 +1156,36 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
+    // Salary Type Toggle Function
+    function toggleSalaryFields() {
+        const salaryType = document.getElementById('salary_type').value;
+        const monthlyGroup = document.getElementById('monthly-salary-group');
+        const hourlyGroup = document.getElementById('hourly-rate-group');
+        const monthlyField = document.getElementById('monthly_salary');
+        const hourlyField = document.getElementById('hourly_rate');
+
+        if (salaryType === 'monthly') {
+            monthlyGroup.style.display = 'block';
+            hourlyGroup.style.display = 'none';
+            monthlyField.required = true;
+            hourlyField.required = false;
+            hourlyField.value = ''; // Clear hourly field
+        } else if (salaryType === 'hourly') {
+            monthlyGroup.style.display = 'none';
+            hourlyGroup.style.display = 'block';
+            monthlyField.required = false;
+            hourlyField.required = true;
+            monthlyField.value = ''; // Clear monthly field
+        }
+    }
+
+    // Initialize salary fields toggle
+    toggleSalaryFields();
+    const salaryTypeField = document.getElementById('salary_type');
+    if (salaryTypeField) {
+        salaryTypeField.addEventListener('change', toggleSalaryFields);
+    }
+
     // Form submission with comprehensive validation
     form.addEventListener('submit', function(e) {
         console.log('=== FORM SUBMISSION STARTED ===');
@@ -1051,6 +1226,13 @@ document.addEventListener('DOMContentLoaded', function() {
         if (password !== passwordConfirm) {
             errors.push('Passwords do not match');
             document.getElementById('password_confirm').classList.add('is-invalid');
+        }
+        
+        // Validate test score
+        const testScore = parseFloat(testScoreField.value);
+        if (isNaN(testScore) || testScore < 0 || testScore > 100) {
+            errors.push('Test score must be between 0 and 100');
+            testScoreField.classList.add('is-invalid');
         }
         
         // Check file validation errors
@@ -1165,6 +1347,16 @@ document.addEventListener('DOMContentLoaded', function() {
         // Password validation
         if (field.type === 'password' && value) {
             if (value.length >= 8) {
+                field.classList.add('is-valid');
+            } else {
+                field.classList.add('is-invalid');
+            }
+        }
+        
+        // Test score validation
+        if (field.id === 'testScore' && value) {
+            const score = parseFloat(value);
+            if (!isNaN(score) && score >= 0 && score <= 100) {
                 field.classList.add('is-valid');
             } else {
                 field.classList.add('is-invalid');

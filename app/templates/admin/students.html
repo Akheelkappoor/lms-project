@@ -498,6 +498,12 @@
         color: white;
         border-color: #007bff;
     }
+
+    .page-actions {
+        display: flex;
+        gap: 0.75rem;
+        align-items: center;
+    }
     
     /* Responsive design */
     @media (max-width: 1200px) {
@@ -605,7 +611,11 @@
                 <a href="{{ url_for('admin.register_student') }}" class="btn btn-primary">
                     <i class="fas fa-plus"></i> Add New Student
                 </a>
+                <a href="{{ url_for('demo.register_demo_student') }}" class="btn btn-primary">
+                    <i class="fas fa-plus"></i> Add Demo Student
+                </a>
             </div>
+
         </div>
     </div>
 

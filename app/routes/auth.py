@@ -5,6 +5,7 @@ from app import db
 from app.models.user import User
 from app.forms.auth import LoginForm, ForgotPasswordForm, ResetPasswordForm, ChangePasswordForm
 from app.utils.email import send_password_reset_email
+from werkzeug.security import check_password_hash
 
 
 bp = Blueprint('auth', __name__)
@@ -102,7 +103,7 @@ def change_password():
     
     if form.validate_on_submit():
         # Verify current password
-        if not check_password_hash(current_user.password_hash, form.current_password.data):
+        if not current_user.check_password(form.current_password.data):
             flash('Current password is incorrect.', 'error')
             return render_template('auth/change_password.html', form=form)
         

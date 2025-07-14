@@ -38,10 +38,11 @@ class Config:
     PERMANENT_SESSION_LIFETIME = 3600  # 1 hour
 
     # Application Info
-    DEFAULT_ADMIN_EMAIL = 'care@i2global.co.in'
-    DEFAULT_ADMIN_PASSWORD = 'i2global123'
-    APP_NAME = 'I2Global LMS'
-    COMPANY_NAME = 'I2Global Virtual Learning'
-    COMPANY_ADDRESS = '48, 4th Block, Koramangala, Bengaluru, Karnataka 560034'
-    COMPANY_PHONE = '+91 9600127000'
-    COMPANY_EMAIL = 'care@i2global.co.in'
+    DEFAULT_ADMIN_EMAIL = os.environ.get('DEFAULT_ADMIN_EMAIL')
+    DEFAULT_ADMIN_PASSWORD = os.environ.get('DEFAULT_ADMIN_PASSWORD')
+    APP_NAME = os.environ.get('APP_NAME')
+    COMPANY_NAME = os.environ.get('COMPANY_NAME')
+    COMPANY_ADDRESS = os.environ.get('COMPANY_ADDRESS')
+    COMPANY_PHONE = os.environ.get('COMPANY_PHONE')
+    COMPANY_EMAIL = os.environ.get('COMPANY_EMAIL')
+

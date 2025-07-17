@@ -5,6 +5,7 @@ from wtforms.validators import DataRequired, Email, Length, Optional, Validation
 from app.models.user import User
 from app.models.department import Department
 
+
 class MultiCheckboxField(SelectMultipleField):
     widget = widgets.ListWidget(prefix_label=False)
     option_widget = widgets.CheckboxInput()
@@ -186,10 +187,10 @@ class TutorRegistrationForm(FlaskForm):
     
     # Videos
     demo_video = FileField('Demo Video', validators=[
-        FileRequired(), FileAllowed(['mp4', 'avi', 'mov', 'wmv'], 'Video files only!')
+        FileAllowed(['mp4', 'avi', 'mov', 'wmv'], 'Video files only!')
     ])
     interview_video = FileField('Interview Video', validators=[
-        FileRequired(), FileAllowed(['mp4', 'avi', 'mov', 'wmv'], 'Video files only!')
+        FileAllowed(['mp4', 'avi', 'mov', 'wmv'], 'Video files only!')
     ])
     
     # Banking Information
@@ -238,6 +239,9 @@ class TutorRegistrationForm(FlaskForm):
             raise ValidationError('Monthly salary is required when salary type is monthly.')
         elif salary_type.data == 'hourly' and not self.hourly_rate.data:
             raise ValidationError('Hourly rate is required when salary type is hourly.')
+
+
+from wtforms import DecimalField, FileField
 
 class StudentRegistrationForm(FlaskForm):
     # Basic Information
@@ -353,3 +357,53 @@ class StudentRegistrationForm(FlaskForm):
         if student:
             raise ValidationError('Email already registered. Please choose a different one.')
         
+from wtforms import DecimalField
+class EditStudentForm(StudentRegistrationForm):
+    """Form for editing existing students - inherits from registration form but modifies email validation"""
+    
+    # Additional fields for editing (fee-related fields that might be missing)
+    total_fee = DecimalField('Total Fee (₹)', validators=[Optional()], places=2,
+                            render_kw={'placeholder': 'Enter total course fee'})
+    amount_paid = DecimalField('Amount Paid (₹)', validators=[Optional()], places=2,
+                              render_kw={'placeholder': 'Enter amount already paid'})
+    payment_mode = SelectField('Payment Mode', validators=[Optional()],
+                              choices=[('', 'Select Payment Mode'), 
+                                     ('cash', 'Cash'), ('online', 'Online'), 
+                                     ('cheque', 'Cheque'), ('card', 'Card'),
+                                     ('bank_transfer', 'Bank Transfer')])
+    payment_schedule = SelectField('Payment Schedule', validators=[Optional()],
+                                  choices=[('', 'Select Schedule'), 
+                                         ('monthly', 'Monthly'), ('quarterly', 'Quarterly'), 
+                                         ('half_yearly', 'Half Yearly'), ('yearly', 'Yearly'),
+                                         ('one_time', 'One Time Payment')])
+    
+    # Additional academic fields that might be missing
+    parent_feedback = TextAreaField('Parent Feedback', validators=[Optional()],
+                                   render_kw={'rows': 3, 'placeholder': 'Enter parent feedback or special requirements'})
+    learning_patterns = StringField('Learning Patterns', validators=[Optional()],
+                                   render_kw={'placeholder': 'e.g., Fast learner, Needs repetition, Visual learner'})
+    
+    def __init__(self, student_id=None, *args, **kwargs):
+        super(EditStudentForm, self).__init__(*args, **kwargs)
+        self.student_id = student_id
+        
+        # Make some fields optional for editing (that were required for registration)
+        self.father_name.validators = [Optional()]
+        self.father_phone.validators = [Optional()]
+        self.mother_name.validators = [Optional()]
+    
+    def validate_email(self, email):
+        """Modified email validation that excludes current student"""
+        from app.models.student import Student
+        
+        # Only check for duplicates if email has changed or student_id is not provided
+        if self.student_id:
+            student = Student.query.filter(
+                Student.email == email.data,
+                Student.id != self.student_id
+            ).first()
+        else:
+            student = Student.query.filter_by(email=email.data).first()
+            
+        if student:
+            raise ValidationError('Email already registered. Please choose a different one.')

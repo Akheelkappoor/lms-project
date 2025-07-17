@@ -261,6 +261,62 @@
         margin-top: 0.5rem;
         font-style: italic;
     }
+
+    /* Dynamic Subjects Styling */
+    .subjects-container {
+        border: 1px solid #e9ecef;
+        border-radius: 8px;
+        padding: 1rem;
+        background: #f8f9fa;
+    }
+
+    .selected-subjects {
+        min-height: 40px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        align-items: center;
+    }
+
+    .subject-tag {
+        background: #007bff;
+        color: white;
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.875rem;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .subject-tag .remove-btn {
+        background: none;
+        border: none;
+        color: white;
+        cursor: pointer;
+        padding: 0;
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.75rem;
+    }
+
+    .subject-tag .remove-btn:hover {
+        background: rgba(255, 255, 255, 0.2);
+    }
+
+    .empty-subjects {
+        color: #6c757d;
+        font-style: italic;
+        font-size: 0.875rem;
+    }
+
+    .new-subject-input {
+        margin-top: 0.5rem;
+    }
     
     .form-actions {
         display: flex;
@@ -726,9 +782,46 @@
                     </div>
                     
                     <div class="form-row">
+                        <!-- ENHANCED DYNAMIC SUBJECTS FIELD -->
                         <div class="form-group">
                             {{ form.subjects_enrolled.label(class="form-label") }} <span class="required">*</span>
-                            {{ form.subjects_enrolled(class="form-control", required=true) }}
+                            <div class="subjects-container">
+                                <!-- Selected Subjects Display -->
+                                <div id="selectedSubjects" class="selected-subjects mb-2">
+                                    <!-- Selected subjects will appear here as tags -->
+                                </div>
+                                
+                                <!-- Subject Selection Dropdown -->
+                                <div class="subject-selection">
+                                    <select id="subjectDropdown" class="form-control mb-2">
+                                        <option value="">Select Subject</option>
+                                        {% if all_subjects %}
+                                            {% for subject in all_subjects %}
+                                                <option value="{{ subject }}">{{ subject }}</option>
+                                            {% endfor %}
+                                        {% endif %}
+                                        <option value="__add_new__">+ Add New Subject</option>
+                                    </select>
+                                    
+                                    <!-- New Subject Input (hidden by default) -->
+                                    <div id="newSubjectInput" class="new-subject-input" style="display: none;">
+                                        <div class="input-group">
+                                            <input type="text" id="newSubjectName" class="form-control" 
+                                                   placeholder="Enter new subject name">
+                                            <button type="button" class="btn btn-primary" onclick="addNewSubject()">
+                                                <i class="fas fa-plus"></i> Add
+                                            </button>
+                                            <button type="button" class="btn btn-outline" onclick="cancelNewSubject()">
+                                                Cancel
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Hidden input for form submission -->
+                                {{ form.subjects_enrolled(class="form-control", style="display: none;", required=true) }}
+                            </div>
+                            <div class="help-text">Select subjects from dropdown or add new ones</div>
                             {% if form.subjects_enrolled.errors %}
                                 <div class="invalid-feedback d-block">
                                     {% for error in form.subjects_enrolled.errors %}
@@ -736,7 +829,6 @@
                                     {% endfor %}
                                 </div>
                             {% endif %}
-                            <div class="help-text">Comma-separated list of subjects</div>
                         </div>
                         
                         <div class="form-group">
@@ -1177,6 +1269,125 @@ document.addEventListener('DOMContentLoaded', function() {
     const submitBtn = document.getElementById('submitBtn');
     const errorsSummary = document.getElementById('formErrorsSummary');
     const errorsList = document.getElementById('errorsList');
+
+    // Dynamic Subjects Management
+    let selectedSubjects = [];
+
+    function initializeSubjects() {
+        // Get existing subjects from form field (if any)
+        const existingSubjects = document.getElementById('subjects_enrolled').value;
+        if (existingSubjects) {
+            selectedSubjects = existingSubjects.split(',').map(s => s.trim()).filter(s => s);
+        }
+        
+        renderSelectedSubjects();
+        setupDropdownListener();
+    }
+
+    function setupDropdownListener() {
+        const dropdown = document.getElementById('subjectDropdown');
+        dropdown.addEventListener('change', function() {
+            const selectedValue = this.value;
+            
+            if (selectedValue === '__add_new__') {
+                showNewSubjectInput();
+            } else if (selectedValue && !selectedSubjects.includes(selectedValue)) {
+                addSubject(selectedValue);
+                this.value = ''; // Reset dropdown
+            }
+        });
+    }
+
+    function showNewSubjectInput() {
+        document.getElementById('newSubjectInput').style.display = 'block';
+        document.getElementById('subjectDropdown').style.display = 'none';
+        document.getElementById('newSubjectName').focus();
+    }
+
+    function cancelNewSubject() {
+        document.getElementById('newSubjectInput').style.display = 'none';
+        document.getElementById('subjectDropdown').style.display = 'block';
+        document.getElementById('subjectDropdown').value = '';
+        document.getElementById('newSubjectName').value = '';
+    }
+
+    window.addNewSubject = function() {
+        const newSubjectName = document.getElementById('newSubjectName').value.trim();
+        
+        if (!newSubjectName) {
+            alert('Please enter a subject name');
+            return;
+        }
+        
+        if (selectedSubjects.includes(newSubjectName)) {
+            alert('Subject already selected');
+            return;
+        }
+        
+        // Add to existing dropdown options
+        const dropdown = document.getElementById('subjectDropdown');
+        const newOption = document.createElement('option');
+        newOption.value = newSubjectName;
+        newOption.textContent = newSubjectName;
+        
+        // Insert before "Add New Subject" option
+        const addNewOption = dropdown.querySelector('option[value="__add_new__"]');
+        dropdown.insertBefore(newOption, addNewOption);
+        
+        // Add to selected subjects
+        addSubject(newSubjectName);
+        
+        // Reset UI
+        cancelNewSubject();
+    };
+
+    window.cancelNewSubject = cancelNewSubject;
+
+    function addSubject(subject) {
+        if (!selectedSubjects.includes(subject)) {
+            selectedSubjects.push(subject);
+            renderSelectedSubjects();
+            updateFormField();
+        }
+    }
+
+    function removeSubject(subject) {
+        selectedSubjects = selectedSubjects.filter(s => s !== subject);
+        renderSelectedSubjects();
+        updateFormField();
+    }
+
+    window.removeSubject = removeSubject;
+
+    function renderSelectedSubjects() {
+        const container = document.getElementById('selectedSubjects');
+        
+        if (selectedSubjects.length === 0) {
+            container.innerHTML = '<span class="empty-subjects">No subjects selected</span>';
+            return;
+        }
+        
+        container.innerHTML = selectedSubjects.map(subject => 
+            `<span class="subject-tag">
+                ${subject}
+                <button type="button" class="remove-btn" onclick="removeSubject('${subject}')" title="Remove subject">
+                    <i class="fas fa-times"></i>
+                </button>
+            </span>`
+        ).join('');
+    }
+
+    function updateFormField() {
+        document.getElementById('subjects_enrolled').value = selectedSubjects.join(', ');
+    }
+
+    // Handle Enter key in new subject input
+    document.addEventListener('keypress', function(e) {
+        if (e.target.id === 'newSubjectName' && e.key === 'Enter') {
+            e.preventDefault();
+            addNewSubject();
+        }
+    });
     
     // File validation rules
     const fileValidation = {
@@ -1539,6 +1750,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialize
     showStep(1);
     setupFileUploads();
+    initializeSubjects();
     
     console.log('=== INITIALIZATION COMPLETE ===');
 });

@@ -16,6 +16,7 @@ from app.models.attendance import Attendance
 from app.forms.user import CreateUserForm, EditUserForm, TutorRegistrationForm, StudentRegistrationForm
 from functools import wraps
 from app.utils.email import send_password_reset_email, send_onboarding_email
+from app.forms.user import EditStudentForm
 bp = Blueprint('admin', __name__)
 
 def admin_required(f):
@@ -514,8 +515,6 @@ def register_tutor():
                         setattr(tutor, video_name, s3_url)
                     else:
                         raise ValueError(f"{video_name.replace('_', ' ').title()} upload failed.")
-                else:
-                    raise ValueError(f"{video_name.replace('_', ' ').title()} is required")
             
             # Set bank details
             bank_details = {
@@ -611,41 +610,102 @@ def verify_tutor(tutor_id):
 
 # ============ STUDENT MANAGEMENT ROUTES ============
 
+# Replace the students route in app/routes/admin.py
+
 @bp.route('/students')
 @login_required
 @admin_required
 def students():
     """Student management page"""
-    page = request.args.get('page', 1, type=int)
-    grade_filter = request.args.get('grade', '')
-    dept_filter = request.args.get('department', '', type=int)
-    search = request.args.get('search', '')
+    from sqlalchemy import or_
     
+    page = request.args.get('page', 1, type=int)
+    grade_filter = request.args.get('grade', '').strip()
+    dept_filter_raw = request.args.get('department', '').strip()
+    search = request.args.get('search', '').strip()
+    
+    # Convert department filter to int only if it's a valid number
+    dept_filter = None
+    if dept_filter_raw and dept_filter_raw.isdigit():
+        dept_filter = int(dept_filter_raw)
+    
+    # Build base query
     query = Student.query
     
+    # Apply department access check for coordinators FIRST
+    if current_user.role == 'coordinator':
+        query = query.filter_by(department_id=current_user.department_id)
+    
+    # Apply filters only if they have valid values
     if grade_filter:
         query = query.filter_by(grade=grade_filter)
     
-    if dept_filter:
+    # Only apply department filter if user selected a specific department AND user is not a coordinator
+    if dept_filter and dept_filter > 0 and current_user.role != 'coordinator':
         query = query.filter_by(department_id=dept_filter)
     
     if search:
-        query = query.filter(Student.full_name.contains(search))
+        search_term = f"%{search}%"
+        query = query.filter(
+            or_(
+                Student.full_name.ilike(search_term),
+                Student.email.ilike(search_term)
+            )
+        )
     
+    # Get paginated results
     students = query.order_by(Student.created_at.desc()).paginate(
         page=page, per_page=20, error_out=False
     )
     
-    departments = Department.query.filter_by(is_active=True).all()
+    # Calculate stats from the filtered query
+    stats = {
+        'total_students': query.count(),
+        'active_students': query.filter_by(enrollment_status='active').count(),
+        'paused_students': query.filter_by(enrollment_status='paused').count(),
+        'completed_students': query.filter_by(enrollment_status='completed').count(),
+        'dropped_students': query.filter_by(enrollment_status='dropped').count()
+    }
     
-    return render_template('admin/students.html', students=students, departments=departments)
+    # Get departments (respect coordinator permissions)
+    if current_user.role == 'coordinator':
+        departments = Department.query.filter_by(
+            id=current_user.department_id, 
+            is_active=True
+        ).all()
+    else:
+        departments = Department.query.filter_by(is_active=True).all()
+    
+    return render_template('admin/students.html', 
+                         students=students, 
+                         departments=departments,
+                         stats=stats)
+
+# Replace the register_student route in app/routes/admin.py
 
 @bp.route('/students/register', methods=['GET', 'POST'])
 @login_required
 @admin_required
 def register_student():
     """Register new student"""
+    from app.forms.user import StudentRegistrationForm
+    
     form = StudentRegistrationForm()
+    
+    # Get all unique subjects for dropdown (for the subject enhancement)
+    all_students = Student.query.all()
+    all_subjects = set()
+    for s in all_students:
+        subjects = s.get_subjects_enrolled()
+        all_subjects.update(subjects)
+    
+    # Add some common subjects if none exist yet
+    if not all_subjects:
+        all_subjects = {
+            'Mathematics', 'Physics', 'Chemistry', 'Biology', 'English', 
+            'Hindi', 'History', 'Geography', 'Economics', 'Computer Science',
+            'Accountancy', 'Business Studies', 'Political Science', 'Sociology'
+        }
     
     if form.validate_on_submit():
         try:
@@ -671,69 +731,66 @@ def register_student():
             # Parent details
             parent_details = {
                 'father': {
-                    'name': form.father_name.data,
-                    'phone': form.father_phone.data,
-                    'email': form.father_email.data,
-                    'profession': form.father_profession.data,
-                    'workplace': form.father_workplace.data
+                    'name': form.father_name.data or '',
+                    'phone': form.father_phone.data or '',
+                    'email': form.father_email.data or '',
+                    'profession': form.father_profession.data or '',
+                    'workplace': getattr(form, 'father_workplace', None) and form.father_workplace.data or ''
                 },
                 'mother': {
-                    'name': form.mother_name.data,
-                    'phone': form.mother_phone.data,
-                    'email': form.mother_email.data,
-                    'profession': form.mother_profession.data,
-                    'workplace': form.mother_workplace.data
+                    'name': form.mother_name.data or '',
+                    'phone': form.mother_phone.data or '',
+                    'email': form.mother_email.data or '',
+                    'profession': form.mother_profession.data or '',
+                    'workplace': getattr(form, 'mother_workplace', None) and form.mother_workplace.data or ''
                 }
             }
             student.set_parent_details(parent_details)
             
             # Academic profile
             academic_profile = {
-                'siblings': form.siblings.data,
-                'hobbies': [h.strip() for h in (form.hobbies.data or '').split(',') if h.strip()],
-                'learning_styles': [l.strip() for l in (form.learning_styles.data or '').split(',') if l.strip()],
-                'learning_patterns': [p.strip() for p in (form.learning_patterns.data or '').split(',') if p.strip()],
-                'parent_feedback': form.parent_feedback.data
+                'siblings': getattr(form, 'siblings', None) and form.siblings.data or '',
+                'hobbies': [h.strip() for h in (getattr(form, 'hobbies', None) and form.hobbies.data or '').split(',') if h.strip()],
+                'learning_styles': [l.strip() for l in (getattr(form, 'learning_styles', None) and form.learning_styles.data or '').split(',') if l.strip()],
+                'learning_patterns': [p.strip() for p in (getattr(form, 'learning_patterns', None) and form.learning_patterns.data or '').split(',') if p.strip()],
+                'parent_feedback': getattr(form, 'parent_feedback', None) and form.parent_feedback.data or ''
             }
             student.set_academic_profile(academic_profile)
             
             # Subjects
-            student.set_subjects_enrolled([s.strip() for s in form.subjects_enrolled.data.split(',')])
-            if form.favorite_subjects.data:
-                student.set_favorite_subjects([s.strip() for s in form.favorite_subjects.data.split(',')])
-            if form.difficult_subjects.data:
-                student.set_difficult_subjects([s.strip() for s in form.difficult_subjects.data.split(',')])
+            if form.subjects_enrolled.data:
+                subjects = [s.strip() for s in form.subjects_enrolled.data.split(',') if s.strip()]
+                student.set_subjects_enrolled(subjects)
             
             # Fee structure
             fee_structure = {
-                'total_fee': form.total_fee.data,
-                'amount_paid': form.amount_paid.data or 0,
-                'balance_amount': form.total_fee.data - (form.amount_paid.data or 0),
-                'payment_mode': form.payment_mode.data,
-                'payment_schedule': form.payment_schedule.data
+                'total_fee': float(getattr(form, 'total_fee', None) and form.total_fee.data or 0),
+                'amount_paid': float(getattr(form, 'amount_paid', None) and form.amount_paid.data or 0),
+                'payment_mode': getattr(form, 'payment_mode', None) and form.payment_mode.data or '',
+                'payment_schedule': getattr(form, 'payment_schedule', None) and form.payment_schedule.data or ''
             }
+            fee_structure['balance_amount'] = fee_structure['total_fee'] - fee_structure['amount_paid']
             student.set_fee_structure(fee_structure)
             
             # Handle document uploads
             documents = {}
-            s3_url = None
-            if form.marksheet.data:
-                s3_url = upload_file_to_s3(form.marksheet.data, folder=f"{current_app.config['UPLOAD_FOLDER']}/documents")
-            if s3_url:
-                documents['marksheet'] = s3_url
-            s3_url = None    
-            if form.student_aadhaar.data:
-                s3_url = upload_file_to_s3(form.student_aadhaar.data, folder=f"{current_app.config['UPLOAD_FOLDER']}/documents")
-            if s3_url:
-                documents['aadhaar'] = s3_url
-            s3_url = None
-            if form.school_id.data:
-                s3_url = upload_file_to_s3(form.school_id.data, folder=f"{current_app.config['UPLOAD_FOLDER']}/documents")
-            if s3_url:
-                documents['school_id'] = s3_url
-
             
-            student.set_documents(documents)
+            # Process file uploads if they exist
+            for field_name in ['marksheet', 'student_aadhaar', 'school_id']:
+                if hasattr(form, field_name):
+                    file_field = getattr(form, field_name)
+                    if file_field.data:
+                        try:
+                            # Upload to S3 or your file storage system
+                            file_url = upload_file_to_s3(file_field.data, folder=f"{current_app.config['UPLOAD_FOLDER']}/students")
+                            if file_url:
+                                documents[field_name] = file_url
+                        except Exception as e:
+                            print(f"Error uploading {field_name}: {e}")
+                            flash(f'Error uploading {field_name.replace("_", " ").title()}', 'warning')
+            
+            if documents:
+                student.set_documents(documents)
             
             db.session.add(student)
             db.session.commit()
@@ -744,8 +801,15 @@ def register_student():
         except Exception as e:
             db.session.rollback()
             flash(f'Error registering student: {str(e)}', 'error')
+            print(f"Error registering student: {e}")  # For debugging
+    else:
+        # Print form errors for debugging
+        if form.errors:
+            print(f"Form validation errors: {form.errors}")
     
-    return render_template('admin/register_student.html', form=form)
+    return render_template('admin/register_student.html', 
+                         form=form, 
+                         all_subjects=sorted(list(all_subjects)))
 
 @bp.route('/students/<int:student_id>')
 @login_required
@@ -789,11 +853,16 @@ def student_details(student_id):
                          upcoming_classes=upcoming_classes,
                          attendance_summary=attendance_summary)
 
+# COMPLETE REPLACEMENT for edit_student route in app/routes/admin.py
+
 @bp.route('/students/<int:student_id>/edit', methods=['GET', 'POST'])
 @login_required
 @admin_required
 def edit_student(student_id):
     """Edit student information"""
+    from datetime import datetime
+    from app.forms.user import EditStudentForm
+    
     student = Student.query.get_or_404(student_id)
     
     # Check department access
@@ -801,7 +870,49 @@ def edit_student(student_id):
         flash('Access denied. You can only edit students from your department.', 'error')
         return redirect(url_for('admin.students'))
     
-    form = StudentRegistrationForm(obj=student)
+    # Initialize form with student object (this handles basic fields)
+    form = EditStudentForm(student_id=student.id, obj=student)
+    
+    # Pre-populate form with existing data on GET request
+    if request.method == 'GET':
+        # Get parent details and populate form
+        parent_details = student.get_parent_details()
+        if parent_details:
+            father = parent_details.get('father', {})
+            mother = parent_details.get('mother', {})
+            
+            # Populate father fields
+            form.father_name.data = father.get('name', '')
+            form.father_phone.data = father.get('phone', '')
+            form.father_email.data = father.get('email', '')
+            form.father_profession.data = father.get('profession', '')
+            
+            # Populate mother fields  
+            form.mother_name.data = mother.get('name', '')
+            form.mother_phone.data = mother.get('phone', '')
+            form.mother_email.data = mother.get('email', '')
+            form.mother_profession.data = mother.get('profession', '')
+        
+        # Get academic profile and populate form
+        academic_profile = student.get_academic_profile()
+        if academic_profile:
+            form.siblings.data = str(academic_profile.get('siblings', ''))
+            form.hobbies.data = ', '.join(academic_profile.get('hobbies', []))
+            form.learning_styles.data = ', '.join(academic_profile.get('learning_styles', []))
+            form.parent_feedback.data = academic_profile.get('parent_feedback', '')
+        
+        # Get subjects and populate form
+        subjects = student.get_subjects_enrolled()
+        if subjects:
+            form.subjects_enrolled.data = ', '.join(subjects)
+        
+        # Get fee structure and populate form
+        fee_structure = student.get_fee_structure()
+        if fee_structure:
+            form.total_fee.data = fee_structure.get('total_fee', 0)
+            form.amount_paid.data = fee_structure.get('amount_paid', 0)
+            form.payment_mode.data = fee_structure.get('payment_mode', '')
+            form.payment_schedule.data = fee_structure.get('payment_schedule', '')
     
     if form.validate_on_submit():
         try:
@@ -816,34 +927,58 @@ def edit_student(student_id):
             student.grade = form.grade.data
             student.board = form.board.data
             student.school_name = form.school_name.data
+            student.academic_year = form.academic_year.data
+            student.course_start_date = form.course_start_date.data
+            student.relationship_manager = form.relationship_manager.data
             
             # Update parent details
             parent_details = {
                 'father': {
-                    'name': form.father_name.data,
-                    'phone': form.father_phone.data,
-                    'email': form.father_email.data,
-                    'profession': form.father_profession.data,
-                    'workplace': form.father_workplace.data
+                    'name': form.father_name.data or '',
+                    'phone': form.father_phone.data or '',
+                    'email': form.father_email.data or '',
+                    'profession': form.father_profession.data or ''
                 },
                 'mother': {
-                    'name': form.mother_name.data,
-                    'phone': form.mother_phone.data,
-                    'email': form.mother_email.data,
-                    'profession': form.mother_profession.data,
-                    'workplace': form.mother_workplace.data
+                    'name': form.mother_name.data or '',
+                    'phone': form.mother_phone.data or '',
+                    'email': form.mother_email.data or '',
+                    'profession': form.mother_profession.data or ''
                 }
             }
             student.set_parent_details(parent_details)
             
+            # Update academic profile
+            academic_profile = {
+                'siblings': form.siblings.data or '',
+                'hobbies': [h.strip() for h in (form.hobbies.data or '').split(',') if h.strip()],
+                'learning_styles': [l.strip() for l in (form.learning_styles.data or '').split(',') if l.strip()],
+                'parent_feedback': form.parent_feedback.data or ''
+            }
+            student.set_academic_profile(academic_profile)
+            
+            # Update subjects enrolled
+            if form.subjects_enrolled.data:
+                subjects = [s.strip() for s in form.subjects_enrolled.data.split(',') if s.strip()]
+                student.set_subjects_enrolled(subjects)
+            
             # Update fee structure
             fee_structure = student.get_fee_structure()
             fee_structure.update({
-                'total_fee': form.total_fee.data,
-                'payment_mode': form.payment_mode.data,
-                'payment_schedule': form.payment_schedule.data
+                'total_fee': float(form.total_fee.data or 0),
+                'amount_paid': float(form.amount_paid.data or 0),
+                'payment_mode': form.payment_mode.data or '',
+                'payment_schedule': form.payment_schedule.data or ''
             })
+            fee_structure['balance_amount'] = fee_structure['total_fee'] - fee_structure['amount_paid']
             student.set_fee_structure(fee_structure)
+            
+            # Set department if provided
+            if form.department_id.data:
+                student.department_id = form.department_id.data
+            
+            # Set updated timestamp
+            student.updated_at = datetime.utcnow()
             
             db.session.commit()
             flash(f'Student {student.full_name} updated successfully!', 'success')
@@ -852,8 +987,23 @@ def edit_student(student_id):
         except Exception as e:
             db.session.rollback()
             flash(f'Error updating student: {str(e)}', 'error')
+            print(f"Error updating student: {e}")
+    else:
+        # Print form errors for debugging
+        if form.errors:
+            print(f"Form validation errors: {form.errors}")
     
-    return render_template('admin/edit_student.html', form=form, student=student)
+    # Get all unique subjects for dropdown (for the subject enhancement)
+    all_students = Student.query.all()
+    all_subjects = set()
+    for s in all_students:
+        subjects = s.get_subjects_enrolled()
+        all_subjects.update(subjects)
+    
+    return render_template('admin/edit_student.html', 
+                         form=form, 
+                         student=student,
+                         all_subjects=sorted(list(all_subjects)))
 
 @bp.route('/students/<int:student_id>/deactivate', methods=['POST'])
 @login_required
@@ -900,6 +1050,77 @@ def activate_student(student_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': 'Error activating student'}), 500
+
+
+@bp.route('/students/<int:student_id>/toggle-status', methods=['POST'])
+@login_required
+@admin_required
+def toggle_student_status(student_id):
+    """Toggle student active status"""
+    student = Student.query.get_or_404(student_id)
+    
+    # Check department access
+    if current_user.role == 'coordinator' and current_user.department_id != student.department_id:
+        return jsonify({'error': 'Access denied'}), 403
+    
+    try:
+        # Toggle status
+        student.is_active = not student.is_active
+        
+        # Update enrollment status based on active status
+        if student.is_active:
+            student.enrollment_status = 'active'
+        else:
+            student.enrollment_status = 'paused'
+        
+        # Set updated timestamp
+        student.updated_at = datetime.utcnow()
+        
+        db.session.commit()
+        
+        status_text = 'activated' if student.is_active else 'deactivated'
+        return jsonify({
+            'success': True, 
+            'message': f'Student {student.full_name} {status_text} successfully',
+            'new_status': student.is_active
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'Error updating student status: {str(e)}'}), 500
+
+@bp.route('/students/<int:student_id>/delete', methods=['DELETE'])
+@login_required
+@admin_required
+def delete_student(student_id):
+    """Delete student (superadmin only)"""
+    if current_user.role != 'superadmin':
+        return jsonify({'error': 'Only superadmin can delete students'}), 403
+    
+    student = Student.query.get_or_404(student_id)
+    
+    try:
+        student_name = student.full_name
+        
+        # You might want to soft delete instead of hard delete
+        # For now, let's mark as deleted instead of actual deletion
+        student.is_active = False
+        student.enrollment_status = 'deleted'
+        student.updated_at = datetime.utcnow()
+        
+        # Or for hard delete (uncomment below and comment above):
+        # db.session.delete(student)
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True, 
+            'message': f'Student {student_name} deleted successfully'
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'Error deleting student: {str(e)}'}), 500
 
 # ============ CLASS MANAGEMENT ROUTES ============
 

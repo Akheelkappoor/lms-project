@@ -1,0 +1,443 @@
+{% extends "base.html" %}
+
+{% block title %}Notice Management - {{ APP_NAME }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h1 class="page-title">
+                <i class="fas fa-bullhorn"></i>
+                Notice Management
+            </h1>
+            <p class="page-subtitle">Create, publish, and track organizational notices</p>
+        </div>
+        <div class="header-actions">
+            <a href="{{ url_for('notice.create_notice') }}" class="btn btn-primary">
+                <i class="fas fa-plus"></i>
+                Create Notice
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="container-fluid">
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col-lg-3 col-md-6">
+            <div class="stat-card">
+                <div class="stat-icon bg-primary">
+                    <i class="fas fa-file-alt"></i>
+                </div>
+                <div class="stat-content">
+                    <h3>{{ stats.total }}</h3>
+                    <p>Total Notices</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6">
+            <div class="stat-card">
+                <div class="stat-icon bg-success">
+                    <i class="fas fa-share"></i>
+                </div>
+                <div class="stat-content">
+                    <h3>{{ stats.published }}</h3>
+                    <p>Published</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6">
+            <div class="stat-card">
+                <div class="stat-icon bg-warning">
+                    <i class="fas fa-edit"></i>
+                </div>
+                <div class="stat-content">
+                    <h3>{{ stats.draft }}</h3>
+                    <p>Drafts</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6">
+            <div class="stat-card">
+                <div class="stat-icon bg-danger">
+                    <i class="fas fa-exclamation-triangle"></i>
+                </div>
+                <div class="stat-content">
+                    <h3>{{ stats.urgent }}</h3>
+                    <p>Urgent</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="GET" class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label">Search Notices</label>
+                    <input type="text" name="search" class="form-control" 
+                           placeholder="Title or content" 
+                           value="{{ request.args.get('search', '') }}">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Category</label>
+                    <select name="category" class="form-select">
+                        <option value="">All Categories</option>
+                        <option value="academic" {{ 'selected' if request.args.get('category') == 'academic' }}>Academic</option>
+                        <option value="administrative" {{ 'selected' if request.args.get('category') == 'administrative' }}>Administrative</option>
+                        <option value="emergency" {{ 'selected' if request.args.get('category') == 'emergency' }}>Emergency</option>
+                        <option value="celebration" {{ 'selected' if request.args.get('category') == 'celebration' }}>Celebration</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Priority</label>
+                    <select name="priority" class="form-select">
+                        <option value="">All Priorities</option>
+                        <option value="normal" {{ 'selected' if request.args.get('priority') == 'normal' }}>Normal</option>
+                        <option value="high" {{ 'selected' if request.args.get('priority') == 'high' }}>High</option>
+                        <option value="urgent" {{ 'selected' if request.args.get('priority') == 'urgent' }}>Urgent</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Status</label>
+                    <select name="status" class="form-select">
+                        <option value="">All Statuses</option>
+                        <option value="draft" {{ 'selected' if request.args.get('status') == 'draft' }}>Draft</option>
+                        <option value="published" {{ 'selected' if request.args.get('status') == 'published' }}>Published</option>
+                        <option value="expired" {{ 'selected' if request.args.get('status') == 'expired' }}>Expired</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">&nbsp;</label>
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-search"></i> Filter
+                        </button>
+                        <a href="{{ url_for('notice.admin_notices') }}" class="btn btn-secondary">
+                            <i class="fas fa-times"></i> Clear
+                        </a>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Notices Table -->
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h6 class="card-title mb-0">
+                <i class="fas fa-list"></i>
+                All Notices
+            </h6>
+            <div class="card-actions">
+                <button class="btn btn-sm btn-outline-primary" onclick="toggleBulkActions()">
+                    <i class="fas fa-tasks"></i> Bulk Actions
+                </button>
+            </div>
+        </div>
+        <div class="card-body">
+            {% if notices.items %}
+            <!-- Bulk Actions (Hidden by default) -->
+            <div id="bulkActions" class="bulk-actions mb-3" style="display: none;">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="form-check">
+                        <input type="checkbox" class="form-check-input" id="selectAll">
+                        <label class="form-check-label" for="selectAll">Select All</label>
+                    </div>
+                    <select id="bulkAction" class="form-select" style="width: auto;">
+                        <option value="">Choose Action</option>
+                        <option value="publish">Publish Selected</option>
+                        <option value="unpublish">Unpublish Selected</option>
+                        <option value="delete">Delete Selected</option>
+                    </select>
+                    <button type="button" class="btn btn-sm btn-primary" onclick="executeBulkAction()">
+                        Apply
+                    </button>
+                </div>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th width="40">
+                                <input type="checkbox" id="masterCheckbox" style="display: none;">
+                            </th>
+                            <th>Title</th>
+                            <th>Category</th>
+                            <th>Priority</th>
+                            <th>Target</th>
+                            <th>Status</th>
+                            <th>Created</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for notice in notices.items %}
+                        <tr>
+                            <td>
+                                <input type="checkbox" class="notice-checkbox" value="{{ notice.id }}" style="display: none;">
+                            </td>
+                            <td>
+                                <div class="notice-title">
+                                    <h6 class="mb-1">
+                                        <a href="{{ url_for('notice.view_notice', notice_id=notice.id) }}" class="text-decoration-none">
+                                            {{ notice.title }}
+                                        </a>
+                                        {% if notice.requires_acknowledgment %}
+                                        <i class="fas fa-check-circle text-info ms-1" title="Requires Acknowledgment"></i>
+                                        {% endif %}
+                                        {% if notice.attachments.count() > 0 %}
+                                        <i class="fas fa-paperclip text-muted ms-1" title="Has Attachments"></i>
+                                        {% endif %}
+                                    </h6>
+                                    <small class="text-muted">
+                                        {{ notice.content[:100] }}{% if notice.content|length > 100 %}...{% endif %}
+                                    </small>
+                                </div>
+                            </td>
+                            <td>
+                                <span class="badge badge-category-{{ notice.category }}">
+                                    {{ notice.category.title() }}
+                                </span>
+                            </td>
+                            <td>
+                                {% if notice.priority == 'urgent' %}
+                                <span class="badge bg-danger">Urgent</span>
+                                {% elif notice.priority == 'high' %}
+                                <span class="badge bg-warning">High</span>
+                                {% else %}
+                                <span class="badge bg-secondary">Normal</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if notice.target_type == 'all' %}
+                                <span class="text-primary">All Users</span>
+                                {% elif notice.target_type == 'department' %}
+                                <span class="text-info">{{ notice.get_target_departments()|length }} Dept(s)</span>
+                                {% else %}
+                                <span class="text-success">{{ notice.get_target_users()|length }} User(s)</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if notice.is_published %}
+                                <span class="badge bg-success">Published</span>
+                                {% else %}
+                                <span class="badge bg-warning">Draft</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <small class="text-muted">
+                                    {{ notice.created_at|dateformat('%d %b %Y') }}<br>
+                                    by {{ notice.author.full_name }}
+                                </small>
+                            </td>
+                            <td>
+                                <div class="btn-group" role="group">
+                                    <a href="{{ url_for('notice.view_notice', notice_id=notice.id) }}" 
+                                       class="btn btn-sm btn-outline-primary" title="View">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    {% if current_user.role in ['superadmin', 'admin'] or (current_user.role == 'coordinator' and notice.created_by == current_user.id) %}
+                                    <a href="{{ url_for('notice.edit_notice', notice_id=notice.id) }}" 
+                                       class="btn btn-sm btn-outline-secondary" title="Edit">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    {% if not notice.is_published %}
+                                    <button type="button" class="btn btn-sm btn-outline-success" 
+                                            onclick="publishNotice({{ notice.id }})" title="Publish">
+                                        <i class="fas fa-share"></i>
+                                    </button>
+                                    {% endif %}
+                                    <button type="button" class="btn btn-sm btn-outline-danger" 
+                                            onclick="deleteNotice({{ notice.id }}, '{{ notice.title }}')" title="Delete">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pagination -->
+            {% if notices.pages > 1 %}
+            <nav aria-label="Notice pagination">
+                <ul class="pagination justify-content-center">
+                    {% if notices.has_prev %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('notice.admin_notices', page=notices.prev_num, **request.args) }}">Previous</a>
+                    </li>
+                    {% endif %}
+                    
+                    {% for page_num in notices.iter_pages() %}
+                        {% if page_num %}
+                            {% if page_num != notices.page %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('notice.admin_notices', page=page_num, **request.args) }}">{{ page_num }}</a>
+                            </li>
+                            {% else %}
+                            <li class="page-item active">
+                                <span class="page-link">{{ page_num }}</span>
+                            </li>
+                            {% endif %}
+                        {% else %}
+                        <li class="page-item disabled">
+                            <span class="page-link">…</span>
+                        </li>
+                        {% endif %}
+                    {% endfor %}
+                    
+                    {% if notices.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('notice.admin_notices', page=notices.next_num, **request.args) }}">Next</a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+            {% endif %}
+
+            {% else %}
+            <div class="empty-state">
+                <div class="empty-state-icon">
+                    <i class="fas fa-bullhorn"></i>
+                </div>
+                <h3>No notices found</h3>
+                <p>Get started by creating your first notice.</p>
+                <a href="{{ url_for('notice.create_notice') }}" class="btn btn-primary">
+                    <i class="fas fa-plus"></i> Create Notice
+                </a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<style>
+.badge-category-academic { background-color: #17a2b8; }
+.badge-category-administrative { background-color: #6c757d; }
+.badge-category-emergency { background-color: #dc3545; }
+.badge-category-celebration { background-color: #28a745; }
+
+.bulk-actions {
+    background-color: #f8f9fa;
+    padding: 10px;
+    border-radius: 5px;
+    border: 1px solid #dee2e6;
+}
+
+.notice-title h6 {
+    margin-bottom: 0.25rem;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 60px 20px;
+}
+
+.empty-state-icon {
+    font-size: 4rem;
+    color: #6c757d;
+    margin-bottom: 1rem;
+}
+</style>
+
+<script>
+function toggleBulkActions() {
+    const bulkActions = document.getElementById('bulkActions');
+    const checkboxes = document.querySelectorAll('.notice-checkbox');
+    const masterCheckbox = document.getElementById('masterCheckbox');
+    
+    if (bulkActions.style.display === 'none') {
+        bulkActions.style.display = 'block';
+        checkboxes.forEach(cb => cb.style.display = 'block');
+        masterCheckbox.style.display = 'block';
+    } else {
+        bulkActions.style.display = 'none';
+        checkboxes.forEach(cb => {
+            cb.style.display = 'none';
+            cb.checked = false;
+        });
+        masterCheckbox.style.display = 'none';
+        masterCheckbox.checked = false;
+    }
+}
+
+document.getElementById('selectAll').addEventListener('change', function() {
+    const checkboxes = document.querySelectorAll('.notice-checkbox');
+    checkboxes.forEach(cb => cb.checked = this.checked);
+});
+
+function executeBulkAction() {
+    const action = document.getElementById('bulkAction').value;
+    const selectedIds = Array.from(document.querySelectorAll('.notice-checkbox:checked')).map(cb => cb.value);
+    
+    if (!action) {
+        alert('Please select an action');
+        return;
+    }
+    
+    if (selectedIds.length === 0) {
+        alert('Please select at least one notice');
+        return;
+    }
+    
+    if (action === 'delete' && !confirm('Are you sure you want to delete the selected notices?')) {
+        return;
+    }
+    
+    fetch('{{ url_for("notice.bulk_notice_action") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRFToken': '{{ csrf_token() }}'
+        },
+        body: new URLSearchParams({
+            'action': action,
+            'notice_ids': selectedIds.join(',')
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(data.message);
+            location.reload();
+        } else {
+            alert('Error: ' + data.error);
+        }
+    })
+    .catch(error => {
+        alert('Network error occurred');
+    });
+}
+
+function publishNotice(noticeId) {
+    if (confirm('Are you sure you want to publish this notice?')) {
+        fetch(`/notice/admin/notices/${noticeId}/publish`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token() }}'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Notice published successfully');
+                location.reload();
+            } else {
+                alert('Error: ' + data.error);
+            }
+        });
+    }
+}
+
+function deleteNotice(noticeId, title) {
+    if (confirm(`Are you sure you want to delete the notice "${title}"?`)) {
+        window.location.href = `/notice/admin/notices/${noticeId}/delete`;
+    }
+}
+</script>
+{% endblock %}

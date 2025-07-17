@@ -1,3 +1,4 @@
+<!-- app/templates/tutor/mark_attendance.html -->
 {% extends "base.html" %}
 
 {% block title %}Mark Attendance - {{ class_obj.subject }}{% endblock %}
@@ -22,276 +23,522 @@
     </div>
 
     <!-- Attendance Form -->
-    <div class="row">
-        <div class="col-md-12">
-            <div class="card shadow-sm">
-                <div class="card-header bg-primary text-white">
-                    <h5 class="mb-0">
-                        <i class="fas fa-calendar-check"></i>
-                        Attendance Recording
-                    </h5>
+    <form id="attendanceForm" action="{{ url_for('tutor.mark_class_attendance', class_id=class_obj.id) }}" method="POST">
+        
+        <!-- Class Info Cards -->
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="info-card">
+                    <div class="info-icon">
+                        <i class="fas fa-clock"></i>
+                    </div>
+                    <div class="info-content">
+                        <h6>Scheduled Time</h6>
+                        <div class="info-value">{{ class_obj.scheduled_time.strftime('%H:%M') }}</div>
+                    </div>
                 </div>
-                <div class="card-body">
-                    <form id="attendanceForm">
-                        <!-- Class Information -->
-                        <div class="row mb-4">
-                            <div class="col-md-4">
-                                <div class="card bg-light">
-                                    <div class="card-body text-center">
-                                        <h6>Scheduled Time</h6>
-                                        <div class="h5">{{ class_obj.scheduled_time.strftime('%H:%M') }}</div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="card bg-light">
-                                    <div class="card-body text-center">
-                                        <h6>Current Time</h6>
-                                        <div class="h5" id="currentTime">{{ current_time.strftime('%H:%M') }}</div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="card bg-light">
-                                    <div class="card-body text-center">
-                                        <h6>Duration</h6>
-                                        <div class="h5">{{ class_obj.duration }} min</div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Tutor Attendance -->
-                        <div class="card mb-4">
-                            <div class="card-header">
-                                <h6 class="mb-0">
-                                    <i class="fas fa-chalkboard-teacher"></i>
-                                    Tutor Attendance
-                                </h6>
-                            </div>
-                            <div class="card-body">
-                                <div class="row">
-                                    <div class="col-md-3">
-                                        <div class="form-check">
-                                            <input class="form-check-input" type="checkbox" id="tutorPresent" name="tutor_present" checked>
-                                            <label class="form-check-label" for="tutorPresent">
-                                                I was present for this class
-                                            </label>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-3">
-                                        <label for="tutorJoinTime" class="form-label">Join Time</label>
-                                        <input type="time" class="form-control" id="tutorJoinTime" name="tutor_join_time" value="{{ current_time.strftime('%H:%M') }}">
-                                    </div>
-                                    <div class="col-md-3">
-                                        <label for="tutorLeaveTime" class="form-label">Leave Time</label>
-                                        <input type="time" class="form-control" id="tutorLeaveTime" name="tutor_leave_time">
-                                    </div>
-                                    <div class="col-md-3">
-                                        <label for="tutorAbsenceReason" class="form-label">Absence Reason (if absent)</label>
-                                        <select class="form-select" id="tutorAbsenceReason" name="tutor_absence_reason" disabled>
-                                            <option value="">Not Applicable</option>
-                                            <option value="sick">Sick Leave</option>
-                                            <option value="emergency">Emergency</option>
-                                            <option value="technical">Technical Issues</option>
-                                            <option value="other">Other</option>
-                                        </select>
-                                    </div>
-                                </div>
-                                
-                                <!-- Late Penalty Warning -->
-                                <div id="latePenaltyWarning" class="alert alert-warning mt-3" style="display: none;">
-                                    <i class="fas fa-exclamation-triangle"></i>
-                                    <span id="latePenaltyText"></span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Students Attendance -->
-                        <div class="card mb-4">
-                            <div class="card-header">
-                                <h6 class="mb-0">
-                                    <i class="fas fa-user-graduate"></i>
-                                    Student Attendance ({{ students|length }} students)
-                                </h6>
-                            </div>
-                            <div class="card-body">
-                                {% if students %}
-                                    <div class="table-responsive">
-                                        <table class="table table-striped">
-                                            <thead>
-                                                <tr>
-                                                    <th>Student Name</th>
-                                                    <th width="80">Present</th>
-                                                    <th width="120">Join Time</th>
-                                                    <th width="120">Leave Time</th>
-                                                    <th width="150">Engagement</th>
-                                                    <th width="200">Absence Reason</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {% for student in students %}
-                                                <tr>
-                                                    <td>
-                                                        <strong>{{ student.full_name }}</strong>
-                                                        <br><small class="text-muted">{{ student.email }}</small>
-                                                    </td>
-                                                    <td>
-                                                        <div class="form-check">
-                                                            <input class="form-check-input student-present" type="checkbox" 
-                                                                   id="student_{{ student.id }}_present" 
-                                                                   data-student-id="{{ student.id }}" checked>
-                                                        </div>
-                                                    </td>
-                                                    <td>
-                                                        <input type="time" class="form-control form-control-sm student-join-time" 
-                                                               id="student_{{ student.id }}_join" 
-                                                               data-student-id="{{ student.id }}"
-                                                               value="{{ current_time.strftime('%H:%M') }}">
-                                                    </td>
-                                                    <td>
-                                                        <input type="time" class="form-control form-control-sm student-leave-time" 
-                                                               id="student_{{ student.id }}_leave" 
-                                                               data-student-id="{{ student.id }}">
-                                                    </td>
-                                                    <td>
-                                                        <select class="form-select form-select-sm student-engagement" 
-                                                                id="student_{{ student.id }}_engagement" 
-                                                                data-student-id="{{ student.id }}">
-                                                            <option value="">Select...</option>
-                                                            <option value="high">High</option>
-                                                            <option value="medium" selected>Medium</option>
-                                                            <option value="low">Low</option>
-                                                        </select>
-                                                    </td>
-                                                    <td>
-                                                        <select class="form-select form-select-sm student-absence-reason" 
-                                                                id="student_{{ student.id }}_absence" 
-                                                                data-student-id="{{ student.id }}" disabled>
-                                                            <option value="">Not Applicable</option>
-                                                            <option value="sick">Sick</option>
-                                                            <option value="emergency">Emergency</option>
-                                                            <option value="technical">Technical Issues</option>
-                                                            <option value="no_show">No Show</option>
-                                                            <option value="other">Other</option>
-                                                        </select>
-                                                    </td>
-                                                </tr>
-                                                {% endfor %}
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                {% else %}
-                                    <div class="text-center py-4">
-                                        <i class="fas fa-user-times fa-3x text-muted mb-3"></i>
-                                        <p class="text-muted">No students enrolled in this class.</p>
-                                    </div>
-                                {% endif %}
-                            </div>
-                        </div>
-
-                        <!-- Class Notes -->
-                        <div class="card mb-4">
-                            <div class="card-header">
-                                <h6 class="mb-0">
-                                    <i class="fas fa-sticky-note"></i>
-                                    Class Notes & Feedback
-                                </h6>
-                            </div>
-                            <div class="card-body">
-                                <div class="row">
-                                    <div class="col-md-6">
-                                        <label for="classNotes" class="form-label">Class Notes</label>
-                                        <textarea class="form-control" id="classNotes" name="class_notes" rows="4" 
-                                                  placeholder="What was covered in this class?"></textarea>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label for="technicalIssues" class="form-label">Technical Issues (if any)</label>
-                                        <textarea class="form-control" id="technicalIssues" name="technical_issues" rows="4" 
-                                                  placeholder="Any technical problems during the class?"></textarea>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Submit Section -->
-                        <div class="card">
-                            <div class="card-body">
-                                <div class="row align-items-center">
-                                    <div class="col-md-8">
-                                        <h6 class="mb-1">Summary</h6>
-                                        <p class="text-muted mb-0" id="attendanceSummary">
-                                            Mark attendance to see summary and penalty calculations.
-                                        </p>
-                                    </div>
-                                    <div class="col-md-4 text-end">
-                                        <button type="submit" class="btn btn-primary btn-lg">
-                                            <i class="fas fa-save"></i>
-                                            Mark Attendance
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </form>
+            </div>
+            <div class="col-md-3">
+                <div class="info-card">
+                    <div class="info-icon">
+                        <i class="fas fa-clock text-primary"></i>
+                    </div>
+                    <div class="info-content">
+                        <h6>Current Time</h6>
+                        <div class="info-value" id="currentTime">{{ current_time.strftime('%H:%M') }}</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="info-card">
+                    <div class="info-icon">
+                        <i class="fas fa-hourglass-half"></i>
+                    </div>
+                    <div class="info-content">
+                        <h6>Duration</h6>
+                        <div class="info-value">{{ class_obj.duration }} min</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="info-card" id="statusCard">
+                    <div class="info-icon">
+                        <i class="fas fa-traffic-light" id="statusIcon"></i>
+                    </div>
+                    <div class="info-content">
+                        <h6>Status</h6>
+                        <div class="info-value" id="classStatus">On Time</div>
+                    </div>
                 </div>
             </div>
         </div>
-    </div>
+
+        <!-- Tutor Attendance Card -->
+        <div class="attendance-card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-chalkboard-teacher"></i>
+                    Tutor Attendance
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-3">
+                        <div class="attendance-toggle">
+                            <label class="toggle-label">Present?</label>
+                            <div class="toggle-switch">
+                                <input type="checkbox" id="tutorPresent" name="tutor_present" checked>
+                                <span class="slider"></span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="tutorJoinTime" class="form-label">Join Time</label>
+                        <input type="time" class="form-control" id="tutorJoinTime" 
+                               name="tutor_join_time" readonly>
+                        <small class="text-muted">Auto-marked when marking attendance</small>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="tutorLeaveTime" class="form-label">Leave Time</label>
+                        <input type="time" class="form-control" id="tutorLeaveTime" name="tutor_leave_time">
+                    </div>
+                    <div class="col-md-3">
+                        <label for="tutorAbsenceReason" class="form-label">Absence Reason</label>
+                        <select class="form-select" id="tutorAbsenceReason" name="tutor_absence_reason" disabled>
+                            <option value="">Not Applicable</option>
+                            <option value="sick">Sick Leave</option>
+                            <option value="emergency">Emergency</option>
+                            <option value="technical">Technical Issues</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <!-- Late Penalty Warning -->
+                <div id="latePenaltyWarning" class="penalty-alert" style="display: none;">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <span id="latePenaltyText"></span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Students Attendance Cards -->
+        <div class="attendance-card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-user-graduate"></i>
+                    Student Attendance ({{ students|length }} students)
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if students %}
+                    <div class="students-grid">
+                        {% for student in students %}
+                        <div class="student-card" id="student-card-{{ student.id }}">
+                            <div class="student-header">
+                                <div class="student-info">
+                                    <h6 class="student-name">{{ student.full_name }}</h6>
+                                    <small class="student-details">{{ student.grade }} Grade • {{ student.email }}</small>
+                                </div>
+                                <div class="attendance-toggle">
+                                    <div class="toggle-switch">
+                                        <input type="checkbox" id="student_{{ student.id }}_present" 
+                                               name="student_{{ student.id }}_present" checked 
+                                               onchange="toggleStudentAttendance({{ student.id }})">
+                                        <span class="slider"></span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="student-body">
+                                <!-- Present Fields -->
+                                <div class="present-fields">
+                                    <div class="row g-2">
+                                        <div class="col-6">
+                                            <label class="form-label-sm">Join Time</label>
+                                            <input type="time" class="form-control form-control-sm" 
+                                                   name="student_{{ student.id }}_join_time" 
+                                                   id="student_{{ student.id }}_join_time"
+                                                   readonly>
+                                            <small class="text-muted">Auto-marked when present</small>
+                                        </div>
+                                        <div class="col-6">
+                                            <label class="form-label-sm">Leave Time</label>
+                                            <input type="time" class="form-control form-control-sm" 
+                                                   name="student_{{ student.id }}_leave_time">
+                                        </div>
+                                        <div class="col-12">
+                                            <label class="form-label-sm">Engagement Level</label>
+                                            <select class="form-select form-select-sm" 
+                                                    name="student_{{ student.id }}_engagement">
+                                                <option value="">Rate Engagement</option>
+                                                <option value="excellent">Excellent</option>
+                                                <option value="good">Good</option>
+                                                <option value="average" selected>Average</option>
+                                                <option value="poor">Poor</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Absent Fields -->
+                                <div class="absent-fields" style="display: none;">
+                                    <label class="form-label-sm">Absence Reason</label>
+                                    <select class="form-select form-select-sm" 
+                                            name="student_{{ student.id }}_absence_reason">
+                                        <option value="">Select Reason</option>
+                                        <option value="sick">Sick</option>
+                                        <option value="emergency">Emergency</option>
+                                        <option value="technical">Technical Issues</option>
+                                        <option value="no_show">No Show</option>
+                                        <option value="other">Other</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="empty-state">
+                        <i class="fas fa-users-slash fa-3x text-muted mb-3"></i>
+                        <h5 class="text-muted">No Students Enrolled</h5>
+                        <p class="text-muted">This class has no students enrolled yet.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Class Notes Card -->
+        <div class="attendance-card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-sticky-note"></i>
+                    Class Information
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label for="classNotes" class="form-label">Class Notes</label>
+                        <textarea class="form-control" id="classNotes" name="class_notes" rows="4" 
+                                  placeholder="What was covered in this class?"></textarea>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="technicalIssues" class="form-label">Technical Issues</label>
+                        <textarea class="form-control" id="technicalIssues" name="technical_issues" rows="4" 
+                                  placeholder="Any technical problems during the class?"></textarea>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Summary and Submit -->
+        <div class="attendance-card">
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col-md-8">
+                        <h6 class="mb-1">📊 Attendance Summary</h6>
+                        <p class="text-muted mb-0" id="attendanceSummary">
+                            ⏰ <strong>Auto-Time Marking:</strong> Current time will be marked as join time to calculate lateness accurately.
+                        </p>
+                        <div id="latenessSummary" class="mt-2" style="display: none;">
+                            <small class="text-warning">
+                                <i class="fas fa-exclamation-triangle"></i>
+                                <span id="latenessText"></span>
+                            </small>
+                        </div>
+                    </div>
+                    <div class="col-md-4 text-end">
+                        <button type="submit" class="btn btn-primary btn-lg" id="submitBtn">
+                            <i class="fas fa-save"></i>
+                            Mark Attendance
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </form>
 </div>
 
 <style>
-.card {
+/* Modern Card Styles */
+.attendance-card {
+    background: white;
     border-radius: 12px;
-    border: none;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+    border: 1px solid #e9ecef;
+    overflow: hidden;
 }
 
 .card-header {
-    border-radius: 12px 12px 0 0;
-    border-bottom: 1px solid rgba(0,0,0,0.1);
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 1rem 1.5rem;
+    border: none;
 }
 
-.form-control, .form-select {
+.card-body {
+    padding: 1.5rem;
+}
+
+/* Info Cards */
+.info-card {
+    background: white;
+    border: 1px solid #e9ecef;
     border-radius: 8px;
-    border: 1px solid #e0e0e0;
+    padding: 1rem;
+    display: flex;
+    align-items: center;
+    height: 100%;
 }
 
-.form-control:focus, .form-select:focus {
-    border-color: #F1A150;
-    box-shadow: 0 0 0 0.2rem rgba(241, 161, 80, 0.25);
+.info-icon {
+    font-size: 1.5rem;
+    color: #667eea;
+    margin-right: 1rem;
 }
 
+.info-content h6 {
+    margin: 0;
+    font-size: 0.875rem;
+    color: #6c757d;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.info-value {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: #212529;
+}
+
+/* Toggle Switch */
+.toggle-switch {
+    position: relative;
+    display: inline-block;
+    width: 60px;
+    height: 34px;
+}
+
+.toggle-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #ccc;
+    transition: .4s;
+    border-radius: 34px;
+}
+
+.slider:before {
+    position: absolute;
+    content: "";
+    height: 26px;
+    width: 26px;
+    left: 4px;
+    bottom: 4px;
+    background-color: white;
+    transition: .4s;
+    border-radius: 50%;
+}
+
+input:checked + .slider {
+    background-color: #28a745;
+}
+
+input:checked + .slider:before {
+    transform: translateX(26px);
+}
+
+.attendance-toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.toggle-label {
+    font-weight: 500;
+    margin: 0;
+}
+
+/* Students Grid */
+.students-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+    gap: 1rem;
+}
+
+.student-card {
+    background: #f8f9fa;
+    border: 2px solid #e9ecef;
+    border-radius: 8px;
+    padding: 1rem;
+    transition: all 0.3s ease;
+}
+
+.student-card.present {
+    border-color: #28a745;
+    background: #f8fff9;
+}
+
+.student-card.absent {
+    border-color: #dc3545;
+    background: #fff8f8;
+}
+
+.student-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 1rem;
+    position: relative;
+}
+
+.late-indicator {
+    position: absolute;
+    top: -0.5rem;
+    right: 0;
+    background: #fff3cd;
+    border: 1px solid #ffc107;
+    border-radius: 4px;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: #856404;
+    display: none;
+}
+
+.student-name {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+    color: #212529;
+}
+
+.student-details {
+    color: #6c757d;
+    display: block;
+    margin-top: 0.25rem;
+}
+
+.student-body {
+    margin-top: 1rem;
+}
+
+.form-label-sm {
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: #6c757d;
+    margin-bottom: 0.25rem;
+}
+
+/* Penalty Alert */
+.penalty-alert {
+    background: linear-gradient(45deg, #fff3cd, #ffeaa7);
+    border: 1px solid #ffc107;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-top: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.penalty-alert i {
+    color: #856404;
+}
+
+/* Empty State */
+.empty-state {
+    text-align: center;
+    padding: 3rem 1rem;
+}
+
+/* Button Styles */
 .btn-primary {
-    background: linear-gradient(135deg, #F1A150, #C86706);
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     border: none;
     border-radius: 8px;
+    padding: 12px 24px;
     font-weight: 600;
+    letter-spacing: 0.5px;
 }
 
 .btn-primary:hover {
-    background: linear-gradient(135deg, #C86706, #A0540A);
-    transform: translateY(-1px);
+    background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
 }
 
-.alert {
-    border-radius: 8px;
-    border: none;
+/* Form Controls */
+.form-control, .form-select {
+    border-radius: 6px;
+    border: 1px solid #ddd;
+    transition: all 0.3s ease;
 }
 
-.table th {
-    background-color: #f8f9fa;
-    border-top: none;
-    font-weight: 600;
+.form-control:focus, .form-select:focus {
+    border-color: #667eea;
+    box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
 }
 
-#latePenaltyWarning {
-    animation: fadeIn 0.3s ease-in;
+/* Responsive Design */
+@media (max-width: 768px) {
+    .students-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .info-card {
+        text-align: center;
+        flex-direction: column;
+    }
+    
+    .info-icon {
+        margin: 0 0 0.5rem 0;
+    }
+    
+    .student-header {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 1rem;
+    }
+    
+    .attendance-toggle {
+        justify-content: center;
+    }
 }
 
-@keyframes fadeIn {
-    from { opacity: 0; transform: translateY(-10px); }
-    to { opacity: 1; transform: translateY(0); }
+/* Loading State */
+.btn-loading {
+    position: relative;
+    color: transparent;
+}
+
+.btn-loading::after {
+    content: "";
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    top: 50%;
+    left: 50%;
+    margin-left: -8px;
+    margin-top: -8px;
+    border: 2px solid #ffffff;
+    border-radius: 50%;
+    border-top-color: transparent;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
 }
 </style>
 
@@ -303,49 +550,38 @@ document.addEventListener('DOMContentLoaded', function() {
     const tutorJoinTime = document.getElementById('tutorJoinTime');
     const scheduledTime = '{{ class_obj.scheduled_time.strftime("%H:%M") }}';
     
-    // Update current time every minute
-    function updateCurrentTime() {
-        const now = new Date();
-        document.getElementById('currentTime').textContent = 
-            now.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' });
+    // Auto-mark current time when page loads (tutor is marking attendance now)
+    const currentTime = new Date().toTimeString().slice(0, 5);
+    tutorJoinTime.value = currentTime;
+    
+    // Auto-mark all present students with current time
+    {% for student in students %}
+    const student{{ student.id }}Checkbox = document.getElementById('student_{{ student.id }}_present');
+    if (student{{ student.id }}Checkbox.checked) {
+        const joinTimeField = document.querySelector('input[name="student_{{ student.id }}_join_time"]');
+        joinTimeField.value = currentTime;
+        calculateStudentLateness({{ student.id }}, currentTime);
     }
-    setInterval(updateCurrentTime, 60000);
+    {% endfor %}
     
-    // Handle tutor present/absent
+    // Handle tutor attendance toggle
     tutorPresentCheckbox.addEventListener('change', function() {
-        tutorAbsenceSelect.disabled = this.checked;
-        if (!this.checked) {
-            tutorAbsenceSelect.required = true;
+        const joinTimeField = document.getElementById('tutorJoinTime');
+        const leaveTimeField = document.getElementById('tutorLeaveTime');
+        const absenceSelect = document.getElementById('tutorAbsenceReason');
+        
+        if (this.checked) {
+            joinTimeField.disabled = false;
+            leaveTimeField.disabled = false;
+            absenceSelect.disabled = true;
+            absenceSelect.value = '';
+            calculateLatePenalty();
         } else {
-            tutorAbsenceSelect.required = false;
-            tutorAbsenceSelect.value = '';
+            joinTimeField.disabled = true;
+            leaveTimeField.disabled = true;
+            absenceSelect.disabled = false;
+            hideLatePenalty();
         }
-        calculateLatePenalty();
-    });
-    
-    // Handle student present/absent
-    document.querySelectorAll('.student-present').forEach(checkbox => {
-        checkbox.addEventListener('change', function() {
-            const studentId = this.dataset.studentId;
-            const joinTimeInput = document.getElementById(`student_${studentId}_join`);
-            const leaveTimeInput = document.getElementById(`student_${studentId}_leave`);
-            const engagementSelect = document.getElementById(`student_${studentId}_engagement`);
-            const absenceSelect = document.getElementById(`student_${studentId}_absence`);
-            
-            if (this.checked) {
-                joinTimeInput.disabled = false;
-                leaveTimeInput.disabled = false;
-                engagementSelect.disabled = false;
-                absenceSelect.disabled = true;
-                absenceSelect.value = '';
-            } else {
-                joinTimeInput.disabled = true;
-                leaveTimeInput.disabled = true;
-                engagementSelect.disabled = true;
-                absenceSelect.disabled = false;
-                absenceSelect.required = true;
-            }
-        });
     });
     
     // Calculate late penalty
@@ -363,7 +599,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const diffMinutes = Math.max(0, (actual - scheduled) / (1000 * 60));
         
         if (diffMinutes > 5) {
-            const penalty = diffMinutes * 10; // ₹10 per minute
+            const penalty = Math.floor(diffMinutes) * 10;
             showLatePenalty(`Late by ${Math.floor(diffMinutes)} minutes: ₹${penalty} penalty`, 'warning');
         } else {
             hideLatePenalty();
@@ -373,9 +609,8 @@ document.addEventListener('DOMContentLoaded', function() {
     function showLatePenalty(message, type) {
         const warning = document.getElementById('latePenaltyWarning');
         const text = document.getElementById('latePenaltyText');
-        warning.className = `alert alert-${type} mt-3`;
         text.textContent = message;
-        warning.style.display = 'block';
+        warning.style.display = 'flex';
     }
     
     function hideLatePenalty() {
@@ -388,70 +623,214 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initial calculation
     calculateLatePenalty();
     
+    // Calculate overall lateness summary
+    updateLatenessSummary();
+    updateClassStatus();
+    
+    // Update current time every minute
+    setInterval(function() {
+        const now = new Date();
+        document.getElementById('currentTime').textContent = now.toTimeString().slice(0, 5);
+        updateClassStatus();
+    }, 60000);
+    
     // Form submission
     form.addEventListener('submit', function(e) {
         e.preventDefault();
         
-        // Collect form data
-        const formData = {
-            tutor_present: tutorPresentCheckbox.checked,
-            tutor_join_time: tutorJoinTime.value,
-            tutor_leave_time: document.getElementById('tutorLeaveTime').value,
-            tutor_absence_reason: tutorAbsenceSelect.value,
-            students: [],
-            class_notes: document.getElementById('classNotes').value,
-            technical_issues: document.getElementById('technicalIssues').value
-        };
+        const submitBtn = document.getElementById('submitBtn');
+        const originalText = submitBtn.innerHTML;
+        
+        // Show loading state
+        submitBtn.classList.add('btn-loading');
+        submitBtn.disabled = true;
+        
+        // Simple form data collection
+        const formData = new FormData(this);
+        
+        // Convert FormData to JSON for your existing endpoint
+        const jsonData = {};
+        const students = [];
+        
+        // Basic fields
+        jsonData.tutor_present = formData.get('tutor_present') === 'on';
+        jsonData.tutor_join_time = formData.get('tutor_join_time');
+        jsonData.tutor_leave_time = formData.get('tutor_leave_time');
+        jsonData.tutor_absence_reason = formData.get('tutor_absence_reason');
+        jsonData.class_notes = formData.get('class_notes');
+        jsonData.technical_issues = formData.get('technical_issues');
         
         // Collect student data
-        document.querySelectorAll('.student-present').forEach(checkbox => {
-            const studentId = parseInt(checkbox.dataset.studentId);
-            const studentData = {
-                student_id: studentId,
-                present: checkbox.checked,
-                join_time: document.getElementById(`student_${studentId}_join`).value,
-                leave_time: document.getElementById(`student_${studentId}_leave`).value,
-                engagement: document.getElementById(`student_${studentId}_engagement`).value,
-                absence_reason: document.getElementById(`student_${studentId}_absence`).value
-            };
-            formData.students.push(studentData);
+        {% for student in students %}
+        students.push({
+            student_id: {{ student.id }},
+            present: formData.get('student_{{ student.id }}_present') === 'on',
+            join_time: formData.get('student_{{ student.id }}_join_time'),
+            leave_time: formData.get('student_{{ student.id }}_leave_time'),
+            engagement: formData.get('student_{{ student.id }}_engagement'),
+            absence_reason: formData.get('student_{{ student.id }}_absence_reason')
         });
+        {% endfor %}
         
-        // Submit attendance
-        fetch(`/tutor/class/{{ class_obj.id }}/mark-attendance`, {
+        jsonData.students = students;
+        
+        // Submit to your existing endpoint
+        fetch(this.action, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify(formData)
+            body: JSON.stringify(jsonData)
         })
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                LMS.showAlert(data.message, 'success');
-                // Show summary
-                const summary = data.summary;
+                // Show success message
                 document.getElementById('attendanceSummary').innerHTML = `
-                    <strong>Attendance Marked Successfully!</strong><br>
-                    Present: ${summary.present_students}/${summary.total_students} students | 
-                    Late: ${summary.tutor_late_minutes} min | 
-                    Penalties: ₹${summary.total_penalties} | 
-                    Duration: ${summary.class_duration} min
+                    <strong>✅ Attendance Marked Successfully!</strong><br>
+                    Present: ${data.summary.present_students}/${data.summary.total_students} students • 
+                    Penalties: ₹${data.summary.total_penalties} • 
+                    Duration: ${data.summary.class_duration} min
                 `;
                 
-                // Redirect after 3 seconds
+                // Redirect after 2 seconds
                 setTimeout(() => {
                     window.location.href = '{{ url_for("tutor.class_details", class_id=class_obj.id) }}';
-                }, 3000);
+                }, 2000);
             } else {
-                LMS.showAlert(data.error || 'Error marking attendance', 'error');
+                alert('Error: ' + (data.error || 'Unknown error occurred'));
             }
         })
         .catch(error => {
             console.error('Error:', error);
-            LMS.showAlert('Error marking attendance', 'error');
+            alert('Error submitting attendance. Please try again.');
+        })
+        .finally(() => {
+            // Reset button
+            submitBtn.classList.remove('btn-loading');
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalText;
         });
     });
 });
+
+// Toggle student attendance
+function toggleStudentAttendance(studentId) {
+    const checkbox = document.getElementById(`student_${studentId}_present`);
+    const studentCard = document.getElementById(`student-card-${studentId}`);
+    const presentFields = studentCard.querySelector('.present-fields');
+    const absentFields = studentCard.querySelector('.absent-fields');
+    const joinTimeField = studentCard.querySelector(`input[name="student_${studentId}_join_time"]`);
+    
+    if (checkbox.checked) {
+        // Mark as present
+        studentCard.className = 'student-card present';
+        presentFields.style.display = 'block';
+        absentFields.style.display = 'none';
+        
+        // Auto-mark current time as join time
+        const currentTime = new Date().toTimeString().slice(0, 5);
+        joinTimeField.value = currentTime;
+        
+        // Calculate if late
+        calculateStudentLateness(studentId, currentTime);
+        
+    } else {
+        // Mark as absent
+        studentCard.className = 'student-card absent';
+        presentFields.style.display = 'none';
+        absentFields.style.display = 'block';
+        joinTimeField.value = '';
+    }
+}
+
+// Calculate student lateness
+function calculateStudentLateness(studentId, joinTime) {
+    const scheduledTime = '{{ class_obj.scheduled_time.strftime("%H:%M") }}';
+    const scheduled = new Date(`2000-01-01T${scheduledTime}:00`);
+    const actual = new Date(`2000-01-01T${joinTime}:00`);
+    const diffMinutes = Math.max(0, (actual - scheduled) / (1000 * 60));
+    
+    const studentCard = document.getElementById(`student-card-${studentId}`);
+    let lateIndicator = studentCard.querySelector('.late-indicator');
+    
+    if (diffMinutes > 5) {
+        if (!lateIndicator) {
+            lateIndicator = document.createElement('div');
+            lateIndicator.className = 'late-indicator';
+            studentCard.querySelector('.student-header').appendChild(lateIndicator);
+        }
+        lateIndicator.innerHTML = `<i class="fas fa-clock text-warning"></i> Late by ${Math.floor(diffMinutes)} min`;
+        lateIndicator.style.display = 'block';
+    } else {
+        if (lateIndicator) {
+            lateIndicator.style.display = 'none';
+        }
+    }
+    
+    // Update overall summary
+    updateLatenessSummary();
+}
+
+// Update lateness summary
+function updateLatenessSummary() {
+    const currentTime = new Date().toTimeString().slice(0, 5);
+    const scheduledTime = '{{ class_obj.scheduled_time.strftime("%H:%M") }}';
+    const scheduled = new Date(`2000-01-01T${scheduledTime}:00`);
+    const actual = new Date(`2000-01-01T${currentTime}:00`);
+    const diffMinutes = Math.max(0, (actual - scheduled) / (1000 * 60));
+    
+    const lateStudents = document.querySelectorAll('.late-indicator:not([style*="display: none"])').length;
+    const totalStudents = {{ students|length }};
+    
+    if (diffMinutes > 5 || lateStudents > 0) {
+        const summaryDiv = document.getElementById('latenessSummary');
+        const textSpan = document.getElementById('latenessText');
+        
+        let message = '';
+        if (diffMinutes > 5) {
+            message += `Class started ${Math.floor(diffMinutes)} min late. `;
+        }
+        if (lateStudents > 0) {
+            message += `${lateStudents} student(s) joined late.`;
+        }
+        
+        textSpan.textContent = message;
+        summaryDiv.style.display = 'block';
+    } else {
+        document.getElementById('latenessSummary').style.display = 'none';
+    }
+}
+
+// Update class status indicator
+function updateClassStatus() {
+    const currentTime = new Date().toTimeString().slice(0, 5);
+    const scheduledTime = '{{ class_obj.scheduled_time.strftime("%H:%M") }}';
+    const scheduled = new Date(`2000-01-01T${scheduledTime}:00`);
+    const actual = new Date(`2000-01-01T${currentTime}:00`);
+    const diffMinutes = (actual - scheduled) / (1000 * 60);
+    
+    const statusCard = document.getElementById('statusCard');
+    const statusIcon = document.getElementById('statusIcon');
+    const statusText = document.getElementById('classStatus');
+    
+    if (diffMinutes > 5) {
+        statusCard.style.borderLeft = '4px solid #dc3545';
+        statusIcon.className = 'fas fa-exclamation-triangle text-danger';
+        statusText.textContent = `${Math.floor(diffMinutes)}min Late`;
+        statusText.style.color = '#dc3545';
+    } else if (diffMinutes > 0) {
+        statusCard.style.borderLeft = '4px solid #ffc107';
+        statusIcon.className = 'fas fa-clock text-warning';
+        statusText.textContent = 'Starting';
+        statusText.style.color = '#ffc107';
+    } else {
+        statusCard.style.borderLeft = '4px solid #28a745';
+        statusIcon.className = 'fas fa-check-circle text-success';
+        statusText.textContent = 'On Time';
+        statusText.style.color = '#28a745';
+    }
+}
 </script>
+
 {% endblock %}

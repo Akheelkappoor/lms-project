@@ -9,6 +9,7 @@ from app.models.attendance import Attendance
 from app.models.system_document import SystemDocument
 from app.models.escalation import Escalation
 from app.models.demo_student import DemoStudent
+from app.models.notice import Notice, NoticeAttachment, NoticeDistribution
 
 __all__ = [
     'User', 
@@ -19,5 +20,9 @@ __all__ = [
     'Attendance', 
     'SystemDocument', 
     'Escalation',
-    'DemoStudent'
+    'DemoStudent',
+    'Notice', 
+    'NoticeAttachment', 
+    'NoticeDistribution'
+
 ]

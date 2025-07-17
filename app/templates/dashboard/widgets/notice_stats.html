@@ -1,0 +1,172 @@
+<!-- Notice Statistics Widget for Admin Dashboard -->
+<div class="col-lg-6 col-md-12">
+    <div class="card dashboard-card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h6 class="card-title mb-0">
+                <i class="fas fa-bullhorn text-primary"></i>
+                Notice Statistics
+            </h6>
+            <div class="card-actions">
+                <a href="{{ url_for('notice.admin_notices') }}" class="btn btn-sm btn-outline-primary">
+                    <i class="fas fa-cog"></i>
+                    Manage
+                </a>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-6">
+                    <div class="stat-item">
+                        <div class="stat-icon bg-primary">
+                            <i class="fas fa-file-alt"></i>
+                        </div>
+                        <div class="stat-content">
+                            <h4 id="totalNotices">{{ notice_stats.total or 0 }}</h4>
+                            <p>Total Notices</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6">
+                    <div class="stat-item">
+                        <div class="stat-icon bg-success">
+                            <i class="fas fa-share"></i>
+                        </div>
+                        <div class="stat-content">
+                            <h4 id="publishedNotices">{{ notice_stats.published or 0 }}</h4>
+                            <p>Published</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-6">
+                    <div class="stat-item">
+                        <div class="stat-icon bg-warning">
+                            <i class="fas fa-edit"></i>
+                        </div>
+                        <div class="stat-content">
+                            <h4 id="draftNotices">{{ notice_stats.draft or 0 }}</h4>
+                            <p>Drafts</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6">
+                    <div class="stat-item">
+                        <div class="stat-icon bg-danger">
+                            <i class="fas fa-exclamation-triangle"></i>
+                        </div>
+                        <div class="stat-content">
+                            <h4 id="urgentNotices">{{ notice_stats.urgent or 0 }}</h4>
+                            <p>Urgent</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="recent-notices mt-3">
+                <h6 class="mb-2">Recent Notices</h6>
+                {% if recent_notices %}
+                <div class="notice-list">
+                    {% for notice in recent_notices[:3] %}
+                    <div class="notice-item">
+                        <div class="notice-info">
+                            <h6 class="notice-title">
+                                <a href="{{ url_for('notice.view_notice', notice_id=notice.id) }}" class="text-decoration-none">
+                                    {{ notice.title[:40] }}{% if notice.title|length > 40 %}...{% endif %}
+                                </a>
+                            </h6>
+                            <small class="text-muted">
+                                {{ notice.created_at.strftime('%d %b') }}
+                                • {{ notice.category.title() }}
+                                {% if notice.priority == 'urgent' %}
+                                • <span class="text-danger">Urgent</span>
+                                {% endif %}
+                            </small>
+                        </div>
+                        <div class="notice-status">
+                            {% if notice.is_published %}
+                            <span class="badge bg-success">Published</span>
+                            {% else %}
+                            <span class="badge bg-warning">Draft</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-muted text-center py-3">No notices yet</p>
+                {% endif %}
+            </div>
+            
+            <div class="widget-actions mt-3">
+                <div class="d-grid">
+                    <a href="{{ url_for('notice.create_notice') }}" class="btn btn-primary btn-sm">
+                        <i class="fas fa-plus"></i>
+                        Create New Notice
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.dashboard-card .stat-item {
+    display: flex;
+    align-items: center;
+    padding: 0.75rem;
+    margin-bottom: 0.5rem;
+    background-color: #f8f9fa;
+    border-radius: 0.375rem;
+}
+
+.dashboard-card .stat-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 0.75rem;
+    color: white;
+    font-size: 1rem;
+}
+
+.dashboard-card .stat-content h4 {
+    margin: 0;
+    font-size: 1.25rem;
+    font-weight: bold;
+}
+
+.dashboard-card .stat-content p {
+    margin: 0;
+    font-size: 0.75rem;
+    color: #6c757d;
+}
+
+.notice-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid #f1f1f1;
+}
+
+.notice-item:last-child {
+    border-bottom: none;
+}
+
+.notice-title {
+    font-size: 0.875rem;
+    margin-bottom: 0.25rem;
+}
+
+.notice-info {
+    flex-grow: 1;
+}
+
+.notice-status .badge {
+    font-size: 0.7rem;
+}
+</style>

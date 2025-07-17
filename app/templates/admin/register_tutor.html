@@ -878,17 +878,17 @@
         <div class="form-section">
             <div class="section-title">
                 <i class="fas fa-video"></i>
-                Required Videos
+                Videos
             </div>
             
             <div class="form-row">
                 <div class="form-group">
-                    <label for="{{ form.demo_video.id }}">{{ form.demo_video.label.text }} <span class="required">*</span></label>
+                    <label for="{{ form.demo_video.id }}">{{ form.demo_video.label.text }}</label>
                     <div class="file-upload-area" data-field="demo_video">
                         <div class="file-upload-icon">
                             <i class="fas fa-play-circle"></i>
                         </div>
-                        {{ form.demo_video(class="form-control", required=true, accept=".mp4,.avi,.mov,.wmv") }}
+                        {{ form.demo_video(class="form-control", accept=".mp4,.avi,.mov,.wmv") }}
                         <p>Upload Demo Teaching Video (MP4, AVI, MOV)</p>
                         <div class="file-info">Max size: 100MB | Duration: 5-10 minutes</div>
                     </div>
@@ -902,12 +902,12 @@
                 </div>
                 
                 <div class="form-group">
-                    <label for="{{ form.interview_video.id }}">{{ form.interview_video.label.text }} <span class="required">*</span></label>
+                    <label for="{{ form.interview_video.id }}">{{ form.interview_video.label.text }}</label>
                     <div class="file-upload-area" data-field="interview_video">
                         <div class="file-upload-icon">
                             <i class="fas fa-video"></i>
                         </div>
-                        {{ form.interview_video(class="form-control", required=true, accept=".mp4,.avi,.mov,.wmv") }}
+                        {{ form.interview_video(class="form-control", accept=".mp4,.avi,.mov,.wmv") }}
                         <p>Upload Interview Video (MP4, AVI, MOV)</p>
                         <div class="file-info">Max size: 100MB | Duration: 3-5 minutes</div>
                     </div>

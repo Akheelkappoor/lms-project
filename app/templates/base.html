@@ -239,6 +239,11 @@
         .nav-item:nth-child(8) { animation-delay: 0.8s; }
         .nav-item:nth-child(9) { animation-delay: 0.9s; }
         .nav-item:nth-child(10) { animation-delay: 1.0s; }
+        .nav-item:nth-child(11) { animation-delay: 1.1s; }
+        .nav-item:nth-child(12) { animation-delay: 1.2s; }
+        .nav-item:nth-child(13) { animation-delay: 1.3s; }
+        .nav-item:nth-child(14) { animation-delay: 1.4s; }
+        .nav-item:nth-child(15) { animation-delay: 1.5s; }
 
         @keyframes slideUp {
             from {
@@ -304,6 +309,23 @@
         .nav-link span {
             font-weight: 500;
             font-size: 14px;
+        }
+
+        /* Notice Badge Styles */
+        .nav-link .badge {
+            font-size: 0.7rem;
+            padding: 0.2rem 0.4rem;
+            border-radius: 0.5rem;
+            margin-left: auto;
+        }
+
+        .nav-link:hover .badge {
+            background-color: #ffc107 !important;
+        }
+
+        .nav-link.active .badge {
+            background-color: #fff !important;
+            color: #007bff !important;
         }
 
         /* Demo Submenu Styles */
@@ -978,6 +1000,16 @@
                 </li>
                 {% endif %}
 
+                <!-- Notice Management (NEW) -->
+                {% if current_user.role in ['superadmin', 'admin', 'coordinator'] %}
+                <li class="nav-item">
+                    <a href="{{ url_for('notice.admin_notices') }}" class="nav-link {% if request.endpoint and 'notice' in request.endpoint and 'admin' in request.endpoint %}active{% endif %}">
+                        <i class="fas fa-bullhorn"></i>
+                        <span>Notice Management</span>
+                    </a>
+                </li>
+                {% endif %}
+
                 <!-- Demo Management -->
                 {% if current_user.has_permission('demo_management') or current_user.role in ['superadmin', 'admin', 'coordinator'] %}
                 <li class="nav-item">
@@ -1065,6 +1097,15 @@
                 {% endif %}               
                 
                 {% endif %}
+                
+                <!-- Notice Inbox (All Users) - NEW -->
+                <li class="nav-item">
+                    <a href="{{ url_for('notice.user_notices') }}" class="nav-link {% if request.endpoint and 'notice' in request.endpoint and 'admin' not in request.endpoint %}active{% endif %}">
+                        <i class="fas fa-inbox"></i>
+                        <span>Notice Inbox</span>
+                        <span class="badge bg-warning ms-auto" id="unreadNoticesBadge" style="display: none;">0</span>
+                    </a>
+                </li>
                 
                 <!-- Tutor Specific Features -->
                 {% if current_user.role == 'tutor' %}
@@ -1175,6 +1216,7 @@
             initAnimations();
             initTooltips();
             initDemoNavigation();
+            initNoticeUpdates(); // NEW: Notice system integration
         });
 
         function initSidebar() {
@@ -1270,6 +1312,32 @@
                     demoToggle.setAttribute('aria-expanded', 'true');
                 }
             }
+        }
+
+        // NEW: Notice system integration
+        function initNoticeUpdates() {
+            updateNoticeCount();
+            // Update notice count every 30 seconds
+            setInterval(updateNoticeCount, 30000);
+        }
+
+        function updateNoticeCount() {
+            fetch('/api/notices/unread-count')
+                .then(response => response.json())
+                .then(data => {
+                    const badge = document.getElementById('unreadNoticesBadge');
+                    if (badge) {
+                        if (data.unread_count > 0) {
+                            badge.textContent = data.unread_count;
+                            badge.style.display = 'inline-block';
+                        } else {
+                            badge.style.display = 'none';
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error('Error updating notice count:', error);
+                });
         }
 
         // Load demo stats

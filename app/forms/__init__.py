@@ -7,11 +7,13 @@ from app.forms.class_forms import (
     AttendanceForm, ClassFeedbackForm, BulkClassForm, ClassSearchForm
 )
 from app.forms.demo_forms import DemoStudentForm, DemoClassForm, DemoFeedbackForm, ConvertDemoForm
+from app.forms.notice_forms import NoticeForm, NoticeSearchForm, UserNoticeSearchForm, BulkNoticeActionForm
 
 __all__ = [
     'LoginForm', 'ForgotPasswordForm', 'ResetPasswordForm', 'ChangePasswordForm',
     'CreateUserForm', 'EditUserForm', 'TutorRegistrationForm', 'StudentRegistrationForm',
     'CreateClassForm', 'EditClassForm', 'RescheduleClassForm', 'CancelClassForm',
     'AttendanceForm', 'ClassFeedbackForm', 'BulkClassForm', 'ClassSearchForm',
-    'DemoStudentForm', 'DemoClassForm', 'DemoFeedbackForm', 'ConvertDemoForm'
+    'DemoStudentForm', 'DemoClassForm', 'DemoFeedbackForm', 'ConvertDemoForm',
+    'NoticeForm', 'NoticeSearchForm', 'UserNoticeSearchForm', 'BulkNoticeActionForm'
 ]

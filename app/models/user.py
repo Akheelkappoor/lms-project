@@ -174,6 +174,58 @@ class User(UserMixin, db.Model):
 def load_user(user_id):
     return User.query.get(int(user_id))
 
+# Add this method to the User model in app/models/user.py
+
+def has_notice_management_permission(self):
+    """Check if user can manage notices"""
+    return self.role in ['superadmin', 'admin', 'coordinator']
+
+def can_create_notices(self):
+    """Check if user can create notices"""
+    if self.role in ['superadmin', 'admin']:
+        return True
+    elif self.role == 'coordinator':
+        # Coordinators can create notices for their department
+        return self.department_id is not None
+    return False
+
+def can_view_notice_analytics(self):
+    """Check if user can view notice analytics"""
+    return self.role in ['superadmin', 'admin', 'coordinator']
+
+# Update the existing has_permission method to include notice permissions
+def has_permission(self, permission):
+    """Check if user has specific permission"""
+    if self.role == 'superadmin':
+        return True
+    
+    # Get department permissions
+    if self.department:
+        dept_permissions = self.department.get_permissions()
+        if permission in dept_permissions:
+            return True
+    
+    # Role-based permissions
+    role_permissions = {
+        'admin': [
+            'user_management', 'tutor_management', 'student_management',
+            'class_management', 'attendance_management', 'schedule_management',
+            'demo_management', 'report_generation', 'communication',
+            'profile_management', 'notice_management', 'system_documents'
+        ],
+        'coordinator': [
+            'tutor_management', 'student_management', 'class_management',
+            'attendance_management', 'schedule_management', 'demo_management',
+            'report_generation', 'communication', 'profile_management',
+            'notice_management'
+        ],
+        'tutor': [
+            'class_management', 'attendance_management', 'schedule_management',
+            'communication', 'profile_management'
+        ]
+    }
+    
+    return permission in role_permissions.get(self.role, [])
 
 
 

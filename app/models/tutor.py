@@ -1,6 +1,7 @@
 from datetime import datetime, date
 from app import db
 import json
+import re 
 
 
 class Tutor(db.Model):
@@ -803,3 +804,22 @@ class Tutor(db.Model):
         )
 
         return base_dict
+    
+    def get_experience(self):
+        """
+        Return a dict with 'years' and 'raw'.
+        - If `experience` is like "5 years in CBSE / ICSE...",
+          extracts 5.
+        - If parsing fails, returns 0.
+        """
+        if not self.experience:
+            return {"years": 0, "raw": ""}
+
+        # try to pull the first integer → years
+        match = re.search(r"\d+", self.experience)
+        years = int(match.group()) if match else 0
+        return {"years": years, "raw": self.experience}
+    
+    def get_rating(self):
+        """Return the tutor’s rating rounded to one decimal (0.0 if missing)."""
+        return round(self.rating or 0, 1)

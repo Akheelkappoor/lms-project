@@ -58,6 +58,8 @@ class Class(db.Model):
     admin_notes = db.Column(db.Text)
     quality_score = db.Column(db.Float)
     
+    
+    
     # Tracking
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     created_by = db.Column(db.Integer, db.ForeignKey('users.id'))
@@ -379,3 +381,4 @@ class Class(db.Model):
             return end_datetime.time()
 
         return None
+    

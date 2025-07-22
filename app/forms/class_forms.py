@@ -228,62 +228,47 @@ class ClassFeedbackForm(FlaskForm):
     
     submit = SubmitField('Submit Feedback')
 
+# Fix in app/forms/class_forms.py - Replace the incomplete BulkClassForm
+
 class BulkClassForm(FlaskForm):
-    # Template Information
-    template_name = StringField('Template Name', validators=[DataRequired(), Length(max=100)], 
-                               render_kw={'placeholder': 'e.g., Weekly Math Classes'})
-    
+    # Basic Information
     subject = StringField('Subject', validators=[DataRequired(), Length(max=100)])
-    
     grade = StringField('Grade', validators=[DataRequired(), Length(max=10)])
-    
-    board = StringField('Board', validators=[Optional(), Length(max=50)])
-    
     class_type = SelectField('Class Type', validators=[DataRequired()], 
                             choices=[('one_on_one', 'One-on-One'), ('group', 'Group Class')])
-    
     duration = IntegerField('Duration (minutes)', validators=[DataRequired(), NumberRange(min=15, max=300)])
     
     # Assignment
     tutor_id = SelectField('Tutor', validators=[DataRequired()], coerce=int)
-    
     students = MultiCheckboxField('Students', validators=[DataRequired()], coerce=int)
+    meeting_id = StringField('Meeting ID', validators=[Optional(), Length(max=100)], 
+                            render_kw={'placeholder': 'Meeting ID or Room Number'})
+    class_notes = TextAreaField('Class Notes', validators=[Optional()], 
+                               render_kw={'placeholder': 'Any additional notes for this class', 'rows': 3})
     
-    # Schedule Pattern
-    days_of_week = MultiCheckboxField('Days of Week', validators=[DataRequired()], 
+    # Schedule Pattern - THESE ARE THE MISSING FIELDS
+    start_date = DateField('Start Date', validators=[DataRequired()])
+    end_date = DateField('End Date', validators=[DataRequired()])
+    start_time = TimeField('Start Time', validators=[DataRequired()])
+    days_of_week = MultiCheckboxField('Days of Week', validators=[DataRequired()], coerce=int,
                                      choices=[(0, 'Monday'), (1, 'Tuesday'), (2, 'Wednesday'), 
                                             (3, 'Thursday'), (4, 'Friday'), (5, 'Saturday'), (6, 'Sunday')])
-    
-    start_time = TimeField('Start Time', validators=[DataRequired()])
-    
-    start_date = DateField('Start Date', validators=[DataRequired()])
-    
-    end_date = DateField('End Date', validators=[DataRequired()])
-    
-    # Platform
-    platform = SelectField('Platform', validators=[Optional()], 
-                           choices=[('', 'Select Platform'), ('zoom', 'Zoom'), ('google_meet', 'Google Meet'), 
-                                  ('teams', 'Microsoft Teams')])
-    
-    # Skip Options
-    skip_holidays = BooleanField('Skip Holidays', default=True)
-    
-    skip_weekends = BooleanField('Skip Weekends', default=False)
     
     submit = SubmitField('Create Bulk Classes')
     
     def __init__(self, department_id=None, *args, **kwargs):
         super(BulkClassForm, self).__init__(*args, **kwargs)
         
-        # Populate choices similar to CreateClassForm
+        # Populate tutor choices
         tutor_query = Tutor.query.join(Tutor.user).filter(Tutor.status == 'active')
         if department_id:
             tutor_query = tutor_query.filter(Tutor.user.has(department_id=department_id))
         
         tutors = tutor_query.all()
         self.tutor_id.choices = [(0, 'Select Tutor')] + \
-            [(t.id, f"{t.user.full_name} - {', '.join(t.get_subjects()[:2])}") for t in tutors]
+            [(t.id, f"{t.user.full_name}") for t in tutors]
         
+        # Populate student choices
         student_query = Student.query.filter(Student.is_active == True)
         if department_id:
             student_query = student_query.filter_by(department_id=department_id)

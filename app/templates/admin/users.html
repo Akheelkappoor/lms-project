@@ -193,7 +193,7 @@
                     <ul class="pagination pagination-sm justify-content-center mb-0">
                         {% if users.has_prev %}
                         <li class="page-item">
-                            <a class="page-link" href="{{ url_for('admin.users', page=users.prev_num, **request.args) }}">
+                            <a class="page-link" href="{{ url_for('admin.users', page=users.prev_num,  **filtered_args) }}">
                                 <i class="fas fa-chevron-left"></i>
                             </a>
                         </li>
@@ -203,7 +203,7 @@
                             {% if page_num %}
                                 {% if page_num != users.page %}
                                 <li class="page-item">
-                                    <a class="page-link" href="{{ url_for('admin.users', page=page_num, **request.args) }}">{{ page_num }}</a>
+                                    <a class="page-link" href="{{ url_for('admin.users', page=page_num,  **filtered_args) }}">{{ page_num }}</a>
                                 </li>
                                 {% else %}
                                 <li class="page-item active">
@@ -219,7 +219,7 @@
                         
                         {% if users.has_next %}
                         <li class="page-item">
-                            <a class="page-link" href="{{ url_for('admin.users', page=users.next_num, **request.args) }}">
+                            <a class="page-link" href="{{ url_for('admin.users', page=users.next_num,  **filtered_args) }}">
                                 <i class="fas fa-chevron-right"></i>
                             </a>
                         </li>

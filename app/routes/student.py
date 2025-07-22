@@ -8,6 +8,12 @@ from app.models.class_model import Class
 from app.models.attendance import Attendance
 from app.models.tutor import Tutor
 from functools import wraps
+from app.models.department import Department
+from app.models.user import User
+from app.routes.admin import admin_required
+from sqlalchemy import or_
+
+
 bp = Blueprint('student', __name__)
 
 
@@ -445,3 +451,186 @@ def search_students():
 
     except Exception as e:
         return jsonify({"message": "Folder upload to S3 failed.", "error": str(e)}), 500
+    
+
+
+
+
+@bp.route('/api/students/search-enhanced')
+@login_required
+@admin_required
+def search_students_enhanced():
+    """Enhanced student search with pagination and advanced filters"""
+    try:
+        # Get parameters
+        query = request.args.get('q', '').strip()
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 20, type=int)
+        grade = request.args.get('grade', '').strip()
+        board = request.args.get('board', '').strip()
+        subject = request.args.get('subject', '').strip()
+        department_id = request.args.get('department_id', type=int)
+        enrollment_status = request.args.get('enrollment_status', '').strip()
+        
+        # Build base query
+        search_query = Student.query.filter_by(is_active=True)
+        
+        # Department access check for coordinators
+        if current_user.role == 'coordinator':
+            search_query = search_query.filter_by(department_id=current_user.department_id)
+        
+        # Apply filters
+        if query:
+            search_term = f"%{query}%"
+            search_query = search_query.filter(
+                db.or_(
+                    Student.full_name.ilike(search_term),
+                    Student.email.ilike(search_term),
+                    Student.phone.ilike(search_term)
+                )
+            )
+        
+        if grade:
+            search_query = search_query.filter_by(grade=grade)
+        
+        if board:
+            search_query = search_query.filter_by(board=board)
+        
+        if department_id:
+            search_query = search_query.filter_by(department_id=department_id)
+        
+        if enrollment_status:
+            search_query = search_query.filter_by(enrollment_status=enrollment_status)
+        
+        if subject:
+            # Filter by subjects enrolled (assuming you have a method for this)
+            subject_students = []
+            all_students = search_query.all()
+            for student in all_students:
+                try:
+                    student_subjects = student.get_subjects_enrolled() if hasattr(student, 'get_subjects_enrolled') else []
+                    if any(subject.lower() in subj.lower() for subj in student_subjects):
+                        subject_students.append(student.id)
+                except:
+                    pass
+            
+            if subject_students:
+                search_query = search_query.filter(Student.id.in_(subject_students))
+            else:
+                search_query = search_query.filter(Student.id == -1)  # No results
+        
+        # Get paginated results
+        paginated = search_query.order_by(Student.full_name).paginate(
+            page=page, per_page=per_page, error_out=False
+        )
+        
+        # Format results
+        students = []
+        for student in paginated.items:
+            try:
+                # Get subjects enrolled
+                subjects_enrolled = []
+                if hasattr(student, 'get_subjects_enrolled'):
+                    subjects_enrolled = student.get_subjects_enrolled() or []
+                
+                students.append({
+                    'id': student.id,
+                    'name': student.full_name,
+                    'email': student.email,
+                    'phone': student.phone or '',
+                    'grade': student.grade,
+                    'board': student.board,
+                    'department': student.department.name if student.department else '',
+                    'enrollment_status': student.enrollment_status,
+                    'subjects_enrolled': subjects_enrolled
+                })
+            except Exception as e:
+                # Log error but continue with basic data
+                students.append({
+                    'id': student.id,
+                    'name': student.full_name,
+                    'email': student.email,
+                    'phone': student.phone or '',
+                    'grade': student.grade,
+                    'board': student.board,
+                    'department': student.department.name if student.department else '',
+                    'enrollment_status': student.enrollment_status,
+                    'subjects_enrolled': []
+                })
+        
+        return jsonify({
+            'success': True,
+            'students': students,
+            'pagination': {
+                'page': paginated.page,
+                'pages': paginated.pages,
+                'per_page': paginated.per_page,
+                'total': paginated.total,
+                'has_next': paginated.has_next,
+                'has_prev': paginated.has_prev
+            }
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@bp.route('/api/students/filter-options')
+@login_required
+@admin_required
+def get_student_filter_options():
+    """Get available filter options for students"""
+    
+    # Base query with department restrictions
+    base_query = Student.query.filter_by(is_active=True)
+    if current_user.role == 'coordinator':
+        base_query = base_query.filter_by(department_id=current_user.department_id)
+    
+    # Get unique grades
+    grades = db.session.query(Student.grade).distinct().filter(
+        Student.is_active == True
+    )
+    if current_user.role == 'coordinator':
+        grades = grades.filter(Student.department_id == current_user.department_id)
+    grades = [g[0] for g in grades.all() if g[0]]
+    grades.sort(key=lambda x: int(x) if x.isdigit() else float('inf'))
+    
+    # Get unique boards
+    boards = db.session.query(Student.board).distinct().filter(
+        Student.is_active == True
+    )
+    if current_user.role == 'coordinator':
+        boards = boards.filter(Student.department_id == current_user.department_id)
+    boards = [b[0] for b in boards.all() if b[0]]
+    boards.sort()
+    
+    # Get departments (if user has access)
+    departments = []
+    if current_user.role != 'coordinator':
+        from app.models.department import Department
+        departments = [{'id': d.id, 'name': d.name} for d in Department.query.filter_by(is_active=True).all()]
+    
+    # Get common subjects
+    all_students = base_query.all()
+    all_subjects = set()
+    for student in all_students:
+        subjects = student.get_subjects_enrolled()
+        all_subjects.update(subjects)
+    subjects = sorted(list(all_subjects))
+    
+    # Enrollment statuses
+    enrollment_statuses = ['active', 'paused', 'completed', 'dropped']
+    
+    return jsonify({
+        'success': True,
+        'options': {
+            'grades': grades,
+            'boards': boards,
+            'departments': departments,
+            'subjects': subjects,
+            'enrollment_statuses': enrollment_statuses
+        }
+    })

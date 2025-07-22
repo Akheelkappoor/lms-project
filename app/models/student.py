@@ -441,7 +441,3 @@ class Student(db.Model):
         """Get fee payment history"""
         fee_structure = self.get_fee_structure()
         return fee_structure.get('payment_history', [])
-
-
-
-

@@ -260,7 +260,7 @@
                     <ul class="pagination pagination-sm justify-content-center mb-0">
                         {% if tutors.has_prev %}
                         <li class="page-item">
-                            <a class="page-link" href="{{ url_for('admin.tutors', page=tutors.prev_num, **request.args) }}">
+                            <a class="page-link" href="{{ url_for('admin.tutors', page=tutors.prev_num, **filtered_args) }}">
                                 <i class="fas fa-chevron-left"></i>
                             </a>
                         </li>
@@ -270,7 +270,7 @@
                             {% if page_num %}
                                 {% if page_num != tutors.page %}
                                 <li class="page-item">
-                                    <a class="page-link" href="{{ url_for('admin.tutors', page=page_num, **request.args) }}">{{ page_num }}</a>
+                                    <a class="page-link" href="{{ url_for('admin.tutors', page=page_num, **filtered_args) }}">{{ page_num }}</a>
                                 </li>
                                 {% else %}
                                 <li class="page-item active">
@@ -286,7 +286,7 @@
                         
                         {% if tutors.has_next %}
                         <li class="page-item">
-                            <a class="page-link" href="{{ url_for('admin.tutors', page=tutors.next_num, **request.args) }}">
+                            <a class="page-link" href="{{ url_for('admin.tutors', page=tutors.next_num, **filtered_args) }}">
                                 <i class="fas fa-chevron-right"></i>
                             </a>
                         </li>
@@ -395,64 +395,149 @@ function verifyTutor(tutorId, action) {
     const actionText = action === 'approve' ? 'approve' : 'reject';
     const message = `Are you sure you want to ${actionText} this tutor?`;
     
-    if (confirm(message)) {
-        fetch(`/admin/tutors/${tutorId}/verify`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({action: action})
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                LMS.showAlert(`Tutor ${actionText}d successfully`, 'success');
-                setTimeout(() => location.reload(), 1000);
-            } else {
-                LMS.showAlert(data.error || `Error ${actionText}ing tutor`, 'error');
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            LMS.showAlert(`Error ${actionText}ing tutor`, 'error');
-        });
+    if (!confirm(message)) {
+        return;
     }
+    
+    // Get CSRF token
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+    
+    if (!csrfToken) {
+        console.error('CSRF token not found');
+        if (window.LMS && window.LMS.showAlert) {
+            LMS.showAlert('Security token not found. Please refresh the page.', 'error');
+        } else {
+            alert('Security token not found. Please refresh the page.');
+        }
+        return;
+    }
+    
+    // Show loading state
+    const button = event.target.closest('button');
+    const originalText = button.innerHTML;
+    button.disabled = true;
+    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+    
+    fetch(`/admin/tutors/${tutorId}/verify`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken
+        },
+        body: JSON.stringify({action: action})
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            if (window.LMS && window.LMS.showAlert) {
+                LMS.showAlert(data.message, 'success');
+            } else {
+                alert(data.message);
+            }
+            // Reload page after short delay
+            setTimeout(() => window.location.reload(), 1500);
+        } else {
+            throw new Error(data.error || `Failed to ${actionText} tutor`);
+        }
+    })
+    .catch(error => {
+        console.error('Verification error:', error);
+        const errorMessage = error.message || `Network error occurred while ${actionText}ing tutor`;
+        
+        if (window.LMS && window.LMS.showAlert) {
+            LMS.showAlert(errorMessage, 'error');
+        } else {
+            alert(errorMessage);
+        }
+        
+        // Reset button
+        button.disabled = false;
+        button.innerHTML = originalText;
+    });
 }
 
 function toggleTutorStatus(tutorId) {
     const message = 'Are you sure you want to change this tutor\'s status?';
     
-    if (confirm(message)) {
-        // Implementation would go here
-        LMS.showAlert('Tutor status updated successfully', 'success');
-        setTimeout(() => location.reload(), 1000);
+    if (!confirm(message)) {
+        return;
     }
+    
+    // Get CSRF token
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+    
+    if (!csrfToken) {
+        console.error('CSRF token not found');
+        if (window.LMS && window.LMS.showAlert) {
+            LMS.showAlert('Security token not found. Please refresh the page.', 'error');
+        } else {
+            alert('Security token not found. Please refresh the page.');
+        }
+        return;
+    }
+    
+    // Show loading state
+    const button = event.target.closest('button');
+    const originalText = button.innerHTML;
+    button.disabled = true;
+    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+    
+    fetch(`/admin/tutors/${tutorId}/toggle-status`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            if (window.LMS && window.LMS.showAlert) {
+                LMS.showAlert(data.message, 'success');
+            } else {
+                alert(data.message);
+            }
+            // Reload page after short delay
+            setTimeout(() => window.location.reload(), 1500);
+        } else {
+            throw new Error(data.error || 'Failed to update tutor status');
+        }
+    })
+    .catch(error => {
+        console.error('Status toggle error:', error);
+        const errorMessage = error.message || 'Network error occurred while updating status';
+        
+        if (window.LMS && window.LMS.showAlert) {
+            LMS.showAlert(errorMessage, 'error');
+        } else {
+            alert(errorMessage);
+        }
+        
+        // Reset button
+        button.disabled = false;
+        button.innerHTML = originalText;
+    });
 }
 
-// Initialize tooltips
+// Initialize when page loads
 document.addEventListener('DOMContentLoaded', function() {
+    // Initialize Bootstrap tooltips
     const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
     tooltipTriggerList.map(function (tooltipTriggerEl) {
         return new bootstrap.Tooltip(tooltipTriggerEl);
     });
+    
+    console.log('Tutor management page initialized');
 });
-
-// Auto-refresh pending verifications count
-setInterval(() => {
-    fetch('/admin/tutors?status=pending')
-        .then(response => response.text())
-        .then(html => {
-            // Update notification badge if there are pending verifications
-            const parser = new DOMParser();
-            const doc = parser.parseFromString(html, 'text/html');
-            const pendingCount = doc.querySelectorAll('tbody tr').length;
-            
-            if (pendingCount > 0) {
-                // Update any notification indicators
-                console.log(`${pendingCount} tutors pending verification`);
-            }
-        })
-        .catch(error => console.error('Auto-refresh error:', error));
-}, 300000); // Check every 5 minutes
 </script>
 {% endblock %}

@@ -14,10 +14,15 @@ from app.models.student import Student
 from app.models.class_model import Class
 from app.models.attendance import Attendance
 from app.forms.user import CreateUserForm, EditUserForm, TutorRegistrationForm, StudentRegistrationForm
+from app.utils.tutor_matching import TutorMatchingEngine, SearchQueryProcessor, AvailabilityChecker, monitor_search_performance
 from functools import wraps
 from app.utils.email import send_password_reset_email, send_onboarding_email
 from app.forms.user import EditStudentForm
+
+
 bp = Blueprint('admin', __name__)
+
+matching_engine = TutorMatchingEngine()
 
 def admin_required(f):
     """Decorator to require admin access"""
@@ -73,8 +78,11 @@ def users():
     )
     
     departments = Department.query.filter_by(is_active=True).all()
-    
-    return render_template('admin/users.html', users=users, departments=departments)
+
+    filtered_args = request.args.to_dict()
+    filtered_args.pop('page', None)
+
+    return render_template('admin/users.html', users=users, departments=departments, filtered_args=filtered_args)
 
 @bp.route('/users/create', methods=['GET', 'POST'])
 @login_required
@@ -421,8 +429,11 @@ def tutors():
     )
     
     departments = Department.query.filter_by(is_active=True).all()
+
+    filtered_args = request.args.to_dict()
+    filtered_args.pop('page', None)  
     
-    return render_template('admin/tutors.html', tutors=tutors, departments=departments)
+    return render_template('admin/tutors.html', tutors=tutors, departments=departments, filtered_args=filtered_args )
 
 
 @bp.route('/tutors/register', methods=['GET', 'POST'])
@@ -585,7 +596,22 @@ def tutor_details(tutor_id):
 def verify_tutor(tutor_id):
     """Verify tutor profile"""
     tutor = Tutor.query.get_or_404(tutor_id)
-    action = request.json.get('action')  # 'approve' or 'reject'
+    
+    # Validate request data
+    if not request.is_json:
+        return jsonify({'success': False, 'error': 'Request must be JSON'}), 400
+    
+    data = request.get_json()
+    if not data:
+        return jsonify({'success': False, 'error': 'No data provided'}), 400
+    
+    action = data.get('action')
+    if not action or action not in ['approve', 'reject']:
+        return jsonify({'success': False, 'error': 'Invalid or missing action'}), 400
+    
+    # Check if tutor can be verified
+    if tutor.verification_status == 'verified' and action == 'approve':
+        return jsonify({'success': False, 'error': 'Tutor is already verified'}), 400
     
     try:
         if action == 'approve':
@@ -593,20 +619,94 @@ def verify_tutor(tutor_id):
             tutor.status = 'active'
             tutor.user.is_verified = True
             message = f'Tutor {tutor.user.full_name} has been verified and activated.'
+            
         elif action == 'reject':
             tutor.verification_status = 'rejected'
             tutor.status = 'inactive'
+            tutor.user.is_verified = False
             message = f'Tutor {tutor.user.full_name} verification has been rejected.'
-        else:
-            return jsonify({'error': 'Invalid action'}), 400
         
+        # Commit changes to database
         db.session.commit()
-        flash(message, 'success')
-        return jsonify({'success': True})
+        
+        # Log the action for audit trail
+        current_app.logger.info(
+            f'Admin {current_user.username} (ID: {current_user.id}) '
+            f'{action}d tutor verification for {tutor.user.full_name} (ID: {tutor_id})'
+        )
+        
+        return jsonify({
+            'success': True,
+            'message': message,
+            'data': {
+                'tutor_id': tutor_id,
+                'verification_status': tutor.verification_status,
+                'tutor_status': tutor.status,
+                'user_verified': tutor.user.is_verified
+            }
+        })
         
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': 'Error verifying tutor'}), 500
+        error_msg = f'Database error during tutor verification: {str(e)}'
+        current_app.logger.error(error_msg)
+        return jsonify({
+            'success': False, 
+            'error': 'Failed to update tutor verification status. Please try again.'
+        }), 500
+
+@bp.route('/tutors/<int:tutor_id>/toggle-status', methods=['POST'])
+@login_required
+@admin_required
+def toggle_tutor_status(tutor_id):
+    """Toggle tutor active/inactive status"""
+    tutor = Tutor.query.get_or_404(tutor_id)
+    
+    try:
+        # Determine new status
+        if tutor.status == 'active':
+            new_tutor_status = 'inactive'
+            new_user_status = False
+            action_text = 'deactivated'
+        else:
+            new_tutor_status = 'active'
+            new_user_status = True
+            action_text = 'activated'
+        
+        # Update both tutor and user status
+        tutor.status = new_tutor_status
+        tutor.user.is_active = new_user_status
+        
+        # Commit changes
+        db.session.commit()
+        
+        message = f'Tutor {tutor.user.full_name} has been {action_text}.'
+        
+        # Log the action
+        current_app.logger.info(
+            f'Admin {current_user.username} (ID: {current_user.id}) '
+            f'{action_text} tutor {tutor.user.full_name} (ID: {tutor_id})'
+        )
+        
+        return jsonify({
+            'success': True,
+            'message': message,
+            'data': {
+                'tutor_id': tutor_id,
+                'tutor_status': tutor.status,
+                'user_active': tutor.user.is_active,
+                'action': action_text
+            }
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        error_msg = f'Database error during status toggle: {str(e)}'
+        current_app.logger.error(error_msg)
+        return jsonify({
+            'success': False,
+            'error': 'Failed to update tutor status. Please try again.'
+        }), 500
 
 # ============ STUDENT MANAGEMENT ROUTES ============
 
@@ -1326,6 +1426,8 @@ def create_class():
     
     return redirect(url_for('admin.classes'))
 
+# Replace the bulk_create_classes route in app/routes/admin.py
+
 @bp.route('/classes/bulk-create', methods=['POST'])
 @login_required
 @admin_required
@@ -1334,13 +1436,62 @@ def bulk_create_classes():
     try:
         from datetime import timedelta
         
-        # Get form data
-        subject = request.form['subject']
-        grade = request.form['grade']
-        duration = int(request.form['duration'])
-        tutor_id = int(request.form['tutor_id'])
-        class_type = request.form['class_type']
-        students = [int(s) for s in request.form.getlist('students')]
+        # Get form data with validation
+        subject = request.form.get('subject', '').strip()
+        grade = request.form.get('grade', '').strip()
+        duration = request.form.get('duration', '')
+        tutor_id = request.form.get('tutor_id', '')
+        class_type = request.form.get('class_type', '')
+        
+        # Validate required fields
+        if not all([subject, grade, duration, tutor_id, class_type]):
+            flash('All basic fields (subject, grade, duration, tutor, class type) are required.', 'error')
+            return redirect(url_for('admin.classes'))
+        
+        # Convert to proper types
+        try:
+            duration = int(duration)
+            tutor_id = int(tutor_id)
+        except ValueError:
+            flash('Invalid duration or tutor selection.', 'error')
+            return redirect(url_for('admin.classes'))
+        
+        # Get students list
+        students = request.form.getlist('students')
+        if not students:
+            flash('At least one student must be selected.', 'error')
+            return redirect(url_for('admin.classes'))
+        
+        try:
+            students = [int(s) for s in students]
+        except ValueError:
+            flash('Invalid student selection.', 'error')
+            return redirect(url_for('admin.classes'))
+        
+        # Get schedule data
+        start_date_str = request.form.get('start_date', '')
+        end_date_str = request.form.get('end_date', '')
+        start_time_str = request.form.get('start_time', '')
+        days_of_week = request.form.getlist('days_of_week')
+        
+        if not all([start_date_str, end_date_str, start_time_str, days_of_week]):
+            flash('All schedule fields (start date, end date, start time, days of week) are required.', 'error')
+            return redirect(url_for('admin.classes'))
+        
+        # Parse dates and time
+        try:
+            start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+            end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
+            start_time = datetime.strptime(start_time_str, '%H:%M').time()
+            days_of_week = [int(d) for d in days_of_week]
+        except ValueError as e:
+            flash('Invalid date or time format.', 'error')
+            return redirect(url_for('admin.classes'))
+        
+        # Validate date range
+        if end_date <= start_date:
+            flash('End date must be after start date.', 'error')
+            return redirect(url_for('admin.classes'))
         
         # Validate tutor
         tutor = Tutor.query.get_or_404(tutor_id)
@@ -1354,12 +1505,13 @@ def bulk_create_classes():
             flash(f'Cannot create classes: {tutor.user.full_name} is not in active status.', 'error')
             return redirect(url_for('admin.classes'))
         
-        start_date = datetime.strptime(request.form['start_date'], '%Y-%m-%d').date()
-        end_date = datetime.strptime(request.form['end_date'], '%Y-%m-%d').date()
-        start_time = datetime.strptime(request.form['start_time'], '%H:%M').time()
+        # Validate students exist
+        student_objects = Student.query.filter(Student.id.in_(students)).all()
+        if len(student_objects) != len(students):
+            flash('One or more selected students do not exist.', 'error')
+            return redirect(url_for('admin.classes'))
         
-        days_of_week = [int(d) for d in request.form.getlist('days_of_week')]
-        
+        # Create classes
         created_count = 0
         skipped_count = 0
         current_date = start_date
@@ -1381,6 +1533,7 @@ def bulk_create_classes():
                     ).first()
                     
                     if not existing_class:
+                        # Create the class
                         class_data = {
                             'subject': subject,
                             'class_type': class_type,
@@ -1389,14 +1542,24 @@ def bulk_create_classes():
                             'duration': duration,
                             'tutor_id': tutor_id,
                             'grade': grade,
+                            'meeting_link': request.form.get('meeting_link', ''),
+                            'class_notes': request.form.get('class_notes', ''),
                             'status': 'scheduled',
                             'created_by': current_user.id
                         }
                         
                         new_class = Class(**class_data)
-                        new_class.set_students(students)
-                        
                         db.session.add(new_class)
+                        db.session.flush()  # Get the ID
+                        
+                        # Set students for the class
+                        if hasattr(new_class, 'set_students'):
+                            new_class.set_students(students)
+                        else:
+                            # Fallback if set_students method doesn't exist
+                            if students:
+                                new_class.primary_student_id = students[0]
+                        
                         created_count += 1
                     else:
                         skipped_count += 1
@@ -1407,15 +1570,19 @@ def bulk_create_classes():
         
         db.session.commit()
         
-        message = f'{created_count} classes created successfully!'
-        if skipped_count > 0:
-            message += f' {skipped_count} classes were skipped due to availability conflicts or existing bookings.'
-        
-        flash(message, 'success')
+        # Show results
+        if created_count > 0:
+            message = f'{created_count} classes created successfully!'
+            if skipped_count > 0:
+                message += f' {skipped_count} classes were skipped due to availability conflicts or existing bookings.'
+            flash(message, 'success')
+        else:
+            flash('No classes were created. Please check tutor availability and existing schedules.', 'warning')
         
     except Exception as e:
         db.session.rollback()
         flash(f'Error creating bulk classes: {str(e)}', 'error')
+        print(f"Bulk create error: {e}")  # For debugging
     
     return redirect(url_for('admin.classes'))
 
@@ -2097,3 +2264,980 @@ def toggle_document_status(doc_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
+
+
+# Enhanced API routes to add to your existing app/routes/admin.py
+# Add these routes after your existing API routes
+
+@bp.route('/api/v1/tutors/smart-search')
+@login_required
+@admin_required
+def api_smart_tutor_search():
+    """Advanced tutor search with multiple criteria and scoring"""
+    try:
+        # Get search parameters
+        student_id = request.args.get('student_id', type=int)
+        subject = request.args.get('subject', '').strip().lower()
+        min_test_score = request.args.get('min_test_score', type=float)
+        min_rating = request.args.get('min_rating', type=float)
+        experience_level = request.args.get('experience_level', '').strip()
+        search_term = request.args.get('search_term', '').strip().lower()
+        availability_day = request.args.get('availability_day', '').strip().lower()
+        availability_time = request.args.get('availability_time', '').strip()
+        
+        # Get base query
+        tutors = Tutor.query.filter_by(status='active').all()
+        
+        # Get student context if provided
+        student = None
+        if student_id:
+            student = Student.query.get(student_id)
+        
+        compatible_tutors = []
+        
+        for tutor in tutors:
+            # Must have availability
+            if not tutor.get_availability():
+                continue
+            
+            # Initialize tutor score
+            tutor_score = {
+                'tutor_id': tutor.id,
+                'tutor_name': tutor.user.full_name if tutor.user else 'Unknown',
+                'email': tutor.user.email if tutor.user else '',
+                'test_score': tutor.test_score or 0,
+                'test_grade': tutor.get_test_score_grade(),
+                'rating': tutor.rating or 0,
+                'total_classes': tutor.total_classes or 0,
+                'completed_classes': tutor.completed_classes or 0,
+                'qualification': tutor.qualification or '',
+                'subjects': tutor.get_subjects(),
+                'grades': tutor.get_grades(),
+                'boards': tutor.get_boards(),
+                'compatibility_score': 0,
+                'match_reasons': [],
+                'availability_status': 'available'
+            }
+            
+            # Student-based compatibility scoring
+            if student:
+                # Grade compatibility (mandatory)
+                tutor_grades = [str(g) for g in tutor.get_grades()]
+                if tutor_grades and str(student.grade) not in tutor_grades:
+                    continue
+                tutor_score['compatibility_score'] += 20
+                tutor_score['match_reasons'].append(f"Teaches Grade {student.grade}")
+                
+                # Board compatibility (mandatory)
+                tutor_boards = [b.lower() for b in tutor.get_boards()]
+                if tutor_boards and student.board.lower() not in tutor_boards:
+                    continue
+                tutor_score['compatibility_score'] += 15
+                tutor_score['match_reasons'].append(f"Familiar with {student.board}")
+                
+                # Subject compatibility with student's enrolled subjects
+                student_subjects = [s.lower() for s in student.get_subjects_enrolled()]
+                tutor_subjects = [s.lower() for s in tutor.get_subjects()]
+                
+                if student_subjects and tutor_subjects:
+                    common_subjects = set(student_subjects) & set(tutor_subjects)
+                    partial_matches = [s for s in student_subjects for ts in tutor_subjects if s in ts or ts in s]
+                    
+                    if common_subjects or partial_matches:
+                        tutor_score['compatibility_score'] += 25
+                        matched_subjects = list(common_subjects) or partial_matches[:2]
+                        tutor_score['match_reasons'].append(f"Teaches: {', '.join(matched_subjects)}")
+            
+            # Subject filter (if specified independently)
+            if subject:
+                tutor_subjects = [s.lower() for s in tutor.get_subjects()]
+                subject_match = any(subject in ts or ts in subject for ts in tutor_subjects)
+                if not subject_match:
+                    continue
+                tutor_score['compatibility_score'] += 20
+                tutor_score['match_reasons'].append(f"Subject expertise: {subject}")
+            
+            # Test score filter and scoring
+            if min_test_score and (not tutor.test_score or tutor.test_score < min_test_score):
+                continue
+            
+            if tutor.test_score:
+                if tutor.test_score >= 90:
+                    tutor_score['compatibility_score'] += 15
+                    tutor_score['match_reasons'].append("Excellent test performance (90+)")
+                elif tutor.test_score >= 80:
+                    tutor_score['compatibility_score'] += 10
+                    tutor_score['match_reasons'].append("Strong test performance (80+)")
+                elif tutor.test_score >= 70:
+                    tutor_score['compatibility_score'] += 5
+                    tutor_score['match_reasons'].append("Good test performance (70+)")
+            
+            # Rating filter and scoring
+            if min_rating and (not tutor.rating or tutor.rating < min_rating):
+                continue
+            
+            if tutor.rating:
+                if tutor.rating >= 4.5:
+                    tutor_score['compatibility_score'] += 10
+                    tutor_score['match_reasons'].append("Highly rated (4.5+ stars)")
+                elif tutor.rating >= 4.0:
+                    tutor_score['compatibility_score'] += 7
+                    tutor_score['match_reasons'].append("Well rated (4.0+ stars)")
+                elif tutor.rating >= 3.5:
+                    tutor_score['compatibility_score'] += 5
+                    tutor_score['match_reasons'].append("Good rating (3.5+ stars)")
+            
+            # Experience level filter
+            if experience_level:
+                qualification_lower = tutor.qualification.lower() if tutor.qualification else ''
+                if experience_level == 'master' and 'master' not in qualification_lower:
+                    continue
+                elif experience_level == 'phd' and not any(term in qualification_lower for term in ['phd', 'doctorate', 'ph.d']):
+                    continue
+                elif experience_level == 'expert' and not any(term in qualification_lower for term in ['expert', 'specialist', 'senior']):
+                    continue
+                
+                tutor_score['compatibility_score'] += 8
+                tutor_score['match_reasons'].append(f"Advanced qualification: {experience_level}")
+            
+            # Search term filter (name/qualification)
+            if search_term:
+                tutor_name = tutor.user.full_name.lower() if tutor.user else ''
+                qualification_lower = tutor.qualification.lower() if tutor.qualification else ''
+                
+                if search_term not in tutor_name and search_term not in qualification_lower:
+                    continue
+                
+                tutor_score['compatibility_score'] += 5
+                tutor_score['match_reasons'].append("Matches search term")
+            
+            # Availability check for specific day/time
+            if availability_day and availability_time:
+                is_available = tutor.is_available_at(availability_day, availability_time)
+                if not is_available:
+                    tutor_score['availability_status'] = 'busy'
+                    continue
+                
+                tutor_score['compatibility_score'] += 10
+                tutor_score['match_reasons'].append(f"Available on {availability_day.title()} at {availability_time}")
+            
+            # Completion rate bonus
+            if tutor.total_classes > 5:  # Only consider if tutor has meaningful experience
+                completion_rate = tutor.get_completion_rate()
+                if completion_rate >= 95:
+                    tutor_score['compatibility_score'] += 8
+                    tutor_score['match_reasons'].append("Excellent completion rate (95%+)")
+                elif completion_rate >= 90:
+                    tutor_score['compatibility_score'] += 5
+                    tutor_score['match_reasons'].append("High completion rate (90%+)")
+            
+            # Add comprehensive tutor info
+            tutor_score['completion_rate'] = tutor.get_completion_rate()
+            tutor_score['overall_score'] = tutor.calculate_overall_score() if hasattr(tutor, 'calculate_overall_score') else tutor_score['compatibility_score']
+            
+            compatible_tutors.append(tutor_score)
+        
+        # Sort by compatibility score (highest first)
+        compatible_tutors.sort(key=lambda x: x['compatibility_score'], reverse=True)
+        
+        # Add rank information
+        for i, tutor in enumerate(compatible_tutors):
+            tutor['rank'] = i + 1
+            if i == 0:
+                tutor['badge'] = 'Best Match'
+            elif tutor['compatibility_score'] >= 80:
+                tutor['badge'] = 'Excellent Match'
+            elif tutor['compatibility_score'] >= 60:
+                tutor['badge'] = 'Good Match'
+            elif tutor['compatibility_score'] >= 40:
+                tutor['badge'] = 'Fair Match'
+            else:
+                tutor['badge'] = 'Basic Match'
+        
+        return jsonify({
+            'success': True,
+            'tutors': compatible_tutors,
+            'total_found': len(compatible_tutors),
+            'search_criteria': {
+                'student_id': student_id,
+                'subject': subject,
+                'min_test_score': min_test_score,
+                'min_rating': min_rating,
+                'experience_level': experience_level,
+                'search_term': search_term
+            }
+        })
+        
+    except Exception as e:
+        current_app.logger.error(f"Error in smart tutor search: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@bp.route('/api/v1/tutors/browse-all')
+@login_required
+@admin_required
+def api_browse_all_tutors():
+    """Get all available tutors with detailed information for browsing"""
+    try:
+        # Get query parameters
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 20, type=int)
+        sort_by = request.args.get('sort_by', 'rating')  # rating, test_score, name, experience
+        order = request.args.get('order', 'desc')  # asc, desc
+        
+        # Get all active tutors with availability
+        tutors_query = Tutor.query.filter_by(status='active')
+        
+        all_tutors = []
+        for tutor in tutors_query.all():
+            if not tutor.get_availability():
+                continue
+                
+            tutor_info = {
+                'id': tutor.id,
+                'name': tutor.user.full_name if tutor.user else 'Unknown',
+                'email': tutor.user.email if tutor.user else '',
+                'qualification': tutor.qualification or '',
+                'experience': tutor.experience or '',
+                'subjects': tutor.get_subjects(),
+                'grades': tutor.get_grades(),
+                'boards': tutor.get_boards(),
+                'test_score': tutor.test_score or 0,
+                'test_grade': tutor.get_test_score_grade(),
+                'rating': tutor.rating or 0,
+                'total_classes': tutor.total_classes or 0,
+                'completed_classes': tutor.completed_classes or 0,
+                'completion_rate': tutor.get_completion_rate(),
+                'salary_type': tutor.salary_type,
+                'monthly_salary': tutor.monthly_salary,
+                'hourly_rate': tutor.hourly_rate,
+                'created_at': tutor.created_at.isoformat() if tutor.created_at else None,
+                'last_class': tutor.last_class.isoformat() if tutor.last_class else None,
+                'availability_summary': get_availability_summary(tutor.get_availability())
+            }
+            
+            all_tutors.append(tutor_info)
+        
+        # Sort tutors
+        if sort_by == 'rating':
+            all_tutors.sort(key=lambda x: x['rating'], reverse=(order == 'desc'))
+        elif sort_by == 'test_score':
+            all_tutors.sort(key=lambda x: x['test_score'], reverse=(order == 'desc'))
+        elif sort_by == 'name':
+            all_tutors.sort(key=lambda x: x['name'], reverse=(order == 'desc'))
+        elif sort_by == 'experience':
+            all_tutors.sort(key=lambda x: x['total_classes'], reverse=(order == 'desc'))
+        
+        # Paginate
+        start_idx = (page - 1) * per_page
+        end_idx = start_idx + per_page
+        paginated_tutors = all_tutors[start_idx:end_idx]
+        
+        return jsonify({
+            'success': True,
+            'tutors': paginated_tutors,
+            'pagination': {
+                'page': page,
+                'per_page': per_page,
+                'total': len(all_tutors),
+                'pages': (len(all_tutors) + per_page - 1) // per_page,
+                'has_next': end_idx < len(all_tutors),
+                'has_prev': page > 1
+            },
+            'sort_info': {
+                'sort_by': sort_by,
+                'order': order
+            }
+        })
+        
+    except Exception as e:
+        current_app.logger.error(f"Error browsing tutors: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+def get_availability_summary(availability_dict):
+    """Generate a summary of tutor availability"""
+    if not availability_dict:
+        return "No availability set"
+    
+    available_days = []
+    total_hours = 0
+    
+    for day, slots in availability_dict.items():
+        if slots:
+            available_days.append(day.title())
+            # Calculate total hours for this day
+            for slot in slots:
+                try:
+                    start_time = datetime.strptime(slot['start'], '%H:%M').time()
+                    end_time = datetime.strptime(slot['end'], '%H:%M').time()
+                    start_datetime = datetime.combine(date.today(), start_time)
+                    end_datetime = datetime.combine(date.today(), end_time)
+                    hours = (end_datetime - start_datetime).total_seconds() / 3600
+                    total_hours += hours
+                except:
+                    continue
+    
+    if not available_days:
+        return "No availability set"
+    
+    return f"{len(available_days)} days/week ({total_hours:.1f}h total)"
+
+@bp.route('/api/v1/tutors/<int:tutor_id>/detailed-profile')
+@login_required
+@admin_required
+def api_tutor_detailed_profile(tutor_id):
+    """Get comprehensive tutor profile for detailed view"""
+    try:
+        tutor = Tutor.query.get_or_404(tutor_id)
+        
+        # Get recent classes
+        recent_classes = Class.query.filter_by(tutor_id=tutor_id)\
+                                   .order_by(Class.scheduled_date.desc())\
+                                   .limit(10).all()
+        
+        # Get student feedback/ratings (if you have feedback model)
+        # This would need to be implemented based on your feedback system
+        
+        detailed_profile = {
+            'basic_info': {
+                'id': tutor.id,
+                'name': tutor.user.full_name if tutor.user else 'Unknown',
+                'email': tutor.user.email if tutor.user else '',
+                'phone': tutor.user.phone if tutor.user else '',
+                'qualification': tutor.qualification,
+                'experience': tutor.experience,
+                'date_of_birth': tutor.date_of_birth.isoformat() if tutor.date_of_birth else None,
+                'state': tutor.state,
+                'joining_date': tutor.created_at.isoformat() if tutor.created_at else None
+            },
+            'academic_info': {
+                'subjects': tutor.get_subjects(),
+                'grades': tutor.get_grades(),
+                'boards': tutor.get_boards(),
+                'test_score': tutor.test_score,
+                'test_grade': tutor.get_test_score_grade(),
+                'test_date': tutor.test_date.isoformat() if tutor.test_date else None,
+                'test_notes': tutor.test_notes
+            },
+            'performance_metrics': {
+                'rating': tutor.rating,
+                'total_classes': tutor.total_classes,
+                'completed_classes': tutor.completed_classes,
+                'completion_rate': tutor.get_completion_rate(),
+                'overall_score': tutor.calculate_overall_score() if hasattr(tutor, 'calculate_overall_score') else 0
+            },
+            'availability': {
+                'schedule': tutor.get_availability(),
+                'summary': get_availability_summary(tutor.get_availability())
+            },
+            'compensation': {
+                'salary_type': tutor.salary_type,
+                'monthly_salary': tutor.monthly_salary,
+                'hourly_rate': tutor.hourly_rate
+            },
+            'recent_activity': {
+                'last_class': tutor.last_class.isoformat() if tutor.last_class else None,
+                'recent_classes': [
+                    {
+                        'id': cls.id,
+                        'subject': cls.subject,
+                        'date': cls.scheduled_date.isoformat(),
+                        'time': cls.scheduled_time.strftime('%H:%M'),
+                        'status': cls.status,
+                        'student_count': len(cls.get_students()) if hasattr(cls, 'get_students') else 0
+                    }
+                    for cls in recent_classes
+                ],
+                'status': tutor.status,
+                'verification_status': tutor.verification_status
+            }
+        }
+        
+        return jsonify({
+            'success': True,
+            'tutor': detailed_profile
+        })
+        
+    except Exception as e:
+        current_app.logger.error(f"Error getting tutor detailed profile: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+# Add this helper function to improve the existing compatible tutors API
+@bp.route('/api/v1/compatible-tutors-enhanced')
+@login_required
+@admin_required
+def api_compatible_tutors_enhanced():
+    """Enhanced version of existing compatible tutors API with scoring"""
+    try:
+        student_id = request.args.get('student_id', type=int)
+        subject = request.args.get('subject', '').lower()
+        grade = request.args.get('grade', '')
+        board = request.args.get('board', '')
+        include_scores = request.args.get('include_scores', 'true').lower() == 'true'
+        
+        # Use the smart search function with basic parameters
+        search_result = api_smart_tutor_search()
+        
+        # If it's a JSON response (error case), return it
+        if hasattr(search_result, 'get_json'):
+            return search_result
+        
+        # Otherwise, call the smart search internally
+        from flask import current_app
+        with current_app.test_request_context(
+            f'/admin/api/v1/tutors/smart-search?student_id={student_id}&subject={subject}'
+        ):
+            smart_results = api_smart_tutor_search()
+            return smart_results
+            
+    except Exception as e:
+        current_app.logger.error(f"Error in enhanced compatible tutors: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+        
+
+@bp.route('/api/v1/tutors/intelligent-search')
+@login_required
+@admin_required
+@monitor_search_performance
+def api_intelligent_tutor_search():
+    """Most advanced tutor search with ML-like matching"""
+    try:
+        # Get search parameters
+        student_id = request.args.get('student_id', type=int)
+        subject = request.args.get('subject', '').strip()
+        preferences = request.args.get('preferences', '{}')
+        
+        # Parse preferences
+        try:
+            prefs = json.loads(preferences) if preferences else {}
+        except:
+            prefs = {}
+        
+        # Build filters from preferences
+        filters = {}
+        if prefs.get('min_test_score'):
+            filters['min_test_score'] = float(prefs['min_test_score'])
+        if prefs.get('min_rating'):
+            filters['min_rating'] = float(prefs['min_rating'])
+        if prefs.get('experience_level'):
+            filters['experience_level'] = prefs['experience_level']
+        
+        # Use the matching engine
+        matches = matching_engine.find_best_matches(
+            student_id=student_id,
+            subject=subject,
+            filters=filters,
+            limit=prefs.get('limit', 10)
+        )
+        
+        # Enhanced response with detailed analytics
+        response_data = {
+            'success': True,
+            'matches': matches,
+            'search_metadata': {
+                'total_found': len(matches),
+                'search_criteria': {
+                    'student_id': student_id,
+                    'subject': subject,
+                    'filters_applied': list(filters.keys()),
+                    'preferences': prefs
+                },
+                'algorithm_version': '2.0',
+                'timestamp': datetime.utcnow().isoformat()
+            }
+        }
+        
+        # Add analytics if matches found
+        if matches:
+            scores = [m['score_data']['total_score'] for m in matches]
+            response_data['search_metadata']['score_analytics'] = {
+                'highest_score': max(scores),
+                'average_score': round(sum(scores) / len(scores), 1),
+                'score_distribution': {
+                    'excellent': len([s for s in scores if s >= 85]),
+                    'good': len([s for s in scores if 70 <= s < 85]),
+                    'fair': len([s for s in scores if 55 <= s < 70]),
+                    'basic': len([s for s in scores if s < 55])
+                }
+            }
+        
+        return jsonify(response_data)
+        
+    except Exception as e:
+        current_app.logger.error(f"Intelligent search error: {str(e)}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'error': 'Search failed',
+            'details': str(e) if current_app.debug else 'Internal server error'
+        }), 500
+
+@bp.route('/api/v1/tutors/availability-analysis')
+@login_required
+@admin_required
+def api_tutor_availability_analysis():
+    """Analyze tutor availability for a specific date/time"""
+    try:
+        tutor_id = request.args.get('tutor_id', type=int)
+        date_str = request.args.get('date')
+        time_str = request.args.get('time')
+        duration = request.args.get('duration', 60, type=int)
+        
+        if not all([tutor_id, date_str, time_str]):
+            return jsonify({
+                'success': False,
+                'error': 'Missing required parameters: tutor_id, date, time'
+            }), 400
+        
+        # Parse date and time
+        target_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+        target_time = datetime.strptime(time_str, '%H:%M').time()
+        
+        # Check availability
+        availability_result = AvailabilityChecker.check_tutor_availability(
+            tutor_id, target_date, target_time, duration
+        )
+        
+        # Get alternative slots if not available
+        alternative_slots = []
+        if not availability_result['available']:
+            # Check next 7 days for alternatives
+            for i in range(1, 8):
+                alt_date = target_date + timedelta(days=i)
+                slots = AvailabilityChecker.get_available_slots(
+                    tutor_id, alt_date, duration
+                )
+                if slots:
+                    alternative_slots.extend([{
+                        'date': alt_date.isoformat(),
+                        'day_name': alt_date.strftime('%A'),
+                        'slots': slots[:3]  # First 3 slots per day
+                    }])
+                    if len(alternative_slots) >= 5:  # Limit to 5 alternative days
+                        break
+        
+        # Get tutor's weekly schedule summary
+        tutor = Tutor.query.get(tutor_id)
+        schedule_summary = {}
+        if tutor:
+            availability_dict = tutor.get_availability()
+            for day, slots in availability_dict.items():
+                if slots:
+                    schedule_summary[day] = {
+                        'slot_count': len(slots),
+                        'first_slot': f"{slots[0]['start']}-{slots[0]['end']}" if slots else None,
+                        'total_hours': sum([
+                            (datetime.strptime(slot['end'], '%H:%M') - 
+                             datetime.strptime(slot['start'], '%H:%M')).total_seconds() / 3600
+                            for slot in slots
+                        ])
+                    }
+        
+        return jsonify({
+            'success': True,
+            'availability_check': {
+                'requested_slot': {
+                    'date': date_str,
+                    'time': time_str,
+                    'duration': duration
+                },
+                'result': availability_result,
+                'alternative_slots': alternative_slots,
+                'weekly_schedule': schedule_summary
+            }
+        })
+        
+    except Exception as e:
+        current_app.logger.error(f"Availability analysis error: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': 'Analysis failed'
+        }), 500
+
+@bp.route('/api/v1/students/<int:student_id>/recommended-tutors')
+@login_required
+@admin_required
+def api_student_recommended_tutors(student_id):
+    """Get personalized tutor recommendations for a student"""
+    try:
+        student = Student.query.get_or_404(student_id)
+        
+        # Get student's learning preferences and history
+        academic_profile = student.get_academic_profile()
+        subjects_enrolled = student.get_subjects_enrolled()
+        difficult_subjects = student.get_difficult_subjects()
+        
+        recommendations = []
+        
+        # Recommend tutors for each enrolled subject
+        for subject in subjects_enrolled:
+            subject_matches = matching_engine.find_best_matches(
+                student_id=student_id,
+                subject=subject,
+                limit=3
+            )
+            
+            # Add context about why this subject needs attention
+            priority = 'high' if subject.lower() in [d.lower() for d in difficult_subjects] else 'normal'
+            
+            if subject_matches:
+                recommendations.append({
+                    'subject': subject,
+                    'priority': priority,
+                    'reason': f"Student enrolled in {subject}" + 
+                             (f" (marked as difficult)" if priority == 'high' else ""),
+                    'recommended_tutors': subject_matches[:2],  # Top 2 per subject
+                    'alternative_tutors': subject_matches[2:3] if len(subject_matches) > 2 else []
+                })
+        
+        # Recommend tutors for difficult subjects (if not already covered)
+        for difficult_subject in difficult_subjects:
+            if difficult_subject not in subjects_enrolled:
+                matches = matching_engine.find_best_matches(
+                    student_id=student_id,
+                    subject=difficult_subject,
+                    limit=2
+                )
+                
+                if matches:
+                    recommendations.append({
+                        'subject': difficult_subject,
+                        'priority': 'urgent',
+                        'reason': f"Student needs help with {difficult_subject} (marked as difficult)",
+                        'recommended_tutors': matches,
+                        'alternative_tutors': []
+                    })
+        
+        # Sort by priority
+        priority_order = {'urgent': 0, 'high': 1, 'normal': 2}
+        recommendations.sort(key=lambda x: priority_order.get(x['priority'], 3))
+        
+        return jsonify({
+            'success': True,
+            'student_info': {
+                'id': student.id,
+                'name': student.full_name,
+                'grade': student.grade,
+                'board': student.board,
+                'subjects_enrolled': subjects_enrolled,
+                'difficult_subjects': difficult_subjects
+            },
+            'recommendations': recommendations,
+            'summary': {
+                'total_subjects': len(recommendations),
+                'urgent_subjects': len([r for r in recommendations if r['priority'] == 'urgent']),
+                'high_priority_subjects': len([r for r in recommendations if r['priority'] == 'high']),
+                'total_tutor_options': sum([len(r['recommended_tutors']) + len(r['alternative_tutors']) 
+                                           for r in recommendations])
+            }
+        })
+        
+    except Exception as e:
+        current_app.logger.error(f"Student recommendations error: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': 'Failed to generate recommendations'
+        }), 500
+
+@bp.route('/api/v1/tutors/batch-availability-check')
+@login_required
+@admin_required
+def api_batch_availability_check():
+    """Check availability for multiple tutors at once"""
+    try:
+        # Get parameters
+        tutor_ids = request.args.getlist('tutor_ids', type=int)
+        date_str = request.args.get('date')
+        time_str = request.args.get('time')
+        duration = request.args.get('duration', 60, type=int)
+        
+        if not all([tutor_ids, date_str, time_str]):
+            return jsonify({
+                'success': False,
+                'error': 'Missing required parameters'
+            }), 400
+        
+        target_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+        target_time = datetime.strptime(time_str, '%H:%M').time()
+        
+        results = []
+        
+        for tutor_id in tutor_ids:
+            tutor = Tutor.query.get(tutor_id)
+            if not tutor:
+                continue
+                
+            availability_result = AvailabilityChecker.check_tutor_availability(
+                tutor_id, target_date, target_time, duration
+            )
+            
+            results.append({
+                'tutor_id': tutor_id,
+                'tutor_name': tutor.user.full_name if tutor.user else 'Unknown',
+                'availability': availability_result,
+                'tutor_summary': {
+                    'rating': tutor.rating or 0,
+                    'test_score': tutor.test_score or 0,
+                    'total_classes': tutor.total_classes or 0
+                }
+            })
+        
+        # Sort by availability and then by rating
+        results.sort(key=lambda x: (
+            not x['availability']['available'],  # Available tutors first
+            -(x['tutor_summary']['rating'] or 0)  # Then by rating (descending)
+        ))
+        
+        available_count = len([r for r in results if r['availability']['available']])
+        
+        return jsonify({
+            'success': True,
+            'batch_check': {
+                'requested_slot': {
+                    'date': date_str,
+                    'time': time_str,
+                    'duration': duration
+                },
+                'results': results,
+                'summary': {
+                    'total_checked': len(results),
+                    'available_tutors': available_count,
+                    'unavailable_tutors': len(results) - available_count
+                }
+            }
+        })
+        
+    except Exception as e:
+        current_app.logger.error(f"Batch availability check error: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': 'Batch check failed'
+        }), 500
+
+@bp.route('/api/v1/search/suggestions')
+@login_required
+@admin_required
+def api_search_suggestions():
+    """Get search suggestions for autocomplete"""
+    try:
+        query = request.args.get('query', '').strip().lower()
+        search_type = request.args.get('type', 'all')  # all, subjects, tutors, students
+        
+        suggestions = {
+            'subjects': [],
+            'tutors': [],
+            'students': [],
+            'qualifications': []
+        }
+        
+        if len(query) < 2:
+            return jsonify({'success': True, 'suggestions': suggestions})
+        
+        # Subject suggestions
+        if search_type in ['all', 'subjects']:
+            # Get unique subjects from tutors
+            tutors = Tutor.query.filter_by(status='active').all()
+            all_subjects = set()
+            for tutor in tutors:
+                all_subjects.update([s.lower() for s in tutor.get_subjects()])
+            
+            # Process with SearchQueryProcessor
+            processed_subjects = SearchQueryProcessor.process_subject_query(query)
+            matching_subjects = [s for s in all_subjects if query in s]
+            matching_subjects.extend(processed_subjects)
+            
+            suggestions['subjects'] = list(set(matching_subjects))[:5]
+        
+        # Tutor suggestions
+        if search_type in ['all', 'tutors']:
+            tutors = Tutor.query.join(User).filter(
+                Tutor.status == 'active',
+                User.full_name.ilike(f'%{query}%')
+            ).limit(5).all()
+            
+            suggestions['tutors'] = [
+                {
+                    'id': t.id,
+                    'name': t.user.full_name,
+                    'subjects': t.get_subjects()[:2],
+                    'rating': t.rating or 0
+                }
+                for t in tutors
+            ]
+        
+        # Student suggestions
+        if search_type in ['all', 'students']:
+            students = Student.query.filter(
+                Student.is_active == True,
+                Student.full_name.ilike(f'%{query}%')
+            ).limit(5).all()
+            
+            suggestions['students'] = [
+                {
+                    'id': s.id,
+                    'name': s.full_name,
+                    'grade': s.grade,
+                    'board': s.board
+                }
+                for s in students
+            ]
+        
+        # Qualification suggestions
+        if search_type in ['all', 'qualifications']:
+            tutors_with_qual = Tutor.query.filter(
+                Tutor.status == 'active',
+                Tutor.qualification.ilike(f'%{query}%')
+            ).all()
+            
+            qualifications = set()
+            for tutor in tutors_with_qual:
+                if tutor.qualification and query in tutor.qualification.lower():
+                    qualifications.add(tutor.qualification)
+            
+            suggestions['qualifications'] = list(qualifications)[:5]
+        
+        return jsonify({
+            'success': True,
+            'query': query,
+            'suggestions': suggestions
+        })
+        
+    except Exception as e:
+        current_app.logger.error(f"Search suggestions error: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': 'Failed to get suggestions'
+        }), 500
+
+# Analytics and reporting endpoints
+
+@bp.route('/api/v1/analytics/tutor-matching-stats')
+@login_required
+@admin_required
+def api_tutor_matching_analytics():
+    """Get analytics about tutor matching performance"""
+    try:
+        # Date range
+        days_back = request.args.get('days', 30, type=int)
+        end_date = date.today()
+        start_date = end_date - timedelta(days=days_back)
+        
+        # Get all active tutors
+        tutors = Tutor.query.filter_by(status='active').all()
+        
+        analytics = {
+            'overview': {
+                'total_active_tutors': len(tutors),
+                'tutors_with_availability': len([t for t in tutors if t.get_availability()]),
+                'highly_rated_tutors': len([t for t in tutors if t.rating and t.rating >= 4.5]),
+                'excellent_test_scores': len([t for t in tutors if t.test_score and t.test_score >= 90])
+            },
+            'availability_stats': {},
+            'performance_distribution': {},
+            'subject_coverage': {},
+            'grade_coverage': {}
+        }
+        
+        # Availability statistics
+        total_hours_available = 0
+        availability_by_day = {day: 0 for day in ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']}
+        
+        for tutor in tutors:
+            availability = tutor.get_availability()
+            if availability:
+                for day, slots in availability.items():
+                    if slots:
+                        availability_by_day[day] += 1
+                        for slot in slots:
+                            try:
+                                start = datetime.strptime(slot['start'], '%H:%M')
+                                end = datetime.strptime(slot['end'], '%H:%M')
+                                hours = (end - start).total_seconds() / 3600
+                                total_hours_available += hours
+                            except:
+                                continue
+        
+        analytics['availability_stats'] = {
+            'total_hours_per_week': round(total_hours_available, 1),
+            'average_hours_per_tutor': round(total_hours_available / len(tutors), 1) if tutors else 0,
+            'availability_by_day': availability_by_day,
+            'busiest_day': max(availability_by_day.items(), key=lambda x: x[1])[0] if availability_by_day else None
+        }
+        
+        # Performance distribution
+        test_score_ranges = {'90+': 0, '80-89': 0, '70-79': 0, '60-69': 0, 'below_60': 0, 'not_tested': 0}
+        rating_ranges = {'4.5+': 0, '4.0-4.4': 0, '3.5-3.9': 0, '3.0-3.4': 0, 'below_3': 0, 'no_rating': 0}
+        
+        for tutor in tutors:
+            # Test score distribution
+            if tutor.test_score is None:
+                test_score_ranges['not_tested'] += 1
+            elif tutor.test_score >= 90:
+                test_score_ranges['90+'] += 1
+            elif tutor.test_score >= 80:
+                test_score_ranges['80-89'] += 1
+            elif tutor.test_score >= 70:
+                test_score_ranges['70-79'] += 1
+            elif tutor.test_score >= 60:
+                test_score_ranges['60-69'] += 1
+            else:
+                test_score_ranges['below_60'] += 1
+            
+            # Rating distribution
+            if tutor.rating is None:
+                rating_ranges['no_rating'] += 1
+            elif tutor.rating >= 4.5:
+                rating_ranges['4.5+'] += 1
+            elif tutor.rating >= 4.0:
+                rating_ranges['4.0-4.4'] += 1
+            elif tutor.rating >= 3.5:
+                rating_ranges['3.5-3.9'] += 1
+            elif tutor.rating >= 3.0:
+                rating_ranges['3.0-3.4'] += 1
+            else:
+                rating_ranges['below_3'] += 1
+        
+        analytics['performance_distribution'] = {
+            'test_scores': test_score_ranges,
+            'ratings': rating_ranges
+        }
+        
+        # Subject and grade coverage
+        all_subjects = {}
+        all_grades = {}
+        
+        for tutor in tutors:
+            for subject in tutor.get_subjects():
+                all_subjects[subject] = all_subjects.get(subject, 0) + 1
+            for grade in tutor.get_grades():
+                all_grades[str(grade)] = all_grades.get(str(grade), 0) + 1
+        
+        analytics['subject_coverage'] = dict(sorted(all_subjects.items(), key=lambda x: x[1], reverse=True)[:10])
+        analytics['grade_coverage'] = dict(sorted(all_grades.items(), key=lambda x: int(x[0]) if x[0].isdigit() else 999))
+        
+        return jsonify({
+            'success': True,
+            'analytics': analytics,
+            'date_range': {
+                'start_date': start_date.isoformat(),
+                'end_date': end_date.isoformat(),
+                'days_analyzed': days_back
+            }
+        })
+        
+    except Exception as e:
+        current_app.logger.error(f"Analytics error: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': 'Analytics generation failed'
+        }), 500

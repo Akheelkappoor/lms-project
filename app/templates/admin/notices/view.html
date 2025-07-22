@@ -459,7 +459,7 @@
 <script>
 function publishNotice(noticeId) {
     if (confirm('Are you sure you want to publish this notice?')) {
-        fetch(`/admin/notices/${noticeId}/publish`, {
+        fetch(`/notice/admin/notices/${noticeId}/publish`, {
             method: 'POST',
             headers: {
                 'X-CSRFToken': '{{ csrf_token() }}'
@@ -479,7 +479,7 @@ function publishNotice(noticeId) {
 
 function deleteNotice(noticeId, title) {
     if (confirm(`Are you sure you want to delete the notice "${title}"?`)) {
-        window.location.href = `/admin/notices/${noticeId}/delete`;
+        window.location.href = `/notice/admin/notices/${noticeId}/delete`;
     }
 }
 

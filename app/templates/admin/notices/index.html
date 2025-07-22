@@ -416,7 +416,7 @@ function executeBulkAction() {
 
 function publishNotice(noticeId) {
     if (confirm('Are you sure you want to publish this notice?')) {
-        fetch(`/notice/admin/notices/${noticeId}/publish`, {
+        fetch(`/admin/notices/${noticeId}/publish`, {
             method: 'POST',
             headers: {
                 'X-CSRFToken': '{{ csrf_token() }}'
@@ -430,13 +430,32 @@ function publishNotice(noticeId) {
             } else {
                 alert('Error: ' + data.error);
             }
+        })
+        .catch(error => {
+            alert('Network error occurred');
         });
     }
 }
 
 function deleteNotice(noticeId, title) {
     if (confirm(`Are you sure you want to delete the notice "${title}"?`)) {
-        window.location.href = `/notice/admin/notices/${noticeId}/delete`;
+        fetch(`/admin/notices/${noticeId}/delete`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token() }}'
+            }
+        })
+        .then(response => {
+            if (response.ok) {
+                alert('Notice deleted successfully');
+                location.reload();
+            } else {
+                alert('Error deleting notice');
+            }
+        })
+        .catch(error => {
+            alert('Network error occurred');
+        });
     }
 }
 </script>

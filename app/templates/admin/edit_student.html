@@ -513,6 +513,18 @@
                         <div class="row">
                             <div class="col-12">
                                 <div class="mb-3">
+                                    {{ form.ownership_type.label(class="form-label") }}
+                                    {{ form.ownership_type(class="form-select") }}
+                                    {% if form.ownership_type.errors %}
+                                        <div class="text-danger">
+                                            {% for error in form.ownership_type.errors %}
+                                                <small>{{ error }}</small>
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+                                    <div class="form-text">Used only to validate total fee logic during edit</div>
+                                </div>
+                                <div class="mb-3">
                                     {{ form.payment_mode.label(class="form-label") }}
                                     {{ form.payment_mode(class="form-select") }}
                                     {% if form.payment_mode.errors %}

@@ -851,7 +851,21 @@
                         <i class="fas fa-rupee-sign"></i>
                         Fee Structure
                     </div>
-                    
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            {{ form.ownership_type.label(class="form-label") }} <span class="required">*</span>
+                            {{ form.ownership_type(class="form-control form-select", required=true) }}
+                            {% if form.ownership_type.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {% for error in form.ownership_type.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+
                     <div class="form-row">
                         <div class="form-group">
                             {{ form.total_fee.label(class="form-label") }} <span class="required">*</span>
@@ -1754,5 +1768,25 @@ document.addEventListener('DOMContentLoaded', function() {
     
     console.log('=== INITIALIZATION COMPLETE ===');
 });
+
+document.addEventListener('DOMContentLoaded', function() {
+    const ownership = document.querySelector('[name="ownership_type"]');
+    const fee = document.querySelector('[name="total_fee"]');
+
+    function checkFeeLogic() {
+        const val = parseFloat(fee.value || 0);
+        if (ownership.value === 'i2g' && val === 0) {
+            fee.classList.add('is-invalid');
+        } else if (ownership.value === 'franchisee' && val !== 0) {
+            fee.classList.add('is-invalid');
+        } else {
+            fee.classList.remove('is-invalid');
+        }
+    }
+
+    ownership.addEventListener('change', checkFeeLogic);
+    fee.addEventListener('input', checkFeeLogic);
+});
+
 </script>
 {% endblock %}

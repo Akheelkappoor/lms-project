@@ -158,5 +158,5 @@ if __name__ == '__main__':
     print("⏳ Large file uploads (up to 5GB) supported")
     print("🔄 Press Ctrl+C to stop the server")
 
-    app.run(host='0.0.0.0', port=5001)
+    app.run(host='0.0.0.0', port=5002)
     

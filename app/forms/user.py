@@ -1,7 +1,7 @@
 from flask_wtf import FlaskForm
 from flask_wtf.file import FileField, FileAllowed, FileRequired
 from wtforms import StringField, PasswordField, SelectField, TextAreaField, BooleanField, SubmitField, DateField, FloatField, SelectMultipleField, widgets
-from wtforms.validators import DataRequired, Email, Length, Optional, ValidationError, NumberRange, EqualTo
+from wtforms.validators import DataRequired, Email, Length, Optional, ValidationError, NumberRange, EqualTo, InputRequired
 from app.models.user import User
 from app.models.department import Department
 
@@ -322,8 +322,8 @@ class StudentRegistrationForm(FlaskForm):
                                       render_kw={'placeholder': 'Enter RM name'})
     
     # Fee Structure
-    total_fee = FloatField('Total Fee (₹)', validators=[DataRequired(), NumberRange(min=0)], 
-                          render_kw={'placeholder': 'Enter total course fee'})
+    total_fee = FloatField('Total Fee (₹)', validators=[InputRequired(), NumberRange(min=0)],
+                      render_kw={'placeholder': 'Enter total course fee'})
     amount_paid = FloatField('Amount Paid (₹)', validators=[Optional(), NumberRange(min=0)], 
                             render_kw={'placeholder': 'Enter amount already paid'})
     payment_mode = SelectField('Payment Mode', validators=[DataRequired()], 
@@ -346,6 +346,10 @@ class StudentRegistrationForm(FlaskForm):
     
     submit = SubmitField('Register Student')
     
+    ownership_type = SelectField('Ownership Type', choices=[('i2g', 'i2g'), ('franchisee', 'Franchisee')],
+                                  validators=[DataRequired()],
+                                  render_kw={'placeholder': 'Select ownership type'})
+
     def __init__(self, *args, **kwargs):
         super(StudentRegistrationForm, self).__init__(*args, **kwargs)
         self.department_id.choices = [(0, 'Select Department')] + \
@@ -356,6 +360,31 @@ class StudentRegistrationForm(FlaskForm):
         student = Student.query.filter_by(email=email.data).first()
         if student:
             raise ValidationError('Email already registered. Please choose a different one.')
+            
+    def validate_total_fee(self, field):
+        if self.ownership_type.data == 'i2g' and (field.data is None or field.data == 0):
+            raise ValidationError('Total fee must be greater than 0 for i2g ownership.')
+        if self.ownership_type.data == 'franchisee' and (field.data is None or field.data != 0):
+            raise ValidationError('Total fee must be 0 for franchisee ownership.')
+        
+    def validate(self, extra_validators=None):
+        rv = super().validate(extra_validators=extra_validators)
+        if not rv:
+            return False
+
+        # Enforce business rule: i2g must have total_fee > 0, franchisee must be 0
+        if self.ownership_type.data == 'i2g' and (self.total_fee.data is None or self.total_fee.data == 0):
+            self.total_fee.errors.append('Total fee must be greater than 0 for i2g ownership.')
+            return False
+
+        if self.ownership_type.data == 'franchisee' and (self.total_fee.data is None or self.total_fee.data != 0):
+            self.total_fee.errors.append('Total fee must be 0 for franchisee ownership.')
+            return False
+
+        return True
+
+
+
         
 from wtforms import DecimalField
 class EditStudentForm(StudentRegistrationForm):
@@ -383,6 +412,11 @@ class EditStudentForm(StudentRegistrationForm):
     learning_patterns = StringField('Learning Patterns', validators=[Optional()],
                                    render_kw={'placeholder': 'e.g., Fast learner, Needs repetition, Visual learner'})
     
+    ownership_type = SelectField('Ownership Type (validation only)',
+                                 choices=[('i2g', 'i2g'), ('franchisee', 'Franchisee')],
+                                 validators=[Optional()],
+                                 render_kw={'placeholder': 'Choose ownership type for fee logic'})
+    
     def __init__(self, student_id=None, *args, **kwargs):
         super(EditStudentForm, self).__init__(*args, **kwargs)
         self.student_id = student_id
@@ -407,3 +441,19 @@ class EditStudentForm(StudentRegistrationForm):
             
         if student:
             raise ValidationError('Email already registered. Please choose a different one.')
+        
+    def validate(self, extra_validators=None):
+        rv = super().validate(extra_validators=extra_validators)
+        if not rv:
+            return False
+
+        # Conditional validation for fee logic
+        if self.ownership_type.data == 'i2g' and (self.total_fee.data is None or self.total_fee.data == 0):
+            self.total_fee.errors.append('Total fee must be greater than 0 for i2g ownership.')
+            return False
+
+        if self.ownership_type.data == 'franchisee' and (self.total_fee.data is not None and self.total_fee.data != 0):
+            self.total_fee.errors.append('Total fee must be 0 for franchisee ownership.')
+            return False
+
+        return True

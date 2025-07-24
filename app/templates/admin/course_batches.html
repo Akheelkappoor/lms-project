@@ -1,0 +1,569 @@
+{% extends "base.html" %}
+
+{% block title %}Course Batches - {{ APP_NAME }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h1 class="page-title">
+                <i class="fas fa-layer-group"></i>
+                Course Batches
+            </h1>
+            <p class="page-subtitle">Manage grouped classes and student batches</p>
+        </div>
+        <div class="header-actions">
+            <a href="{{ url_for('admin.classes') }}" class="btn btn-outline-secondary">
+                <i class="fas fa-list"></i>
+                View Individual Classes
+            </a>
+            <a href="{{ url_for('admin.classes') }}#createClassModal" class="btn btn-primary">
+                <i class="fas fa-plus"></i>
+                Create New Class
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="container-fluid">
+    <!-- Statistics Cards -->
+    <div class="row g-4 mb-4">
+        <div class="col-lg-3 col-md-6">
+            <div class="stat-card">
+                <div class="stat-icon primary">
+                    <i class="fas fa-layer-group"></i>
+                </div>
+                <div class="stat-content">
+                    <h3>{{ total_batches }}</h3>
+                    <p>Total Batches</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6">
+            <div class="stat-card">
+                <div class="stat-icon success">
+                    <i class="fas fa-chalkboard-teacher"></i>
+                </div>
+                <div class="stat-content">
+                    <h3>{{ batches|selectattr('active_student_count', 'gt', 0)|list|length }}</h3>
+                    <p>Active Batches</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6">
+            <div class="stat-card">
+                <div class="stat-icon info">
+                    <i class="fas fa-users"></i>
+                </div>
+                <div class="stat-content">
+                    <h3>{{ batches|sum(attribute='active_student_count') }}</h3>
+                    <p>Active Students</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6">
+            <div class="stat-card">
+                <div class="stat-icon warning">
+                    <i class="fas fa-calendar-alt"></i>
+                </div>
+                <div class="stat-content">
+                    <h3>{{ batches|sum(attribute='scheduled_classes') }}</h3>
+                    <p>Scheduled Classes</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="GET" class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label">Tutor</label>
+                    <select name="tutor" class="form-select">
+                        <option value="">All Tutors</option>
+                        {% for tutor in tutors %}
+                        <option value="{{ tutor.id }}" {{ 'selected' if request.args.get('tutor')|int == tutor.id }}>
+                            {{ tutor.user.full_name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Month</label>
+                    <select name="month" class="form-select">
+                        <option value="">All Months</option>
+                        {% for month in months %}
+                        <option value="{{ month }}" {{ 'selected' if request.args.get('month') == month }}>
+                            {{ month|replace('-', ' ')|title }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Status</label>
+                    <select name="status" class="form-select">
+                        <option value="">All Status</option>
+                        <option value="scheduled" {{ 'selected' if request.args.get('status') == 'scheduled' }}>Scheduled</option>
+                        <option value="completed" {{ 'selected' if request.args.get('status') == 'completed' }}>Completed</option>
+                        <option value="cancelled" {{ 'selected' if request.args.get('status') == 'cancelled' }}>Cancelled</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                <label class="form-label">Activate</label>
+                <select name="activate" class="form-select">
+                    <option value="">All Batches</option>
+                    <option value="1" {{ 'selected' if request.args.get('activate')=='1' }}>With Active Students</option>
+                    <option value="0" {{ 'selected' if request.args.get('activate')=='0' }}>No Active Students</option>
+                </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">&nbsp;</label>
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-outline-primary">
+                            <i class="fas fa-search"></i>
+                            Filter
+                        </button>
+                    </div>
+                </div>
+                <div class="col-md-1">
+                    <label class="form-label">&nbsp;</label>
+                    <div class="d-grid">
+                        <a href="{{ url_for('admin.course_batches') }}" class="btn btn-outline-secondary">
+                            <i class="fas fa-times"></i>
+                        </a>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Course Batches -->
+    <div class="row g-4">
+        {% if batches %}
+        {% for batch in batches %}
+        <div class="col-xl-6 col-lg-12">
+            <div class="course-batch-card">
+                <div class="batch-header">
+                    <div class="batch-title">
+                        <h5>
+                            <i class="fas fa-book"></i>
+                            {{ batch.subject }}
+                        </h5>
+                        <div class="batch-meta">
+                            <span class="tutor-name">
+                                <i class="fas fa-user-tie"></i>
+                                {{ batch.tutor.user.full_name if batch.tutor and batch.tutor.user else 'No Tutor' }}
+                            </span>
+                        </div>
+                    </div>
+                    <div class="batch-progress">
+                        <div class="progress-circle" data-progress="{{ batch.progress_percentage }}">
+                            <span class="progress-text">{{ batch.progress_percentage }}%</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="batch-info">
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <i class="fas fa-calendar-alt"></i>
+                            <div>
+                                <strong>{{ batch.date_range.start.strftime('%d %b') if batch.date_range.start else 'No dates' }}</strong>
+                                {% if batch.date_range.end and batch.date_range.end != batch.date_range.start %}
+                                - {{ batch.date_range.end.strftime('%d %b %Y') }}
+                                {% else %}
+                                {{ batch.date_range.start.strftime('%Y') if batch.date_range.start else '' }}
+                                {% endif %}
+                                <small>({{ batch.total_classes }} classes)</small>
+                            </div>
+                        </div>
+                        
+                        <div class="info-item">
+                            <i class="fas fa-users"></i>
+                            <div>
+                                <strong>{{ batch.active_student_count }} Active</strong>
+                                {% if batch.completed_student_count > 0 %}
+                                <small>{{ batch.completed_student_count }} completed</small>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <div class="info-item">
+                            <i class="fas fa-chart-bar"></i>
+                            <div>
+                                <strong>{{ batch.completed_classes }}/{{ batch.total_classes }}</strong>
+                                <small>classes done</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Student Preview -->
+                    {% if batch.student_objects %}
+                    <div class="student-preview">
+                        <small class="text-muted">Students:</small>
+                        <div class="student-list">
+                            {% for student in batch.student_objects[:3] %}
+                            <span class="student-tag">{{ student.full_name }}</span>
+                            {% endfor %}
+                            {% if batch.student_count > 3 %}
+                            <span class="student-tag more">+{{ batch.student_count - 3 }} more</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <div class="batch-actions">
+                    <a href="{{ url_for('admin.course_batch_details', batch_id=batch.batch_id) }}" 
+                       class="btn btn-primary btn-sm">
+                        <i class="fas fa-eye"></i>
+                        View Details
+                    </a>
+                    <a href="{{ url_for('admin.classes') }}?tutor={{ batch.tutor.id if batch.tutor else '' }}&subject={{ batch.subject }}" 
+                       class="btn btn-outline-secondary btn-sm">
+                        <i class="fas fa-list"></i>
+                        View Classes
+                    </a>
+                    {% if batch.scheduled_classes > 0 %}
+                    <button class="btn btn-outline-warning btn-sm" onclick="showBulkActions('{{ batch.batch_id }}')">
+                        <i class="fas fa-cog"></i>
+                        Bulk Actions
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+        {% else %}
+        <div class="col-12">
+            <div class="text-center py-5">
+                <i class="fas fa-layer-group fa-3x text-muted mb-3"></i>
+                <h5>No Course Batches Found</h5>
+                <p class="text-muted">Try adjusting your filters or create some classes to see batches here.</p>
+                <a href="{{ url_for('admin.classes') }}" class="btn btn-primary">
+                    <i class="fas fa-plus"></i>
+                    Create Classes
+                </a>
+            </div>
+        </div>
+        {% endif %}
+        {# ← INSERT PAGINATION HERE ───────────────────────────── #}
+        {% if pagination.pages > 1 %}
+        <div class="card-footer">
+          <nav aria-label="Batch pagination">
+            <ul class="pagination pagination-sm justify-content-center mb-0">
+              {% if pagination.has_prev %}
+                <li class="page-item">
+                  <a class="page-link"
+                     href="{{ url_for('admin.course_batches', page=pagination.prev_num, **filtered_args) }}">
+                    <i class="fas fa-chevron-left"></i>
+                  </a>
+                </li>
+              {% else %}
+                <li class="page-item disabled">
+                  <span class="page-link"><i class="fas fa-chevron-left"></i></span>
+                </li>
+              {% endif %}
+
+              {% for p in pagination.iter_pages(left_edge=1, right_edge=1, left_current=1, right_current=2) %}
+                {% if p %}
+                  {% if p != pagination.page %}
+                    <li class="page-item">
+                      <a class="page-link"
+                         href="{{ url_for('admin.course_batches', page=p, **filtered_args) }}">
+                        {{ p }}
+                      </a>
+                    </li>
+                  {% else %}
+                    <li class="page-item active">
+                      <span class="page-link">{{ p }}</span>
+                    </li>
+                  {% endif %}
+                {% else %}
+                  <li class="page-item disabled"><span class="page-link">…</span></li>
+                {% endif %}
+              {% endfor %}
+
+              {% if pagination.has_next %}
+                <li class="page-item">
+                  <a class="page-link"
+                     href="{{ url_for('admin.course_batches', page=pagination.next_num, **filtered_args) }}">
+                    <i class="fas fa-chevron-right"></i>
+                  </a>
+                </li>
+              {% else %}
+                <li class="page-item disabled">
+                  <span class="page-link"><i class="fas fa-chevron-right"></i></span>
+                </li>
+              {% endif %}
+            </ul>
+          </nav>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+
+<!-- Bulk Actions Modal -->
+<div class="modal fade" id="bulkActionsModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Bulk Actions</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="d-grid gap-2">
+                    <button class="btn btn-outline-warning" onclick="bulkReschedule()">
+                        <i class="fas fa-calendar-alt"></i>
+                        Reschedule All Remaining Classes
+                    </button>
+                    <button class="btn btn-outline-info" onclick="bulkAddStudent()">
+                        <i class="fas fa-user-plus"></i>
+                        Add Student to All Classes
+                    </button>
+                    <button class="btn btn-outline-danger" onclick="bulkCancel()">
+                        <i class="fas fa-times-circle"></i>
+                        Cancel All Remaining Classes
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.course-batch-card {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    padding: 20px;
+    margin-bottom: 20px;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.course-batch-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 15px rgba(0, 0, 0, 0.15);
+}
+
+.batch-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 15px;
+}
+
+.batch-title h5 {
+    margin: 0;
+    color: #2c3e50;
+    font-size: 1.1rem;
+    font-weight: 600;
+}
+
+.batch-title h5 i {
+    color: #3498db;
+    margin-right: 8px;
+}
+
+.batch-meta {
+    margin-top: 5px;
+}
+
+.tutor-name {
+    color: #7f8c8d;
+    font-size: 0.9rem;
+}
+
+.tutor-name i {
+    margin-right: 5px;
+}
+
+.progress-circle {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background: conic-gradient(#28a745 0deg, #28a745 var(--progress, 0deg), #e9ecef var(--progress, 0deg));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+}
+
+.progress-circle::before {
+    content: '';
+    width: 35px;
+    height: 35px;
+    background: white;
+    border-radius: 50%;
+    position: absolute;
+}
+
+.progress-text {
+    position: relative;
+    z-index: 1;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #2c3e50;
+}
+
+.info-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 15px;
+    margin-bottom: 15px;
+}
+
+.info-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.info-item i {
+    color: #3498db;
+    width: 16px;
+}
+
+.info-item strong {
+    display: block;
+    font-size: 0.9rem;
+}
+
+.info-item small {
+    color: #7f8c8d;
+    font-size: 0.8rem;
+}
+
+.student-preview {
+    border-top: 1px solid #eee;
+    padding-top: 12px;
+    margin-bottom: 15px;
+}
+
+.student-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    margin-top: 5px;
+}
+
+.student-tag {
+    background: #f8f9fa;
+    color: #495057;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.8rem;
+    border: 1px solid #dee2e6;
+}
+
+.student-tag.more {
+    background: #e9ecef;
+    font-weight: 500;
+}
+
+.batch-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.batch-actions .btn {
+    flex: 1;
+    min-width: auto;
+}
+
+@media (max-width: 768px) {
+    .batch-header {
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .info-grid {
+        grid-template-columns: 1fr;
+        gap: 10px;
+    }
+    
+    .batch-actions {
+        flex-direction: column;
+    }
+    
+    .batch-actions .btn {
+        flex: none;
+    }
+}
+
+/* Stat cards from your existing styles */
+.stat-card {
+    background: white;
+    border-radius: 0.5rem;
+    padding: 1.5rem;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.stat-icon {
+    width: 60px;
+    height: 60px;
+    border-radius: 0.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    color: white;
+}
+
+.stat-icon.primary { background: #0d6efd; }
+.stat-icon.success { background: #198754; }
+.stat-icon.warning { background: #ffc107; color: #000; }
+.stat-icon.info { background: #0dcaf0; }
+
+.stat-content h3 {
+    margin: 0;
+    font-size: 2rem;
+    font-weight: 600;
+}
+
+.stat-content p {
+    margin: 0;
+    color: #6c757d;
+    font-size: 0.875rem;
+}
+</style>
+
+<script>
+// Set progress circle CSS custom property
+document.addEventListener('DOMContentLoaded', function() {
+    const progressCircles = document.querySelectorAll('.progress-circle');
+    progressCircles.forEach(circle => {
+        const progress = parseFloat(circle.dataset.progress || 0);
+        const degrees = (progress / 100) * 360;
+        circle.style.setProperty('--progress', degrees + 'deg');
+    });
+});
+
+function showBulkActions(batchId) {
+    // Store current batch ID for bulk actions
+    window.currentBatchId = batchId;
+    const modal = new bootstrap.Modal(document.getElementById('bulkActionsModal'));
+    modal.show();
+}
+
+function bulkReschedule() {
+    alert('Bulk reschedule feature will be implemented in Phase 2');
+}
+
+function bulkAddStudent() {
+    alert('Bulk add student feature will be implemented in Phase 2');
+}
+
+function bulkCancel() {
+    if (confirm('Are you sure you want to cancel all remaining classes in this batch?')) {
+        alert('Bulk cancel feature will be implemented in Phase 2');
+    }
+}
+</script>
+{% endblock %}

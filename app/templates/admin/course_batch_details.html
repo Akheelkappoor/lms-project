@@ -1,0 +1,327 @@
+{% extends "base.html" %}
+
+{% block title %}{{ subject }} - Course Batch Details{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h1 class="page-title">
+                <i class="fas fa-book"></i>
+                {{ subject }}
+            </h1>
+            <p class="page-subtitle">
+                <i class="fas fa-user-tie"></i>
+                {{ tutor.user.full_name if tutor and tutor.user else 'No Tutor Assigned' }}
+            </p>
+        </div>
+        <div class="header-actions">
+            <a href="{{ url_for('admin.course_batches') }}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left"></i>
+                Back to Batches
+            </a>
+            <a href="{{ url_for('admin.classes') }}?tutor={{ tutor.id if tutor else '' }}&subject={{ subject }}" 
+               class="btn btn-outline-primary">
+                <i class="fas fa-list"></i>
+                View in Classes
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="container-fluid">
+    <!-- Statistics Cards -->
+    <div class="row g-4 mb-4">
+        <div class="col-lg-3 col-md-6">
+            <div class="stat-card">
+                <div class="stat-icon primary">
+                    <i class="fas fa-chalkboard"></i>
+                </div>
+                <div class="stat-content">
+                    <h3>{{ stats.total_classes }}</h3>
+                    <p>Total Classes</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6">
+            <div class="stat-card">
+                <div class="stat-icon success">
+                    <i class="fas fa-check-circle"></i>
+                </div>
+                <div class="stat-content">
+                    <h3>{{ stats.completed_classes }}</h3>
+                    <p>Completed</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6">
+            <div class="stat-card">
+                <div class="stat-icon warning">
+                    <i class="fas fa-clock"></i>
+                </div>
+                <div class="stat-content">
+                    <h3>{{ stats.scheduled_classes }}</h3>
+                    <p>Scheduled</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6">
+            <div class="stat-card">
+                <div class="stat-icon info">
+                    <i class="fas fa-users"></i>
+                </div>
+                <div class="stat-content">
+                    <h3>{{ stats.active_students }}</h3>
+                    <p>Active Students</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Students Section -->
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="card-title mb-0">
+                        <i class="fas fa-users"></i>
+                        Students ({{ students|length }})
+                    </h6>
+                </div>
+                <div class="card-body">
+                    {% if students %}
+                    <div class="student-list">
+                        {% for student in students %}
+                        <div class="student-item">
+                            <div class="student-info">
+                                <strong>{{ student.full_name }}</strong>
+                                <div class="student-meta">
+                                    <span class="badge badge-{{ 'success' if student.enrollment_status == 'active' else 'secondary' }}">
+                                        {{ student.enrollment_status|title }}
+                                    </span>
+                                    {% if student.course_start_date %}
+                                    <small class="text-muted">
+                                        Started: {{ student.course_start_date.strftime('%d %b %Y') }}
+                                    </small>
+                                    {% endif %}
+                                    {% if student.course_end_date %}
+                                    <small class="text-muted">
+                                        Ends: {{ student.course_end_date.strftime('%d %b %Y') }}
+                                    </small>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="text-center py-3">
+                        <i class="fas fa-user-slash fa-2x text-muted mb-2"></i>
+                        <p class="text-muted mb-0">No students assigned</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Classes Section -->
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="card-title mb-0">
+                        <i class="fas fa-calendar-alt"></i>
+                        Classes ({{ classes|length }})
+                    </h6>
+                </div>
+                <div class="card-body">
+                    {% if classes %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Date & Time</th>
+                                    <th>Duration</th>
+                                    <th>Students</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for class in classes %}
+                                <tr class="class-row-{{ class.status }}">
+                                    <td>
+                                        <div>
+                                            <strong>{{ class.scheduled_date.strftime('%d %b %Y') }}</strong><br>
+                                            <small class="text-muted">{{ class.scheduled_time.strftime('%I:%M %p') }}</small>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="duration-badge">{{ class.duration }} min</span>
+                                    </td>
+                                    <td>
+                                        {% set class_students = class.get_students() %}
+                                        {% if class_students %}
+                                        <small>{{ class_students|length }} students</small>
+                                        {% else %}
+                                        <small class="text-muted">No students</small>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <span class="badge badge-{{ 'warning' if class.status == 'scheduled' else 'success' if class.status == 'completed' else 'danger' if class.status == 'cancelled' else 'primary' }}">
+                                            {{ class.status|title }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            <a href="{{ url_for('admin.class_details', class_id=class.id) }}" 
+                                               class="btn btn-outline-primary" title="View Details">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                            {% if class.status == 'scheduled' %}
+                                            <button class="btn btn-outline-warning" title="Reschedule" 
+                                                    onclick="rescheduleClass('{{ class.id }}')">
+                                                <i class="fas fa-calendar-alt"></i>
+                                            </button>
+                                            <button class="btn btn-outline-danger" title="Cancel" 
+                                                    onclick="cancelClass('{{ class.id }}')">
+                                                <i class="fas fa-times"></i>
+                                            </button>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-calendar-times fa-3x text-muted mb-3"></i>
+                        <h5>No Classes Found</h5>
+                        <p class="text-muted">No classes found for this batch.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.student-list {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.student-item {
+    padding: 12px;
+    border-bottom: 1px solid #eee;
+    transition: background-color 0.2s ease;
+}
+
+.student-item:hover {
+    background-color: #f8f9fa;
+}
+
+.student-item:last-child {
+    border-bottom: none;
+}
+
+.student-info strong {
+    display: block;
+    margin-bottom: 5px;
+}
+
+.student-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.student-meta .badge {
+    align-self: flex-start;
+    font-size: 0.7rem;
+}
+
+.duration-badge {
+    background: #e9ecef;
+    color: #495057;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.8rem;
+    font-weight: 500;
+}
+
+.class-row-completed {
+    background-color: rgba(40, 167, 69, 0.05);
+}
+
+.class-row-cancelled {
+    background-color: rgba(220, 53, 69, 0.05);
+}
+
+.class-row-scheduled {
+    background-color: rgba(255, 193, 7, 0.05);
+}
+
+/* Badge styles */
+.badge-success { background-color: #198754; }
+.badge-warning { background-color: #ffc107; color: #000; }
+.badge-danger { background-color: #dc3545; }
+.badge-primary { background-color: #0d6efd; }
+.badge-secondary { background-color: #6c757d; }
+
+/* Stat card styles (reused from main template) */
+.stat-card {
+    background: white;
+    border-radius: 0.5rem;
+    padding: 1.5rem;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.stat-icon {
+    width: 60px;
+    height: 60px;
+    border-radius: 0.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    color: white;
+}
+
+.stat-icon.primary { background: #0d6efd; }
+.stat-icon.success { background: #198754; }
+.stat-icon.warning { background: #ffc107; color: #000; }
+.stat-icon.info { background: #0dcaf0; }
+
+.stat-content h3 {
+    margin: 0;
+    font-size: 2rem;
+    font-weight: 600;
+}
+
+.stat-content p {
+    margin: 0;
+    color: #6c757d;
+    font-size: 0.875rem;
+}
+</style>
+
+<script>
+function rescheduleClass(classId) {
+    // Placeholder for reschedule functionality
+    alert('Reschedule functionality will be implemented in Phase 2');
+}
+
+function cancelClass(classId) {
+    if (confirm('Are you sure you want to cancel this class?')) {
+        // Placeholder for cancel functionality
+        alert('Cancel functionality will be implemented in Phase 2');
+    }
+}
+</script>
+{% endblock %}

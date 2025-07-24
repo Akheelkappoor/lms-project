@@ -18,6 +18,7 @@ from app.utils.tutor_matching import TutorMatchingEngine, SearchQueryProcessor, 
 from functools import wraps
 from app.utils.email import send_password_reset_email, send_onboarding_email
 from app.forms.user import EditStudentForm
+from sqlalchemy import text
 
 
 bp = Blueprint('admin', __name__)
@@ -3241,3 +3242,289 @@ def api_tutor_matching_analytics():
             'success': False,
             'error': 'Analytics generation failed'
         }), 500
+        
+        
+
+@bp.route('/course-batches')
+@login_required
+@admin_required
+def course_batches():
+    """Course batch management page - groups classes intelligently"""
+    from collections import defaultdict
+    from datetime import datetime, timedelta, date
+    import time
+    import json
+    from sqlalchemy.orm import selectinload
+
+    t0 = time.perf_counter()
+
+    query = (
+        Class.query
+        .options(selectinload(Class.tutor))   
+        .order_by(Class.scheduled_date.desc())
+    )
+
+    tutor_filter  = request.args.get('tutor', type=int)
+    status_filter = request.args.get('status', type=str)
+    month_filter  = request.args.get('month', type=str)
+
+    if tutor_filter:
+        query = query.filter(Class.tutor_id == tutor_filter)
+    if status_filter:
+        query = query.filter(Class.status == status_filter)
+    if month_filter:
+        try:
+            month_year = datetime.strptime(month_filter, '%Y-%m')
+            start = month_year.replace(day=1)
+            next_month = (start + timedelta(days=32)).replace(day=1)
+            query = query.filter(
+                Class.scheduled_date >= start,
+                Class.scheduled_date < next_month
+            )
+        except ValueError:
+            pass
+
+    classes = query.all()
+
+    student_ids = set()
+    for cls in classes:
+        try:
+            ids = cls.get_students() or []
+            student_ids.update(ids)
+        except Exception:
+            continue
+
+    students_by_id = {}
+    if student_ids:
+        students = Student.query.filter(Student.id.in_(student_ids)).all()
+        students_by_id = {s.id: s for s in students}
+
+    batches = defaultdict(lambda: {
+        'classes': [],
+        'students': set(),
+        'tutor': None,
+        'subject': '',
+        'date_range': {'start': None, 'end': None},
+        'total_classes': 0,
+        'completed_classes': 0,
+        'scheduled_classes': 0,
+        'active_students': set(),
+        'completed_students': set()
+    })
+
+    for cls in classes:
+        if not cls.tutor or not cls.scheduled_date:
+            continue
+
+        month_year_key = cls.scheduled_date.strftime('%Y-%m')
+        batch_key = f"{cls.subject}_{cls.tutor_id}_{month_year_key}"
+
+        batch = batches[batch_key]
+        batch['classes'].append(cls)
+        batch['tutor'] = cls.tutor
+        batch['subject'] = cls.subject
+        batch['total_classes'] += 1
+
+        if cls.status == 'completed':
+            batch['completed_classes'] += 1
+        elif cls.status == 'scheduled':
+            batch['scheduled_classes'] += 1
+
+        dr = batch['date_range']
+        dr['start'] = min(dr['start'], cls.scheduled_date) if dr['start'] else cls.scheduled_date
+        dr['end']   = max(dr['end'],   cls.scheduled_date) if dr['end']   else cls.scheduled_date
+
+        try:
+            ids = cls.get_students() or []
+            for sid in ids:
+                batch['students'].add(sid)
+                st = students_by_id.get(sid)
+                if st:
+                    if hasattr(st, "is_course_active") and st.is_course_active(cls.scheduled_date):
+                        batch['active_students'].add(sid)
+                    elif st.enrollment_status == 'completed':
+                        batch['completed_students'].add(sid)
+        except Exception:
+            pass
+
+    batch_list = []
+    for key, b in batches.items():
+        b['batch_id'] = key
+        b['student_count']            = len(b['students'])
+        b['active_student_count']     = len(b['active_students'])
+        b['completed_student_count']  = len(b['completed_students'])
+        b['progress_percentage'] = round(
+            (b['completed_classes'] / b['total_classes']) * 100, 1
+        ) if b['total_classes'] else 0
+
+        ids_slice = list(b['students'])[:5]
+        b['student_objects'] = [students_by_id[i] for i in ids_slice if i in students_by_id]
+
+        batch_list.append(b)
+
+    batch_list.sort(key=lambda x: x['date_range']['end'] or date.min, reverse=True)
+
+    activate_param = request.args.get('activate')  
+    if activate_param in ('0', '1'):
+        want_active = (activate_param == '1')
+        filtered = []
+        for b in batch_list:
+            has_any = b['active_student_count'] > 0
+            if has_any is want_active:
+                filtered.append(b)
+        batch_list = filtered
+    batch_list.sort(key=lambda x: x['date_range']['end'] or date.min, reverse=True)
+
+    months = sorted(
+        {cls.scheduled_date.strftime('%Y-%m') for cls in classes if cls.scheduled_date},
+        reverse=True
+    )
+    tutors = Tutor.query.filter_by(status='active').all()
+    
+    from math import ceil
+
+    class SimplePagination:
+        def __init__(self, page, per_page, total):
+            self.page       = page
+            self.per_page   = per_page
+            self.total      = total
+            self.pages      = ceil(total / per_page) if per_page else 0
+            self.has_prev   = page > 1
+            self.has_next   = page < self.pages
+            self.prev_num   = page - 1 if self.has_prev else None
+            self.next_num   = page + 1 if self.has_next else None
+            
+        def iter_pages(self, left_edge=1, right_edge=1,
+                    left_current=1, right_current=2):
+            """
+            Only yield pages 1 through 10 (and an ellipsis + last page if total > 10).
+            Signature matches what your template calls.
+            """
+            max_shown = 10
+            for num in range(1, min(self.pages, max_shown) + 1):
+                yield num
+
+
+            if self.pages > max_shown:
+                yield None
+                yield self.pages
+
+
+    page      = request.args.get('page', 1, type=int)
+    per_page  = 6
+    total     = len(batch_list)
+
+    start     = (page - 1) * per_page
+    end       = start + per_page
+    page_items = batch_list[start:end]
+
+    filtered_args = request.args.to_dict()
+    filtered_args.pop('page', None)
+
+    pagination = SimplePagination(page, per_page, total)
+
+    return render_template(
+        'admin/course_batches.html',
+        batches=page_items,
+        pagination=pagination,
+        filtered_args=filtered_args,
+        tutors=tutors,
+        months=months,
+        total_batches=total
+    )
+
+
+@bp.route('/course-batches/<batch_id>')
+@login_required
+@admin_required
+def course_batch_details(batch_id):
+    """View detailed information about a specific course batch."""
+    from datetime import datetime, date
+    from sqlalchemy.orm import selectinload
+    import traceback
+
+    try:
+        parts = batch_id.split('_', 2) 
+        if len(parts) != 3:
+            raise ValueError("Bad batch_id parts count")
+
+        raw_subject, raw_tutor_id, month_year = parts
+        subject = raw_subject.replace('-', ' ')  
+        tutor_id = int(raw_tutor_id)
+
+        month_dt = datetime.strptime(month_year, '%Y-%m').date()
+        start_date = month_dt.replace(day=1)
+        # first day of next month
+        if month_dt.month == 12:
+            end_date = month_dt.replace(year=month_dt.year + 1, month=1, day=1)
+        else:
+            end_date = month_dt.replace(month=month_dt.month + 1, day=1)
+
+    except Exception as e:
+        traceback.print_exc()
+        flash('Invalid batch ID', 'error')
+        return redirect(url_for('admin.course_batches'))
+
+    classes = (
+        Class.query
+        .options(selectinload(Class.tutor))
+        .filter(
+            Class.subject == subject,            
+            Class.tutor_id == tutor_id,
+            Class.scheduled_date >= start_date,
+            Class.scheduled_date < end_date
+        )
+        .order_by(Class.scheduled_date.desc(), Class.scheduled_time.desc())
+        .all()
+    )
+
+    if not classes:
+        flash('No classes found for this batch', 'error')
+        return redirect(url_for('admin.course_batches'))
+
+
+    all_student_ids = set()
+    for c in classes:
+        try:
+            ids = c.get_students() or []
+            all_student_ids.update(ids)
+        except Exception:
+            # Log but continue
+            traceback.print_exc()
+
+    students_by_id = {}
+    students = []
+    if all_student_ids:
+        students = Student.query.filter(Student.id.in_(all_student_ids)).all()
+        students_by_id = {s.id: s for s in students}
+
+    total_classes     = len(classes)
+    completed_classes = sum(1 for c in classes if c.status == 'completed')
+    scheduled_classes = sum(1 for c in classes if c.status == 'scheduled')
+    cancelled_classes = sum(1 for c in classes if c.status == 'cancelled')
+
+    total_students    = len(students)
+    active_students   = sum(1 for s in students if s.enrollment_status == 'active')
+    completed_students= sum(1 for s in students if s.enrollment_status == 'completed')
+
+    stats = {
+        'total_classes': total_classes,
+        'completed_classes': completed_classes,
+        'scheduled_classes': scheduled_classes,
+        'cancelled_classes': cancelled_classes,
+        'total_students': total_students,
+        'active_students': active_students,
+        'completed_students': completed_students
+    }
+
+    tutor = classes[0].tutor if classes else Tutor.query.get(tutor_id)
+
+    return render_template(
+        'admin/course_batch_details.html',
+        classes=classes,
+        students=students,
+        tutor=tutor,
+        batch_id=batch_id,
+        subject=subject,
+        stats=stats
+    )

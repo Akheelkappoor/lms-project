@@ -55,6 +55,10 @@ class Student(db.Model):
     total_classes = db.Column(db.Integer, default=0)
     attended_classes = db.Column(db.Integer, default=0)
     
+    course_end_date = db.Column(db.Date, nullable=True)
+    batch_identifier = db.Column(db.String(100), nullable=True)  
+    course_duration_months = db.Column(db.Integer, nullable=True)
+    
     # Relationships
     department = db.relationship('Department', backref='students', lazy=True)
     
@@ -441,3 +445,65 @@ class Student(db.Model):
         """Get fee payment history"""
         fee_structure = self.get_fee_structure()
         return fee_structure.get('payment_history', [])
+    
+
+    def is_course_active(self, check_date=None):
+        """Check if student's course is active on given date"""
+        if check_date is None:
+            check_date = date.today()
+        
+        # Must have started
+        if not self.course_start_date or self.course_start_date > check_date:
+            return False
+        
+        # Check if not ended
+        if self.course_end_date and self.course_end_date < check_date:
+            return False
+        
+        # Check enrollment status
+        return self.enrollment_status == 'active'
+
+    def get_course_progress(self):
+        """Get course progress percentage"""
+        if not self.course_start_date or not self.course_end_date:
+            return None
+        
+        total_days = (self.course_end_date - self.course_start_date).days
+        if total_days <= 0:
+            return 100
+        
+        elapsed_days = (date.today() - self.course_start_date).days
+        progress = min(100, max(0, (elapsed_days / total_days) * 100))
+        
+        return round(progress, 1)
+
+    def set_course_duration(self, months):
+        """Set course duration and auto-calculate end date"""
+        self.course_duration_months = months
+        if self.course_start_date and months:
+            from datetime import timedelta
+            # Approximate: 30 days per month
+            self.course_end_date = self.course_start_date + timedelta(days=months * 30)
+
+    def get_batch_identifier(self):
+        """Get or generate batch identifier"""
+        if self.batch_identifier:
+            return self.batch_identifier
+        
+        # Auto-generate if not set
+        if self.course_start_date:
+            month_year = self.course_start_date.strftime('%b-%Y')
+            subjects = self.get_subjects_enrolled()
+            if subjects:
+                subject = subjects[0].replace(' ', '-')
+                return f"{subject}-{month_year}"
+        
+        return f"Batch-{self.id}"
+
+    def should_attend_class_on(self, class_date):
+        """Check if student should attend class on given date"""
+        return (
+            self.is_course_active(class_date) and 
+            self.enrollment_status == 'active' and 
+            self.is_active
+        )

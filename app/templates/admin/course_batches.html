@@ -8,9 +8,9 @@
         <div>
             <h1 class="page-title">
                 <i class="fas fa-layer-group"></i>
-                Course Batches
+                Course Batches by Tutor
             </h1>
-            <p class="page-subtitle">Manage grouped classes and student batches</p>
+            <p class="page-subtitle">View all tutors and their batch summary - click to expand details</p>
         </div>
         <div class="header-actions">
             <a href="{{ url_for('admin.classes') }}" class="btn btn-outline-secondary">
@@ -31,206 +31,252 @@
         <div class="col-lg-3 col-md-6">
             <div class="stat-card">
                 <div class="stat-icon primary">
-                    <i class="fas fa-layer-group"></i>
+                    <i class="fas fa-users"></i>
                 </div>
                 <div class="stat-content">
-                    <h3>{{ total_batches }}</h3>
-                    <p>Total Batches</p>
+                    <h3>{{ total_tutors }}</h3>
+                    <p>Total Tutors</p>
                 </div>
             </div>
         </div>
         <div class="col-lg-3 col-md-6">
             <div class="stat-card">
                 <div class="stat-icon success">
-                    <i class="fas fa-chalkboard-teacher"></i>
+                    <i class="fas fa-layer-group"></i>
                 </div>
                 <div class="stat-content">
-                    <h3>{{ batches|selectattr('active_student_count', 'gt', 0)|list|length }}</h3>
-                    <p>Active Batches</p>
+                    <h3>{{ tutors_data|sum(attribute='total_batches') }}</h3>
+                    <p>Total Batches</p>
                 </div>
             </div>
         </div>
         <div class="col-lg-3 col-md-6">
             <div class="stat-card">
                 <div class="stat-icon info">
-                    <i class="fas fa-users"></i>
+                    <i class="fas fa-chalkboard"></i>
                 </div>
                 <div class="stat-content">
-                    <h3>{{ batches|sum(attribute='active_student_count') }}</h3>
-                    <p>Active Students</p>
+                    <h3>{{ tutors_data|sum(attribute='total_classes') }}</h3>
+                    <p>Total Classes</p>
                 </div>
             </div>
         </div>
         <div class="col-lg-3 col-md-6">
             <div class="stat-card">
                 <div class="stat-icon warning">
-                    <i class="fas fa-calendar-alt"></i>
+                    <i class="fas fa-user-graduate"></i>
                 </div>
                 <div class="stat-content">
-                    <h3>{{ batches|sum(attribute='scheduled_classes') }}</h3>
-                    <p>Scheduled Classes</p>
+                    <h3>{{ tutors_data|sum(attribute='active_students') }}</h3>
+                    <p>Active Students</p>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Filters -->
+    <!-- Filter Section -->
     <div class="card mb-4">
         <div class="card-body">
-            <form method="GET" class="row g-3">
-                <div class="col-md-3">
-                    <label class="form-label">Tutor</label>
-                    <select name="tutor" class="form-select">
-                        <option value="">All Tutors</option>
-                        {% for tutor in tutors %}
-                        <option value="{{ tutor.id }}" {{ 'selected' if request.args.get('tutor')|int == tutor.id }}>
-                            {{ tutor.user.full_name }}
-                        </option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="col-md-3">
-                    <label class="form-label">Month</label>
-                    <select name="month" class="form-select">
-                        <option value="">All Months</option>
-                        {% for month in months %}
-                        <option value="{{ month }}" {{ 'selected' if request.args.get('month') == month }}>
-                            {{ month|replace('-', ' ')|title }}
-                        </option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="col-md-3">
-                    <label class="form-label">Status</label>
-                    <select name="status" class="form-select">
-                        <option value="">All Status</option>
-                        <option value="scheduled" {{ 'selected' if request.args.get('status') == 'scheduled' }}>Scheduled</option>
-                        <option value="completed" {{ 'selected' if request.args.get('status') == 'completed' }}>Completed</option>
-                        <option value="cancelled" {{ 'selected' if request.args.get('status') == 'cancelled' }}>Cancelled</option>
-                    </select>
-                </div>
-                <div class="col-md-3">
-                <label class="form-label">Activate</label>
-                <select name="activate" class="form-select">
-                    <option value="">All Batches</option>
-                    <option value="1" {{ 'selected' if request.args.get('activate')=='1' }}>With Active Students</option>
-                    <option value="0" {{ 'selected' if request.args.get('activate')=='0' }}>No Active Students</option>
-                </select>
-                </div>
-                <div class="col-md-2">
-                    <label class="form-label">&nbsp;</label>
-                    <div class="d-grid">
-                        <button type="submit" class="btn btn-outline-primary">
-                            <i class="fas fa-search"></i>
-                            Filter
-                        </button>
+            <form method="GET" action="{{ url_for('admin.course_batches') }}">
+                <div class="row g-3 align-items-end">
+                    <div class="col-md-3">
+                        <label class="form-label">Tutor</label>
+                        <select name="tutor" class="form-select">
+                            <option value="">All Tutors</option>
+                            {% for tutor in tutors %}
+                            <option value="{{ tutor.id }}" {{ 'selected' if request.args.get('tutor')|int == tutor.id }}>
+                                {{ tutor.user.full_name if tutor.user else 'Unknown' }}
+                            </option>
+                            {% endfor %}
+                        </select>
                     </div>
-                </div>
-                <div class="col-md-1">
-                    <label class="form-label">&nbsp;</label>
-                    <div class="d-grid">
-                        <a href="{{ url_for('admin.course_batches') }}" class="btn btn-outline-secondary">
-                            <i class="fas fa-times"></i>
-                        </a>
+                    <div class="col-md-2">
+                        <label class="form-label">Status</label>
+                        <select name="status" class="form-select">
+                            <option value="">All Status</option>
+                            <option value="scheduled" {{ 'selected' if request.args.get('status')=='scheduled' }}>Scheduled</option>
+                            <option value="completed" {{ 'selected' if request.args.get('status')=='completed' }}>Completed</option>
+                            <option value="cancelled" {{ 'selected' if request.args.get('status')=='cancelled' }}>Cancelled</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">Month</label>
+                        <select name="month" class="form-select">
+                            <option value="">All Months</option>
+                            {% for month in months %}
+                            <option value="{{ month }}" {{ 'selected' if request.args.get('month')==month }}>
+                                {{ month | replace('-', ' ') | title }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">Students</label>
+                        <select name="activate" class="form-select">
+                            <option value="">All Tutors</option>
+                            <option value="1" {{ 'selected' if request.args.get('activate')=='1' }}>With Active Students</option>
+                            <option value="0" {{ 'selected' if request.args.get('activate')=='0' }}>No Active Students</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">&nbsp;</label>
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-outline-primary">
+                                <i class="fas fa-search"></i>
+                                Filter
+                            </button>
+                        </div>
+                    </div>
+                    <div class="col-md-1">
+                        <label class="form-label">&nbsp;</label>
+                        <div class="d-grid">
+                            <a href="{{ url_for('admin.course_batches') }}" class="btn btn-outline-secondary">
+                                <i class="fas fa-times"></i>
+                            </a>
+                        </div>
                     </div>
                 </div>
             </form>
         </div>
     </div>
 
-    <!-- Course Batches -->
+    <!-- Tutor Cards -->
     <div class="row g-4">
-        {% if batches %}
-        {% for batch in batches %}
+        {% if tutors_data %}
+        {% for tutor_data in tutors_data %}
         <div class="col-xl-6 col-lg-12">
-            <div class="course-batch-card">
-                <div class="batch-header">
-                    <div class="batch-title">
-                        <h5>
-                            <i class="fas fa-book"></i>
-                            {{ batch.subject }}
-                        </h5>
-                        <div class="batch-meta">
-                            <span class="tutor-name">
-                                <i class="fas fa-user-tie"></i>
-                                {{ batch.tutor.user.full_name if batch.tutor and batch.tutor.user else 'No Tutor' }}
-                            </span>
+            <div class="tutor-card" data-tutor-id="{{ tutor_data.tutor_id }}">
+                <div class="tutor-header" onclick="toggleTutorBatches({{ tutor_data.tutor_id }})">
+                    <div class="tutor-info">
+                        <div class="tutor-avatar">
+                            <i class="fas fa-user-tie"></i>
+                        </div>
+                        <div class="tutor-details">
+                            <h4 class="tutor-name">
+                                {{ tutor_data.tutor.user.full_name if tutor_data.tutor and tutor_data.tutor.user else 'No Tutor' }}
+                            </h4>
+                            <p class="tutor-meta">
+                                {{ tutor_data.total_batches }} batch{{ 'es' if tutor_data.total_batches != 1 else '' }} • 
+                                {{ tutor_data.subjects|length }} subject{{ 's' if tutor_data.subjects|length != 1 else '' }} • 
+                                {{ tutor_data.date_range.start.strftime('%b %Y') if tutor_data.date_range.start else 'No dates' }}
+                                {% if tutor_data.date_range.end and tutor_data.date_range.end != tutor_data.date_range.start %}
+                                - {{ tutor_data.date_range.end.strftime('%b %Y') }}
+                                {% endif %}
+                            </p>
                         </div>
                     </div>
-                    <div class="batch-progress">
-                        <div class="progress-circle" data-progress="{{ batch.progress_percentage }}">
-                            <span class="progress-text">{{ batch.progress_percentage }}%</span>
+                    <div class="tutor-progress">
+                        <div class="progress-circle" data-progress="{{ tutor_data.progress_percentage }}">
+                            <span class="progress-text">{{ tutor_data.progress_percentage }}%</span>
+                        </div>
+                        <div class="expand-icon">
+                            <i class="fas fa-chevron-down"></i>
                         </div>
                     </div>
                 </div>
 
-                <div class="batch-info">
-                    <div class="info-grid">
-                        <div class="info-item">
-                            <i class="fas fa-calendar-alt"></i>
+                <div class="tutor-summary">
+                    <div class="summary-grid">
+                        <div class="summary-item">
+                            <i class="fas fa-chalkboard"></i>
                             <div>
-                                <strong>{{ batch.date_range.start.strftime('%d %b') if batch.date_range.start else 'No dates' }}</strong>
-                                {% if batch.date_range.end and batch.date_range.end != batch.date_range.start %}
-                                - {{ batch.date_range.end.strftime('%d %b %Y') }}
-                                {% else %}
-                                {{ batch.date_range.start.strftime('%Y') if batch.date_range.start else '' }}
-                                {% endif %}
-                                <small>({{ batch.total_classes }} classes)</small>
+                                <strong>{{ tutor_data.total_classes }}</strong>
+                                <small>Total Classes</small>
                             </div>
                         </div>
-                        
-                        <div class="info-item">
+                        <div class="summary-item">
+                            <i class="fas fa-check-circle text-success"></i>
+                            <div>
+                                <strong>{{ tutor_data.completed_classes }}</strong>
+                                <small>Completed</small>
+                            </div>
+                        </div>
+                        <div class="summary-item">
+                            <i class="fas fa-clock text-warning"></i>
+                            <div>
+                                <strong>{{ tutor_data.scheduled_classes }}</strong>
+                                <small>Scheduled</small>
+                            </div>
+                        </div>
+                        <div class="summary-item">
                             <i class="fas fa-users"></i>
                             <div>
-                                <strong>{{ batch.active_student_count }} Active</strong>
-                                {% if batch.completed_student_count > 0 %}
-                                <small>{{ batch.completed_student_count }} completed</small>
-                                {% endif %}
-                            </div>
-                        </div>
-                        
-                        <div class="info-item">
-                            <i class="fas fa-chart-bar"></i>
-                            <div>
-                                <strong>{{ batch.completed_classes }}/{{ batch.total_classes }}</strong>
-                                <small>classes done</small>
+                                <strong>{{ tutor_data.active_students }}</strong>
+                                <small>Active Students</small>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Student Preview -->
-                    {% if batch.student_objects %}
-                    <div class="student-preview">
-                        <small class="text-muted">Students:</small>
+                    <!-- Subjects Preview -->
+                    <div class="subjects-preview">
+                        <small class="text-muted">Subjects:</small>
+                        <div class="subject-tags">
+                            {% for subject in tutor_data.subjects[:4] %}
+                            <span class="subject-tag">{{ subject }}</span>
+                            {% endfor %}
+                            {% if tutor_data.subjects|length > 4 %}
+                            <span class="subject-tag more">+{{ tutor_data.subjects|length - 4 }} more</span>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Students Preview -->
+                    {% if tutor_data.student_objects %}
+                    <div class="students-preview">
+                        <small class="text-muted">Active Students:</small>
                         <div class="student-list">
-                            {% for student in batch.student_objects[:3] %}
+                            {% for student in tutor_data.student_objects[:3] %}
                             <span class="student-tag">{{ student.full_name }}</span>
                             {% endfor %}
-                            {% if batch.student_count > 3 %}
-                            <span class="student-tag more">+{{ batch.student_count - 3 }} more</span>
+                            {% if tutor_data.active_students > 3 %}
+                            <span class="student-tag more">+{{ tutor_data.active_students - 3 }} more</span>
                             {% endif %}
                         </div>
                     </div>
                     {% endif %}
                 </div>
 
-                <div class="batch-actions">
-                    <a href="{{ url_for('admin.course_batch_details', batch_id=batch.batch_id) }}" 
-                       class="btn btn-primary btn-sm">
-                        <i class="fas fa-eye"></i>
-                        View Details
-                    </a>
-                    <a href="{{ url_for('admin.classes') }}?tutor={{ batch.tutor.id if batch.tutor else '' }}&subject={{ batch.subject }}" 
-                       class="btn btn-outline-secondary btn-sm">
-                        <i class="fas fa-list"></i>
-                        View Classes
-                    </a>
-                    {% if batch.scheduled_classes > 0 %}
-                    <button class="btn btn-outline-warning btn-sm" onclick="showBulkActions('{{ batch.batch_id }}')">
-                        <i class="fas fa-cog"></i>
-                        Bulk Actions
-                    </button>
-                    {% endif %}
+                <!-- Expandable Batches Section -->
+                <div class="tutor-batches" id="batches-{{ tutor_data.tutor_id }}" style="display: none;">
+                    <div class="batches-header">
+                        <h5><i class="fas fa-layer-group"></i> Individual Batches ({{ tutor_data.batches|length }})</h5>
+                    </div>
+                    <div class="batches-scroll-container">
+                        <div class="batches-list">
+                            {% for batch in tutor_data.batches %}
+                            <div class="batch-item">
+                                <div class="batch-info">
+                                    <div class="batch-title">
+                                        <h6><i class="fas fa-book"></i> {{ batch.subject }}</h6>
+                                        <span class="batch-dates">
+                                            {{ batch.date_range.start.strftime('%d %b') if batch.date_range.start else 'No dates' }}
+                                            {% if batch.date_range.end and batch.date_range.end != batch.date_range.start %}
+                                            - {{ batch.date_range.end.strftime('%d %b %Y') }}
+                                            {% else %}
+                                            {{ batch.date_range.start.strftime('%Y') if batch.date_range.start else '' }}
+                                            {% endif %}
+                                        </span>
+                                    </div>
+                                    <div class="batch-stats">
+                                        <span><i class="fas fa-chalkboard"></i> {{ batch.total_classes }} classes</span>
+                                        <span><i class="fas fa-users"></i> {{ batch.active_student_count }} students</span>
+                                        <span><i class="fas fa-chart-bar"></i> {{ batch.progress_percentage }}% done</span>
+                                    </div>
+                                </div>
+                                <div class="batch-actions">
+                                    <a href="{{ url_for('admin.course_batch_details', batch_id=batch.batch_id) }}" 
+                                       class="btn btn-sm btn-outline-primary">
+                                        <i class="fas fa-eye"></i> Details
+                                    </a>
+                                    <a href="{{ url_for('admin.classes') }}?tutor={{ batch.tutor.id if batch.tutor else '' }}&subject={{ batch.subject }}" 
+                                       class="btn btn-sm btn-outline-secondary">
+                                        <i class="fas fa-list"></i> Classes
+                                    </a>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -238,9 +284,9 @@
         {% else %}
         <div class="col-12">
             <div class="text-center py-5">
-                <i class="fas fa-layer-group fa-3x text-muted mb-3"></i>
-                <h5>No Course Batches Found</h5>
-                <p class="text-muted">Try adjusting your filters or create some classes to see batches here.</p>
+                <i class="fas fa-user-tie fa-3x text-muted mb-3"></i>
+                <h5>No Tutors Found</h5>
+                <p class="text-muted">Try adjusting your filters or create some classes to see tutors here.</p>
                 <a href="{{ url_for('admin.classes') }}" class="btn btn-primary">
                     <i class="fas fa-plus"></i>
                     Create Classes
@@ -248,156 +294,212 @@
             </div>
         </div>
         {% endif %}
-        {# ← INSERT PAGINATION HERE ───────────────────────────── #}
-        {% if pagination.pages > 1 %}
+    </div>
+
+    <!-- Pagination -->
+    {% if pagination.pages > 1 %}
+    <div class="card mt-4">
         <div class="card-footer">
-          <nav aria-label="Batch pagination">
-            <ul class="pagination pagination-sm justify-content-center mb-0">
-              {% if pagination.has_prev %}
-                <li class="page-item">
-                  <a class="page-link"
-                     href="{{ url_for('admin.course_batches', page=pagination.prev_num, **filtered_args) }}">
-                    <i class="fas fa-chevron-left"></i>
-                  </a>
-                </li>
-              {% else %}
-                <li class="page-item disabled">
-                  <span class="page-link"><i class="fas fa-chevron-left"></i></span>
-                </li>
-              {% endif %}
-
-              {% for p in pagination.iter_pages(left_edge=1, right_edge=1, left_current=1, right_current=2) %}
-                {% if p %}
-                  {% if p != pagination.page %}
+            <nav aria-label="Tutor pagination">
+                <ul class="pagination pagination-sm justify-content-center mb-0">
+                    {% if pagination.has_prev %}
                     <li class="page-item">
-                      <a class="page-link"
-                         href="{{ url_for('admin.course_batches', page=p, **filtered_args) }}">
-                        {{ p }}
-                      </a>
+                        <a class="page-link" href="{{ url_for('admin.course_batches', page=pagination.prev_num, **filtered_args) }}">
+                            <i class="fas fa-chevron-left"></i>
+                        </a>
                     </li>
-                  {% else %}
-                    <li class="page-item active">
-                      <span class="page-link">{{ p }}</span>
+                    {% else %}
+                    <li class="page-item disabled">
+                        <span class="page-link"><i class="fas fa-chevron-left"></i></span>
                     </li>
-                  {% endif %}
-                {% else %}
-                  <li class="page-item disabled"><span class="page-link">…</span></li>
-                {% endif %}
-              {% endfor %}
+                    {% endif %}
 
-              {% if pagination.has_next %}
-                <li class="page-item">
-                  <a class="page-link"
-                     href="{{ url_for('admin.course_batches', page=pagination.next_num, **filtered_args) }}">
-                    <i class="fas fa-chevron-right"></i>
-                  </a>
-                </li>
-              {% else %}
-                <li class="page-item disabled">
-                  <span class="page-link"><i class="fas fa-chevron-right"></i></span>
-                </li>
-              {% endif %}
-            </ul>
-          </nav>
-        </div>
-        {% endif %}
-    </div>
-</div>
+                    {% for page_num in pagination.iter_pages() %}
+                        {% if page_num %}
+                            {% if page_num != pagination.page %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('admin.course_batches', page=page_num, **filtered_args) }}">
+                                    {{ page_num }}
+                                </a>
+                            </li>
+                            {% else %}
+                            <li class="page-item active">
+                                <span class="page-link">{{ page_num }}</span>
+                            </li>
+                            {% endif %}
+                        {% else %}
+                        <li class="page-item disabled">
+                            <span class="page-link">…</span>
+                        </li>
+                        {% endif %}
+                    {% endfor %}
 
-
-<!-- Bulk Actions Modal -->
-<div class="modal fade" id="bulkActionsModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Bulk Actions</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <div class="d-grid gap-2">
-                    <button class="btn btn-outline-warning" onclick="bulkReschedule()">
-                        <i class="fas fa-calendar-alt"></i>
-                        Reschedule All Remaining Classes
-                    </button>
-                    <button class="btn btn-outline-info" onclick="bulkAddStudent()">
-                        <i class="fas fa-user-plus"></i>
-                        Add Student to All Classes
-                    </button>
-                    <button class="btn btn-outline-danger" onclick="bulkCancel()">
-                        <i class="fas fa-times-circle"></i>
-                        Cancel All Remaining Classes
-                    </button>
-                </div>
-            </div>
+                    {% if pagination.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('admin.course_batches', page=pagination.next_num, **filtered_args) }}">
+                            <i class="fas fa-chevron-right"></i>
+                        </a>
+                    </li>
+                    {% else %}
+                    <li class="page-item disabled">
+                        <span class="page-link"><i class="fas fa-chevron-right"></i></span>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
         </div>
     </div>
+    {% endif %}
 </div>
-
 <style>
-.course-batch-card {
-    background: white;
-    border-radius: 12px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    padding: 20px;
-    margin-bottom: 20px;
-    transition: transform 0.3s ease, box-shadow 0.3s ease;
+/* ========================================
+   COURSE BATCHES THEME - WHITE & ORANGE
+   ======================================== */
+
+/* CSS Variables for Your Orange Theme */
+:root {
+    --primary-gradient: linear-gradient(135deg, #F1A150 0%, #e8974a 100%);
+    --primary-gradient-hover: linear-gradient(135deg, #e8974a 0%, #C86706 100%);
+    --primary-color: #F1A150;
+    --primary-dark: #C86706;
+    --primary-light: #FFD8A8;
+    --white: #ffffff;
+    --light-gray: #f8f9fa;
+    --medium-gray: #e9ecef;
+    --dark-gray: #495057;
+    --text-primary: #212529;
+    --text-secondary: #6c757d;
+    --border-color: #dee2e6;
+    --success-color: #28a745;
+    --warning-color: #ffc107;
+    --info-color: #17a2b8;
+    --danger-color: #dc3545;
+    --shadow-light: 0 4px 6px rgba(0, 0, 0, 0.1);
+    --shadow-medium: 0 8px 25px rgba(0, 0, 0, 0.15);
+    --shadow-primary: 0 8px 25px rgba(241, 161, 80, 0.2);
+    --border-radius: 16px;
+    --border-radius-small: 8px;
+    --transition: all 0.3s ease;
+    --transition-fast: all 0.2s ease;
 }
 
-.course-batch-card:hover {
+/* ========================================
+   MAIN TUTOR CARD STRUCTURE
+   ======================================== */
+
+.tutor-card {
+    background: var(--white);
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow-light);
+    overflow: hidden;
+    transition: var(--transition);
+    border: 2px solid transparent;
+    margin-bottom: 1.5rem;
+}
+
+.tutor-card:hover {
     transform: translateY(-2px);
-    box-shadow: 0 8px 15px rgba(0, 0, 0, 0.15);
+    box-shadow: var(--shadow-medium);
+    border-color: var(--primary-color);
 }
 
-.batch-header {
+.tutor-card.expanded {
+    border-color: var(--primary-color);
+    box-shadow: var(--shadow-primary);
+}
+
+/* ========================================
+   TUTOR HEADER SECTION
+   ======================================== */
+
+.tutor-header {
+    background: var(--primary-gradient);
+    color: var(--white);
+    padding: 1.5rem;
+    cursor: pointer;
     display: flex;
     justify-content: space-between;
-    align-items: flex-start;
-    margin-bottom: 15px;
+    align-items: center;
+    transition: var(--transition);
+    user-select: none;
 }
 
-.batch-title h5 {
-    margin: 0;
-    color: #2c3e50;
-    font-size: 1.1rem;
-    font-weight: 600;
+.tutor-header:hover {
+    background: var(--primary-gradient-hover);
 }
 
-.batch-title h5 i {
-    color: #3498db;
-    margin-right: 8px;
+.tutor-info {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex: 1;
 }
 
-.batch-meta {
-    margin-top: 5px;
+.tutor-avatar {
+    width: 50px;
+    height: 50px;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+    backdrop-filter: blur(10px);
+    flex-shrink: 0;
+}
+
+.tutor-details {
+    flex: 1;
 }
 
 .tutor-name {
-    color: #7f8c8d;
-    font-size: 0.9rem;
+    margin: 0;
+    font-size: 1.25rem;
+    font-weight: 600;
+    line-height: 1.2;
 }
 
-.tutor-name i {
-    margin-right: 5px;
+.tutor-meta {
+    margin: 0.25rem 0 0 0;
+    opacity: 0.9;
+    font-size: 0.9rem;
+    line-height: 1.3;
+}
+
+/* ========================================
+   PROGRESS INDICATOR
+   ======================================== */
+
+.tutor-progress {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
 }
 
 .progress-circle {
     width: 50px;
     height: 50px;
     border-radius: 50%;
-    background: conic-gradient(#28a745 0deg, #28a745 var(--progress, 0deg), #e9ecef var(--progress, 0deg));
+    background: conic-gradient(
+        var(--white) 0deg, 
+        var(--white) var(--progress, 0deg), 
+        rgba(255, 255, 255, 0.3) var(--progress, 0deg)
+    );
     display: flex;
     align-items: center;
     justify-content: center;
     position: relative;
+    flex-shrink: 0;
 }
 
 .progress-circle::before {
     content: '';
     width: 35px;
     height: 35px;
-    background: white;
+    background: rgba(255, 255, 255, 0.15);
     border-radius: 50%;
     position: absolute;
+    backdrop-filter: blur(10px);
 }
 
 .progress-text {
@@ -405,165 +507,730 @@
     z-index: 1;
     font-size: 0.75rem;
     font-weight: 600;
-    color: #2c3e50;
+    color: var(--white);
 }
 
-.info-grid {
+.expand-icon {
+    font-size: 1.25rem;
+    transition: transform 0.3s ease;
+    flex-shrink: 0;
+}
+
+.tutor-card.expanded .expand-icon {
+    transform: rotate(180deg);
+}
+
+/* ========================================
+   TUTOR SUMMARY SECTION
+   ======================================== */
+
+.tutor-summary {
+    padding: 1.5rem;
+    background: var(--white);
+}
+
+.summary-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-    gap: 15px;
-    margin-bottom: 15px;
+    gap: 1rem;
+    margin-bottom: 1rem;
 }
 
-.info-item {
+.summary-item {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 0.75rem;
+    padding: 0.75rem;
+    background: var(--light-gray);
+    border-radius: var(--border-radius-small);
+    transition: var(--transition-fast);
 }
 
-.info-item i {
-    color: #3498db;
-    width: 16px;
+.summary-item:hover {
+    background: var(--medium-gray);
+    transform: translateY(-1px);
 }
 
-.info-item strong {
+.summary-item i {
+    color: var(--primary-color);
+    width: 20px;
+    text-align: center;
+    flex-shrink: 0;
+}
+
+.summary-item div {
+    flex: 1;
+}
+
+.summary-item strong {
     display: block;
-    font-size: 0.9rem;
+    font-size: 1rem;
+    color: var(--text-primary);
+    font-weight: 600;
 }
 
-.info-item small {
-    color: #7f8c8d;
+.summary-item small {
+    color: var(--text-secondary);
     font-size: 0.8rem;
+    line-height: 1.2;
 }
 
-.student-preview {
-    border-top: 1px solid #eee;
-    padding-top: 12px;
-    margin-bottom: 15px;
+/* ========================================
+   PREVIEW SECTIONS
+   ======================================== */
+
+.subjects-preview, 
+.students-preview {
+    margin-bottom: 1rem;
 }
 
+.subjects-preview:last-child,
+.students-preview:last-child {
+    margin-bottom: 0;
+}
+
+.subject-tags, 
 .student-list {
     display: flex;
     flex-wrap: wrap;
-    gap: 5px;
-    margin-top: 5px;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+}
+
+.subject-tag, 
+.student-tag {
+    padding: 0.25rem 0.75rem;
+    border-radius: 16px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    border: 1px solid;
+    transition: var(--transition-fast);
+}
+
+.subject-tag {
+    background: var(--primary-light);
+    color: var(--primary-dark);
+    border-color: var(--primary-color);
+}
+
+.subject-tag:hover {
+    background: var(--primary-color);
+    color: var(--white);
+    transform: translateY(-1px);
 }
 
 .student-tag {
     background: #f8f9fa;
-    color: #495057;
-    padding: 2px 8px;
-    border-radius: 12px;
-    font-size: 0.8rem;
-    border: 1px solid #dee2e6;
+    color: var(--text-primary);
+    border-color: var(--border-color);
 }
 
+.student-tag:hover {
+    background: var(--medium-gray);
+    border-color: var(--text-secondary);
+    transform: translateY(-1px);
+}
+
+.subject-tag.more, 
 .student-tag.more {
-    background: #e9ecef;
+    background: var(--medium-gray);
+    color: var(--text-secondary);
+    border-color: var(--border-color);
+}
+
+/* ========================================
+   EXPANDABLE BATCHES SECTION
+   ======================================== */
+
+.tutor-batches {
+    border-top: 1px solid var(--medium-gray);
+    background: var(--light-gray);
+    display: none;
+    animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        max-height: 0;
+    }
+    to {
+        opacity: 1;
+        max-height: 1000px;
+    }
+}
+
+.batches-header {
+    padding: 1rem 1.5rem;
+    background: var(--medium-gray);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.batches-header h5 {
+    margin: 0;
+    color: var(--dark-gray);
+    font-size: 1rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.batches-list {
+    padding: 1rem;
+}
+
+/* ========================================
+   SCROLLABLE BATCHES CONTAINER
+   ======================================== */
+
+.batches-scroll-container {
+    max-height: 400px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    border-radius: 0 0 var(--border-radius-small) var(--border-radius-small);
+}
+
+/* Custom Scrollbar Styling */
+.batches-scroll-container::-webkit-scrollbar {
+    width: 6px;
+}
+
+.batches-scroll-container::-webkit-scrollbar-track {
+    background: var(--light-gray);
+    border-radius: 3px;
+}
+
+.batches-scroll-container::-webkit-scrollbar-thumb {
+    background: var(--primary-color);
+    border-radius: 3px;
+    transition: background 0.3s ease;
+}
+
+.batches-scroll-container::-webkit-scrollbar-thumb:hover {
+    background: var(--primary-dark);
+}
+
+/* Firefox Scrollbar */
+.batches-scroll-container {
+    scrollbar-width: thin;
+    scrollbar-color: var(--primary-color) var(--light-gray);
+}
+
+/* Fade effect at bottom when scrollable */
+.batches-scroll-container::after {
+    content: '';
+    position: sticky;
+    bottom: 0;
+    display: block;
+    height: 20px;
+    background: linear-gradient(transparent, var(--light-gray));
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.batches-scroll-container.has-scroll::after {
+    opacity: 1;
+}
+
+/* ========================================
+   INDIVIDUAL BATCH ITEMS
+   ======================================== */
+
+.batch-item {
+    background: var(--white);
+    border-radius: var(--border-radius-small);
+    padding: 1rem;
+    margin-bottom: 0.75rem;
+    border: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: var(--transition-fast);
+}
+
+.batch-item:hover {
+    border-color: var(--primary-color);
+    transform: translateX(4px);
+    box-shadow: 0 2px 8px rgba(241, 161, 80, 0.1);
+}
+
+.batch-item:last-child {
+    margin-bottom: 0;
+}
+
+.batch-info {
+    flex: 1;
+}
+
+.batch-title h6 {
+    margin: 0 0 0.25rem 0;
+    color: var(--text-primary);
+    font-size: 0.95rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.batch-title i {
+    color: var(--primary-color);
+}
+
+.batch-dates {
+    color: var(--text-secondary);
+    font-size: 0.8rem;
     font-weight: 500;
+}
+
+.batch-stats {
+    display: flex;
+    gap: 1rem;
+    margin-top: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.batch-stats span {
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    white-space: nowrap;
+}
+
+.batch-stats i {
+    color: var(--primary-color);
 }
 
 .batch-actions {
     display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-left: 1rem;
 }
 
-.batch-actions .btn {
-    flex: 1;
-    min-width: auto;
-}
+/* ========================================
+   STATISTICS CARDS
+   ======================================== */
 
-@media (max-width: 768px) {
-    .batch-header {
-        flex-direction: column;
-        gap: 10px;
-    }
-    
-    .info-grid {
-        grid-template-columns: 1fr;
-        gap: 10px;
-    }
-    
-    .batch-actions {
-        flex-direction: column;
-    }
-    
-    .batch-actions .btn {
-        flex: none;
-    }
-}
-
-/* Stat cards from your existing styles */
 .stat-card {
-    background: white;
-    border-radius: 0.5rem;
+    background: var(--white);
+    border-radius: var(--border-radius-small);
     padding: 1.5rem;
     box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
     display: flex;
     align-items: center;
     gap: 1rem;
+    transition: var(--transition-fast);
+}
+
+.stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-light);
 }
 
 .stat-icon {
     width: 60px;
     height: 60px;
-    border-radius: 0.5rem;
+    border-radius: var(--border-radius-small);
     display: flex;
     align-items: center;
     justify-content: center;
     font-size: 1.5rem;
-    color: white;
+    color: var(--white);
+    flex-shrink: 0;
 }
 
-.stat-icon.primary { background: #0d6efd; }
-.stat-icon.success { background: #198754; }
-.stat-icon.warning { background: #ffc107; color: #000; }
-.stat-icon.info { background: #0dcaf0; }
+.stat-icon.primary { 
+    background: var(--primary-color); 
+}
+
+.stat-icon.success { 
+    background: var(--success-color); 
+}
+
+.stat-icon.warning { 
+    background: var(--warning-color); 
+    color: var(--text-primary); 
+}
+
+.stat-icon.info { 
+    background: var(--info-color); 
+}
+
+.stat-content {
+    flex: 1;
+}
 
 .stat-content h3 {
     margin: 0;
     font-size: 2rem;
     font-weight: 600;
+    color: var(--text-primary);
 }
 
 .stat-content p {
     margin: 0;
-    color: #6c757d;
+    color: var(--text-secondary);
     font-size: 0.875rem;
+}
+
+/* ========================================
+   RESPONSIVE DESIGN
+   ======================================== */
+
+@media (max-width: 992px) {
+    .tutor-header {
+        padding: 1.25rem;
+    }
+    
+    .tutor-summary {
+        padding: 1.25rem;
+    }
+    
+    .summary-grid {
+        grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+        gap: 0.75rem;
+    }
+}
+
+@media (max-width: 768px) {
+    .tutor-header {
+        flex-direction: column;
+        gap: 1rem;
+        text-align: center;
+        padding: 1rem;
+    }
+    
+    .tutor-info {
+        flex-direction: column;
+        text-align: center;
+        gap: 0.75rem;
+    }
+    
+    .tutor-progress {
+        justify-content: center;
+    }
+    
+    .summary-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: 0.75rem;
+    }
+    
+    .batch-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+    
+    .batch-actions {
+        width: 100%;
+        justify-content: flex-end;
+        margin-left: 0;
+    }
+    
+    .batch-stats {
+        gap: 0.75rem;
+    }
+    
+    .stat-card {
+        padding: 1rem;
+        gap: 0.75rem;
+    }
+    
+    .stat-icon {
+        width: 50px;
+        height: 50px;
+        font-size: 1.25rem;
+    }
+    
+    .stat-content h3 {
+        font-size: 1.5rem;
+    }
+}
+
+@media (max-width: 576px) {
+    .tutor-header {
+        padding: 0.75rem;
+    }
+    
+    .tutor-summary {
+        padding: 1rem;
+    }
+    
+    .summary-grid {
+        grid-template-columns: 1fr;
+        gap: 0.5rem;
+    }
+    
+    .batches-list {
+        padding: 0.75rem;
+    }
+    
+    .batches-scroll-container {
+        max-height: 300px; /* Reduce height on mobile */
+    }
+    
+    .batch-item {
+        padding: 0.75rem;
+    }
+    
+    .batch-actions {
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+    
+    .batch-actions .btn {
+        font-size: 0.8rem;
+        padding: 0.375rem 0.75rem;
+    }
+}
+
+/* ========================================
+   UTILITY CLASSES
+   ======================================== */
+
+.text-truncate-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.fade-in {
+    animation: fadeIn 0.5s ease-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.pulse {
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
 }
 </style>
 
 <script>
-// Set progress circle CSS custom property
-document.addEventListener('DOMContentLoaded', function() {
-    const progressCircles = document.querySelectorAll('.progress-circle');
-    progressCircles.forEach(circle => {
-        const progress = parseFloat(circle.dataset.progress || 0);
-        const degrees = (progress / 100) * 360;
-        circle.style.setProperty('--progress', degrees + 'deg');
+/* ========================================
+   COURSE BATCHES THEME - JAVASCRIPT
+   ======================================== */
+
+(function() {
+    'use strict';
+
+    // Initialize when DOM is ready
+    document.addEventListener('DOMContentLoaded', function() {
+        initializeProgressCircles();
+        initializeAnimations();
+        setupEventListeners();
     });
-});
 
-function showBulkActions(batchId) {
-    // Store current batch ID for bulk actions
-    window.currentBatchId = batchId;
-    const modal = new bootstrap.Modal(document.getElementById('bulkActionsModal'));
-    modal.show();
-}
-
-function bulkReschedule() {
-    alert('Bulk reschedule feature will be implemented in Phase 2');
-}
-
-function bulkAddStudent() {
-    alert('Bulk add student feature will be implemented in Phase 2');
-}
-
-function bulkCancel() {
-    if (confirm('Are you sure you want to cancel all remaining classes in this batch?')) {
-        alert('Bulk cancel feature will be implemented in Phase 2');
+    /**
+     * Initialize progress circles with custom CSS properties
+     */
+    function initializeProgressCircles() {
+        const progressCircles = document.querySelectorAll('.progress-circle');
+        
+        progressCircles.forEach(circle => {
+            const progress = parseFloat(circle.dataset.progress || 0);
+            const degrees = Math.min((progress / 100) * 360, 360); // Ensure max 360 degrees
+            circle.style.setProperty('--progress', degrees + 'deg');
+            
+            // Add animation class
+            circle.classList.add('fade-in');
+        });
     }
-}
+
+    /**
+     * Initialize page animations
+     */
+    function initializeAnimations() {
+        // Add fade-in animation to cards
+        const cards = document.querySelectorAll('.tutor-card');
+        cards.forEach((card, index) => {
+            setTimeout(() => {
+                card.classList.add('fade-in');
+            }, index * 100); // Stagger animation
+        });
+
+        // Add pulse animation to stat cards
+        const statCards = document.querySelectorAll('.stat-card');
+        statCards.forEach(card => {
+            card.addEventListener('mouseenter', function() {
+                this.classList.add('pulse');
+            });
+            
+            card.addEventListener('mouseleave', function() {
+                this.classList.remove('pulse');
+            });
+        });
+    }
+
+    /**
+     * Setup event listeners
+     */
+    function setupEventListeners() {
+        // Keyboard accessibility for tutor headers
+        const tutorHeaders = document.querySelectorAll('.tutor-header');
+        tutorHeaders.forEach(header => {
+            header.setAttribute('tabindex', '0');
+            header.setAttribute('role', 'button');
+            header.setAttribute('aria-expanded', 'false');
+            
+            header.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    const tutorId = this.closest('.tutor-card').dataset.tutorId;
+                    toggleTutorBatches(tutorId);
+                }
+            });
+        });
+
+        // Close expanded cards when clicking outside
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('.tutor-card')) {
+                const expandedCards = document.querySelectorAll('.tutor-card.expanded');
+                expandedCards.forEach(card => {
+                    const tutorId = card.dataset.tutorId;
+                    const batchesSection = document.getElementById(`batches-${tutorId}`);
+                    if (batchesSection && batchesSection.style.display !== 'none') {
+                        toggleTutorBatches(tutorId);
+                    }
+                });
+            }
+        });
+    }
+
+    /**
+     * Toggle tutor batches visibility with smooth animation
+     * @param {string|number} tutorId - The tutor ID
+     */
+    window.toggleTutorBatches = function(tutorId) {
+        const tutorCard = document.querySelector(`[data-tutor-id="${tutorId}"]`);
+        const batchesSection = document.getElementById(`batches-${tutorId}`);
+        const header = tutorCard.querySelector('.tutor-header');
+        
+        if (!tutorCard || !batchesSection) {
+            console.warn('Tutor card or batches section not found for ID:', tutorId);
+            return;
+        }
+
+        const isExpanded = tutorCard.classList.contains('expanded');
+        
+        if (isExpanded) {
+            // Collapse
+            batchesSection.style.display = 'none';
+            tutorCard.classList.remove('expanded');
+            header.setAttribute('aria-expanded', 'false');
+            
+            // Smooth scroll to tutor card
+            tutorCard.scrollIntoView({ 
+                behavior: 'smooth', 
+                block: 'nearest' 
+            });
+        } else {
+            // Expand
+            batchesSection.style.display = 'block';
+            tutorCard.classList.add('expanded');
+            header.setAttribute('aria-expanded', 'true');
+            
+            // Setup scroll container
+            setTimeout(() => {
+                setupScrollContainer(tutorId);
+                
+                // Smooth scroll to show expanded content
+                batchesSection.scrollIntoView({ 
+                    behavior: 'smooth', 
+                    block: 'nearest' 
+                });
+            }, 100);
+        }
+    };
+
+    /**
+     * Setup scroll container for batches
+     * @param {string|number} tutorId - The tutor ID
+     */
+    function setupScrollContainer(tutorId) {
+        const scrollContainer = document.querySelector(`#batches-${tutorId} .batches-scroll-container`);
+        if (!scrollContainer) return;
+        
+        // Check if content overflows
+        if (scrollContainer.scrollHeight > scrollContainer.clientHeight) {
+            scrollContainer.classList.add('has-scroll');
+        } else {
+            scrollContainer.classList.remove('has-scroll');
+        }
+        
+        // Add scroll event listener for fade effect
+        scrollContainer.addEventListener('scroll', function() {
+            const isScrolledToBottom = this.scrollHeight - this.scrollTop === this.clientHeight;
+            
+            if (isScrolledToBottom) {
+                this.classList.remove('has-scroll');
+            } else {
+                this.classList.add('has-scroll');
+            }
+        });
+    }
+
+    /**
+     * Utility function to format numbers
+     * @param {number} num - Number to format
+     * @returns {string} Formatted number
+     */
+    window.formatNumber = function(num) {
+        if (num >= 1000) {
+            return (num / 1000).toFixed(1) + 'k';
+        }
+        return num.toString();
+    };
+
+    /**
+     * Utility function to calculate percentage
+     * @param {number} completed - Completed count
+     * @param {number} total - Total count
+     * @returns {number} Percentage
+     */
+    window.calculatePercentage = function(completed, total) {
+        if (total === 0) return 0;
+        return Math.round((completed / total) * 100);
+    };
+
+    /**
+     * Search functionality for tutor cards
+     * @param {string} query - Search query
+     */
+    window.searchTutors = function(query) {
+        const cards = document.querySelectorAll('.tutor-card');
+        const searchTerm = query.toLowerCase().trim();
+        
+        cards.forEach(card => {
+            const tutorName = card.querySelector('.tutor-name').textContent.toLowerCase();
+            const subjects = Array.from(card.querySelectorAll('.subject-tag'))
+                .map(tag => tag.textContent.toLowerCase());
+            
+            const isMatch = tutorName.includes(searchTerm) || 
+                          subjects.some(subject => subject.includes(searchTerm));
+            
+            if (isMatch || searchTerm === '') {
+                card.style.display = 'block';
+                card.classList.add('fade-in');
+            } else {
+                card.style.display = 'none';
+                card.classList.remove('fade-in');
+            }
+        });
+    };
+
+})();
 </script>
 {% endblock %}

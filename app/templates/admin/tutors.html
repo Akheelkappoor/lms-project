@@ -218,12 +218,23 @@
                             </td>
                             <td>
                                 <div class="btn-group-vertical btn-group-sm">
+                                    <!-- View Details Button -->
                                     <a href="{{ url_for('admin.tutor_details', tutor_id=tutor.id) }}" 
                                        class="btn btn-outline-primary mb-1" data-bs-toggle="tooltip" title="View Details">
                                         <i class="fas fa-eye"></i>
                                     </a>
                                     
-                                    {% if tutor.verification_status == 'pending' %}
+                                    <!-- Edit Tutor Profile Button -->
+                                    {% if current_user.role in ['superadmin', 'admin'] or 
+                                          (current_user.role == 'coordinator' and current_user.department_id == tutor.user.department_id) %}
+                                        <a href="{{ url_for('admin.edit_tutor', tutor_id=tutor.id) }}" 
+                                           class="btn btn-outline-secondary mb-1" data-bs-toggle="tooltip" title="Edit Tutor Profile">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                    {% endif %}
+                                    
+                                    <!-- Verification Buttons (for pending tutors) -->
+                                    {% if tutor.verification_status == 'pending' and current_user.role in ['superadmin', 'admin'] %}
                                     <div class="btn-group btn-group-sm mb-1">
                                         <button type="button" class="btn btn-outline-success" 
                                                 onclick="verifyTutor({{ tutor.id }}, 'approve')"
@@ -238,13 +249,57 @@
                                     </div>
                                     {% endif %}
                                     
-                                    <div class="btn-group btn-group-sm">
+                                    <!-- Status Toggle Button -->
+                                    {% if current_user.role in ['superadmin', 'admin'] %}
+                                    <div class="btn-group btn-group-sm mb-1">
                                         <button type="button" class="btn btn-outline-{{ 'success' if tutor.status == 'inactive' else 'warning' }}" 
                                                 onclick="toggleTutorStatus({{ tutor.id }})"
                                                 data-bs-toggle="tooltip" title="{{ 'Activate' if tutor.status == 'inactive' else 'Deactivate' }}">
                                             <i class="fas fa-{{ 'check' if tutor.status == 'inactive' else 'ban' }}"></i>
                                         </button>
                                     </div>
+                                    {% endif %}
+                                    
+                                    <!-- More Actions Dropdown -->
+                                    {% if current_user.role in ['superadmin', 'admin'] %}
+                                    <div class="btn-group btn-group-sm">
+                                        <button type="button" class="btn btn-outline-info dropdown-toggle" 
+                                                data-bs-toggle="dropdown" aria-expanded="false" title="More Actions">
+                                            <i class="fas fa-ellipsis-v"></i>
+                                        </button>
+                                        <ul class="dropdown-menu dropdown-menu-end">
+                                            <li>
+                                                <a class="dropdown-item" href="{{ url_for('admin.edit_user', user_id=tutor.user.id) }}">
+                                                    <i class="fas fa-user-edit text-primary"></i> Edit User Account
+                                                </a>
+                                            </li>
+                                            <li>
+                                                <a class="dropdown-item" href="#" onclick="resetPassword({{ tutor.user.id }})">
+                                                    <i class="fas fa-key text-warning"></i> Reset Password
+                                                </a>
+                                            </li>
+                                            <li><hr class="dropdown-divider"></li>
+                                            <li>
+                                                <a class="dropdown-item" href="#" onclick="viewClasses({{ tutor.id }})">
+                                                    <i class="fas fa-calendar text-info"></i> View Classes
+                                                </a>
+                                            </li>
+                                            <li>
+                                                <a class="dropdown-item" href="#" onclick="viewDocuments({{ tutor.id }})">
+                                                    <i class="fas fa-folder text-secondary"></i> View Documents
+                                                </a>
+                                            </li>
+                                            {% if current_user.role == 'superadmin' %}
+                                            <li><hr class="dropdown-divider"></li>
+                                            <li>
+                                                <a class="dropdown-item text-danger" href="#" onclick="deleteTutor({{ tutor.id }})">
+                                                    <i class="fas fa-trash"></i> Delete Tutor
+                                                </a>
+                                            </li>
+                                            {% endif %}
+                                        </ul>
+                                    </div>
+                                    {% endif %}
                                 </div>
                             </td>
                         </tr>
@@ -355,6 +410,7 @@
 
 .btn-group-sm .btn {
     padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
 }
 
 .table td {
@@ -367,6 +423,24 @@
 
 .stat-card:hover {
     transform: translateY(-5px);
+}
+
+.dropdown-menu {
+    min-width: 180px;
+}
+
+.dropdown-item {
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+}
+
+.dropdown-item i {
+    width: 16px;
+    margin-right: 0.5rem;
+}
+
+.actions-column {
+    min-width: 120px;
 }
 
 @media (max-width: 768px) {
@@ -386,6 +460,10 @@
     
     .table-responsive {
         font-size: 0.875rem;
+    }
+    
+    .dropdown-menu {
+        font-size: 0.8rem;
     }
 }
 </style>
@@ -416,7 +494,7 @@ function verifyTutor(tutorId, action) {
     const button = event.target.closest('button');
     const originalText = button.innerHTML;
     button.disabled = true;
-    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
     
     fetch(`/admin/tutors/${tutorId}/verify`, {
         method: 'POST',
@@ -527,6 +605,48 @@ function toggleTutorStatus(tutorId) {
         button.disabled = false;
         button.innerHTML = originalText;
     });
+}
+
+function resetPassword(userId) {
+    const message = 'Are you sure you want to reset this user\'s password? They will receive an email with reset instructions.';
+    
+    if (!confirm(message)) {
+        return;
+    }
+    
+    // Implementation for password reset
+    console.log('Reset password for user:', userId);
+    // Add your password reset logic here
+}
+
+function viewClasses(tutorId) {
+    // Redirect to tutor's classes view
+    window.location.href = `/admin/tutors/${tutorId}/classes`;
+}
+
+function viewDocuments(tutorId) {
+    // Redirect to tutor's documents view
+    window.location.href = `/admin/tutors/${tutorId}/documents`;
+}
+
+function deleteTutor(tutorId) {
+    const message = 'Are you sure you want to DELETE this tutor? This action cannot be undone and will remove all associated data.';
+    
+    if (!confirm(message)) {
+        return;
+    }
+    
+    const confirmMessage = 'This will permanently delete the tutor and all their data. Type "DELETE" to confirm:';
+    const confirmation = prompt(confirmMessage);
+    
+    if (confirmation !== 'DELETE') {
+        alert('Deletion cancelled. You must type "DELETE" to confirm.');
+        return;
+    }
+    
+    // Implementation for tutor deletion
+    console.log('Delete tutor:', tutorId);
+    // Add your deletion logic here
 }
 
 // Initialize when page loads

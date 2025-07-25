@@ -67,225 +67,411 @@
         </div>
         <div class="col-lg-3 col-md-6">
             <div class="stat-card">
-                <div class="stat-icon info">
-                    <i class="fas fa-users"></i>
+                <div class="stat-icon danger">
+                    <i class="fas fa-times-circle"></i>
                 </div>
                 <div class="stat-content">
-                    <h3>{{ stats.active_students }}</h3>
-                    <p>Active Students</p>
+                    <h3>{{ stats.cancelled_classes }}</h3>
+                    <p>Cancelled</p>
                 </div>
             </div>
         </div>
     </div>
 
-    <div class="row">
-        <!-- Students Section -->
-        <div class="col-lg-4">
-            <div class="card">
-                <div class="card-header">
-                    <h6 class="card-title mb-0">
-                        <i class="fas fa-users"></i>
-                        Students ({{ students|length }})
-                    </h6>
-                </div>
-                <div class="card-body">
-                    {% if students %}
-                    <div class="student-list">
-                        {% for student in students %}
-                        <div class="student-item">
-                            <div class="student-info">
-                                <strong>{{ student.full_name }}</strong>
-                                <div class="student-meta">
-                                    <span class="badge badge-{{ 'success' if student.enrollment_status == 'active' else 'secondary' }}">
-                                        {{ student.enrollment_status|title }}
-                                    </span>
-                                    {% if student.course_start_date %}
-                                    <small class="text-muted">
-                                        Started: {{ student.course_start_date.strftime('%d %b %Y') }}
-                                    </small>
-                                    {% endif %}
-                                    {% if student.course_end_date %}
-                                    <small class="text-muted">
-                                        Ends: {{ student.course_end_date.strftime('%d %b %Y') }}
-                                    </small>
-                                    {% endif %}
-                                </div>
+    <!-- Batch Management Section -->
+    {% if stats.scheduled_classes > 0 %}
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="card-title mb-0">
+                <i class="fas fa-cogs"></i>
+                Batch Management
+            </h5>
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <div class="management-card">
+                        <div class="d-flex align-items-center mb-3">
+                            <div class="management-icon primary">
+                                <i class="fas fa-user-switch"></i>
+                            </div>
+                            <div>
+                                <h6 class="mb-0">Change Tutor</h6>
+                                <small class="text-muted">Assign all classes to a different tutor</small>
                             </div>
                         </div>
-                        {% endfor %}
+                        <button class="btn btn-outline-primary btn-sm" onclick="showChangeTutorModal()">
+                            <i class="fas fa-exchange-alt"></i>
+                            Change Tutor for Batch
+                        </button>
                     </div>
-                    {% else %}
-                    <div class="text-center py-3">
-                        <i class="fas fa-user-slash fa-2x text-muted mb-2"></i>
-                        <p class="text-muted mb-0">No students assigned</p>
+                </div>
+                <div class="col-md-6">
+                    <div class="management-card">
+                        <div class="d-flex align-items-center mb-3">
+                            <div class="management-icon danger">
+                                <i class="fas fa-trash-alt"></i>
+                            </div>
+                            <div>
+                                <h6 class="mb-0">Bulk Delete</h6>
+                                <small class="text-muted">Cancel multiple classes at once</small>
+                            </div>
+                        </div>
+                        <button class="btn btn-outline-danger btn-sm" onclick="enableBulkDelete()">
+                            <i class="fas fa-check-square"></i>
+                            Select Classes to Delete
+                        </button>
                     </div>
-                    {% endif %}
+                </div>
+            </div>
+            
+            <!-- Bulk Delete Actions Bar (Hidden by default) -->
+            <div id="bulkDeleteBar" class="bulk-actions-bar" style="display: none;">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <span id="selectedCount">0</span> classes selected
+                    </div>
+                    <div>
+                        <button class="btn btn-danger btn-sm" onclick="deleteBulkClasses()">
+                            <i class="fas fa-trash"></i>
+                            Delete Selected
+                        </button>
+                        <button class="btn btn-secondary btn-sm" onclick="cancelBulkDelete()">
+                            Cancel
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
+    </div>
+    {% endif %}
 
-        <!-- Classes Section -->
-        <div class="col-lg-8">
-            <div class="card">
-                <div class="card-header">
-                    <h6 class="card-title mb-0">
-                        <i class="fas fa-calendar-alt"></i>
-                        Classes ({{ classes|length }})
-                    </h6>
-                </div>
-                <div class="card-body">
-                    {% if classes %}
-                    <div class="table-responsive">
-                        <table class="table table-hover">
-                            <thead>
-                                <tr>
-                                    <th>Date & Time</th>
-                                    <th>Duration</th>
-                                    <th>Students</th>
-                                    <th>Status</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for class in classes %}
-                                <tr class="class-row-{{ class.status }}">
-                                    <td>
-                                        <div>
-                                            <strong>{{ class.scheduled_date.strftime('%d %b %Y') }}</strong><br>
-                                            <small class="text-muted">{{ class.scheduled_time.strftime('%I:%M %p') }}</small>
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <span class="duration-badge">{{ class.duration }} min</span>
-                                    </td>
-                                    <td>
-                                        {% set class_students = class.get_students() %}
-                                        {% if class_students %}
-                                        <small>{{ class_students|length }} students</small>
-                                        {% else %}
-                                        <small class="text-muted">No students</small>
-                                        {% endif %}
-                                    </td>
-                                    <td>
-                                        <span class="badge badge-{{ 'warning' if class.status == 'scheduled' else 'success' if class.status == 'completed' else 'danger' if class.status == 'cancelled' else 'primary' }}">
-                                            {{ class.status|title }}
-                                        </span>
-                                    </td>
-                                    <td>
-                                        <div class="btn-group btn-group-sm">
-                                            <a href="{{ url_for('admin.class_details', class_id=class.id) }}" 
-                                               class="btn btn-outline-primary" title="View Details">
-                                                <i class="fas fa-eye"></i>
-                                            </a>
-                                            {% if class.status == 'scheduled' %}
-                                            <button class="btn btn-outline-warning" title="Reschedule" 
-                                                    onclick="rescheduleClass('{{ class.id }}')">
-                                                <i class="fas fa-calendar-alt"></i>
-                                            </button>
-                                            <button class="btn btn-outline-danger" title="Cancel" 
-                                                    onclick="cancelClass('{{ class.id }}')">
-                                                <i class="fas fa-times"></i>
-                                            </button>
-                                            {% endif %}
-                                        </div>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
+    <!-- Students Section -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="card-title mb-0">
+                <i class="fas fa-users"></i>
+                Students ({{ students|length }})
+            </h5>
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                {% for student in students %}
+                <div class="col-md-4">
+                    <div class="student-card">
+                        <div class="student-info">
+                            <h6>{{ student.full_name }}</h6>
+                            <p class="mb-1">
+                                <span class="badge bg-info">Grade {{ student.grade }}</span>
+                                <span class="badge bg-secondary">{{ student.board }}</span>
+                            </p>
+                            <p class="mb-0">
+                                <span class="status-badge status-{{ student.enrollment_status }}">
+                                    {{ student.enrollment_status.title() }}
+                                </span>
+                            </p>
+                        </div>
                     </div>
-                    {% else %}
-                    <div class="text-center py-5">
-                        <i class="fas fa-calendar-times fa-3x text-muted mb-3"></i>
-                        <h5>No Classes Found</h5>
-                        <p class="text-muted">No classes found for this batch.</p>
-                    </div>
-                    {% endif %}
                 </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Classes Section -->
+    <div class="card">
+        <div class="card-header">
+            <h5 class="card-title mb-0">
+                <i class="fas fa-calendar-alt"></i>
+                Classes ({{ classes|length }})
+            </h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th width="40">
+                                <input type="checkbox" id="selectAllClasses" style="display: none;">
+                                <span id="bulkSelectHeader">#</span>
+                            </th>
+                            <th>Date & Time</th>
+                            <th>Duration</th>
+                            <th>Students</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for class in classes %}
+                        <tr class="class-row" data-class-id="{{ class.id }}">
+                            <td>
+                                <input type="checkbox" class="class-selector" data-class-id="{{ class.id }}" style="display: none;">
+                                <span class="row-number">{{ loop.index }}</span>
+                            </td>
+                            <td>
+                                <div class="class-datetime">
+                                    <strong>{{ class.scheduled_date.strftime('%d %b %Y') }}</strong><br>
+                                    <span class="text-muted">{{ class.scheduled_time.strftime('%I:%M %p') }}</span>
+                                </div>
+                            </td>
+                            <td>
+                                <span class="badge bg-light text-dark">{{ class.duration }} min</span>
+                            </td>
+                            <td>
+                                <div class="student-count">
+                                    {% set class_students = class.get_students() or [] %}
+                                    {% if class_students %}
+                                        <span class="badge bg-primary">{{ class_students|length }} student{{ 's' if class_students|length != 1 else '' }}</span>
+                                    {% else %}
+                                        <span class="text-muted">No students</span>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td>
+                                <span class="status-badge status-{{ class.status }}">
+                                    {{ class.status.title() }}
+                                </span>
+                            </td>
+                            <td>
+                                <div class="btn-group btn-group-sm" role="group">
+                                    <a href="{{ url_for('admin.class_details', class_id=class.id) }}" 
+                                       class="btn btn-outline-primary btn-sm" title="View Details">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    {% if class.status == 'scheduled' %}
+                                    <button class="btn btn-outline-warning btn-sm" 
+                                            onclick="rescheduleClass({{ class.id }})" title="Reschedule">
+                                        <i class="fas fa-calendar-alt"></i>
+                                    </button>
+                                    <button class="btn btn-outline-danger btn-sm" 
+                                            onclick="cancelClass({{ class.id }})" title="Cancel">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Change Tutor Modal -->
+<div class="modal fade" id="changeTutorModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-user-switch"></i>
+                    Change Tutor for Batch
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i>
+                    This will change the tutor for all scheduled classes in this batch. Only classes where the new tutor is available will be changed.
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label">Select New Tutor</label>
+                    <select id="newTutorSelect" class="form-select" onchange="checkTutorAvailability()">
+                        <option value="">Choose a tutor...</option>
+                        {% for tutor_option in available_tutors %}
+                        <option value="{{ tutor_option.id }}">
+                            {{ tutor_option.user.full_name }} 
+                            ({{ tutor_option.get_subjects()|join(', ') if tutor_option.get_subjects() else 'No subjects' }})
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div id="availabilityCheck" style="display: none;">
+                    <div class="card">
+                        <div class="card-header">
+                            <h6 class="mb-0">Availability Check</h6>
+                        </div>
+                        <div class="card-body">
+                            <div id="availabilityResults"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="confirmChangeTutor" onclick="confirmChangeTutor()" disabled>
+                    <i class="fas fa-exchange-alt"></i>
+                    Change Tutor
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteConfirmModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-exclamation-triangle text-warning"></i>
+                    Confirm Delete
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to cancel <span id="deleteCount"></span> selected classes?</p>
+                <p><strong>This action cannot be undone.</strong></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" onclick="confirmBulkDelete()">
+                    <i class="fas fa-trash"></i>
+                    Yes, Cancel Classes
+                </button>
             </div>
         </div>
     </div>
 </div>
 
 <style>
-.student-list {
-    max-height: 400px;
-    overflow-y: auto;
+/* Batch Management Styles */
+.management-card {
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    padding: 1rem;
+    height: 100%;
+    transition: all 0.3s ease;
 }
 
-.student-item {
-    padding: 12px;
-    border-bottom: 1px solid #eee;
-    transition: background-color 0.2s ease;
+.management-card:hover {
+    border-color: var(--primary-color);
+    box-shadow: 0 2px 8px rgba(241, 161, 80, 0.1);
 }
 
-.student-item:hover {
-    background-color: #f8f9fa;
-}
-
-.student-item:last-child {
-    border-bottom: none;
-}
-
-.student-info strong {
-    display: block;
-    margin-bottom: 5px;
-}
-
-.student-meta {
+.management-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
     display: flex;
-    flex-direction: column;
-    gap: 3px;
+    align-items: center;
+    justify-content: center;
+    margin-right: 1rem;
+    color: white;
+    font-size: 1.1rem;
 }
 
-.student-meta .badge {
-    align-self: flex-start;
-    font-size: 0.7rem;
+.management-icon.primary {
+    background: var(--primary-color);
 }
 
-.duration-badge {
-    background: #e9ecef;
-    color: #495057;
-    padding: 2px 8px;
-    border-radius: 12px;
+.management-icon.danger {
+    background: var(--danger-color);
+}
+
+.bulk-actions-bar {
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-top: 1rem;
+}
+
+/* Student Cards */
+.student-card {
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    padding: 1rem;
+    background: white;
+    transition: all 0.3s ease;
+}
+
+.student-card:hover {
+    border-color: var(--primary-color);
+    transform: translateY(-1px);
+}
+
+.student-info h6 {
+    margin: 0 0 0.5rem 0;
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+/* Status Badges */
+.status-badge {
+    padding: 0.25rem 0.75rem;
+    border-radius: 16px;
     font-size: 0.8rem;
     font-weight: 500;
 }
 
-.class-row-completed {
-    background-color: rgba(40, 167, 69, 0.05);
+.status-scheduled {
+    background: #e3f2fd;
+    color: #1976d2;
 }
 
-.class-row-cancelled {
-    background-color: rgba(220, 53, 69, 0.05);
+.status-completed {
+    background: #e8f5e8;
+    color: #2e7d32;
 }
 
-.class-row-scheduled {
-    background-color: rgba(255, 193, 7, 0.05);
+.status-cancelled {
+    background: #ffebee;
+    color: #c62828;
 }
 
-/* Badge styles */
-.badge-success { background-color: #198754; }
-.badge-warning { background-color: #ffc107; color: #000; }
-.badge-danger { background-color: #dc3545; }
-.badge-primary { background-color: #0d6efd; }
-.badge-secondary { background-color: #6c757d; }
+.status-active {
+    background: #e8f5e8;
+    color: #2e7d32;
+}
 
-/* Stat card styles (reused from main template) */
+.status-inactive {
+    background: #f5f5f5;
+    color: #757575;
+}
+
+/* Class Table */
+.class-datetime strong {
+    color: var(--text-primary);
+}
+
+.class-row {
+    transition: background-color 0.3s ease;
+}
+
+.class-row:hover {
+    background-color: #f8f9fa;
+}
+
+.class-row.selected {
+    background-color: #fff3cd;
+}
+
+/* Stat Cards */
 .stat-card {
     background: white;
-    border-radius: 0.5rem;
+    border-radius: 8px;
     padding: 1.5rem;
-    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     display: flex;
     align-items: center;
     gap: 1rem;
+    transition: all 0.3s ease;
+}
+
+.stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
 .stat-icon {
     width: 60px;
     height: 60px;
-    border-radius: 0.5rem;
+    border-radius: 8px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -293,35 +479,300 @@
     color: white;
 }
 
-.stat-icon.primary { background: #0d6efd; }
-.stat-icon.success { background: #198754; }
-.stat-icon.warning { background: #ffc107; color: #000; }
-.stat-icon.info { background: #0dcaf0; }
+.stat-icon.primary { background: var(--primary-color); }
+.stat-icon.success { background: var(--success-color); }
+.stat-icon.warning { background: var(--warning-color); color: var(--text-primary); }
+.stat-icon.danger { background: var(--danger-color); }
 
 .stat-content h3 {
     margin: 0;
     font-size: 2rem;
     font-weight: 600;
+    color: var(--text-primary);
 }
 
 .stat-content p {
     margin: 0;
-    color: #6c757d;
+    color: var(--text-secondary);
     font-size: 0.875rem;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .management-card {
+        margin-bottom: 1rem;
+    }
+    
+    .stat-card {
+        padding: 1rem;
+    }
+    
+    .stat-icon {
+        width: 50px;
+        height: 50px;
+        font-size: 1.25rem;
+    }
+    
+    .stat-content h3 {
+        font-size: 1.5rem;
+    }
 }
 </style>
 
 <script>
-function rescheduleClass(classId) {
-    // Placeholder for reschedule functionality
-    alert('Reschedule functionality will be implemented in Phase 2');
+let bulkDeleteMode = false;
+let selectedClasses = new Set();
+
+// Change Tutor Functionality
+function showChangeTutorModal() {
+    const modal = new bootstrap.Modal(document.getElementById('changeTutorModal'));
+    modal.show();
 }
 
+function checkTutorAvailability() {
+    const tutorId = document.getElementById('newTutorSelect').value;
+    const availabilityDiv = document.getElementById('availabilityCheck');
+    const confirmBtn = document.getElementById('confirmChangeTutor');
+    
+    if (!tutorId) {
+        availabilityDiv.style.display = 'none';
+        confirmBtn.disabled = true;
+        return;
+    }
+    
+    // Get all scheduled class IDs
+    const scheduledClasses = Array.from(document.querySelectorAll('.class-row'))
+        .filter(row => row.querySelector('.status-scheduled'))
+        .map(row => row.dataset.classId);
+    
+    if (scheduledClasses.length === 0) {
+        availabilityDiv.innerHTML = '<div class="alert alert-warning">No scheduled classes to change tutor for.</div>';
+        availabilityDiv.style.display = 'block';
+        confirmBtn.disabled = true;
+        return;
+    }
+    
+    // Check availability
+    fetch(`/admin/api/tutor/${tutorId}/batch-availability?${scheduledClasses.map(id => `class_ids=${id}`).join('&')}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                displayAvailabilityResults(data);
+                confirmBtn.disabled = data.available_classes === 0;
+            } else {
+                document.getElementById('availabilityResults').innerHTML = 
+                    `<div class="alert alert-danger">${data.error || 'Failed to check availability'}</div>`;
+                confirmBtn.disabled = true;
+            }
+            availabilityDiv.style.display = 'block';
+        })
+        .catch(error => {
+            console.error('Error checking availability:', error);
+            document.getElementById('availabilityResults').innerHTML = 
+                '<div class="alert alert-danger">Error checking availability</div>';
+            confirmBtn.disabled = true;
+            availabilityDiv.style.display = 'block';
+        });
+}
+
+function displayAvailabilityResults(data) {
+    const available = data.details.filter(d => d.available);
+    const conflicts = data.details.filter(d => !d.available);
+    
+    let html = `
+        <div class="row mb-3">
+            <div class="col-md-4">
+                <div class="text-center">
+                    <h5 class="text-success">${data.available_classes}</h5>
+                    <small>Available</small>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="text-center">
+                    <h5 class="text-danger">${data.conflicts}</h5>
+                    <small>Conflicts</small>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="text-center">
+                    <h5>${data.total_classes}</h5>
+                    <small>Total Classes</small>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    if (conflicts.length > 0) {
+        html += '<h6 class="text-danger">Scheduling Conflicts:</h6>';
+        html += '<div class="table-responsive"><table class="table table-sm">';
+        html += '<thead><tr><th>Date</th><th>Time</th><th>Day</th><th>Reason</th></tr></thead><tbody>';
+        
+        conflicts.forEach(conflict => {
+            html += `
+                <tr>
+                    <td>${conflict.date}</td>
+                    <td>${conflict.time}</td>
+                    <td>${conflict.day}</td>
+                    <td><span class="text-danger">${conflict.reason}</span></td>
+                </tr>
+            `;
+        });
+        
+        html += '</tbody></table></div>';
+    }
+    
+    document.getElementById('availabilityResults').innerHTML = html;
+}
+
+function confirmChangeTutor() {
+    const tutorId = document.getElementById('newTutorSelect').value;
+    if (!tutorId) return;
+    
+    const confirmBtn = document.getElementById('confirmChangeTutor');
+    confirmBtn.disabled = true;
+    confirmBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Changing...';
+    
+    fetch(`/admin/api/batch/{{ batch_id }}/change-tutor`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token() }}'
+        },
+        body: JSON.stringify({
+            new_tutor_id: parseInt(tutorId)
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(`${data.message}${data.conflicts.length > 0 ? '\n\nSome classes had scheduling conflicts and were not changed.' : ''}`);
+            location.reload();
+        } else {
+            alert('Error: ' + (data.error || 'Failed to change tutor'));
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error changing tutor');
+    })
+    .finally(() => {
+        confirmBtn.disabled = false;
+        confirmBtn.innerHTML = '<i class="fas fa-exchange-alt"></i> Change Tutor';
+    });
+}
+
+// Bulk Delete Functionality
+function enableBulkDelete() {
+    bulkDeleteMode = true;
+    document.getElementById('bulkDeleteBar').style.display = 'block';
+    
+    // Show checkboxes and hide row numbers
+    document.querySelectorAll('.class-selector').forEach(cb => cb.style.display = 'block');
+    document.querySelectorAll('.row-number').forEach(num => num.style.display = 'none');
+    document.getElementById('selectAllClasses').style.display = 'block';
+    document.getElementById('bulkSelectHeader').textContent = '';
+    
+    // Add select all functionality
+    document.getElementById('selectAllClasses').onchange = function() {
+        document.querySelectorAll('.class-selector').forEach(cb => {
+            cb.checked = this.checked;
+            updateSelection(cb);
+        });
+    };
+    
+    // Add individual checkbox handlers
+    document.querySelectorAll('.class-selector').forEach(cb => {
+        cb.onchange = function() {
+            updateSelection(this);
+        };
+    });
+}
+
+function updateSelection(checkbox) {
+    const classId = checkbox.dataset.classId;
+    const row = checkbox.closest('.class-row');
+    
+    if (checkbox.checked) {
+        selectedClasses.add(classId);
+        row.classList.add('selected');
+    } else {
+        selectedClasses.delete(classId);
+        row.classList.remove('selected');
+    }
+    
+    document.getElementById('selectedCount').textContent = selectedClasses.size;
+}
+
+function cancelBulkDelete() {
+    bulkDeleteMode = false;
+    selectedClasses.clear();
+    
+    document.getElementById('bulkDeleteBar').style.display = 'none';
+    
+    // Hide checkboxes and show row numbers
+    document.querySelectorAll('.class-selector').forEach(cb => {
+        cb.style.display = 'none';
+        cb.checked = false;
+    });
+    document.querySelectorAll('.row-number').forEach(num => num.style.display = 'block');
+    document.querySelectorAll('.class-row').forEach(row => row.classList.remove('selected'));
+    document.getElementById('selectAllClasses').style.display = 'none';
+    document.getElementById('bulkSelectHeader').textContent = '#';
+}
+
+function deleteBulkClasses() {
+    if (selectedClasses.size === 0) {
+        alert('Please select classes to delete');
+        return;
+    }
+    
+    document.getElementById('deleteCount').textContent = selectedClasses.size;
+    const modal = new bootstrap.Modal(document.getElementById('deleteConfirmModal'));
+    modal.show();
+}
+
+function confirmBulkDelete() {
+    const classIds = Array.from(selectedClasses);
+    
+    fetch(`/admin/api/batch/{{ batch_id }}/delete-classes`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token() }}'
+        },
+        body: JSON.stringify({
+            class_ids: classIds
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(data.message);
+            location.reload();
+        } else {
+            alert('Error: ' + (data.error || 'Failed to delete classes'));
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error deleting classes');
+    });
+    
+    // Hide modal
+    bootstrap.Modal.getInstance(document.getElementById('deleteConfirmModal')).hide();
+}
+
+// Individual Class Actions
 function cancelClass(classId) {
     if (confirm('Are you sure you want to cancel this class?')) {
-        // Placeholder for cancel functionality
-        alert('Cancel functionality will be implemented in Phase 2');
+        // Individual cancel functionality - you can implement this
+        alert('Individual cancel functionality - implement as needed');
     }
+}
+
+function rescheduleClass(classId) {
+    // Individual reschedule functionality - you can implement this
+    alert('Individual reschedule functionality - implement as needed');
 }
 </script>
 {% endblock %}

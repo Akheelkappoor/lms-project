@@ -1,6 +1,6 @@
 from flask_wtf import FlaskForm
 from flask_wtf.file import FileField, FileAllowed, FileRequired
-from wtforms import StringField, TextAreaField, PasswordField, SelectField, SubmitField
+from wtforms import StringField, TextAreaField, PasswordField, SelectField, SubmitField, DecimalField
 from wtforms.validators import DataRequired, Length, Email, EqualTo, Optional, ValidationError
 from flask_login import current_user
 from app.models.user import User
@@ -261,3 +261,84 @@ class ContactPreferencesForm(FlaskForm):
                                        validators=[DataRequired()])
     
     submit = SubmitField('Update Preferences')
+    
+
+class TutorProfileEditForm(FlaskForm):
+    """Edit tutor profile form - handles both User and Tutor data"""
+    
+    # User table fields
+    full_name = StringField('Full Name', validators=[
+        DataRequired(), 
+        Length(min=2, max=100)
+    ], render_kw={'placeholder': 'Enter your full name'})
+    
+    phone = StringField('Phone Number', validators=[
+        Optional(), 
+        Length(min=10, max=15)
+    ], render_kw={'placeholder': '+91 9876543210'})
+    
+    address = TextAreaField('Address', validators=[Optional()], 
+                           render_kw={'placeholder': 'Enter your complete address', 'rows': 3})
+    
+    # Tutor table fields
+    qualification = StringField('Highest Qualification', validators=[
+        DataRequired(), 
+        Length(min=2, max=200)
+    ], render_kw={'placeholder': 'e.g., M.Sc. Mathematics'})
+    
+    experience = TextAreaField('Experience Details', validators=[
+        Optional()
+    ], render_kw={'placeholder': 'Describe your teaching/professional experience', 'rows': 4})
+    
+    subjects = StringField('Subjects/Specializations', validators=[
+        Optional()
+    ], render_kw={'placeholder': 'Mathematics, Physics, Chemistry (comma separated)'})
+    
+    grades = StringField('Grade Levels', validators=[
+        Optional()
+    ], render_kw={'placeholder': '10, 11, 12 (comma separated)'})
+    
+    boards = StringField('Education Boards', validators=[
+        Optional()
+    ], render_kw={'placeholder': 'CBSE, ICSE, State Board (comma separated)'})
+    
+    # Salary fields
+    salary_type = SelectField('Salary Type', validators=[DataRequired()],
+                             choices=[('monthly', 'Monthly'), ('hourly', 'Hourly')])
+    
+    monthly_salary = DecimalField('Monthly Salary', validators=[Optional()], 
+                                 render_kw={'placeholder': 'Enter monthly salary'})
+    
+    hourly_rate = DecimalField('Hourly Rate', validators=[Optional()], 
+                              render_kw={'placeholder': 'Enter hourly rate'})
+    
+    # Profile Picture
+    profile_picture = FileField('Profile Picture', validators=[
+        FileAllowed(['jpg', 'jpeg', 'png', 'gif'], 'Images only!')
+    ])
+    
+    # Emergency Contact
+    emergency_name = StringField('Emergency Contact Name', validators=[Optional()], 
+                                render_kw={'placeholder': 'Contact person name'})
+    
+    emergency_phone = StringField('Emergency Contact Phone', validators=[Optional()], 
+                                 render_kw={'placeholder': 'Contact person phone'})
+    
+    emergency_relationship = SelectField('Relationship', 
+                                       choices=[
+                                           ('', 'Select Relationship'),
+                                           ('parent', 'Parent'),
+                                           ('spouse', 'Spouse'),
+                                           ('sibling', 'Sibling'),
+                                           ('friend', 'Friend'),
+                                           ('colleague', 'Colleague'),
+                                           ('other', 'Other')
+                                       ], 
+                                       validators=[Optional()])
+    
+    emergency_email = StringField('Emergency Contact Email', validators=[
+        Optional(), 
+        Email()
+    ], render_kw={'placeholder': 'Contact person email'})
+    
+    submit = SubmitField('Update Tutor Profile')

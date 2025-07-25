@@ -1,460 +1,1617 @@
 {% extends "base.html" %}
 
-{% block title %}Class Details - {{ class_item.subject }}{% endblock %}
+{% block title %}{{ class_item.subject }} - Class Details{% endblock %}
 
 {% block content %}
-<div class="container-fluid py-4">
-    <!-- Header -->
-    <div class="row mb-4">
-        <div class="col-md-12">
-            <div class="d-flex justify-content-between align-items-center">
-                <div>
-                    <h2 class="h3 mb-1">Class Details</h2>
-                    <nav aria-label="breadcrumb">
-                        <ol class="breadcrumb">
-                            <li class="breadcrumb-item"><a href="{{ url_for('dashboard.index') }}">Dashboard</a></li>
-                            <li class="breadcrumb-item"><a href="{{ url_for('admin.classes') }}">Classes</a></li>
-                            <li class="breadcrumb-item active">{{ class_item.subject }}</li>
-                        </ol>
-                    </nav>
+<div class="modern-class-details">
+    <!-- Hero Header -->
+    <div class="class-hero">
+        <div class="container-fluid">
+            <div class="row align-items-center">
+                <div class="col-lg-8">
+                    <div class="hero-content">
+                        <div class="breadcrumb-modern">
+                            <a href="{{ url_for('dashboard.index') }}">Dashboard</a>
+                            <i class="fas fa-chevron-right"></i>
+                            <a href="{{ url_for('admin.classes') }}">Classes</a>
+                            <i class="fas fa-chevron-right"></i>
+                            <span>{{ class_item.subject }}</span>
+                        </div>
+                        <h1 class="hero-title">
+                            <i class="fas fa-chalkboard hero-icon"></i>
+                            {{ class_item.subject }}
+                        </h1>
+                        <div class="hero-meta">
+                            <div class="status-indicator status-{{ class_item.status }}">
+                                <div class="status-dot"></div>
+                                <span>{{ class_item.status|title }}</span>
+                            </div>
+                            <div class="class-type-badge">
+                                <i class="fas fa-{{ 'user' if class_item.class_type == 'one_on_one' else 'users' }}"></i>
+                                {{ class_item.class_type|title|replace('_', ' ') }}
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                <div>
-                    <a href="{{ url_for('admin.classes') }}" class="btn btn-secondary">
-                        <i class="fas fa-arrow-left"></i> Back to Classes
-                    </a>
+                <div class="col-lg-4 text-lg-end">
+                    <div class="hero-actions">
+                        <a href="{{ url_for('admin.classes') }}" class="btn btn-ghost">
+                            <i class="fas fa-arrow-left"></i>
+                            Back to Classes
+                        </a>
+                        {% if class_item.status == 'scheduled' %}
+                        <button class="btn btn-primary" onclick="startClass({{ class_item.id }})">
+                            <i class="fas fa-play"></i>
+                            Start Class
+                        </button>
+                        {% elif class_item.status == 'ongoing' %}
+                        <button class="btn btn-success" onclick="joinClass({{ class_item.id }})">
+                            <i class="fas fa-video"></i>
+                            Join Class
+                        </button>
+                        {% endif %}
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <div class="row">
-        <!-- Main Class Information -->
-        <div class="col-lg-8">
-            <div class="card shadow-sm mb-4">
-                <div class="card-header bg-primary text-white">
-                    <h5 class="mb-0">
-                        <i class="fas fa-chalkboard"></i>
-                        {{ class_item.subject }}
-                        <span class="badge badge-{{ 'success' if class_item.status == 'completed' else 'warning' if class_item.status == 'scheduled' else 'info' if class_item.status == 'ongoing' else 'danger' }} ms-2">
-                            {{ class_item.status|title }}
-                        </span>
-                    </h5>
+    <div class="container-fluid py-4">
+        <div class="row g-4">
+            <!-- Main Content -->
+            <div class="col-xl-8">
+                <!-- Class Information Card -->
+                <div class="modern-card class-info-card">
+                    <div class="card-header-modern">
+                        <h3 class="card-title">
+                            <i class="fas fa-info-circle"></i>
+                            Class Information
+                        </h3>
+                    </div>
+                    <div class="card-body-modern">
+                        <div class="info-grid">
+                            <div class="info-section">
+                                <h4 class="section-title">Schedule</h4>
+                                <div class="info-items">
+                                    <div class="info-item">
+                                        <div class="info-icon">
+                                            <i class="fas fa-calendar-day"></i>
+                                        </div>
+                                        <div class="info-content">
+                                            <label>Date</label>
+                                            <value>{{ class_item.scheduled_date.strftime('%A, %B %d, %Y') }}</value>
+                                        </div>
+                                    </div>
+                                    <div class="info-item">
+                                        <div class="info-icon">
+                                            <i class="fas fa-clock"></i>
+                                        </div>
+                                        <div class="info-content">
+                                            <label>Time</label>
+                                            <value>{{ class_item.scheduled_time.strftime('%I:%M %p') }}</value>
+                                        </div>
+                                    </div>
+                                    <div class="info-item">
+                                        <div class="info-icon">
+                                            <i class="fas fa-hourglass-half"></i>
+                                        </div>
+                                        <div class="info-content">
+                                            <label>Duration</label>
+                                            <value>{{ class_item.duration }} minutes</value>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="info-section">
+                                <h4 class="section-title">Details</h4>
+                                <div class="info-items">
+                                    <div class="info-item">
+                                        <div class="info-icon">
+                                            <i class="fas fa-graduation-cap"></i>
+                                        </div>
+                                        <div class="info-content">
+                                            <label>Grade</label>
+                                            <value>{{ class_item.grade or 'Not specified' }}</value>
+                                        </div>
+                                    </div>
+                                    <div class="info-item">
+                                        <div class="info-icon">
+                                            <i class="fas fa-calendar-plus"></i>
+                                        </div>
+                                        <div class="info-content">
+                                            <label>Created</label>
+                                            <value>{{ class_item.created_at.strftime('%b %d, %Y') if class_item.created_at else 'N/A' }}</value>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {% if class_item.class_notes %}
+                        <div class="notes-section">
+                            <h4 class="section-title">
+                                <i class="fas fa-sticky-note"></i>
+                                Class Notes
+                            </h4>
+                            <div class="notes-content">
+                                {{ class_item.class_notes }}
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
                 </div>
-                <div class="card-body">
-                    <div class="row">
-                        <div class="col-md-6">
-                            <h6 class="text-muted mb-3">Basic Information</h6>
-                            <table class="table table-borderless">
-                                <tr>
-                                    <td><strong>Subject:</strong></td>
-                                    <td>{{ class_item.subject }}</td>
-                                </tr>
-                                <tr>
-                                    <td><strong>Class Type:</strong></td>
-                                    <td>
-                                        <span class="badge badge-info">{{ class_item.class_type|title }}</span>
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <td><strong>Grade:</strong></td>
-                                    <td>{{ class_item.grade or 'Not specified' }}</td>
-                                </tr>
-                                <tr>
-                                    <td><strong>Duration:</strong></td>
-                                    <td>{{ class_item.duration }} minutes</td>
-                                </tr>
-                            </table>
-                        </div>
-                        <div class="col-md-6">
-                            <h6 class="text-muted mb-3">Schedule Information</h6>
-                            <table class="table table-borderless">
-                                <tr>
-                                    <td><strong>Date:</strong></td>
-                                    <td>{{ class_item.scheduled_date.strftime('%A, %B %d, %Y') }}</td>
-                                </tr>
-                                <tr>
-                                    <td><strong>Time:</strong></td>
-                                    <td>{{ class_item.scheduled_time.strftime('%I:%M %p') }}</td>
-                                </tr>
-                                <tr>
-                                    <td><strong>End Time:</strong></td>
-                                    <td>
-                                        {% set end_time = (class_item.scheduled_time.hour * 60 + class_item.scheduled_time.minute + class_item.duration) %}
-                                        {% set end_hour = (end_time // 60) % 24 %}
-                                        {% set end_minute = end_time % 60 %}
-                                        {{ "%02d:%02d"|format(end_hour, end_minute) }}
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <td><strong>Created:</strong></td>
-                                    <td>{{ class_item.created_at.strftime('%B %d, %Y at %I:%M %p') if class_item.created_at else 'N/A' }}</td>
-                                </tr>
-                            </table>
-                        </div>
-                    </div>
 
-                    {% if class_item.class_notes %}
-                    <div class="mt-4">
-                        <h6 class="text-muted mb-3">Class Notes</h6>
-                        <div class="bg-light p-3 rounded">
-                            {{ class_item.class_notes }}
-                        </div>
-                    </div>
-                    {% endif %}
-
-                    <!-- Action Buttons -->
-                    <div class="mt-4 pt-3 border-top">
-                        <div class="btn-group" role="group">
+                <!-- Action Buttons Card -->
+                <div class="modern-card actions-card">
+                    <div class="card-body-modern">
+                        <h4 class="section-title">
+                            <i class="fas fa-bolt"></i>
+                            Quick Actions
+                        </h4>
+                        <div class="action-grid">
                             {% if class_item.status == 'scheduled' %}
-                            <button class="btn btn-success btn-sm" onclick="startClass({{ class_item.id }})">
-                                <i class="fas fa-play"></i> Start Class
+                            <button class="action-btn action-success" onclick="startClass({{ class_item.id }})">
+                                <div class="action-icon">
+                                    <i class="fas fa-play"></i>
+                                </div>
+                                <div class="action-content">
+                                    <span class="action-title">Start Class</span>
+                                    <span class="action-desc">Begin the session</span>
+                                </div>
                             </button>
-                            <button class="btn btn-warning btn-sm" onclick="rescheduleClass({{ class_item.id }})">
-                                <i class="fas fa-calendar-alt"></i> Reschedule
+                            <button class="action-btn action-warning" onclick="rescheduleClass({{ class_item.id }})">
+                                <div class="action-icon">
+                                    <i class="fas fa-calendar-alt"></i>
+                                </div>
+                                <div class="action-content">
+                                    <span class="action-title">Reschedule</span>
+                                    <span class="action-desc">Change date/time</span>
+                                </div>
                             </button>
-                            <button class="btn btn-danger btn-sm" onclick="cancelClass({{ class_item.id }})">
-                                <i class="fas fa-times"></i> Cancel
+                            <button class="action-btn action-danger" onclick="cancelClass({{ class_item.id }})">
+                                <div class="action-icon">
+                                    <i class="fas fa-times"></i>
+                                </div>
+                                <div class="action-content">
+                                    <span class="action-title">Cancel</span>
+                                    <span class="action-desc">Cancel this class</span>
+                                </div>
                             </button>
                             {% elif class_item.status == 'ongoing' %}
-                            <button class="btn btn-primary btn-sm">
-                                <i class="fas fa-video"></i> Join Class
+                            <button class="action-btn action-primary" onclick="joinClass({{ class_item.id }})">
+                                <div class="action-icon">
+                                    <i class="fas fa-video"></i>
+                                </div>
+                                <div class="action-content">
+                                    <span class="action-title">Join Class</span>
+                                    <span class="action-desc">Enter session</span>
+                                </div>
                             </button>
-                            <button class="btn btn-success btn-sm" onclick="completeClass({{ class_item.id }})">
-                                <i class="fas fa-check"></i> Mark Complete
+                            <button class="action-btn action-success" onclick="completeClass({{ class_item.id }})">
+                                <div class="action-icon">
+                                    <i class="fas fa-check"></i>
+                                </div>
+                                <div class="action-content">
+                                    <span class="action-title">Complete</span>
+                                    <span class="action-desc">Mark as done</span>
+                                </div>
                             </button>
                             {% elif class_item.status == 'completed' %}
-                            <button class="btn btn-info btn-sm">
-                                <i class="fas fa-download"></i> Download Recording
+                            <button class="action-btn action-info">
+                                <div class="action-icon">
+                                    <i class="fas fa-download"></i>
+                                </div>
+                                <div class="action-content">
+                                    <span class="action-title">Recording</span>
+                                    <span class="action-desc">Download video</span>
+                                </div>
                             </button>
-                            <button class="btn btn-secondary btn-sm">
-                                <i class="fas fa-file-alt"></i> View Report
+                            <button class="action-btn action-secondary">
+                                <div class="action-icon">
+                                    <i class="fas fa-file-alt"></i>
+                                </div>
+                                <div class="action-content">
+                                    <span class="action-title">Report</span>
+                                    <span class="action-desc">View summary</span>
+                                </div>
                             </button>
                             {% endif %}
+                            
+                            <!-- Universal Actions -->
+                            <button class="action-btn action-primary" onclick="duplicateClass({{ class_item.id }})">
+                                <div class="action-icon">
+                                    <i class="fas fa-copy"></i>
+                                </div>
+                                <div class="action-content">
+                                    <span class="action-title">Duplicate</span>
+                                    <span class="action-desc">Create similar class</span>
+                                </div>
+                            </button>
+                            <button class="action-btn action-warning" onclick="editClass({{ class_item.id }})">
+                                <div class="action-icon">
+                                    <i class="fas fa-edit"></i>
+                                </div>
+                                <div class="action-content">
+                                    <span class="action-title">Edit</span>
+                                    <span class="action-desc">Modify details</span>
+                                </div>
+                            </button>
                         </div>
                     </div>
                 </div>
             </div>
-        </div>
 
-        <!-- Sidebar Information -->
-        <div class="col-lg-4">
-            <!-- Tutor Information -->
-            {% if class_item.tutor %}
-            <div class="card shadow-sm mb-4">
-                <div class="card-header">
-                    <h6 class="mb-0">
-                        <i class="fas fa-chalkboard-teacher"></i>
-                        Tutor Information
-                    </h6>
-                </div>
-                <div class="card-body">
-                    <div class="d-flex align-items-center mb-3">
-                        <div class="avatar me-3">
-                            {% if class_item.tutor.user and class_item.tutor.user.profile_picture %}
-                            <img src="{{ url_for('static', filename='uploads/profiles/' + class_item.tutor.user.profile_picture) }}" 
-                                 alt="Tutor" class="rounded-circle" width="50" height="50">
-                            {% else %}
-                            <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center" 
-                                 style="width: 50px; height: 50px;">
-                                <i class="fas fa-user"></i>
-                            </div>
-                            {% endif %}
-                        </div>
-                        <div>
-                            <h6 class="mb-1">
-                                {% if class_item.tutor.user %}
-                                    {{ class_item.tutor.user.full_name }}
+            <!-- Sidebar -->
+            <div class="col-xl-4">
+                <!-- Tutor Card -->
+                {% if class_item.tutor %}
+                <div class="modern-card tutor-card">
+                    <div class="card-header-modern">
+                        <h3 class="card-title">
+                            <i class="fas fa-chalkboard-teacher"></i>
+                            Tutor
+                        </h3>
+                    </div>
+                    <div class="card-body-modern">
+                        <div class="tutor-profile">
+                            <div class="tutor-avatar">
+                                {% if class_item.tutor.user and class_item.tutor.user.profile_picture %}
+                                <img src="{{ url_for('static', filename='uploads/profiles/' + class_item.tutor.user.profile_picture) }}" alt="Tutor">
                                 {% else %}
-                                    {{ class_item.tutor.full_name or 'Unknown Tutor' }}
+                                <div class="avatar-placeholder">
+                                    <i class="fas fa-user"></i>
+                                </div>
                                 {% endif %}
-                            </h6>
-                            <small class="text-muted">
-                                {% if class_item.tutor.user %}
-                                    {{ class_item.tutor.user.email }}
-                                {% endif %}
-                            </small>
-                        </div>
-                    </div>
-                    <div class="row text-center">
-                        <div class="col-6">
-                            <div class="border-end">
-                                <h6 class="mb-1">Experience</h6>
-                                <small class="text-muted">
-                                    {{ class_item.tutor.get_experience().get('years', 0) }} years
-                                </small>
+                                <div class="status-dot status-online"></div>
+                            </div>
+                            <div class="tutor-info">
+                                <h4 class="tutor-name">
+                                    {% if class_item.tutor.user %}
+                                        {{ class_item.tutor.user.full_name }}
+                                    {% else %}
+                                        {{ class_item.tutor.full_name or 'Unknown Tutor' }}
+                                    {% endif %}
+                                </h4>
+                                <p class="tutor-email">
+                                    {% if class_item.tutor.user %}
+                                        {{ class_item.tutor.user.email }}
+                                    {% endif %}
+                                </p>
                             </div>
                         </div>
-                        <div class="col-6">
-                            <h6 class="mb-1">Rating</h6>
-                            <small class="text-muted">
-                                <i class="fas fa-star text-warning"></i>
-                                {{ class_item.tutor.get_rating() or 'N/A' }}
-                            </small>
+                        
+                        <div class="tutor-stats">
+                            <div class="stat-item">
+                                <div class="stat-icon">
+                                    <i class="fas fa-clock"></i>
+                                </div>
+                                <div class="stat-content">
+                                    <span class="stat-value">{{ class_item.tutor.get_experience().get('years', 0) }}</span>
+                                    <span class="stat-label">Years Experience</span>
+                                </div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-icon">
+                                    <i class="fas fa-star"></i>
+                                </div>
+                                <div class="stat-content">
+                                    <span class="stat-value">{{ class_item.tutor.get_rating() or 'N/A' }}</span>
+                                    <span class="stat-label">Rating</span>
+                                </div>
+                            </div>
                         </div>
-                    </div>
-                    <div class="mt-3">
-                        <a href="{{ url_for('admin.tutor_details', tutor_id=class_item.tutor.id) }}" 
-                           class="btn btn-outline-primary btn-sm w-100">
-                            <i class="fas fa-eye"></i> View Profile
+                        
+                        <a href="{{ url_for('admin.tutor_details', tutor_id=class_item.tutor.id) }}" class="btn btn-outline-primary btn-full">
+                            <i class="fas fa-eye"></i>
+                            View Profile
                         </a>
                     </div>
                 </div>
-            </div>
-            {% endif %}
+                {% endif %}
 
-            <!-- Students Information -->
-            {% if students %}
-            <div class="card shadow-sm mb-4">
-                <div class="card-header">
-                    <h6 class="mb-0">
-                        <i class="fas fa-user-graduate"></i>
-                        Students ({{ students|length }})
-                    </h6>
+                <!-- Students Card -->
+                <div class="modern-card students-card">
+                    <div class="card-header-modern">
+                        <h3 class="card-title">
+                            <i class="fas fa-user-graduate"></i>
+                            Students
+                            {% if students %}
+                            <span class="count-badge">{{ students|length }}</span>
+                            {% endif %}
+                        </h3>
+                    </div>
+                    <div class="card-body-modern">
+                        {% if students %}
+                        <div class="students-list">
+                            {% for student in students %}
+                            <div class="student-item">
+                                <div class="student-avatar">
+                                    {% if student.profile_picture %}
+                                    <img src="{{ url_for('static', filename='uploads/profiles/' + student.profile_picture) }}" alt="Student">
+                                    {% else %}
+                                    <div class="avatar-placeholder">
+                                        {{ student.full_name[0]|upper }}
+                                    </div>
+                                    {% endif %}
+                                </div>
+                                <div class="student-info">
+                                    <h5 class="student-name">{{ student.full_name }}</h5>
+                                    <p class="student-grade">Grade {{ student.grade or 'N/A' }}</p>
+                                </div>
+                                <a href="{{ url_for('admin.student_details', student_id=student.id) }}" class="btn btn-icon">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% else %}
+                        <div class="empty-state">
+                            <div class="empty-icon">
+                                <i class="fas fa-users"></i>
+                            </div>
+                            <h4>No Students Assigned</h4>
+                            <p>This class doesn't have any students assigned yet.</p>
+                            <button class="btn btn-primary" onclick="assignStudents({{ class_item.id }})">
+                                <i class="fas fa-plus"></i>
+                                Assign Students
+                            </button>
+                        </div>
+                        {% endif %}
+                    </div>
                 </div>
-                <div class="card-body">
-                    {% for student in students %}
-                    <div class="d-flex align-items-center mb-3 {% if not loop.last %}border-bottom pb-3{% endif %}">
-                        <div class="avatar me-3">
-                            {% if student.profile_picture %}
-                            <img src="{{ url_for('static', filename='uploads/profiles/' + student.profile_picture) }}" 
-                                 alt="Student" class="rounded-circle" width="40" height="40">
-                            {% else %}
-                            <div class="bg-success text-white rounded-circle d-flex align-items-center justify-content-center" 
-                                 style="width: 40px; height: 40px;">
-                                {{ student.full_name[0]|upper }}
+
+                <!-- Meeting Info Card -->
+                {% if class_item.meeting_link %}
+                <div class="modern-card meeting-card">
+                    <div class="card-header-modern">
+                        <h3 class="card-title">
+                            <i class="fas fa-video"></i>
+                            Meeting Info
+                        </h3>
+                    </div>
+                    <div class="card-body-modern">
+                        <div class="meeting-info">
+                            <div class="meeting-link">
+                                <label>Meeting Link</label>
+                                <div class="link-display">
+                                    <input type="text" value="{{ class_item.meeting_link }}" readonly>
+                                    <button class="btn btn-icon" onclick="copyLink('{{ class_item.meeting_link }}')">
+                                        <i class="fas fa-copy"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            {% if class_item.meeting_id %}
+                            <div class="meeting-id">
+                                <label>Meeting ID</label>
+                                <span class="meeting-id-value">{{ class_item.meeting_id }}</span>
                             </div>
                             {% endif %}
                         </div>
-                        <div class="flex-grow-1">
-                            <h6 class="mb-1">{{ student.full_name }}</h6>
-                            <small class="text-muted">Grade {{ student.grade or 'N/A' }}</small>
-                        </div>
-                        <div>
-                            <a href="{{ url_for('admin.student_details', student_id=student.id) }}" 
-                               class="btn btn-outline-secondary btn-sm">
-                                <i class="fas fa-eye"></i>
-                            </a>
-                        </div>
-                    </div>
-                    {% endfor %}
-                </div>
-            </div>
-            {% else %}
-            <div class="card shadow-sm mb-4">
-                <div class="card-header">
-                    <h6 class="mb-0">
-                        <i class="fas fa-user-graduate"></i>
-                        Students
-                    </h6>
-                </div>
-                <div class="card-body text-center">
-                    <i class="fas fa-users text-muted mb-3" style="font-size: 3rem;"></i>
-                    <h6 class="text-muted">No Students Assigned</h6>
-                    <p class="text-muted small">No students have been assigned to this class yet.</p>
-                    <button class="btn btn-primary btn-sm" onclick="assignStudents({{ class_item.id }})">
-                        <i class="fas fa-plus"></i> Assign Students
-                    </button>
-                </div>
-            </div>
-            {% endif %}
-
-            <!-- Quick Actions -->
-            <div class="card shadow-sm">
-                <div class="card-header">
-                    <h6 class="mb-0">
-                        <i class="fas fa-bolt"></i>
-                        Quick Actions
-                    </h6>
-                </div>
-                <div class="card-body">
-                    <div class="d-grid gap-2">
-                        <button class="btn btn-outline-primary btn-sm">
-                            <i class="fas fa-copy"></i> Duplicate Class
-                        </button>
-                        <button class="btn btn-outline-info btn-sm">
-                            <i class="fas fa-share"></i> Share Details
-                        </button>
-                        <button class="btn btn-outline-warning btn-sm">
-                            <i class="fas fa-edit"></i> Edit Class
-                        </button>
-                        <button class="btn btn-outline-danger btn-sm" onclick="deleteClass({{ class_item.id }})">
-                            <i class="fas fa-trash"></i> Delete Class
-                        </button>
                     </div>
                 </div>
+                {% endif %}
             </div>
         </div>
     </div>
 </div>
 
-<!-- Modals and JavaScript -->
+<!-- Modern Modals -->
+<div class="modal fade" id="rescheduleModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content modern-modal">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-calendar-alt"></i>
+                    Reschedule Class
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="rescheduleForm">
+                    <div class="form-group">
+                        <label class="form-label">New Date</label>
+                        <input type="date" class="form-control" id="newDate" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">New Time</label>
+                        <input type="time" class="form-control" id="newTime" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Reason (Optional)</label>
+                        <textarea class="form-control" id="rescheduleReason" rows="3" placeholder="Why is this class being rescheduled?"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="confirmReschedule()">
+                    <i class="fas fa-calendar-check"></i>
+                    Reschedule Class
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+/* ========================================
+   MODERN CLASS DETAILS THEME
+   ======================================== */
+
+:root {
+    --primary-color: #F1A150;
+    --primary-dark: #C86706;
+    --primary-light: #FFD8A8;
+    --success-color: #10b981;
+    --warning-color: #f59e0b;
+    --danger-color: #ef4444;
+    --info-color: #3b82f6;
+    --secondary-color: #6b7280;
+    --white: #ffffff;
+    --gray-50: #f9fafb;
+    --gray-100: #f3f4f6;
+    --gray-200: #e5e7eb;
+    --gray-300: #d1d5db;
+    --gray-400: #9ca3af;
+    --gray-500: #6b7280;
+    --gray-600: #4b5563;
+    --gray-700: #374151;
+    --gray-800: #1f2937;
+    --gray-900: #111827;
+    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    --shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    --border-radius: 0.75rem;
+    --border-radius-lg: 1rem;
+    --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.modern-class-details {
+    background: var(--gray-50);
+    min-height: 100vh;
+}
+
+/* ========================================
+   HERO SECTION
+   ======================================== */
+
+.class-hero {
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
+    color: white;
+    padding: 2rem 0;
+    margin-bottom: 0;
+}
+
+.breadcrumb-modern {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+    margin-bottom: 1rem;
+    opacity: 0.9;
+}
+
+.breadcrumb-modern a {
+    color: white;
+    text-decoration: none;
+    transition: var(--transition);
+}
+
+.breadcrumb-modern a:hover {
+    opacity: 0.8;
+}
+
+.breadcrumb-modern i {
+    font-size: 0.75rem;
+    opacity: 0.7;
+}
+
+.hero-title {
+    font-size: 2.5rem;
+    font-weight: 700;
+    margin: 0 0 1rem 0;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.hero-icon {
+    background: rgba(255, 255, 255, 0.2);
+    padding: 1rem;
+    border-radius: var(--border-radius);
+    backdrop-filter: blur(10px);
+}
+
+.hero-meta {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+}
+
+.status-indicator {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 2rem;
+    backdrop-filter: blur(10px);
+    font-weight: 500;
+}
+
+.status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    animation: pulse 2s infinite;
+}
+
+.status-scheduled .status-dot { background: #fbbf24; }
+.status-ongoing .status-dot { background: #10b981; }
+.status-completed .status-dot { background: #6b7280; }
+.status-cancelled .status-dot { background: #ef4444; }
+
+.class-type-badge {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 2rem;
+    font-weight: 500;
+}
+
+.hero-actions {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+/* ========================================
+   MODERN CARDS
+   ======================================== */
+
+.modern-card {
+    background: var(--white);
+    border-radius: var(--border-radius-lg);
+    box-shadow: var(--shadow);
+    border: 1px solid var(--gray-200);
+    margin-bottom: 2rem;
+    overflow: hidden;
+    transition: var(--transition);
+}
+
+.modern-card:hover {
+    box-shadow: var(--shadow-lg);
+    transform: translateY(-2px);
+}
+
+.card-header-modern {
+    padding: 1.5rem 2rem;
+    background: var(--gray-50);
+    border-bottom: 1px solid var(--gray-200);
+}
+
+.card-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--gray-900);
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.card-title i {
+    color: var(--primary-color);
+}
+
+.count-badge {
+    background: var(--primary-color);
+    color: white;
+    padding: 0.25rem 0.75rem;
+    border-radius: 1rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+    margin-left: auto;
+}
+
+.card-body-modern {
+    padding: 2rem;
+}
+
+/* ========================================
+   INFO GRID
+   ======================================== */
+
+.info-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 2rem;
+    margin-bottom: 2rem;
+}
+
+.info-section {
+    border: 1px solid var(--gray-200);
+    border-radius: var(--border-radius);
+    padding: 1.5rem;
+    background: var(--gray-50);
+}
+
+.section-title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: var(--gray-900);
+    margin: 0 0 1.5rem 0;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.section-title i {
+    color: var(--primary-color);
+}
+
+.info-items {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.info-item {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem;
+    background: var(--white);
+    border-radius: var(--border-radius);
+    border: 1px solid var(--gray-200);
+    transition: var(--transition);
+}
+
+.info-item:hover {
+    border-color: var(--primary-color);
+    transform: translateX(4px);
+}
+
+.info-icon {
+    width: 40px;
+    height: 40px;
+    background: var(--primary-light);
+    color: var(--primary-dark);
+    border-radius: var(--border-radius);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.info-content label {
+    display: block;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--gray-600);
+    margin-bottom: 0.25rem;
+}
+
+.info-content value {
+    display: block;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--gray-900);
+}
+
+/* ========================================
+   NOTES SECTION
+   ======================================== */
+
+.notes-section {
+    border-top: 1px solid var(--gray-200);
+    padding-top: 2rem;
+}
+
+.notes-content {
+    background: var(--gray-50);
+    padding: 1.5rem;
+    border-radius: var(--border-radius);
+    border: 1px solid var(--gray-200);
+    font-size: 1rem;
+    line-height: 1.6;
+    color: var(--gray-700);
+}
+
+/* ========================================
+   ACTION GRID
+   ======================================== */
+
+.action-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+}
+
+.action-btn {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1.5rem;
+    background: var(--white);
+    border: 2px solid var(--gray-200);
+    border-radius: var(--border-radius);
+    transition: var(--transition);
+    cursor: pointer;
+    text-align: left;
+}
+
+.action-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+.action-success:hover { border-color: var(--success-color); }
+.action-warning:hover { border-color: var(--warning-color); }
+.action-danger:hover { border-color: var(--danger-color); }
+.action-primary:hover { border-color: var(--primary-color); }
+.action-info:hover { border-color: var(--info-color); }
+.action-secondary:hover { border-color: var(--secondary-color); }
+
+.action-icon {
+    width: 50px;
+    height: 50px;
+    border-radius: var(--border-radius);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+    color: white;
+    flex-shrink: 0;
+}
+
+.action-success .action-icon { background: var(--success-color); }
+.action-warning .action-icon { background: var(--warning-color); }
+.action-danger .action-icon { background: var(--danger-color); }
+.action-primary .action-icon { background: var(--primary-color); }
+.action-info .action-icon { background: var(--info-color); }
+.action-secondary .action-icon { background: var(--secondary-color); }
+
+.action-content {
+    flex: 1;
+}
+
+.action-title {
+    display: block;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--gray-900);
+    margin-bottom: 0.25rem;
+}
+
+.action-desc {
+    display: block;
+    font-size: 0.875rem;
+    color: var(--gray-600);
+}
+
+/* ========================================
+   TUTOR CARD
+   ======================================== */
+
+.tutor-profile {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+
+.tutor-avatar {
+    position: relative;
+    width: 80px;
+    height: 80px;
+    flex-shrink: 0;
+}
+
+.tutor-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: var(--border-radius-lg);
+}
+
+.avatar-placeholder {
+    width: 100%;
+    height: 100%;
+    background: var(--primary-color);
+    color: white;
+    border-radius: var(--border-radius-lg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    font-weight: 600;
+}
+
+.status-dot.status-online {
+    position: absolute;
+    bottom: 4px;
+    right: 4px;
+    width: 16px;
+    height: 16px;
+    background: var(--success-color);
+    border: 3px solid white;
+    border-radius: 50%;
+}
+
+.tutor-info {
+    flex: 1;
+}
+
+.tutor-name {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--gray-900);
+    margin: 0 0 0.25rem 0;
+}
+
+.tutor-email {
+    font-size: 0.875rem;
+    color: var(--gray-600);
+    margin: 0;
+}
+
+.tutor-stats {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+
+.stat-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1rem;
+    background: var(--gray-50);
+    border-radius: var(--border-radius);
+    border: 1px solid var(--gray-200);
+}
+
+.stat-icon {
+    width: 35px;
+    height: 35px;
+    background: var(--primary-light);
+    color: var(--primary-dark);
+    border-radius: var(--border-radius);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.stat-content {
+    flex: 1;
+}
+
+.stat-value {
+    display: block;
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: var(--gray-900);
+}
+
+.stat-label {
+    display: block;
+    font-size: 0.75rem;
+    color: var(--gray-600);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+/* ========================================
+   STUDENTS CARD
+   ======================================== */
+
+.students-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.student-item {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem;
+    background: var(--gray-50);
+    border-radius: var(--border-radius);
+    border: 1px solid var(--gray-200);
+    transition: var(--transition);
+}
+
+.student-item:hover {
+    border-color: var(--primary-color);
+    transform: translateX(4px);
+}
+
+.student-avatar {
+    width: 45px;
+    height: 45px;
+    flex-shrink: 0;
+}
+
+.student-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: var(--border-radius);
+}
+
+.student-avatar .avatar-placeholder {
+    background: var(--success-color);
+    font-size: 1rem;
+}
+
+.student-info {
+    flex: 1;
+}
+
+.student-name {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--gray-900);
+    margin: 0 0 0.25rem 0;
+}
+
+.student-grade {
+    font-size: 0.875rem;
+    color: var(--gray-600);
+    margin: 0;
+}
+
+/* ========================================
+   EMPTY STATE
+   ======================================== */
+
+.empty-state {
+    text-align: center;
+    padding: 3rem 1rem;
+}
+
+.empty-icon {
+    width: 80px;
+    height: 80px;
+    background: var(--gray-100);
+    color: var(--gray-400);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
+    margin: 0 auto 1.5rem auto;
+}
+
+.empty-state h4 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--gray-900);
+    margin: 0 0 0.5rem 0;
+}
+
+.empty-state p {
+    color: var(--gray-600);
+    margin: 0 0 2rem 0;
+}
+
+/* ========================================
+   MEETING CARD
+   ======================================== */
+
+.meeting-info {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.meeting-link label,
+.meeting-id label {
+    display: block;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--gray-700);
+    margin-bottom: 0.5rem;
+}
+
+.link-display {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.link-display input {
+    flex: 1;
+    padding: 0.75rem;
+    border: 1px solid var(--gray-300);
+    border-radius: var(--border-radius);
+    background: var(--gray-50);
+    font-size: 0.875rem;
+}
+
+.meeting-id-value {
+    display: inline-block;
+    padding: 0.75rem 1rem;
+    background: var(--gray-100);
+    border: 1px solid var(--gray-300);
+    border-radius: var(--border-radius);
+    font-family: monospace;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--gray-900);
+}
+
+/* ========================================
+   BUTTONS
+   ======================================== */
+
+.btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.5rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    border-radius: var(--border-radius);
+    border: none;
+    cursor: pointer;
+    text-decoration: none;
+    transition: var(--transition);
+    white-space: nowrap;
+}
+
+.btn-primary {
+    background: var(--primary-color);
+    color: white;
+}
+
+.btn-primary:hover {
+    background: var(--primary-dark);
+    transform: translateY(-1px);
+}
+
+.btn-ghost {
+    background: rgba(255, 255, 255, 0.15);
+    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.btn-ghost:hover {
+    background: rgba(255, 255, 255, 0.25);
+    color: white;
+}
+
+.btn-outline-primary {
+    background: transparent;
+    color: var(--primary-color);
+    border: 1px solid var(--primary-color);
+}
+
+.btn-outline-primary:hover {
+    background: var(--primary-color);
+    color: white;
+}
+
+.btn-secondary {
+    background: var(--gray-600);
+    color: white;
+}
+
+.btn-secondary:hover {
+    background: var(--gray-700);
+}
+
+.btn-success {
+    background: var(--success-color);
+    color: white;
+}
+
+.btn-success:hover {
+    background: #059669;
+}
+
+.btn-icon {
+    width: 35px;
+    height: 35px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--gray-100);
+    color: var(--gray-600);
+    border: 1px solid var(--gray-300);
+}
+
+.btn-icon:hover {
+    background: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+}
+
+.btn-full {
+    width: 100%;
+    justify-content: center;
+}
+
+/* ========================================
+   MODERN MODAL
+   ======================================== */
+
+.modern-modal {
+    border: none;
+    border-radius: var(--border-radius-lg);
+    box-shadow: var(--shadow-lg);
+}
+
+.modern-modal .modal-header {
+    background: var(--gray-50);
+    border-bottom: 1px solid var(--gray-200);
+    padding: 1.5rem 2rem;
+}
+
+.modern-modal .modal-body {
+    padding: 2rem;
+}
+
+.modern-modal .modal-footer {
+    background: var(--gray-50);
+    border-top: 1px solid var(--gray-200);
+    padding: 1rem 2rem;
+}
+
+.form-group {
+    margin-bottom: 1.5rem;
+}
+
+.form-label {
+    display: block;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--gray-700);
+    margin-bottom: 0.5rem;
+}
+
+.form-control {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid var(--gray-300);
+    border-radius: var(--border-radius);
+    font-size: 1rem;
+    transition: var(--transition);
+}
+
+.form-control:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(241, 161, 80, 0.1);
+}
+
+/* ========================================
+   ANIMATIONS
+   ======================================== */
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.modern-card {
+    animation: fadeIn 0.6s ease-out;
+}
+
+/* ========================================
+   RESPONSIVE DESIGN
+   ======================================== */
+
+@media (max-width: 1200px) {
+    .hero-title {
+        font-size: 2rem;
+    }
+    
+    .info-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .action-grid {
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    }
+}
+
+@media (max-width: 768px) {
+    .class-hero {
+        padding: 1.5rem 0;
+    }
+    
+    .hero-title {
+        font-size: 1.75rem;
+        flex-direction: column;
+        text-align: center;
+        gap: 0.75rem;
+    }
+    
+    .hero-meta {
+        justify-content: center;
+    }
+    
+    .hero-actions {
+        justify-content: center;
+        margin-top: 1rem;
+    }
+    
+    .card-header-modern,
+    .card-body-modern {
+        padding: 1rem 1.5rem;
+    }
+    
+    .info-section {
+        padding: 1rem;
+    }
+    
+    .action-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .tutor-stats {
+        grid-template-columns: 1fr;
+    }
+    
+    .tutor-profile {
+        flex-direction: column;
+        text-align: center;
+    }
+}
+
+@media (max-width: 480px) {
+    .hero-title {
+        font-size: 1.5rem;
+    }
+    
+    .modern-card {
+        margin-left: -0.5rem;
+        margin-right: -0.5rem;
+        border-radius: 0;
+    }
+    
+    .card-header-modern,
+    .card-body-modern {
+        padding: 1rem;
+    }
+}
+</style>
+
 <script>
-function startClass(classId) {
-    if (confirm('Start this class now?')) {
-        fetch(`/admin/api/v1/classes/${classId}/start`, {
-            method: 'POST'
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                alert('Class started successfully!');
-                location.reload();
-            } else {
-                alert('Error starting class: ' + data.error);
-            }
-        })
-        .catch(error => {
-            alert('Error starting class: ' + error.message);
+// Modern JavaScript with better UX
+class ClassManager {
+    constructor() {
+        this.init();
+    }
+
+    init() {
+        this.setupTooltips();
+        this.setupAnimations();
+    }
+
+    setupTooltips() {
+        // Initialize Bootstrap tooltips if available
+        if (typeof bootstrap !== 'undefined') {
+            const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+            tooltipTriggerList.map(function (tooltipTriggerEl) {
+                return new bootstrap.Tooltip(tooltipTriggerEl);
+            });
+        }
+    }
+
+    setupAnimations() {
+        // Add intersection observer for fade-in animations
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.style.animationDelay = '0.1s';
+                    entry.target.classList.add('animate-fade-in');
+                }
+            });
         });
+
+        document.querySelectorAll('.modern-card').forEach(card => {
+            observer.observe(card);
+        });
+    }
+
+    async apiCall(url, method = 'POST', data = null) {
+        const options = {
+            method,
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('meta[name=csrf-token]')?.getAttribute('content') || ''
+            }
+        };
+
+        if (data) {
+            options.body = JSON.stringify(data);
+        }
+
+        try {
+            const response = await fetch(url, options);
+            return await response.json();
+        } catch (error) {
+            console.error('API call failed:', error);
+            this.showNotification('Network error occurred', 'error');
+            throw error;
+        }
+    }
+
+    showNotification(message, type = 'info') {
+        // Create modern notification
+        const notification = document.createElement('div');
+        notification.className = `notification notification-${type}`;
+        notification.innerHTML = `
+            <div class="notification-content">
+                <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle'}"></i>
+                <span>${message}</span>
+            </div>
+            <button class="notification-close" onclick="this.parentElement.remove()">
+                <i class="fas fa-times"></i>
+            </button>
+        `;
+
+        document.body.appendChild(notification);
+
+        // Auto remove after 5 seconds
+        setTimeout(() => {
+            if (notification.parentElement) {
+                notification.remove();
+            }
+        }, 5000);
+    }
+
+    showLoading(element) {
+        const originalContent = element.innerHTML;
+        element.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+        element.disabled = true;
+        
+        return () => {
+            element.innerHTML = originalContent;
+            element.disabled = false;
+        };
     }
 }
 
-function completeClass(classId) {
-    if (confirm('Mark this class as completed?')) {
-        fetch(`/admin/api/v1/classes/${classId}/complete`, {
-            method: 'POST'
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                alert('Class marked as completed!');
-                location.reload();
-            } else {
-                alert('Error completing class: ' + data.error);
-            }
-        })
-        .catch(error => {
-            alert('Error completing class: ' + error.message);
-        });
+// Initialize
+const classManager = new ClassManager();
+
+// Modern function implementations
+async function startClass(classId) {
+    const confirmed = await this.showConfirmDialog(
+        'Start Class',
+        'Are you ready to start this class? Students will be notified.',
+        'Start Class'
+    );
+    
+    if (!confirmed) return;
+
+    try {
+        const result = await classManager.apiCall(`/admin/api/v1/classes/${classId}/start`);
+        if (result.success) {
+            classManager.showNotification('Class started successfully!', 'success');
+            setTimeout(() => location.reload(), 1500);
+        } else {
+            classManager.showNotification(result.error || 'Failed to start class', 'error');
+        }
+    } catch (error) {
+        classManager.showNotification('Error starting class', 'error');
     }
 }
 
-function cancelClass(classId) {
-    if (confirm('Are you sure you want to cancel this class?')) {
-        fetch(`/admin/api/v1/classes/${classId}/cancel`, {
-            method: 'POST'
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                alert('Class cancelled successfully!');
-                location.reload();
-            } else {
-                alert('Error cancelling class: ' + data.error);
-            }
-        })
-        .catch(error => {
-            alert('Error cancelling class: ' + error.message);
-        });
+async function completeClass(classId) {
+    const confirmed = await this.showConfirmDialog(
+        'Complete Class',
+        'Mark this class as completed? This action cannot be undone.',
+        'Mark Complete'
+    );
+    
+    if (!confirmed) return;
+
+    try {
+        const result = await classManager.apiCall(`/admin/api/v1/classes/${classId}/complete`);
+        if (result.success) {
+            classManager.showNotification('Class marked as completed!', 'success');
+            setTimeout(() => location.reload(), 1500);
+        } else {
+            classManager.showNotification(result.error || 'Failed to complete class', 'error');
+        }
+    } catch (error) {
+        classManager.showNotification('Error completing class', 'error');
     }
 }
 
-function deleteClass(classId) {
-    if (confirm('Are you sure you want to delete this class? This action cannot be undone.')) {
-        fetch(`/admin/api/v1/classes/${classId}`, {
-            method: 'DELETE'
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                alert('Class deleted successfully!');
-                window.location.href = '/admin/classes';
-            } else {
-                alert('Error deleting class: ' + data.error);
-            }
-        })
-        .catch(error => {
-            alert('Error deleting class: ' + error.message);
-        });
+async function cancelClass(classId) {
+    const confirmed = await this.showConfirmDialog(
+        'Cancel Class',
+        'Are you sure you want to cancel this class? Students will be notified.',
+        'Cancel Class',
+        'danger'
+    );
+    
+    if (!confirmed) return;
+
+    try {
+        const result = await classManager.apiCall(`/admin/api/v1/classes/${classId}/cancel`);
+        if (result.success) {
+            classManager.showNotification('Class cancelled successfully!', 'success');
+            setTimeout(() => location.reload(), 1500);
+        } else {
+            classManager.showNotification(result.error || 'Failed to cancel class', 'error');
+        }
+    } catch (error) {
+        classManager.showNotification('Error cancelling class', 'error');
     }
 }
 
 function rescheduleClass(classId) {
-    const newDate = prompt('Enter new date (YYYY-MM-DD):');
-    const newTime = prompt('Enter new time (HH:MM):');
+    // Store class ID for the modal
+    window.currentClassId = classId;
     
-    if (newDate && newTime) {
-        fetch(`/admin/api/v1/classes/${classId}/reschedule`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                scheduled_date: newDate,
-                scheduled_time: newTime
-            })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                alert('Class rescheduled successfully!');
-                location.reload();
-            } else {
-                alert('Error rescheduling class: ' + data.error);
-            }
-        })
-        .catch(error => {
-            alert('Error rescheduling class: ' + error.message);
-        });
+    // Show modern modal
+    const modal = new bootstrap.Modal(document.getElementById('rescheduleModal'));
+    modal.show();
+}
+
+async function confirmReschedule() {
+    const classId = window.currentClassId;
+    const newDate = document.getElementById('newDate').value;
+    const newTime = document.getElementById('newTime').value;
+    const reason = document.getElementById('rescheduleReason').value;
+
+    if (!newDate || !newTime) {
+        classManager.showNotification('Please select both date and time', 'error');
+        return;
     }
+
+    const btn = event.target;
+    const stopLoading = classManager.showLoading(btn);
+
+    try {
+        const result = await classManager.apiCall(`/admin/api/v1/classes/${classId}/reschedule`, 'POST', {
+            scheduled_date: newDate,
+            scheduled_time: newTime,
+            reschedule_reason: reason
+        });
+
+        if (result.success) {
+            classManager.showNotification('Class rescheduled successfully!', 'success');
+            bootstrap.Modal.getInstance(document.getElementById('rescheduleModal')).hide();
+            setTimeout(() => location.reload(), 1500);
+        } else {
+            classManager.showNotification(result.error || 'Failed to reschedule class', 'error');
+        }
+    } catch (error) {
+        classManager.showNotification('Error rescheduling class', 'error');
+    } finally {
+        stopLoading();
+    }
+}
+
+function joinClass(classId) {
+    // Open meeting link in new tab
+    classManager.showNotification('Opening class meeting...', 'info');
+    // Implementation depends on your meeting platform
+}
+
+function copyLink(link) {
+    navigator.clipboard.writeText(link).then(() => {
+        classManager.showNotification('Meeting link copied to clipboard!', 'success');
+    }).catch(() => {
+        classManager.showNotification('Failed to copy link', 'error');
+    });
 }
 
 function assignStudents(classId) {
-    // This would open a modal to assign students
-    alert('Student assignment feature will be implemented soon!');
+    classManager.showNotification('Student assignment feature coming soon!', 'info');
 }
+
+function duplicateClass(classId) {
+    classManager.showNotification('Class duplication feature coming soon!', 'info');
+}
+
+function editClass(classId) {
+    classManager.showNotification('Class editing feature coming soon!', 'info');
+}
+
+// Modern confirm dialog
+window.showConfirmDialog = function(title, message, confirmText = 'Confirm', type = 'primary') {
+    return new Promise((resolve) => {
+        const modal = document.createElement('div');
+        modal.className = 'modal fade';
+        modal.innerHTML = `
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content modern-modal">
+                    <div class="modal-header">
+                        <h5 class="modal-title">${title}</h5>
+                    </div>
+                    <div class="modal-body">
+                        <p>${message}</p>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="button" class="btn btn-${type}" id="confirmBtn">${confirmText}</button>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+        
+        const bootstrapModal = new bootstrap.Modal(modal);
+        bootstrapModal.show();
+        
+        modal.querySelector('#confirmBtn').onclick = () => {
+            resolve(true);
+            bootstrapModal.hide();
+        };
+        
+        modal.addEventListener('hidden.bs.modal', () => {
+            resolve(false);
+            modal.remove();
+        });
+    });
+};
 </script>
 
+<!-- Add notification styles -->
 <style>
-.avatar {
-    flex-shrink: 0;
+.notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: white;
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow-lg);
+    border-left: 4px solid var(--primary-color);
+    padding: 1rem 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    max-width: 400px;
+    z-index: 1060;
+    animation: slideInRight 0.3s ease-out;
 }
 
-.card {
+.notification-success { border-left-color: var(--success-color); }
+.notification-error { border-left-color: var(--danger-color); }
+.notification-info { border-left-color: var(--info-color); }
+
+.notification-content {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex: 1;
+}
+
+.notification-close {
+    background: none;
     border: none;
-    border-radius: 0.5rem;
+    color: var(--gray-400);
+    cursor: pointer;
+    padding: 0.25rem;
 }
 
-.card-header {
-    border-bottom: 1px solid rgba(0,0,0,0.1);
-    background: rgba(0,0,0,0.03);
-}
-
-.table-borderless td {
-    border: none;
-    padding: 0.5rem 0;
-}
-
-.btn-group .btn {
-    margin-right: 0.5rem;
-}
-
-.btn-group .btn:last-child {
-    margin-right: 0;
-}
-
-.badge {
-    font-size: 0.75em;
-}
-
-.bg-light {
-    background-color: #f8f9fa !important;
-}
-
-.border-end {
-    border-right: 1px solid #dee2e6 !important;
-}
-
-@media (max-width: 768px) {
-    .btn-group {
-        display: flex;
-        flex-direction: column;
-        gap: 0.5rem;
-    }
-    
-    .btn-group .btn {
-        margin-right: 0;
-    }
+@keyframes slideInRight {
+    from { transform: translateX(100%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
 }
 </style>
 {% endblock %}

@@ -4,27 +4,111 @@
 
 {% block extra_css %}
 <style>
+    /* Fix main layout - remove the gap issue */
     .main-content {
-        padding: 0;
-        margin: 0;
+        margin-left: var(--sidebar-width) !important;
+        width: calc(100% - var(--sidebar-width)) !important;
+        padding: 0 !important;
+        background: var(--bg-light);
+        min-height: 100vh;
+    }
+
+    @media (max-width: 1024px) {
+        .main-content {
+            margin-left: 0 !important;
+            width: 100% !important;
+        }
     }
     
+    /* Page Header - Fixed styling */
     .page-header {
-        background: var(--bg-white);
-        padding: 1.5rem;
+        background: linear-gradient(135deg, var(--primary-color) 0%, #e8974a 100%);
+        color: white;
+        padding: 2rem;
         margin: 0;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        border: none;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+
+    .page-header-content {
+        max-width: 1200px;
+        margin: 0 auto;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 1rem;
+    }
+
+    .page-title h1 {
+        margin: 0;
+        font-size: 2rem;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .page-title p {
+        margin: 0.5rem 0 0 0;
+        opacity: 0.9;
+        font-size: 1rem;
+    }
+
+    .page-actions {
+        display: flex;
+        gap: 0.75rem;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+
+    .page-actions .btn {
+        background: rgba(255,255,255,0.15);
+        border: 1px solid rgba(255,255,255,0.3);
+        color: white;
+        padding: 0.75rem 1.5rem;
+        border-radius: 8px;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        transition: all 0.3s ease;
+        font-weight: 500;
+    }
+
+    .page-actions .btn:hover {
+        background: rgba(255,255,255,0.25);
+        transform: translateY(-2px);
+        color: white;
+    }
+
+    .page-actions .btn-primary {
+        background: rgba(255,255,255,0.9);
+        color: var(--primary-color);
+        font-weight: 600;
+    }
+
+    .page-actions .btn-primary:hover {
+        background: white;
+        color: var(--primary-dark);
+    }
+    
+    /* Content Container - Fixed spacing */
+    .content-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 2rem;
     }
     
     .details-container {
-        max-width: 1200px;
-        margin: 0 auto;
         background: var(--bg-white);
-        border: 1px solid var(--border-color);
         border-radius: var(--border-radius-lg);
         overflow: hidden;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        border: 1px solid var(--border-color);
     }
     
+    /* Profile Header */
     .profile-header {
         background: var(--bg-white);
         padding: 2rem;
@@ -32,7 +116,6 @@
         align-items: center;
         gap: 2rem;
         border-bottom: 1px solid var(--border-color);
-        margin: 0;
     }
     
     .profile-avatar {
@@ -80,6 +163,7 @@
         display: flex;
         gap: 0.75rem;
         margin-top: 1rem;
+        flex-wrap: wrap;
     }
     
     .status-badge {
@@ -117,30 +201,30 @@
         color: var(--danger-color);
     }
     
+    /* Grid Layout - Fixed */
     .details-grid {
         display: grid;
         grid-template-columns: 2fr 1fr;
         gap: 0;
-        background: var(--bg-white);
     }
     
     .main-details {
         border-right: 1px solid var(--border-color);
-        margin: 0;
-        padding: 0;
     }
     
     .sidebar-details {
-        margin: 0;
-        padding: 0;
+        background: var(--bg-light);
     }
     
+    /* Sections */
     .details-section {
-        background: var(--bg-white);
         padding: 2rem;
         border-bottom: 1px solid var(--border-color);
-        margin: 0;
-        box-shadow: none;
+        background: var(--bg-white);
+    }
+
+    .sidebar-details .details-section {
+        background: var(--bg-light);
     }
     
     .details-section:last-child {
@@ -158,7 +242,14 @@
         align-items: center;
         gap: 0.75rem;
     }
+
+    .section-title .btn {
+        margin-left: auto;
+        font-size: 0.875rem;
+        padding: 0.5rem 1rem;
+    }
     
+    /* Info Grid */
     .info-grid {
         display: grid;
         grid-template-columns: 1fr 1fr;
@@ -187,6 +278,7 @@
         font-weight: 500;
     }
     
+    /* Tags */
     .tags-container {
         display: flex;
         flex-wrap: wrap;
@@ -203,54 +295,119 @@
         font-weight: 500;
     }
     
+    /* Documents Grid - Fixed */
     .documents-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-        gap: 1rem;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 1.5rem;
+        margin-top: 1rem;
     }
     
     .document-item {
         background: var(--bg-light);
         border: 2px solid var(--border-color);
         border-radius: var(--border-radius);
-        padding: 1rem;
+        padding: 1.5rem;
         text-align: center;
         transition: var(--transition);
+        position: relative;
     }
     
     .document-item:hover {
         border-color: var(--primary-color);
         background: rgba(241, 161, 80, 0.05);
+        transform: translateY(-2px);
+    }
+
+    .document-item.available {
+        border-color: var(--success-color);
+        background: rgba(40, 167, 69, 0.05);
+    }
+
+    .document-item.missing {
+        border-color: var(--danger-color);
+        background: rgba(220, 53, 69, 0.05);
     }
     
     .document-icon {
-        font-size: 2rem;
+        font-size: 2.5rem;
         color: var(--primary-color);
-        margin-bottom: 0.5rem;
+        margin-bottom: 1rem;
     }
-    
-    .document-name {
-        font-size: 0.875rem;
-        font-weight: 500;
-        margin-bottom: 0.5rem;
-    }
-    
-    .document-status {
-        font-size: 0.75rem;
-        padding: 0.25rem 0.5rem;
-        border-radius: var(--border-radius);
-    }
-    
-    .document-status.available {
-        background: rgba(40, 167, 69, 0.1);
+
+    .document-item.available .document-icon {
         color: var(--success-color);
     }
-    
-    .document-status.missing {
-        background: rgba(220, 53, 69, 0.1);
+
+    .document-item.missing .document-icon {
         color: var(--danger-color);
     }
     
+    .document-name {
+        font-size: 0.9rem;
+        font-weight: 600;
+        margin-bottom: 1rem;
+        color: var(--text-primary);
+    }
+    
+    .document-status {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        align-items: center;
+    }
+
+    .document-status .btn {
+        font-size: 0.75rem;
+        padding: 0.35rem 0.75rem;
+        margin: 0.1rem;
+        border-radius: 6px;
+    }
+    
+    /* Stats Grid */
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1rem;
+    }
+    
+    .stat-item {
+        text-align: center;
+        padding: 1.5rem;
+        background: var(--bg-white);
+        border-radius: var(--border-radius);
+        border: 1px solid var(--border-color);
+    }
+    
+    .stat-value {
+        font-size: 1.8rem;
+        font-weight: 700;
+        color: var(--primary-color);
+        display: block;
+    }
+    
+    .stat-label {
+        font-size: 0.875rem;
+        color: var(--text-muted);
+        margin-top: 0.5rem;
+    }
+    
+    /* Classes List */
+    .classes-list {
+        max-height: 300px;
+        overflow-y: auto;
+    }
+    
+    .class-item {
+        padding: 1rem 0;
+        border-bottom: 1px solid var(--border-color);
+    }
+    
+    .class-item:last-child {
+        border-bottom: none;
+    }
+    
+    /* Dynamic Actions */
     .dynamic-actions {
         background: var(--bg-white);
         padding: 2rem;
@@ -297,47 +454,28 @@
         gap: 1rem;
         margin-top: 1rem;
     }
-    
-    .stats-grid {
-        display: grid;
-        grid-template-columns: repeat(2, 1fr);
-        gap: 1rem;
+
+    /* Modal Styling */
+    .modal-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 0.375rem 0.375rem 0 0;
     }
-    
-    .stat-item {
-        text-align: center;
-        padding: 1rem;
-        background: var(--bg-light);
-        border-radius: var(--border-radius);
+
+    .modal-header .btn-close {
+        filter: invert(1);
     }
-    
-    .stat-value {
-        font-size: 1.5rem;
-        font-weight: 700;
-        color: var(--primary-color);
-        display: block;
+
+    .modal-body {
+        padding: 1.5rem;
     }
-    
-    .stat-label {
-        font-size: 0.875rem;
+
+    .form-text {
         color: var(--text-muted);
-        margin-top: 0.25rem;
+        font-size: 0.775rem;
     }
-    
-    .classes-list {
-        max-height: 300px;
-        overflow-y: auto;
-    }
-    
-    .class-item {
-        padding: 0.75rem 0;
-        border-bottom: 1px solid var(--border-color);
-    }
-    
-    .class-item:last-child {
-        border-bottom: none;
-    }
-    
+
+    /* Badge Styling */
     .badge {
         padding: 0.25rem 0.5rem;
         border-radius: var(--border-radius);
@@ -364,28 +502,32 @@
         color: var(--text-muted);
     }
     
+    /* Loading states */
+    .btn:disabled {
+        opacity: 0.6;
+        pointer-events: none;
+    }
+    
+    /* Responsive Design */
     @media (max-width: 768px) {
+        .content-container {
+            padding: 1rem;
+        }
+
         .details-grid {
             grid-template-columns: 1fr;
-            gap: 0;
         }
         
         .main-details {
             border-right: none;
             border-bottom: 1px solid var(--border-color);
-            margin: 0;
-            padding: 0;
-        }
-        
-        .sidebar-details {
-            margin: 0;
-            padding: 0;
         }
         
         .profile-header {
             flex-direction: column;
             text-align: center;
             gap: 1rem;
+            padding: 1.5rem;
         }
         
         .info-grid {
@@ -401,38 +543,114 @@
         }
         
         .documents-grid {
-            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+            gap: 1rem;
+        }
+
+        .document-item {
+            padding: 1rem;
+        }
+
+        .page-header-content {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 1rem;
+        }
+
+        .page-actions {
+            align-self: stretch;
+        }
+
+        .page-actions .btn {
+            flex: 1;
+            justify-content: center;
+        }
+
+        .section-title {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 0.5rem;
+        }
+
+        .section-title .btn {
+            margin-left: 0;
+            align-self: stretch;
         }
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="main-content">
-    <!-- Page Header -->
-    <div class="page-header">
-        <div class="page-header-content">
-            <div class="page-title">
-                <h1><i class="fas fa-chalkboard-teacher"></i> Tutor Details</h1>
-                <p>Complete tutor profile and management</p>
-            </div>
-            <div class="page-actions">
-                <a href="{{ url_for('admin.tutors') }}" class="btn btn-outline">
-                    <i class="fas fa-arrow-left"></i> Back to Tutors
+<!-- Page Header -->
+<div class="page-header">
+    <div class="page-header-content">
+        <div class="page-title">
+            <h1><i class="fas fa-chalkboard-teacher"></i> Tutor Details</h1>
+            <p>Complete tutor profile and management</p>
+        </div>
+        <div class="page-actions">
+            <a href="{{ url_for('admin.tutors') }}" class="btn btn-outline">
+                <i class="fas fa-arrow-left"></i> Back to Tutors
+            </a>
+            
+            <!-- Edit User Account Button -->
+            <a href="{{ url_for('admin.edit_user', user_id=tutor.user.id) }}" class="btn btn-secondary">
+                <i class="fas fa-user-edit"></i> Edit User Account
+            </a>
+            
+            <!-- Edit Tutor Profile Button with Access Control -->
+            {% if current_user.role in ['superadmin', 'admin'] or 
+                  (current_user.role == 'coordinator' and current_user.department_id == tutor.user.department_id) %}
+                <a href="{{ url_for('admin.edit_tutor', tutor_id=tutor.id) }}" class="btn btn-primary">
+                    <i class="fas fa-chalkboard-teacher"></i> Edit Tutor Profile
                 </a>
-                <a href="{{ url_for('admin.edit_user', user_id=tutor.user.id) }}" class="btn btn-primary">
-                    <i class="fas fa-edit"></i> Edit Tutor
-                </a>
+            {% endif %}
+            
+            <!-- Actions Dropdown -->
+            {% if current_user.role in ['superadmin', 'admin'] %}
+            <div class="btn-group">
+                <button type="button" class="btn btn-info dropdown-toggle" data-bs-toggle="dropdown">
+                    <i class="fas fa-cog"></i> Actions
+                </button>
+                <ul class="dropdown-menu">
+                    {% if tutor.verification_status == 'pending' %}
+                    <li><a class="dropdown-item" href="#" onclick="handleVerification('approve')">
+                        <i class="fas fa-check-circle text-success"></i> Approve Tutor
+                    </a></li>
+                    <li><a class="dropdown-item" href="#" onclick="handleVerification('reject')">
+                        <i class="fas fa-times-circle text-danger"></i> Reject Tutor
+                    </a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    {% endif %}
+                    <li><a class="dropdown-item" href="#" onclick="handleAccountStatus('{{ 'activate' if not tutor.user.is_active else 'deactivate' }}')">
+                        <i class="fas fa-{{ 'play' if not tutor.user.is_active else 'pause' }} text-warning"></i> 
+                        {{ 'Activate' if not tutor.user.is_active else 'Deactivate' }} Account
+                    </a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item" href="{{ url_for('admin.classes', tutor_id=tutor.id) }}">
+                        <i class="fas fa-calendar text-info"></i> View Classes
+                    </a></li>
+                    {% if current_user.role == 'superadmin' %}
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item text-danger" href="#" onclick="handleDelete()">
+                        <i class="fas fa-trash"></i> Delete Tutor
+                    </a></li>
+                    {% endif %}
+                </ul>
             </div>
+            {% endif %}
         </div>
     </div>
+</div>
 
+<div class="content-container">
     <div class="details-container">
         <!-- Profile Header -->
         <div class="profile-header">
             <div class="profile-avatar">
                 {% if tutor.user.profile_picture %}
-                    <img src="{{ tutor.user.profile_picture }}" alt="Profile Picture" class="profile-avatar">
+                    <img src="{{ tutor.user.profile_picture }}" 
+                         alt="Profile Picture" class="profile-avatar">
                 {% else %}
                     <i class="fas fa-user"></i>
                 {% endif %}
@@ -455,7 +673,7 @@
                     </div>
                     <div class="meta-item">
                         <i class="fas fa-calendar"></i>
-                        Joined {{ tutor.created_at.strftime('%d %b %Y') }}
+                        Joined {{ tutor.created_at.strftime('%d %b %Y') if tutor.created_at else 'Unknown' }}
                     </div>
                 </div>
                 
@@ -496,7 +714,7 @@
                     <div class="info-grid">
                         <div class="info-item">
                             <span class="info-label">Qualification</span>
-                            <span class="info-value">{{ tutor.qualification }}</span>
+                            <span class="info-value">{{ tutor.qualification or 'Not specified' }}</span>
                         </div>
                         <div class="info-item">
                             <span class="info-label">Total Experience</span>
@@ -504,12 +722,41 @@
                         </div>
                     </div>
                     
+                    <!-- Test Score Information -->
+                    {% if tutor.test_score is not none %}
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <span class="info-label">Test Score</span>
+                            <span class="info-value">
+                                {{ tutor.test_score }}/100 
+                                <span class="badge badge-{{ 'success' if tutor.test_score >= 80 else 'warning' if tutor.test_score >= 60 else 'danger' }}">
+                                    {{ tutor.get_test_score_grade() }}
+                                </span>
+                            </span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Test Date</span>
+                            <span class="info-value">
+                                {{ tutor.test_date.strftime('%d %b %Y') if tutor.test_date else 'Not specified' }}
+                            </span>
+                        </div>
+                    </div>
+                    {% if tutor.test_notes %}
+                    <div class="info-item">
+                        <span class="info-label">Test Notes</span>
+                        <span class="info-value">{{ tutor.test_notes }}</span>
+                    </div>
+                    {% endif %}
+                    {% endif %}
+                    
                     <div class="info-grid">
                         <div class="info-item">
                             <span class="info-label">Subjects</span>
                             <div class="tags-container">
                                 {% for subject in tutor.get_subjects() %}
                                     <span class="tag">{{ subject }}</span>
+                                {% else %}
+                                    <span class="text-muted">No subjects specified</span>
                                 {% endfor %}
                             </div>
                         </div>
@@ -518,6 +765,8 @@
                             <div class="tags-container">
                                 {% for grade in tutor.get_grades() %}
                                     <span class="tag">Grade {{ grade }}</span>
+                                {% else %}
+                                    <span class="text-muted">No grades specified</span>
                                 {% endfor %}
                             </div>
                         </div>
@@ -529,6 +778,8 @@
                             <div class="tags-container">
                                 {% for board in tutor.get_boards() %}
                                     <span class="tag">{{ board }}</span>
+                                {% else %}
+                                    <span class="text-muted">No boards specified</span>
                                 {% endfor %}
                             </div>
                         </div>
@@ -552,91 +803,232 @@
                     <div class="section-title">
                         <i class="fas fa-file-alt"></i>
                         Documents & Media
+                        {% if current_user.role in ['superadmin', 'admin'] %}
+                            <button class="btn btn-sm btn-primary" onclick="showUploadModal()">
+                                <i class="fas fa-upload"></i> Upload Document
+                            </button>
+                        {% endif %}
                     </div>
                     
                     <div class="documents-grid">
                         {% set documents = tutor.get_documents() %}
                         
-                        <div class="document-item">
+                        <!-- Aadhaar Card -->
+                        <div class="document-item {% if documents.get('aadhaar') %}available{% else %}missing{% endif %}" id="doc-aadhaar">
                             <div class="document-icon">
                                 <i class="fas fa-id-card"></i>
                             </div>
                             <div class="document-name">Aadhaar Card</div>
-                            <div class="document-status {% if documents.get('aadhaar') %}available{% else %}missing{% endif %}">
+                            <div class="document-status">
                                 {% if documents.get('aadhaar') %}
-                                    <a href="{{ documents.aadhaar }}" target="_blank">View Aadhaar</a>
+                                    {% set doc_info = documents.aadhaar %}
+                                    {% if doc_info %}
+                                        {% if doc_info is mapping %}
+                                            {% set filename = doc_info.filename %}
+                                        {% else %}
+                                            {% set filename = doc_info %}
+                                        {% endif %}
+                                        {% if filename.startswith('https') %}
+                                            <a href="{{ filename }}" target="_blank" rel="noopener" class="btn btn-sm btn-info">
+                                                <i class="fas fa-eye"></i> View
+                                            </a>
+                                        {% else %}
+                                            <a href="{{ documents.aadhaar }}" 
+                                               target="_blank" rel="noopener" class="btn btn-sm btn-info">
+                                                <i class="fas fa-eye"></i> View
+                                            </a>
+                                        {% endif %}
+                                        {% if current_user.role in ['superadmin', 'admin'] %}
+                                            <button class="btn btn-sm btn-warning" onclick="replaceDocument('aadhaar')">
+                                                <i class="fas fa-edit"></i> Replace
+                                            </button>
+                                            <button class="btn btn-sm btn-danger" onclick="deleteDocument('aadhaar')">
+                                                <i class="fas fa-trash"></i> Delete
+                                            </button>
+                                        {% endif %}
+                                    {% endif %}
                                 {% else %}
-                                    Not uploaded
+                                    <span class="text-muted">Not uploaded</span>
+                                    {% if current_user.role in ['superadmin', 'admin'] %}
+                                        <button class="btn btn-sm btn-primary" onclick="uploadDocument('aadhaar')">
+                                            <i class="fas fa-upload"></i> Upload
+                                        </button>
+                                    {% endif %}
                                 {% endif %}
                             </div>
                         </div>
                         
-                        <div class="document-item">
+                        <!-- PAN Card -->
+                        <div class="document-item {% if documents.get('pan') %}available{% else %}missing{% endif %}" id="doc-pan">
                             <div class="document-icon">
                                 <i class="fas fa-credit-card"></i>
                             </div>
                             <div class="document-name">PAN Card</div>
-                            <div class="document-status {% if documents.get('pan') %}available{% else %}missing{% endif %}">
+                            <div class="document-status">
                                 {% if documents.get('pan') %}
-                                    <a href="{{ documents.pan }}" target="_blank">View PAN</a>
+                                    {% set doc_info = documents.pan %}
+                                    {% if doc_info %}
+                                        {% if doc_info is mapping %}
+                                            {% set filename = doc_info.filename %}
+                                        {% else %}
+                                            {% set filename = doc_info %}
+                                        {% endif %}
+                                        <a href="{{ documents.pan }}" 
+                                           target="_blank" rel="noopener" class="btn btn-sm btn-info">
+                                            <i class="fas fa-eye"></i> View
+                                        </a>
+                                        {% if current_user.role in ['superadmin', 'admin'] %}
+                                            <button class="btn btn-sm btn-warning" onclick="replaceDocument('pan')">
+                                                <i class="fas fa-edit"></i> Replace
+                                            </button>
+                                            <button class="btn btn-sm btn-danger" onclick="deleteDocument('pan')">
+                                                <i class="fas fa-trash"></i> Delete
+                                            </button>
+                                        {% endif %}
+                                    {% endif %}
                                 {% else %}
-                                    Not uploaded
+                                    <span class="text-muted">Not uploaded</span>
+                                    {% if current_user.role in ['superadmin', 'admin'] %}
+                                        <button class="btn btn-sm btn-primary" onclick="uploadDocument('pan')">
+                                            <i class="fas fa-upload"></i> Upload
+                                        </button>
+                                    {% endif %}
                                 {% endif %}
                             </div>
                         </div>
                         
-                        <div class="document-item">
+                        <!-- Resume -->
+                        <div class="document-item {% if documents.get('resume') %}available{% else %}missing{% endif %}" id="doc-resume">
                             <div class="document-icon">
                                 <i class="fas fa-file-pdf"></i>
                             </div>
                             <div class="document-name">Resume</div>
-                            <div class="document-status {% if documents.get('resume') %}available{% else %}missing{% endif %}">
+                            <div class="document-status">
                                 {% if documents.get('resume') %}
-                                    <a href="{{ documents.resume }}" target="_blank" download>Download Resume</a>
+                                    {% set doc_info = documents.resume %}
+                                    {% if doc_info %}
+                                        {% if doc_info is mapping %}
+                                            {% set filename = doc_info.filename %}
+                                        {% else %}
+                                            {% set filename = doc_info %}
+                                        {% endif %}
+                                        <a href="{{ documents.resume }}" 
+                                           target="_blank" rel="noopener" class="btn btn-sm btn-info">
+                                            <i class="fas fa-download"></i> Download
+                                        </a>
+                                        {% if current_user.role in ['superadmin', 'admin'] %}
+                                            <button class="btn btn-sm btn-warning" onclick="replaceDocument('resume')">
+                                                <i class="fas fa-edit"></i> Replace
+                                            </button>
+                                            <button class="btn btn-sm btn-danger" onclick="deleteDocument('resume')">
+                                                <i class="fas fa-trash"></i> Delete
+                                            </button>
+                                        {% endif %}
+                                    {% endif %}
                                 {% else %}
-                                    Not uploaded
+                                    <span class="text-muted">Not uploaded</span>
+                                    {% if current_user.role in ['superadmin', 'admin'] %}
+                                        <button class="btn btn-sm btn-primary" onclick="uploadDocument('resume')">
+                                            <i class="fas fa-upload"></i> Upload
+                                        </button>
+                                    {% endif %}
                                 {% endif %}
                             </div>
                         </div>
                         
-                        <div class="document-item">
+                        <!-- Degree Certificate -->
+                        <div class="document-item {% if documents.get('degree') %}available{% else %}missing{% endif %}" id="doc-degree">
                             <div class="document-icon">
                                 <i class="fas fa-certificate"></i>
                             </div>
                             <div class="document-name">Degree Certificate</div>
-                            <div class="document-status {% if documents.get('degree') %}available{% else %}missing{% endif %}">
+                            <div class="document-status">
                                 {% if documents.get('degree') %}
-                                    <a href="{{ documents.degree }}" target="_blank">View Degree</a>
+                                    {% set doc_info = documents.degree %}
+                                    {% if doc_info %}
+                                        {% if doc_info is mapping %}
+                                            {% set filename = doc_info.filename %}
+                                        {% else %}
+                                            {% set filename = doc_info %}
+                                        {% endif %}
+                                        <a href="{{ documents.degree }}" 
+                                           target="_blank" rel="noopener" class="btn btn-sm btn-info">
+                                            <i class="fas fa-eye"></i> View
+                                        </a>
+                                        {% if current_user.role in ['superadmin', 'admin'] %}
+                                            <button class="btn btn-sm btn-warning" onclick="replaceDocument('degree')">
+                                                <i class="fas fa-edit"></i> Replace
+                                            </button>
+                                            <button class="btn btn-sm btn-danger" onclick="deleteDocument('degree')">
+                                                <i class="fas fa-trash"></i> Delete
+                                            </button>
+                                        {% endif %}
+                                    {% endif %}
                                 {% else %}
-                                    Not uploaded
+                                    <span class="text-muted">Not uploaded</span>
+                                    {% if current_user.role in ['superadmin', 'admin'] %}
+                                        <button class="btn btn-sm btn-primary" onclick="uploadDocument('degree')">
+                                            <i class="fas fa-upload"></i> Upload
+                                        </button>
+                                    {% endif %}
                                 {% endif %}
                             </div>
                         </div>
                         
-                        <div class="document-item">
+                        <!-- Demo Video -->
+                        <div class="document-item {% if tutor.demo_video %}available{% else %}missing{% endif %}" id="doc-demo-video">
                             <div class="document-icon">
                                 <i class="fas fa-play-circle"></i>
                             </div>
                             <div class="document-name">Demo Video</div>
-                            <div class="document-status {% if tutor.demo_video %}available{% else %}missing{% endif %}">
+                            <div class="document-status">
                                 {% if tutor.demo_video %}
-                                    <a href="{{ tutor.demo_video }}" target="_blank">Watch Demo Video</a>
+                                    {% if tutor.demo_video.startswith('https') %}
+                                        <a href="{{ tutor.demo_video }}" target="_blank" rel="noopener" class="btn btn-sm btn-info">
+                                            <i class="fas fa-play"></i> Watch
+                                        </a>
+                                    {% endif %}
+                                    {% if current_user.role in ['superadmin', 'admin'] %}
+                                        <button class="btn btn-sm btn-warning" onclick="uploadVideo('demo')">
+                                            <i class="fas fa-edit"></i> Replace
+                                        </button>
+                                    {% endif %}
                                 {% else %}
-                                    Not uploaded
+                                    <span class="text-muted">Not uploaded</span>
+                                    {% if current_user.role in ['superadmin', 'admin'] %}
+                                        <button class="btn btn-sm btn-primary" onclick="uploadVideo('demo')">
+                                            <i class="fas fa-upload"></i> Upload
+                                        </button>
+                                    {% endif %}
                                 {% endif %}
                             </div>
                         </div>
                         
-                        <div class="document-item">
+                        <!-- Interview Video -->
+                        <div class="document-item {% if tutor.interview_video %}available{% else %}missing{% endif %}" id="doc-interview-video">
                             <div class="document-icon">
                                 <i class="fas fa-video"></i>
                             </div>
                             <div class="document-name">Interview Video</div>
-                            <div class="document-status {% if tutor.interview_video %}available{% else %}missing{% endif %}">
+                            <div class="document-status">
                                 {% if tutor.interview_video %}
-                                    <a href="{{ tutor.interview_video }}" target="_blank">Watch Interview Video</a>
+                                    {% if tutor.interview_video.startswith('https') %}
+                                        <a href="{{ tutor.interview_video }}" target="_blank" rel="noopener" class="btn btn-sm btn-info">
+                                            <i class="fas fa-play"></i> Watch
+                                        </a>
+                                    {% endif %}
+                                    {% if current_user.role in ['superadmin', 'admin'] %}
+                                        <button class="btn btn-sm btn-warning" onclick="uploadVideo('interview')">
+                                            <i class="fas fa-edit"></i> Replace
+                                        </button>
+                                    {% endif %}
                                 {% else %}
-                                    Not uploaded
+                                    <span class="text-muted">Not uploaded</span>
+                                    {% if current_user.role in ['superadmin', 'admin'] %}
+                                        <button class="btn btn-sm btn-primary" onclick="uploadVideo('interview')">
+                                            <i class="fas fa-upload"></i> Upload
+                                        </button>
+                                    {% endif %}
                                 {% endif %}
                             </div>
                         </div>
@@ -679,6 +1071,10 @@
                             <span class="info-label">IFSC Code</span>
                             <span class="info-value">{{ bank_details.get('ifsc_code', 'Not provided') }}</span>
                         </div>
+                        <div class="info-item">
+                            <span class="info-label">Account Type</span>
+                            <span class="info-value">{{ bank_details.get('account_type', 'Not specified').title() }}</span>
+                        </div>
                     </div>
                     {% else %}
                     <p class="text-muted">Banking information not provided</p>
@@ -697,20 +1093,20 @@
                     
                     <div class="stats-grid">
                         <div class="stat-item">
-                            <span class="stat-value">{{ tutor.total_classes }}</span>
+                            <span class="stat-value">{{ tutor.total_classes or 0 }}</span>
                             <span class="stat-label">Total Classes</span>
                         </div>
                         <div class="stat-item">
-                            <span class="stat-value">{{ tutor.completed_classes }}</span>
+                            <span class="stat-value">{{ tutor.completed_classes or 0 }}</span>
                             <span class="stat-label">Completed</span>
                         </div>
                         <div class="stat-item">
-                            <span class="stat-value">{{ "%.1f"|format(tutor.rating) }}</span>
+                            <span class="stat-value">{{ "%.1f"|format(tutor.rating or 0) }}</span>
                             <span class="stat-label">Rating</span>
                         </div>
                         <div class="stat-item">
                             <span class="stat-value">
-                                {% if tutor.total_classes > 0 %}
+                                {% if tutor.total_classes and tutor.total_classes > 0 %}
                                     {{ "%.0f"|format((tutor.completed_classes / tutor.total_classes) * 100) }}%
                                 {% else %}
                                     0%
@@ -749,7 +1145,7 @@
                     
                     {% if classes|length > 5 %}
                     <div style="margin-top: 1rem; text-align: center;">
-                        <a href="{{ url_for('admin.classes', tutor=tutor.id) }}" class="btn btn-outline btn-sm">
+                        <a href="{{ url_for('admin.classes', tutor_id=tutor.id) }}" class="btn btn-outline btn-sm">
                             View All Classes
                         </a>
                     </div>
@@ -772,6 +1168,17 @@
                     </div>
                     
                     <div class="info-item" style="margin-bottom: 1rem;">
+                        <span class="info-label">State & PIN</span>
+                        <span class="info-value">
+                            {% if tutor.state or tutor.pin_code %}
+                                {{ tutor.state or '' }}{{ ', ' if tutor.state and tutor.pin_code else '' }}{{ tutor.pin_code or '' }}
+                            {% else %}
+                                Not provided
+                            {% endif %}
+                        </span>
+                    </div>
+                    
+                    <div class="info-item" style="margin-bottom: 1rem;">
                         <span class="info-label">Working Hours</span>
                         <span class="info-value">{{ tutor.user.working_hours or 'Not specified' }}</span>
                     </div>
@@ -791,6 +1198,7 @@
         </div>
 
         <!-- Dynamic Action Panel -->
+        {% if current_user.role in ['superadmin', 'admin'] %}
         <div class="dynamic-actions">
             <!-- Verification Actions -->
             {% if tutor.verification_status in ['pending', 'rejected'] %}
@@ -834,8 +1242,15 @@
                 </div>
                 <div class="action-buttons">
                     <a href="{{ url_for('admin.edit_user', user_id=tutor.user.id) }}" class="btn btn-primary">
-                        <i class="fas fa-edit"></i> Edit Profile
+                        <i class="fas fa-edit"></i> Edit User Account
                     </a>
+                    
+                    {% if current_user.role in ['superadmin', 'admin'] or 
+                          (current_user.role == 'coordinator' and current_user.department_id == tutor.user.department_id) %}
+                    <a href="{{ url_for('admin.edit_tutor', tutor_id=tutor.id) }}" class="btn btn-secondary">
+                        <i class="fas fa-chalkboard-teacher"></i> Edit Tutor Profile
+                    </a>
+                    {% endif %}
                     
                     {% if tutor.user.is_active %}
                         <button type="button" class="btn btn-warning" onclick="handleAccountStatus('deactivate')">
@@ -847,7 +1262,7 @@
                         </button>
                     {% endif %}
                     
-                    <a href="{{ url_for('admin.classes', tutor=tutor.id) }}" class="btn btn-outline">
+                    <a href="{{ url_for('admin.classes', tutor_id=tutor.id) }}" class="btn btn-outline">
                         <i class="fas fa-calendar"></i> View All Classes
                     </a>
                     
@@ -857,6 +1272,81 @@
                     </button>
                     {% endif %}
                 </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Document Upload Modal -->
+<div class="modal fade" id="documentUploadModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Upload Document</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="documentUploadForm" enctype="multipart/form-data">
+                    <div class="mb-3">
+                        <label for="documentType" class="form-label">Document Type</label>
+                        <select class="form-select" id="documentType" name="document_type" required>
+                            <option value="">Select Document Type</option>
+                            <option value="aadhaar">Aadhaar Card</option>
+                            <option value="pan">PAN Card</option>
+                            <option value="resume">Resume</option>
+                            <option value="degree">Degree Certificate</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="documentFile" class="form-label">File</label>
+                        <input type="file" class="form-control" id="documentFile" name="document" 
+                               accept=".pdf,.jpg,.jpeg,.png" required>
+                        <div class="form-text">Accepted formats: PDF, JPG, PNG (Max 10MB)</div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="submitDocumentUpload()">
+                    <i class="fas fa-upload"></i> Upload
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Video Upload Modal -->
+<div class="modal fade" id="videoUploadModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Upload Video</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="videoUploadForm" enctype="multipart/form-data">
+                    <div class="mb-3">
+                        <label for="videoType" class="form-label">Video Type</label>
+                        <select class="form-select" id="videoType" name="video_type" required>
+                            <option value="">Select Video Type</option>
+                            <option value="demo">Demo Video</option>
+                            <option value="interview">Interview Video</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="videoFile" class="form-label">Video File</label>
+                        <input type="file" class="form-control" id="videoFile" name="video" 
+                               accept=".mp4,.avi,.mov,.wmv" required>
+                        <div class="form-text">Accepted formats: MP4, AVI, MOV, WMV (Max 100MB)</div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="submitVideoUpload()">
+                    <i class="fas fa-upload"></i> Upload
+                </button>
             </div>
         </div>
     </div>
@@ -979,6 +1469,203 @@ document.addEventListener('DOMContentLoaded', function() {
             alert('An error occurred. Please check the console for details.');
         });
     };
+
+    // Document management functions
+    window.showUploadModal = function() {
+        const modal = new bootstrap.Modal(document.getElementById('documentUploadModal'));
+        modal.show();
+    };
+
+    window.uploadDocument = function(documentType) {
+        document.getElementById('documentType').value = documentType;
+        showUploadModal();
+    };
+
+    window.replaceDocument = function(documentType) {
+        uploadDocument(documentType);
+    };
+
+    window.uploadVideo = function(videoType) {
+        document.getElementById('videoType').value = videoType;
+        const modal = new bootstrap.Modal(document.getElementById('videoUploadModal'));
+        modal.show();
+    };
+
+    window.submitDocumentUpload = function() {
+        const form = document.getElementById('documentUploadForm');
+        const formData = new FormData(form);
+        const submitButton = event.target;
+        const originalText = submitButton.innerHTML;
+        
+        // Show loading state
+        submitButton.disabled = true;
+        submitButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Uploading...';
+        
+        fetch(`{{ url_for('admin.upload_tutor_document', tutor_id=tutor.id) }}`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCSRFToken()
+            },
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Show success message
+                showAlert(data.message, 'success');
+                
+                // Close modal
+                bootstrap.Modal.getInstance(document.getElementById('documentUploadModal')).hide();
+                
+                // Reload page to show updated documents
+                setTimeout(() => window.location.reload(), 1500);
+            } else {
+                showAlert(data.error || 'Upload failed', 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Upload error:', error);
+            showAlert('Network error occurred during upload', 'error');
+        })
+        .finally(() => {
+            // Reset button
+            submitButton.disabled = false;
+            submitButton.innerHTML = originalText;
+        });
+    };
+
+    window.submitVideoUpload = function() {
+        const form = document.getElementById('videoUploadForm');
+        const formData = new FormData(form);
+        const submitButton = event.target;
+        const originalText = submitButton.innerHTML;
+        
+        // Show loading state
+        submitButton.disabled = true;
+        submitButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Uploading...';
+        
+        fetch(`{{ url_for('admin.upload_tutor_video', tutor_id=tutor.id) }}`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCSRFToken()
+            },
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Show success message
+                showAlert(data.message, 'success');
+                
+                // Close modal
+                bootstrap.Modal.getInstance(document.getElementById('videoUploadModal')).hide();
+                
+                // Reload page to show updated videos
+                setTimeout(() => window.location.reload(), 1500);
+            } else {
+                showAlert(data.error || 'Upload failed', 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Upload error:', error);
+            showAlert('Network error occurred during upload', 'error');
+        })
+        .finally(() => {
+            // Reset button
+            submitButton.disabled = false;
+            submitButton.innerHTML = originalText;
+        });
+    };
+
+    window.deleteDocument = function(documentType) {
+        if (!confirm(`Are you sure you want to delete the ${documentType} document? This action cannot be undone.`)) {
+            return;
+        }
+        
+        fetch(`{{ url_for('admin.delete_tutor_document', tutor_id=tutor.id, document_type='') }}${documentType}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCSRFToken()
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showAlert(data.message, 'success');
+                
+                // Update the document item to show "not uploaded"
+                const docItem = document.getElementById(`doc-${documentType}`);
+                if (docItem) {
+                    docItem.className = 'document-item missing';
+                    const statusDiv = docItem.querySelector('.document-status');
+                    statusDiv.innerHTML = `
+                        <span class="text-muted">Not uploaded</span>
+                        <button class="btn btn-sm btn-primary" onclick="uploadDocument('${documentType}')">
+                            <i class="fas fa-upload"></i> Upload
+                        </button>
+                    `;
+                }
+            } else {
+                showAlert(data.error || 'Delete failed', 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Delete error:', error);
+            showAlert('Network error occurred during deletion', 'error');
+        });
+    };
+
+    // Helper function to show alerts
+    window.showAlert = function(message, type) {
+        // You can customize this based on your alert system
+        if (window.LMS && window.LMS.showAlert) {
+            LMS.showAlert(message, type);
+        } else {
+            alert(message);
+        }
+    };
+
+    // File validation
+    document.getElementById('documentFile').addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (file) {
+            // Check file size (10MB limit)
+            if (file.size > 10 * 1024 * 1024) {
+                alert('File size must be less than 10MB');
+                e.target.value = '';
+                return;
+            }
+            
+            // Check file type
+            const allowedTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
+            if (!allowedTypes.includes(file.type)) {
+                alert('Only PDF, JPG, and PNG files are allowed');
+                e.target.value = '';
+                return;
+            }
+        }
+    });
+
+    document.getElementById('videoFile').addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (file) {
+            // Check file size (100MB limit)
+            if (file.size > 100 * 1024 * 1024) {
+                alert('Video file size must be less than 100MB');
+                e.target.value = '';
+                return;
+            }
+            
+            // Check file type
+            const allowedTypes = ['video/mp4', 'video/avi', 'video/quicktime', 'video/x-ms-wmv'];
+            if (!allowedTypes.includes(file.type)) {
+                alert('Only MP4, AVI, MOV, and WMV files are allowed');
+                e.target.value = '';
+                return;
+            }
+        }
+    });
 });
 </script>
 {% endblock %}

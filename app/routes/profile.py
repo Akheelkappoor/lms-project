@@ -7,9 +7,10 @@ import json
 from app import db
 from app.models.user import User
 from app.models.tutor import Tutor
-from app.forms.profile import EditProfileForm, ChangePasswordForm, BankingDetailsForm
+from app.forms.profile import EditProfileForm, ChangePasswordForm, BankingDetailsForm,TutorProfileEditForm
 from functools import wraps
 from flask import send_file
+
 
 bp = Blueprint('profile', __name__)
 
@@ -440,3 +441,161 @@ def notification_preferences():
             flash(f'Error updating preferences: {str(e)}', 'error')
     
     return render_template('profile/notification_preferences.html')
+
+# ADD this import to the top of app/routes/profile.py:
+# from app.forms.profile import EditProfileForm, ChangePasswordForm, BankingDetailsForm, TutorProfileEditForm
+
+# ADD these routes to app/routes/profile.py:
+
+@bp.route('/profile/tutor/edit', methods=['GET', 'POST'])
+@bp.route('/profile/tutor/<int:tutor_user_id>/edit', methods=['GET', 'POST'])  # Admin route
+@login_required
+def edit_tutor_profile(tutor_user_id=None):
+    """Edit tutor profile - handles both User and Tutor data"""
+    
+    # Determine if this is admin editing another tutor or tutor editing themselves
+    if tutor_user_id:
+        # Admin/Coordinator editing another tutor
+        if current_user.role not in ['superadmin', 'admin', 'coordinator']:
+            flash('Access denied. Insufficient permissions.', 'error')
+            return redirect(url_for('profile.view_profile'))
+        
+        target_user = User.query.get_or_404(tutor_user_id)
+        if target_user.role != 'tutor':
+            flash('User is not a tutor.', 'error')
+            return redirect(url_for('admin.users'))
+        
+        # Check coordinator department access
+        if current_user.role == 'coordinator':
+            if current_user.department_id != target_user.department_id:
+                flash('Access denied. You can only edit tutors from your department.', 'error')
+                return redirect(url_for('admin.tutors'))
+        
+        tutor = Tutor.query.filter_by(user_id=target_user.id).first()
+        if not tutor:
+            flash('Tutor profile not found.', 'error')
+            return redirect(url_for('admin.users'))
+        
+        editing_user = target_user  # Admin is editing this user
+        redirect_url = url_for('admin.tutor_details', tutor_id=tutor.id)
+        is_admin_edit = True
+        
+    else:
+        # Tutor editing their own profile
+        if current_user.role != 'tutor':
+            flash('This page is only available for tutors.', 'error')
+            return redirect(url_for('profile.view_profile'))
+        
+        tutor = Tutor.query.filter_by(user_id=current_user.id).first()
+        if not tutor:
+            flash('Tutor profile not found.', 'error')
+            return redirect(url_for('profile.view_profile'))
+        
+        editing_user = current_user  # Tutor editing themselves
+        redirect_url = url_for('profile.view_profile')
+        is_admin_edit = False
+    
+    form = TutorProfileEditForm()
+    
+    if form.validate_on_submit():
+        try:
+            # Update User table fields
+            editing_user.full_name = form.full_name.data
+            editing_user.phone = form.phone.data
+            editing_user.address = form.address.data
+            
+            # Update Tutor table fields
+            tutor.qualification = form.qualification.data
+            tutor.experience = form.experience.data
+            tutor.salary_type = form.salary_type.data
+            tutor.monthly_salary = form.monthly_salary.data
+            tutor.hourly_rate = form.hourly_rate.data
+            
+            # Handle subjects, grades, boards
+            if form.subjects.data:
+                subjects = [s.strip() for s in form.subjects.data.split(',') if s.strip()]
+                tutor.set_subjects(subjects)
+            
+            if form.grades.data:
+                grades = [g.strip() for g in form.grades.data.split(',') if g.strip()]
+                tutor.set_grades(grades)
+            
+            if form.boards.data:
+                boards = [b.strip() for b in form.boards.data.split(',') if b.strip()]
+                tutor.set_boards(boards)
+            
+            # Handle emergency contact
+            if form.emergency_name.data and form.emergency_phone.data:
+                emergency_contact = {
+                    'name': form.emergency_name.data,
+                    'phone': form.emergency_phone.data,
+                    'relationship': form.emergency_relationship.data,
+                    'email': form.emergency_email.data
+                }
+                editing_user.set_emergency_contact(emergency_contact)
+            
+            # Handle profile picture upload
+            if form.profile_picture.data:
+                filename = save_uploaded_file(form.profile_picture.data, 'profiles')
+                if filename:
+                    # Delete old profile picture if exists
+                    if editing_user.profile_picture:
+                        old_file_path = os.path.join(current_app.config['UPLOAD_FOLDER'], 'profiles', editing_user.profile_picture)
+                        if os.path.exists(old_file_path):
+                            os.remove(old_file_path)
+                    
+                    editing_user.profile_picture = filename
+            
+            db.session.commit()
+            
+            if is_admin_edit:
+                flash(f'Tutor profile for {editing_user.full_name} updated successfully!', 'success')
+            else:
+                flash('Tutor profile updated successfully!', 'success')
+            
+            return redirect(redirect_url)
+            
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Error updating tutor profile: {str(e)}', 'error')
+    
+    # Pre-populate form with existing data on GET request
+    if request.method == 'GET':
+        # User data
+        form.full_name.data = editing_user.full_name
+        form.phone.data = editing_user.phone
+        form.address.data = editing_user.address
+        
+        # Tutor data
+        form.qualification.data = tutor.qualification
+        form.experience.data = tutor.experience
+        form.salary_type.data = tutor.salary_type
+        form.monthly_salary.data = tutor.monthly_salary
+        form.hourly_rate.data = tutor.hourly_rate
+        
+        # Convert lists to comma-separated strings
+        subjects = tutor.get_subjects()
+        if subjects:
+            form.subjects.data = ', '.join(subjects)
+        
+        grades = tutor.get_grades()
+        if grades:
+            form.grades.data = ', '.join(grades)
+        
+        boards = tutor.get_boards()
+        if boards:
+            form.boards.data = ', '.join(boards)
+        
+        # Emergency contact
+        emergency_contact = editing_user.get_emergency_contact()
+        if emergency_contact:
+            form.emergency_name.data = emergency_contact.get('name')
+            form.emergency_phone.data = emergency_contact.get('phone')
+            form.emergency_relationship.data = emergency_contact.get('relationship')
+            form.emergency_email.data = emergency_contact.get('email')
+    
+    return render_template('profile/edit_tutor_profile.html', 
+                         form=form, 
+                         tutor=tutor, 
+                         editing_user=editing_user,
+                         is_admin_edit=is_admin_edit)

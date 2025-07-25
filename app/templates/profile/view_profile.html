@@ -13,9 +13,22 @@
             <p class="page-subtitle">Manage your personal information and settings</p>
         </div>
         <div class="header-actions">
-            <a href="{{ url_for('profile.edit_profile') }}" class="btn btn-primary">
-                <i class="fas fa-edit"></i>
-                Edit Profile
+            <!-- Conditional Edit Button based on user role -->
+            {% if current_user.role == 'tutor' %}
+                <a href="{{ url_for('profile.edit_tutor_profile') }}" class="btn btn-primary">
+                    <i class="fas fa-edit"></i>
+                    Edit Tutor Profile
+                </a>
+            {% else %}
+                <a href="{{ url_for('profile.edit_profile') }}" class="btn btn-primary">
+                    <i class="fas fa-edit"></i>
+                    Edit Profile
+                </a>
+            {% endif %}
+            
+            <a href="{{ url_for('profile.change_password') }}" class="btn btn-outline">
+                <i class="fas fa-key"></i>
+                Change Password
             </a>
         </div>
     </div>
@@ -40,9 +53,15 @@
                                     </div>
                                 {% endif %}
                                 <div class="profile-picture-overlay">
-                                    <a href="{{ url_for('profile.edit_profile') }}" class="btn btn-sm btn-light">
-                                        <i class="fas fa-camera"></i>
-                                    </a>
+                                    {% if current_user.role == 'tutor' %}
+                                        <a href="{{ url_for('profile.edit_tutor_profile') }}" class="btn btn-sm btn-light">
+                                            <i class="fas fa-camera"></i>
+                                        </a>
+                                    {% else %}
+                                        <a href="{{ url_for('profile.edit_profile') }}" class="btn btn-sm btn-light">
+                                            <i class="fas fa-camera"></i>
+                                        </a>
+                                    {% endif %}
                                 </div>
                             </div>
                             <h5 class="mt-3 mb-1">{{ user.full_name or user.username }}</h5>
@@ -87,21 +106,9 @@
                                 </a>
                             </li>
                             <li class="nav-item">
-                                <a class="nav-link" href="{{ url_for('profile.system_documents') }}">
-                                    <i class="fas fa-download"></i>
-                                    System Documents
-                                </a>
-                            </li>
-                            <li class="nav-item">
                                 <a class="nav-link" href="{{ url_for('profile.change_password') }}">
                                     <i class="fas fa-lock"></i>
                                     Change Password
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link" href="{{ url_for('profile.notification_preferences') }}">
-                                    <i class="fas fa-bell"></i>
-                                    Notifications
                                 </a>
                             </li>
                         </ul>
@@ -116,11 +123,20 @@
                 <!-- Personal Information -->
                 <div class="tab-pane fade show active" id="personal-info">
                     <div class="card">
-                        <div class="card-header">
+                        <div class="card-header d-flex justify-content-between align-items-center">
                             <h5 class="card-title mb-0">
                                 <i class="fas fa-user"></i>
                                 Personal Information
                             </h5>
+                            {% if current_user.role == 'tutor' %}
+                                <a href="{{ url_for('profile.edit_tutor_profile') }}" class="btn btn-sm btn-outline-primary">
+                                    <i class="fas fa-edit"></i> Edit
+                                </a>
+                            {% else %}
+                                <a href="{{ url_for('profile.edit_profile') }}" class="btn btn-sm btn-outline-primary">
+                                    <i class="fas fa-edit"></i> Edit
+                                </a>
+                            {% endif %}
                         </div>
                         <div class="card-body">
                             <div class="row">
@@ -158,8 +174,8 @@
                                 </div>
                                 <div class="col-md-6">
                                     <div class="info-group">
-                                        <label class="info-label">Joining Date</label>
-                                        <p class="info-value">{{ user.joining_date|date if user.joining_date else 'Not recorded' }}</p>
+                                        <label class="info-label">Member Since</label>
+                                        <p class="info-value">{{ user.created_at.strftime('%d %b %Y') if user.created_at else 'Not recorded' }}</p>
                                     </div>
                                 </div>
                                 <div class="col-md-6">
@@ -191,11 +207,20 @@
                 <!-- Contact Information -->
                 <div class="tab-pane fade" id="contact-info">
                     <div class="card">
-                        <div class="card-header">
+                        <div class="card-header d-flex justify-content-between align-items-center">
                             <h5 class="card-title mb-0">
                                 <i class="fas fa-address-card"></i>
                                 Contact Information
                             </h5>
+                            {% if current_user.role == 'tutor' %}
+                                <a href="{{ url_for('profile.edit_tutor_profile') }}" class="btn btn-sm btn-outline-primary">
+                                    <i class="fas fa-edit"></i> Edit
+                                </a>
+                            {% else %}
+                                <a href="{{ url_for('profile.edit_profile') }}" class="btn btn-sm btn-outline-primary">
+                                    <i class="fas fa-edit"></i> Edit
+                                </a>
+                            {% endif %}
                         </div>
                         <div class="card-body">
                             <div class="row">
@@ -208,7 +233,13 @@
                                 <div class="col-md-6">
                                     <div class="info-group">
                                         <label class="info-label">Last Login</label>
-                                        <p class="info-value">{{ user.last_login|datetime if user.last_login else 'Never logged in' }}</p>
+                                        <p class="info-value">
+                                            {% if user.last_login %}
+                                                {{ user.last_login.strftime('%d %b %Y, %I:%M %p') }}
+                                            {% else %}
+                                                Never logged in
+                                            {% endif %}
+                                        </p>
                                     </div>
                                 </div>
                                 <div class="col-12">
@@ -217,13 +248,32 @@
                                         <p class="info-value">{{ user.address or 'Not provided' }}</p>
                                     </div>
                                 </div>
+                                
+                                <!-- Tutor specific location info -->
+                                {% if user.role == 'tutor' and tutor_profile %}
+                                <div class="col-md-6">
+                                    <div class="info-group">
+                                        <label class="info-label">State</label>
+                                        <p class="info-value">{{ tutor_profile.state or 'Not provided' }}</p>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="info-group">
+                                        <label class="info-label">PIN Code</label>
+                                        <p class="info-value">{{ tutor_profile.pin_code or 'Not provided' }}</p>
+                                    </div>
+                                </div>
+                                {% endif %}
                             </div>
 
                             <!-- Emergency Contact -->
                             {% set emergency_contact = user.get_emergency_contact() %}
                             {% if emergency_contact %}
                             <hr>
-                            <h6 class="mb-3">Emergency Contact</h6>
+                            <h6 class="mb-3">
+                                <i class="fas fa-phone-alt"></i>
+                                Emergency Contact
+                            </h6>
                             <div class="row">
                                 <div class="col-md-6">
                                     <div class="info-group">
@@ -259,11 +309,14 @@
                 {% if user.role == 'tutor' and tutor_profile %}
                 <div class="tab-pane fade" id="professional-info">
                     <div class="card">
-                        <div class="card-header">
+                        <div class="card-header d-flex justify-content-between align-items-center">
                             <h5 class="card-title mb-0">
                                 <i class="fas fa-briefcase"></i>
                                 Professional Details
                             </h5>
+                            <a href="{{ url_for('profile.edit_tutor_profile') }}" class="btn btn-sm btn-outline-primary">
+                                <i class="fas fa-edit"></i> Edit
+                            </a>
                         </div>
                         <div class="card-body">
                             <div class="row">
@@ -277,18 +330,47 @@
                                     <div class="info-group">
                                         <label class="info-label">Status</label>
                                         <p class="info-value">
-                                            <span class="badge badge-{{ 'success' if tutor_profile.status == 'active' else 'warning' }}">
+                                            <span class="badge badge-{{ 'success' if tutor_profile.status == 'active' else 'warning' if tutor_profile.status == 'pending' else 'danger' }}">
                                                 {{ tutor_profile.status.title() }}
+                                            </span>
+                                            <span class="badge badge-{{ 'info' if tutor_profile.verification_status == 'verified' else 'warning' if tutor_profile.verification_status == 'pending' else 'danger' }}">
+                                                Verification: {{ tutor_profile.verification_status.title() }}
+                                            </span>
+                                        </p>
+                                    </div>
+                                </div>
+                                
+                                <!-- Test Score Information -->
+                                {% if tutor_profile.test_score is not none %}
+                                <div class="col-md-6">
+                                    <div class="info-group">
+                                        <label class="info-label">Test Score</label>
+                                        <p class="info-value">
+                                            {{ tutor_profile.test_score }}/100 
+                                            <span class="badge badge-{{ 'success' if tutor_profile.test_score >= 80 else 'warning' if tutor_profile.test_score >= 60 else 'danger' }}">
+                                                {{ tutor_profile.get_test_score_grade() }}
                                             </span>
                                         </p>
                                     </div>
                                 </div>
                                 <div class="col-md-6">
                                     <div class="info-group">
+                                        <label class="info-label">Test Date</label>
+                                        <p class="info-value">
+                                            {{ tutor_profile.test_date.strftime('%d %b %Y') if tutor_profile.test_date else 'Not recorded' }}
+                                        </p>
+                                    </div>
+                                </div>
+                                {% endif %}
+                                
+                                <div class="col-md-6">
+                                    <div class="info-group">
                                         <label class="info-label">Subjects</label>
                                         <p class="info-value">
                                             {% for subject in tutor_profile.get_subjects() %}
                                                 <span class="badge badge-info">{{ subject }}</span>
+                                            {% else %}
+                                                <span class="text-muted">No subjects specified</span>
                                             {% endfor %}
                                         </p>
                                     </div>
@@ -298,8 +380,36 @@
                                         <label class="info-label">Grades</label>
                                         <p class="info-value">
                                             {% for grade in tutor_profile.get_grades() %}
-                                                <span class="badge badge-secondary">{{ grade }}</span>
+                                                <span class="badge badge-secondary">Grade {{ grade }}</span>
+                                            {% else %}
+                                                <span class="text-muted">No grades specified</span>
                                             {% endfor %}
+                                        </p>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="info-group">
+                                        <label class="info-label">Education Boards</label>
+                                        <p class="info-value">
+                                            {% for board in tutor_profile.get_boards() %}
+                                                <span class="badge badge-success">{{ board }}</span>
+                                            {% else %}
+                                                <span class="text-muted">No boards specified</span>
+                                            {% endfor %}
+                                        </p>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="info-group">
+                                        <label class="info-label">Compensation</label>
+                                        <p class="info-value">
+                                            {% if tutor_profile.salary_type == 'monthly' and tutor_profile.monthly_salary is not none %}
+                                                ₹{{ "{:,.0f}".format(tutor_profile.monthly_salary) }}/month
+                                            {% elif tutor_profile.salary_type == 'hourly' and tutor_profile.hourly_rate is not none %}
+                                                ₹{{ "{:,.0f}".format(tutor_profile.hourly_rate) }}/hour
+                                            {% else %}
+                                                Not specified
+                                            {% endif %}
                                         </p>
                                     </div>
                                 </div>
@@ -309,7 +419,7 @@
                                         <p class="info-value">
                                             <span class="rating">
                                                 {% for i in range(1, 6) %}
-                                                    <i class="fas fa-star {{ 'text-warning' if i <= tutor_profile.rating else 'text-muted' }}"></i>
+                                                    <i class="fas fa-star {{ 'text-warning' if i <= (tutor_profile.rating or 0) else 'text-muted' }}"></i>
                                                 {% endfor %}
                                                 <span class="rating-value">{{ tutor_profile.rating or 0 }}/5</span>
                                             </span>
@@ -319,13 +429,41 @@
                                 <div class="col-md-6">
                                     <div class="info-group">
                                         <label class="info-label">Total Classes</label>
-                                        <p class="info-value">{{ tutor_profile.total_classes or 0 }}</p>
+                                        <p class="info-value">
+                                            <strong>{{ tutor_profile.total_classes or 0 }}</strong> classes
+                                            <small class="text-muted">({{ tutor_profile.completed_classes or 0 }} completed)</small>
+                                        </p>
                                     </div>
                                 </div>
                                 <div class="col-12">
                                     <div class="info-group">
                                         <label class="info-label">Experience</label>
                                         <p class="info-value">{{ tutor_profile.experience or 'Not provided' }}</p>
+                                    </div>
+                                </div>
+                                
+                                <!-- Banking Status -->
+                                {% set bank_details = tutor_profile.get_bank_details() %}
+                                <div class="col-md-6">
+                                    <div class="info-group">
+                                        <label class="info-label">Banking Details</label>
+                                        <p class="info-value">
+                                            {% if bank_details %}
+                                                <span class="badge badge-success">
+                                                    <i class="fas fa-check"></i> Configured
+                                                </span>
+                                                <a href="{{ url_for('profile.banking_details') }}" class="btn btn-sm btn-outline-info ms-2">
+                                                    View Details
+                                                </a>
+                                            {% else %}
+                                                <span class="badge badge-warning">
+                                                    <i class="fas fa-exclamation-triangle"></i> Not Configured
+                                                </span>
+                                                <a href="{{ url_for('profile.banking_details') }}" class="btn btn-sm btn-outline-primary ms-2">
+                                                    Add Banking Details
+                                                </a>
+                                            {% endif %}
+                                        </p>
                                     </div>
                                 </div>
                             </div>
@@ -411,6 +549,7 @@
     color: #495057;
     margin-bottom: 0.5rem;
     display: block;
+    font-size: 0.875rem;
 }
 
 .info-value {
@@ -429,6 +568,7 @@
     margin-left: 8px;
     font-weight: 600;
     color: #495057;
+    font-size: 0.875rem;
 }
 
 .card-header {
@@ -439,6 +579,13 @@
 .badge {
     margin-right: 4px;
     margin-bottom: 4px;
+    font-size: 0.75rem;
+}
+
+.header-actions {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
 }
 
 @media (max-width: 768px) {
@@ -450,6 +597,16 @@
     
     .profile-picture-placeholder {
         font-size: 40px;
+    }
+    
+    .header-actions {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    
+    .header-actions .btn {
+        width: 100%;
+        font-size: 0.875rem;
     }
 }
 </style>

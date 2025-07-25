@@ -20,7 +20,6 @@ from app.utils.email import send_password_reset_email, send_onboarding_email
 from app.forms.user import EditStudentForm
 from sqlalchemy import text
 
-
 bp = Blueprint('admin', __name__)
 
 matching_engine = TutorMatchingEngine()
@@ -1614,6 +1613,220 @@ def api_tutor_availability(tutor_id):
             'error': str(e)
         }), 500
 
+
+@bp.route('/tutors/<int:tutor_id>/edit', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def edit_tutor(tutor_id):
+    """Edit tutor profile (admin route)"""
+    tutor = Tutor.query.get_or_404(tutor_id)
+    
+    # Check department access for coordinators
+    if current_user.role == 'coordinator':
+        if current_user.department_id != tutor.user.department_id:
+            flash('Access denied. You can only edit tutors from your department.', 'error')
+            return redirect(url_for('admin.tutors'))
+    
+    # Redirect to the profile edit route with tutor_user_id
+    return redirect(url_for('profile.edit_tutor_profile', tutor_user_id=tutor.user_id))
+
+# ADD these routes to your app/routes/admin.py file
+
+@bp.route('/tutors/<int:tutor_id>/documents/upload', methods=['POST'])
+@login_required
+@admin_required
+def upload_tutor_document(tutor_id):
+    """Upload document for a tutor (admin only)"""
+    try:
+        tutor = Tutor.query.get_or_404(tutor_id)
+        
+        # Check permissions
+        if current_user.role not in ['superadmin', 'admin']:
+            return jsonify({'error': 'Access denied'}), 403
+        
+        document_type = request.form.get('document_type')
+        file = request.files.get('document')
+        
+        if not file or not document_type:
+            return jsonify({'error': 'File and document type are required'}), 400
+        
+        # Validate file type
+        allowed_extensions = {'pdf', 'jpg', 'jpeg', 'png'}
+        if '.' not in file.filename or file.filename.rsplit('.', 1)[1].lower() not in allowed_extensions:
+            return jsonify({'error': 'Invalid file type. Only PDF, JPG, and PNG files are allowed'}), 400
+        
+        # Validate file size (10MB limit)
+        if request.content_length > 10 * 1024 * 1024:
+            return jsonify({'error': 'File size exceeds 10MB limit'}), 400
+        
+        # Upload to S3 (using your existing upload_file_to_s3 function)
+        s3_url = upload_file_to_s3(file, folder=f"{current_app.config['UPLOAD_FOLDER']}/documents")
+        if not s3_url:
+            return jsonify({'error': 'Failed to upload file to S3'}), 500
+        
+        # Update tutor documents
+        documents = tutor.get_documents()
+        documents[document_type] = {
+            'filename': s3_url,  # Store S3 URL directly
+            'uploaded_at': datetime.now().isoformat(),
+            'uploaded_by': current_user.full_name
+        }
+        tutor.set_documents(documents)
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': f'{document_type.replace("_", " ").title()} uploaded successfully',
+            'filename': s3_url
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f'Error uploading tutor document: {str(e)}')
+        return jsonify({'error': f'Error uploading document: {str(e)}'}), 500
+
+
+@bp.route('/tutors/<int:tutor_id>/videos/upload', methods=['POST'])
+@login_required
+@admin_required
+def upload_tutor_video(tutor_id):
+    """Upload video for a tutor (admin only)"""
+    try:
+        tutor = Tutor.query.get_or_404(tutor_id)
+        
+        # Check permissions
+        if current_user.role not in ['superadmin', 'admin']:
+            return jsonify({'error': 'Access denied'}), 403
+        
+        video_type = request.form.get('video_type')
+        file = request.files.get('video')
+        
+        if not file or not video_type:
+            return jsonify({'error': 'File and video type are required'}), 400
+        
+        # Validate file type
+        allowed_extensions = {'mp4', 'avi', 'mov', 'wmv'}
+        if '.' not in file.filename or file.filename.rsplit('.', 1)[1].lower() not in allowed_extensions:
+            return jsonify({'error': 'Invalid file type. Only MP4, AVI, MOV, and WMV files are allowed'}), 400
+        
+        # Validate file size (100MB limit)
+        if request.content_length > 100 * 1024 * 1024:
+            return jsonify({'error': 'File size exceeds 100MB limit'}), 400
+        
+        # Upload to S3 (using your existing upload_file_to_s3 function)
+        s3_url = upload_file_to_s3(file, folder=f"{current_app.config['UPLOAD_FOLDER']}/videos")
+        if not s3_url:
+            return jsonify({'error': 'Failed to upload video to S3'}), 500
+        
+        # Update tutor video
+        if video_type == 'demo':
+            tutor.demo_video = s3_url
+        elif video_type == 'interview':
+            tutor.interview_video = s3_url
+        else:
+            return jsonify({'error': 'Invalid video type'}), 400
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': f'{video_type.title()} video uploaded successfully',
+            'filename': s3_url
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f'Error uploading tutor video: {str(e)}')
+        return jsonify({'error': f'Error uploading video: {str(e)}'}), 500
+
+
+@bp.route('/tutors/<int:tutor_id>/documents/<document_type>/delete', methods=['POST'])
+@login_required
+@admin_required
+def delete_tutor_document(tutor_id, document_type):
+    """Delete document for a tutor (admin only)"""
+    try:
+        tutor = Tutor.query.get_or_404(tutor_id)
+        
+        # Check permissions
+        if current_user.role not in ['superadmin', 'admin']:
+            return jsonify({'error': 'Access denied'}), 403
+        
+        documents = tutor.get_documents()
+        s3_url = None
+        
+        if document_type in documents:
+            if isinstance(documents[document_type], dict):
+                s3_url = documents[document_type].get('filename')
+            else:
+                s3_url = documents[document_type]
+            
+            # Remove from documents
+            del documents[document_type]
+            tutor.set_documents(documents)
+        
+        # Note: For S3 files, you might want to implement S3 deletion
+        # This would require additional S3 delete functionality
+        # For now, we just remove the reference from the database
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': f'{document_type.replace("_", " ").title()} deleted successfully'
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f'Error deleting tutor document: {str(e)}')
+        return jsonify({'error': f'Error deleting document: {str(e)}'}), 500
+
+@bp.route('/tutors/<int:tutor_id>/videos/<video_type>/delete', methods=['POST'])
+@login_required
+@admin_required
+def delete_tutor_video(tutor_id, video_type):
+    """Delete video for a tutor (admin only)"""
+    try:
+        tutor = Tutor.query.get_or_404(tutor_id)
+        
+        # Check permissions
+        if current_user.role not in ['superadmin', 'admin']:
+            return jsonify({'error': 'Access denied'}), 403
+        
+        s3_url = None
+        
+        # Get current video URL and remove
+        if video_type == 'demo' and tutor.demo_video:
+            s3_url = tutor.demo_video
+            tutor.demo_video = None
+        elif video_type == 'interview' and tutor.interview_video:
+            s3_url = tutor.interview_video
+            tutor.interview_video = None
+        else:
+            return jsonify({'error': 'Video not found or invalid type'}), 404
+        
+        # Note: For S3 files, you might want to implement S3 deletion
+        # This would require additional S3 delete functionality
+        # For now, we just remove the reference from the database
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': f'{video_type.title()} video deleted successfully'
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f'Error deleting tutor video: {str(e)}')
+        return jsonify({'error': f'Error deleting video: {str(e)}'}), 500
+
+
+# Helper function to validate file content (add this if it doesn't exist)
+def has_file_content(file_field):
+    """Check if file field has actual content"""
+    return file_field and hasattr(file_field, 'filename') and file_field.filename != ''
 
 
 @bp.route('/classes/<int:class_id>')
@@ -3249,11 +3462,12 @@ def api_tutor_matching_analytics():
 @login_required
 @admin_required
 def course_batches():
-    """Course batch management page - groups classes intelligently"""
+    """Course batch management page - groups classes by tutor with expandable batches"""
     from collections import defaultdict
     from datetime import datetime, timedelta, date
     import time
     import json
+    import urllib.parse
     from sqlalchemy.orm import selectinload
 
     t0 = time.perf_counter()
@@ -3299,17 +3513,29 @@ def course_batches():
         students = Student.query.filter(Student.id.in_(student_ids)).all()
         students_by_id = {s.id: s for s in students}
 
-    batches = defaultdict(lambda: {
-        'classes': [],
-        'students': set(),
+    # Group by tutor first, then create individual batches within tutor
+    tutors_data = defaultdict(lambda: {
         'tutor': None,
-        'subject': '',
-        'date_range': {'start': None, 'end': None},
+        'batches': defaultdict(lambda: {
+            'classes': [],
+            'students': set(),
+            'tutor': None,
+            'subject': '',
+            'date_range': {'start': None, 'end': None},
+            'total_classes': 0,
+            'completed_classes': 0,
+            'scheduled_classes': 0,
+            'active_students': set(),
+            'completed_students': set()
+        }),
         'total_classes': 0,
         'completed_classes': 0,
         'scheduled_classes': 0,
+        'all_students': set(),
         'active_students': set(),
-        'completed_students': set()
+        'completed_students': set(),
+        'subjects': set(),
+        'date_range': {'start': None, 'end': None}
     })
 
     for cls in classes:
@@ -3317,9 +3543,28 @@ def course_batches():
             continue
 
         month_year_key = cls.scheduled_date.strftime('%Y-%m')
-        batch_key = f"{cls.subject}_{cls.tutor_id}_{month_year_key}"
+        
+        # Use URL encoding to handle all special characters properly
+        subject_encoded = urllib.parse.quote(cls.subject, safe='')
+        batch_key = f"{subject_encoded}_{cls.tutor_id}_{month_year_key}"
+        
+        tutor_data = tutors_data[cls.tutor_id]
+        tutor_data['tutor'] = cls.tutor
+        tutor_data['subjects'].add(cls.subject)
+        tutor_data['total_classes'] += 1
+        
+        # Update tutor date range
+        dr = tutor_data['date_range']
+        dr['start'] = min(dr['start'], cls.scheduled_date) if dr['start'] else cls.scheduled_date
+        dr['end'] = max(dr['end'], cls.scheduled_date) if dr['end'] else cls.scheduled_date
 
-        batch = batches[batch_key]
+        if cls.status == 'completed':
+            tutor_data['completed_classes'] += 1
+        elif cls.status == 'scheduled':
+            tutor_data['scheduled_classes'] += 1
+
+        # Individual batch data
+        batch = tutor_data['batches'][batch_key]
         batch['classes'].append(cls)
         batch['tutor'] = cls.tutor
         batch['subject'] = cls.subject
@@ -3330,50 +3575,86 @@ def course_batches():
         elif cls.status == 'scheduled':
             batch['scheduled_classes'] += 1
 
-        dr = batch['date_range']
-        dr['start'] = min(dr['start'], cls.scheduled_date) if dr['start'] else cls.scheduled_date
-        dr['end']   = max(dr['end'],   cls.scheduled_date) if dr['end']   else cls.scheduled_date
+        batch_dr = batch['date_range']
+        batch_dr['start'] = min(batch_dr['start'], cls.scheduled_date) if batch_dr['start'] else cls.scheduled_date
+        batch_dr['end'] = max(batch_dr['end'], cls.scheduled_date) if batch_dr['end'] else cls.scheduled_date
 
         try:
             ids = cls.get_students() or []
             for sid in ids:
+                tutor_data['all_students'].add(sid)
                 batch['students'].add(sid)
+                
                 st = students_by_id.get(sid)
                 if st:
                     if hasattr(st, "is_course_active") and st.is_course_active(cls.scheduled_date):
+                        tutor_data['active_students'].add(sid)
                         batch['active_students'].add(sid)
                     elif st.enrollment_status == 'completed':
+                        tutor_data['completed_students'].add(sid)
                         batch['completed_students'].add(sid)
         except Exception:
             pass
 
-    batch_list = []
-    for key, b in batches.items():
-        b['batch_id'] = key
-        b['student_count']            = len(b['students'])
-        b['active_student_count']     = len(b['active_students'])
-        b['completed_student_count']  = len(b['completed_students'])
-        b['progress_percentage'] = round(
-            (b['completed_classes'] / b['total_classes']) * 100, 1
-        ) if b['total_classes'] else 0
+    # Convert to list for tutors
+    tutor_list = []
+    for tutor_id, tutor_data in tutors_data.items():
+        # Process individual batches
+        batch_list = []
+        for key, b in tutor_data['batches'].items():
+            b['batch_id'] = key
+            b['student_count'] = len(b['students'])
+            b['active_student_count'] = len(b['active_students'])
+            b['completed_student_count'] = len(b['completed_students'])
+            b['progress_percentage'] = round(
+                (b['completed_classes'] / b['total_classes']) * 100, 1
+            ) if b['total_classes'] else 0
 
-        ids_slice = list(b['students'])[:5]
-        b['student_objects'] = [students_by_id[i] for i in ids_slice if i in students_by_id]
+            ids_slice = list(b['students'])[:5]
+            b['student_objects'] = [students_by_id[i] for i in ids_slice if i in students_by_id]
+            batch_list.append(b)
+        
+        # Sort batches by date
+        batch_list.sort(key=lambda x: x['date_range']['start'] or date.min, reverse=True)
+        
+        # Tutor summary
+        tutor_summary = {
+            'tutor_id': tutor_id,
+            'tutor': tutor_data['tutor'],
+            'total_batches': len(batch_list),
+            'total_classes': tutor_data['total_classes'],
+            'completed_classes': tutor_data['completed_classes'],
+            'scheduled_classes': tutor_data['scheduled_classes'],
+            'total_students': len(tutor_data['all_students']),
+            'active_students': len(tutor_data['active_students']),
+            'completed_students': len(tutor_data['completed_students']),
+            'subjects': list(tutor_data['subjects']),
+            'date_range': tutor_data['date_range'],
+            'batches': batch_list,
+            'progress_percentage': round(
+                (tutor_data['completed_classes'] / tutor_data['total_classes']) * 100, 1
+            ) if tutor_data['total_classes'] else 0
+        }
+        
+        # Get student objects for preview
+        ids_slice = list(tutor_data['active_students'])[:5]
+        tutor_summary['student_objects'] = [students_by_id[i] for i in ids_slice if i in students_by_id]
+        
+        tutor_list.append(tutor_summary)
 
-        batch_list.append(b)
+    # Sort tutors by name
+    tutor_list.sort(key=lambda x: x['tutor'].user.full_name if x['tutor'] and x['tutor'].user else 'ZZZ')
 
-    batch_list.sort(key=lambda x: x['date_range']['end'] or date.min, reverse=True)
-
+    # Apply filters
     activate_param = request.args.get('activate')  
     if activate_param in ('0', '1'):
         want_active = (activate_param == '1')
         filtered = []
-        for b in batch_list:
-            has_any = b['active_student_count'] > 0
+        for tutor in tutor_list:
+            has_any = tutor['active_students'] > 0
             if has_any is want_active:
-                filtered.append(b)
-        batch_list = filtered
-    batch_list.sort(key=lambda x: x['date_range']['end'] or date.min, reverse=True)
+                filtered.append(tutor)
+        tutor_list = filtered
 
     months = sorted(
         {cls.scheduled_date.strftime('%Y-%m') for cls in classes if cls.scheduled_date},
@@ -3385,38 +3666,30 @@ def course_batches():
 
     class SimplePagination:
         def __init__(self, page, per_page, total):
-            self.page       = page
-            self.per_page   = per_page
-            self.total      = total
-            self.pages      = ceil(total / per_page) if per_page else 0
-            self.has_prev   = page > 1
-            self.has_next   = page < self.pages
-            self.prev_num   = page - 1 if self.has_prev else None
-            self.next_num   = page + 1 if self.has_next else None
+            self.page = page
+            self.per_page = per_page
+            self.total = total
+            self.pages = ceil(total / per_page) if per_page else 0
+            self.has_prev = page > 1
+            self.has_next = page < self.pages
+            self.prev_num = page - 1 if self.has_prev else None
+            self.next_num = page + 1 if self.has_next else None
             
-        def iter_pages(self, left_edge=1, right_edge=1,
-                    left_current=1, right_current=2):
-            """
-            Only yield pages 1 through 10 (and an ellipsis + last page if total > 10).
-            Signature matches what your template calls.
-            """
+        def iter_pages(self, left_edge=1, right_edge=1, left_current=1, right_current=2):
             max_shown = 10
             for num in range(1, min(self.pages, max_shown) + 1):
                 yield num
-
-
             if self.pages > max_shown:
                 yield None
                 yield self.pages
 
+    page = request.args.get('page', 1, type=int)
+    per_page = 8
+    total = len(tutor_list)
 
-    page      = request.args.get('page', 1, type=int)
-    per_page  = 6
-    total     = len(batch_list)
-
-    start     = (page - 1) * per_page
-    end       = start + per_page
-    page_items = batch_list[start:end]
+    start = (page - 1) * per_page
+    end = start + per_page
+    page_items = tutor_list[start:end]
 
     filtered_args = request.args.to_dict()
     filtered_args.pop('page', None)
@@ -3425,14 +3698,16 @@ def course_batches():
 
     return render_template(
         'admin/course_batches.html',
-        batches=page_items,
+        tutors_data=page_items,
         pagination=pagination,
         filtered_args=filtered_args,
         tutors=tutors,
         months=months,
-        total_batches=total
+        total_tutors=total
     )
 
+# Add these routes to your existing app/routes/admin.py
+import urllib.parse
 
 @bp.route('/course-batches/<batch_id>')
 @login_required
@@ -3442,34 +3717,54 @@ def course_batch_details(batch_id):
     from datetime import datetime, date
     from sqlalchemy.orm import selectinload
     import traceback
+    import urllib.parse
 
     try:
-        parts = batch_id.split('_', 2) 
-        if len(parts) != 3:
-            raise ValueError("Bad batch_id parts count")
+        # Parse batch_id 
+        parts = batch_id.split('_')
+        if len(parts) < 3:
+            raise ValueError(f"Invalid batch_id format: {batch_id}")
 
-        raw_subject, raw_tutor_id, month_year = parts
-        subject = raw_subject.replace('-', ' ')  
+        month_year = parts[-1]
+        raw_tutor_id = parts[-2]
+        raw_subject = '_'.join(parts[:-2])
+        
+        # URL decode the subject to get the original subject name
+        subject = urllib.parse.unquote(raw_subject)
         tutor_id = int(raw_tutor_id)
 
-        month_dt = datetime.strptime(month_year, '%Y-%m').date()
+        # Parse the month_year
+        try:
+            month_dt = datetime.strptime(month_year, '%Y-%m').date()
+        except ValueError:
+            month_dt = datetime.strptime(month_year, '%b-%Y').date()
+            
         start_date = month_dt.replace(day=1)
-        # first day of next month
+        
         if month_dt.month == 12:
             end_date = month_dt.replace(year=month_dt.year + 1, month=1, day=1)
         else:
             end_date = month_dt.replace(month=month_dt.month + 1, day=1)
 
+        print(f"Parsing batch_id: {batch_id}")
+        print(f"Raw subject: '{raw_subject}'")
+        print(f"Decoded subject: '{subject}'")
+        print(f"Tutor ID: {tutor_id}")
+        print(f"Month/Year: {month_year}")
+        print(f"Date range: {start_date} to {end_date}")
+
     except Exception as e:
+        print(f"Error parsing batch_id '{batch_id}': {str(e)}")
         traceback.print_exc()
-        flash('Invalid batch ID', 'error')
+        flash('Invalid batch ID format', 'error')
         return redirect(url_for('admin.course_batches'))
 
+    # Query classes with exact subject matching
     classes = (
         Class.query
         .options(selectinload(Class.tutor))
         .filter(
-            Class.subject == subject,            
+            Class.subject == subject,
             Class.tutor_id == tutor_id,
             Class.scheduled_date >= start_date,
             Class.scheduled_date < end_date
@@ -3478,18 +3773,39 @@ def course_batch_details(batch_id):
         .all()
     )
 
+    print(f"Found {len(classes)} classes for batch")
+
     if not classes:
-        flash('No classes found for this batch', 'error')
+        # Try to find any classes for this tutor in this month for debugging
+        debug_classes = (
+            Class.query
+            .filter(
+                Class.tutor_id == tutor_id,
+                Class.scheduled_date >= start_date,
+                Class.scheduled_date < end_date
+            )
+            .all()
+        )
+        
+        if debug_classes:
+            subjects_found = [cls.subject for cls in debug_classes]
+            print(f"Looking for subject: '{subject}'")
+            print(f"Available subjects for tutor {tutor_id} in {month_year}: {subjects_found}")
+            flash(f'No classes found for subject "{subject}". Available subjects: {", ".join(set(subjects_found))}', 'warning')
+        else:
+            print(f"No classes found for tutor {tutor_id} in date range {start_date} to {end_date}")
+            flash(f'No classes found for this tutor in {month_year}', 'error')
+        
         return redirect(url_for('admin.course_batches'))
 
-
+    # Get all student IDs
     all_student_ids = set()
     for c in classes:
         try:
             ids = c.get_students() or []
             all_student_ids.update(ids)
-        except Exception:
-            # Log but continue
+        except Exception as e:
+            print(f"Error getting students for class {c.id}: {str(e)}")
             traceback.print_exc()
 
     students_by_id = {}
@@ -3498,14 +3814,15 @@ def course_batch_details(batch_id):
         students = Student.query.filter(Student.id.in_(all_student_ids)).all()
         students_by_id = {s.id: s for s in students}
 
-    total_classes     = len(classes)
+    # Calculate statistics
+    total_classes = len(classes)
     completed_classes = sum(1 for c in classes if c.status == 'completed')
     scheduled_classes = sum(1 for c in classes if c.status == 'scheduled')
     cancelled_classes = sum(1 for c in classes if c.status == 'cancelled')
 
-    total_students    = len(students)
-    active_students   = sum(1 for s in students if s.enrollment_status == 'active')
-    completed_students= sum(1 for s in students if s.enrollment_status == 'completed')
+    total_students = len(students)
+    active_students = sum(1 for s in students if s.enrollment_status == 'active')
+    completed_students = sum(1 for s in students if s.enrollment_status == 'completed')
 
     stats = {
         'total_classes': total_classes,
@@ -3518,13 +3835,222 @@ def course_batch_details(batch_id):
     }
 
     tutor = classes[0].tutor if classes else Tutor.query.get(tutor_id)
+    
+    # Get all available tutors for change tutor functionality
+    available_tutors = Tutor.query.filter_by(status='active').all()
+    available_tutors = [t for t in available_tutors if t.get_availability()]
 
     return render_template(
         'admin/course_batch_details.html',
         classes=classes,
         students=students,
         tutor=tutor,
+        available_tutors=available_tutors,
         batch_id=batch_id,
         subject=subject,
-        stats=stats
+        stats=stats,
+        start_date=start_date,
+        end_date=end_date
     )
+
+# ============ BATCH MANAGEMENT API ROUTES ============
+
+@bp.route('/api/batch/<batch_id>/change-tutor', methods=['POST'])
+@login_required
+@admin_required
+def api_batch_change_tutor(batch_id):
+    """Change tutor for all classes in a batch"""
+    try:
+        new_tutor_id = request.json.get('new_tutor_id')
+        if not new_tutor_id:
+            return jsonify({'error': 'New tutor ID is required'}), 400
+
+        # Parse batch_id to get class filters
+        parts = batch_id.split('_')
+        month_year = parts[-1]
+        raw_tutor_id = parts[-2]
+        raw_subject = '_'.join(parts[:-2])
+        
+        subject = urllib.parse.unquote(raw_subject)
+        current_tutor_id = int(raw_tutor_id)
+        
+        # Parse date range
+        month_dt = datetime.strptime(month_year, '%Y-%m').date()
+        start_date = month_dt.replace(day=1)
+        if month_dt.month == 12:
+            end_date = month_dt.replace(year=month_dt.year + 1, month=1, day=1)
+        else:
+            end_date = month_dt.replace(month=month_dt.month + 1, day=1)
+
+        # Get new tutor and verify availability
+        new_tutor = Tutor.query.get_or_404(new_tutor_id)
+        if not new_tutor.get_availability():
+            return jsonify({'error': 'Selected tutor has not set their availability'}), 400
+
+        # Get all classes in the batch
+        classes = Class.query.filter(
+            Class.subject == subject,
+            Class.tutor_id == current_tutor_id,
+            Class.scheduled_date >= start_date,
+            Class.scheduled_date < end_date,
+            Class.status.in_(['scheduled'])  # Only change scheduled classes
+        ).all()
+
+        if not classes:
+            return jsonify({'error': 'No scheduled classes found in this batch'}), 404
+
+        # Check availability for each class
+        conflicts = []
+        successful_changes = 0
+        
+        for cls in classes:
+            day_of_week = cls.scheduled_date.strftime('%A').lower()
+            time_str = cls.scheduled_time.strftime('%H:%M')
+            
+            # Check if new tutor is available
+            if not new_tutor.is_available_at(day_of_week, time_str):
+                conflicts.append({
+                    'class_id': cls.id,
+                    'date': cls.scheduled_date.strftime('%Y-%m-%d'),
+                    'time': time_str,
+                    'reason': 'Tutor not available'
+                })
+                continue
+            
+            # Check for scheduling conflicts
+            existing_class = Class.query.filter_by(
+                tutor_id=new_tutor_id,
+                scheduled_date=cls.scheduled_date,
+                scheduled_time=cls.scheduled_time,
+                status='scheduled'
+            ).first()
+            
+            if existing_class:
+                conflicts.append({
+                    'class_id': cls.id,
+                    'date': cls.scheduled_date.strftime('%Y-%m-%d'),
+                    'time': time_str,
+                    'reason': 'Tutor already has a class at this time'
+                })
+                continue
+            
+            # Change tutor
+            cls.tutor_id = new_tutor_id
+            cls.updated_at = datetime.utcnow()
+            successful_changes += 1
+
+        db.session.commit()
+
+        return jsonify({
+            'success': True,
+            'message': f'Successfully changed tutor for {successful_changes} classes',
+            'successful_changes': successful_changes,
+            'conflicts': conflicts,
+            'total_classes': len(classes)
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'Error changing tutor: {str(e)}'}), 500
+
+@bp.route('/api/batch/<batch_id>/delete-classes', methods=['POST'])
+@login_required
+@admin_required
+def api_batch_delete_classes(batch_id):
+    """Delete selected classes from a batch"""
+    try:
+        class_ids = request.json.get('class_ids', [])
+        if not class_ids:
+            return jsonify({'error': 'No classes selected for deletion'}), 400
+
+        # Verify classes belong to the batch
+        classes = Class.query.filter(Class.id.in_(class_ids)).all()
+        
+        if not classes:
+            return jsonify({'error': 'No valid classes found'}), 404
+
+        deleted_count = 0
+        for cls in classes:
+            # Only delete scheduled classes
+            if cls.status == 'scheduled':
+                cls.status = 'cancelled'
+                cls.cancellation_reason = 'Deleted via batch management'
+                cls.cancelled_at = datetime.utcnow()
+                cls.cancelled_by = current_user.id
+                deleted_count += 1
+
+        db.session.commit()
+
+        return jsonify({
+            'success': True,
+            'message': f'Successfully cancelled {deleted_count} classes',
+            'deleted_count': deleted_count
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'Error deleting classes: {str(e)}'}), 500
+
+@bp.route('/api/tutor/<int:tutor_id>/batch-availability', methods=['GET'])
+@login_required
+@admin_required
+def api_tutor_batch_availability(tutor_id):
+    """Check tutor availability for a batch of classes"""
+    try:
+        class_ids = request.args.getlist('class_ids')
+        if not class_ids:
+            return jsonify({'error': 'No class IDs provided'}), 400
+
+        tutor = Tutor.query.get_or_404(tutor_id)
+        availability = tutor.get_availability()
+        
+        if not availability:
+            return jsonify({
+                'success': False,
+                'has_availability': False,
+                'message': 'Tutor has not set their availability'
+            })
+
+        # Get classes and check availability
+        classes = Class.query.filter(Class.id.in_(class_ids)).all()
+        availability_results = []
+        
+        for cls in classes:
+            day_of_week = cls.scheduled_date.strftime('%A').lower()
+            time_str = cls.scheduled_time.strftime('%H:%M')
+            
+            is_available = tutor.is_available_at(day_of_week, time_str)
+            
+            # Check for conflicts
+            existing_class = Class.query.filter_by(
+                tutor_id=tutor_id,
+                scheduled_date=cls.scheduled_date,
+                scheduled_time=cls.scheduled_time,
+                status='scheduled'
+            ).first()
+            
+            availability_results.append({
+                'class_id': cls.id,
+                'date': cls.scheduled_date.strftime('%Y-%m-%d'),
+                'time': time_str,
+                'day': day_of_week.title(),
+                'available': is_available and not existing_class,
+                'reason': 'Available' if is_available and not existing_class 
+                         else 'Not available' if not is_available 
+                         else 'Scheduling conflict'
+            })
+
+        available_count = sum(1 for r in availability_results if r['available'])
+        
+        return jsonify({
+            'success': True,
+            'has_availability': bool(availability),
+            'tutor_name': tutor.user.full_name,
+            'total_classes': len(classes),
+            'available_classes': available_count,
+            'conflicts': len(classes) - available_count,
+            'details': availability_results
+        })
+
+    except Exception as e:
+        return jsonify({'error': f'Error checking availability: {str(e)}'}), 500

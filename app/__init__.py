@@ -80,6 +80,9 @@ def create_app(config_class=Config):
 
     from app.routes.escalation import bp as escalation_bp
     app.register_blueprint(escalation_bp)
+    
+    from app.routes import reschedule
+    app.register_blueprint(reschedule.bp, url_prefix='/reschedule')
 
     # Notice Management System Blueprint
     from app.routes import notice

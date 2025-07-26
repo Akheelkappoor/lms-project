@@ -2377,8 +2377,18 @@ function showTutorAvailability() {
 
 
 function rescheduleClass(classId) {
-    // Implement reschedule functionality
-    alert('Reschedule functionality to be implemented');
+    // Check user role and redirect accordingly
+    const userRole = '{{ current_user.role }}';
+    
+    if (userRole === 'tutor') {
+        // Redirect tutor to request reschedule form
+        window.location.href = `/reschedule/tutor/request-reschedule/${classId}`;
+    } else if (['admin', 'coordinator', 'superadmin'].includes(userRole)) {
+        // Redirect admin to quick reschedule form
+        window.location.href = `/reschedule/admin/class/${classId}/quick-reschedule`;
+    } else {
+        LMS.showAlert('You do not have permission to reschedule classes', 'error');
+    }
 }
 
 function cancelClass(classId) {

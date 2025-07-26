@@ -1,0 +1,289 @@
+{% extends "base.html" %}
+
+{% block title %}Reschedule Request Details - {{ APP_NAME }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h1 class="page-title">
+                <i class="fas fa-calendar-alt"></i>
+                Reschedule Request Details
+            </h1>
+            <p class="page-subtitle">Review and manage reschedule request</p>
+        </div>
+        <div class="header-actions">
+            <a href="{{ url_for('reschedule.admin_reschedule_requests') }}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i>
+                Back to Requests
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-lg-8">
+            <!-- Request Details -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="card-title mb-0">
+                        <i class="fas fa-info-circle"></i>
+                        Request Information
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="detail-group">
+                                <h6 class="detail-label">Class Details</h6>
+                                <div class="detail-item">
+                                    <label>Subject</label>
+                                    <div class="fw-semibold">{{ request.class_item.subject }}</div>
+                                </div>
+                                <div class="detail-item">
+                                    <label>Type</label>
+                                    <div>{{ request.class_item.class_type|title }}</div>
+                                </div>
+                                <div class="detail-item">
+                                    <label>Duration</label>
+                                    <div>{{ request.class_item.duration }} minutes</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="detail-group">
+                                <h6 class="detail-label">Tutor & Students</h6>
+                                <div class="detail-item">
+                                    <label>Tutor</label>
+                                    <div class="fw-semibold">{{ request.class_item.tutor.user.full_name }}</div>
+                                    <small class="text-muted">{{ request.class_item.tutor.user.email }}</small>
+                                </div>
+                                <div class="detail-item">
+                                    <label>Students</label>
+                                    <div>
+                                        {% for student in request.class_item.get_student_objects() %}
+                                            {{ student.full_name }}{% if not loop.last %}, {% endif %}
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Schedule Comparison -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="card-title mb-0">
+                        <i class="fas fa-clock"></i>
+                        Schedule Comparison
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="schedule-card current">
+                                <h6 class="schedule-title">
+                                    <i class="fas fa-calendar"></i>
+                                    Current Schedule
+                                </h6>
+                                <div class="schedule-date">{{ request.original_date.strftime('%A, %d %B %Y') }}</div>
+                                <div class="schedule-time">{{ request.original_time.strftime('%I:%M %p') }}</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="schedule-card requested">
+                                <h6 class="schedule-title">
+                                    <i class="fas fa-calendar-plus"></i>
+                                    Requested Schedule
+                                </h6>
+                                <div class="schedule-date">{{ request.requested_date.strftime('%A, %d %B %Y') }}</div>
+                                <div class="schedule-time">{{ request.requested_time.strftime('%I:%M %p') }}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Reason -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="card-title mb-0">
+                        <i class="fas fa-comment"></i>
+                        Reason for Reschedule
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <p class="mb-0">{{ request.reason }}</p>
+                </div>
+            </div>
+
+            <!-- Conflicts -->
+            {% if conflicts %}
+            <div class="card mb-4">
+                <div class="card-header bg-danger text-white">
+                    <h6 class="card-title mb-0">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        Scheduling Conflicts Detected
+                    </h6>
+                </div>
+                <div class="card-body">
+                    {% for conflict in conflicts %}
+                    <div class="alert alert-danger">
+                        <strong>{{ conflict.type|replace('_', ' ')|title }}:</strong>
+                        {{ conflict.message }}
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="col-lg-4">
+            <!-- Status & Actions -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="card-title mb-0">
+                        <i class="fas fa-cog"></i>
+                        Request Status & Actions
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="form-label">Current Status</label>
+                        <div>
+                            {% if request.status == 'pending' %}
+                                <span class="badge bg-warning fs-6">Pending Review</span>
+                            {% elif request.status == 'approved' %}
+                                <span class="badge bg-success fs-6">Approved</span>
+                            {% elif request.status == 'rejected' %}
+                                <span class="badge bg-danger fs-6">Rejected</span>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Requested By</label>
+                        <div>{{ request.requester.full_name }}</div>
+                        <small class="text-muted">{{ request.request_date.strftime('%d %b %Y, %I:%M %p') }}</small>
+                    </div>
+
+                    {% if request.reviewed_at %}
+                    <div class="mb-3">
+                        <label class="form-label">Reviewed By</label>
+                        <div>{{ request.reviewer.full_name }}</div>
+                        <small class="text-muted">{{ request.reviewed_at.strftime('%d %b %Y, %I:%M %p') }}</small>
+                    </div>
+                    {% endif %}
+
+                    {% if request.status == 'pending' %}
+                    <hr>
+                    <form method="POST" action="{{ url_for('reschedule.review_reschedule_request', request_id=request.id) }}">
+                        {{ form.hidden_tag() }}
+                        
+                        <div class="mb-3">
+                            {{ form.action.label(class="form-label") }}
+                            {{ form.action(class="form-select") }}
+                        </div>
+                        
+                        <div class="mb-3">
+                            {{ form.review_notes.label(class="form-label") }}
+                            {{ form.review_notes(class="form-control") }}
+                        </div>
+                        
+                        {% if conflicts %}
+                        <div class="mb-3">
+                            <div class="form-check">
+                                {{ form.force_approve(class="form-check-input") }}
+                                {{ form.force_approve.label(class="form-check-label text-danger") }}
+                            </div>
+                            <small class="text-muted">Only check if you want to override the conflicts</small>
+                        </div>
+                        {% endif %}
+                        
+                        {{ form.submit(class="btn btn-primary w-100") }}
+                    </form>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Review History -->
+            {% if request.review_notes %}
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="card-title mb-0">
+                        <i class="fas fa-history"></i>
+                        Review Notes
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <p class="mb-0">{{ request.review_notes }}</p>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<style>
+.detail-group {
+    margin-bottom: 1.5rem;
+}
+
+.detail-label {
+    color: var(--bs-gray-600);
+    margin-bottom: 1rem;
+    font-size: 0.875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.detail-item {
+    margin-bottom: 1rem;
+}
+
+.detail-item label {
+    display: block;
+    font-size: 0.875rem;
+    color: var(--bs-gray-600);
+    margin-bottom: 0.25rem;
+}
+
+.schedule-card {
+    padding: 1.5rem;
+    border-radius: 0.5rem;
+    text-align: center;
+    height: 100%;
+}
+
+.schedule-card.current {
+    background: linear-gradient(135deg, var(--bs-gray-100), var(--bs-gray-200));
+    border: 2px solid var(--bs-gray-300);
+}
+
+.schedule-card.requested {
+    background: linear-gradient(135deg, var(--bs-primary-bg-subtle), var(--bs-primary-border-subtle));
+    border: 2px solid var(--bs-primary);
+}
+
+.schedule-title {
+    margin-bottom: 1rem;
+    font-size: 0.875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.schedule-date {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+}
+
+.schedule-time {
+    font-size: 1.5rem;
+    font-weight: 700;
+}
+</style>
+{% endblock %}

@@ -2,6 +2,7 @@ from datetime import datetime, date
 from app import db
 import json
 import re 
+from app.models.user import User
 
 
 class Tutor(db.Model):
@@ -335,8 +336,10 @@ class Tutor(db.Model):
         # Initialize salary calculation components
         base_salary = self.monthly_salary or 0
         attendance_records = self._get_monthly_attendance_records(month, year)
+        
+        # FIX: Use tutor_present boolean field instead of non-existent status field
         attended_classes = [
-            att for att in attendance_records if att.status == "present"
+            att for att in attendance_records if att.tutor_present == True
         ]
 
         # Calculate salary based on type
@@ -346,12 +349,15 @@ class Tutor(db.Model):
             calculated_salary = self._calculate_fixed_monthly_salary(
                 base_salary, attendance_records, attended_classes
             )
+            
+        total_hours = sum(att.duration_hours or 1.0 for att in attended_classes)
 
         return {
             "base_salary": base_salary,
             "calculated_salary": calculated_salary,
             "total_classes": len(attendance_records),
             "attended_classes": len(attended_classes),
+            "total_hours": total_hours,
             "month": month,
             "year": year,
         }

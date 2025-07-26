@@ -139,21 +139,13 @@
                                     <i class="fas fa-info-circle"></i>
                                     Link this escalation to specific students or tutors if relevant
                                 </div>
-                            
-                                <!-- Debug Info -->
-                                {% if current_user.role in ['superadmin', 'admin'] %}
-                                <div class="alert alert-info mt-3 mb-0">
-                                    <i class="fas fa-bug"></i>
-                                    <small><strong>Debug:</strong> Found {{ students|length }} students and {{ tutors|length }} tutors 
-                                    (Role: {{ current_user.role }}, Dept: {{ current_user.department_id }})</small>
-                                </div>
-                                {% endif %}
                             </div>
                         </div>
 
                         <!-- Submit Buttons -->
                         <div class="d-flex justify-content-end gap-3">
-                            <a href="{{ url_for('escalation.list_escalations') }}" class="btn btn-outline-secondary">
+                            <a href="{% if current_user.role == 'tutor' %}{{ url_for('escalation.my_escalations') }}{% else %}{{ url_for('escalation.list_escalations') }}{% endif %}" 
+                            class="btn btn-outline-secondary">
                                 <i class="fas fa-times"></i>
                                 Cancel
                             </a>

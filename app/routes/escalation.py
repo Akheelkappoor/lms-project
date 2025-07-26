@@ -29,6 +29,10 @@ def admin_required(f):
 @login_required
 def list_escalations():
     """List all escalations - accessible to all authenticated users"""
+    
+    if current_user.role == 'tutor' and request.args.get('action') != 'create':
+        return redirect(url_for('escalation.my_escalations'))
+    
     page = request.args.get('page', 1, type=int)
     status_filter = request.args.get('status', '')
     category_filter = request.args.get('category', '')
@@ -156,7 +160,10 @@ def create_escalation():
             db.session.commit()
             
             flash(f'Escalation "{title}" created successfully!', 'success')
-            return redirect(url_for('escalation.view_escalation', id=escalation.id))
+            if current_user.role == 'tutor':
+                return redirect(url_for('escalation.view_tutor_escalation', id=escalation.id))
+            else:
+                return redirect(url_for('escalation.view_escalation', id=escalation.id))
             
         except Exception as e:
             db.session.rollback()
@@ -235,6 +242,24 @@ def view_escalation(id):
     """View escalation details"""
     escalation = Escalation.query.get_or_404(id)
     
+    if current_user.role == 'tutor':
+        tutor = Tutor.query.filter_by(user_id=current_user.id).first()
+        if tutor:
+            related_records = escalation.get_related_records()
+            has_access = (
+                escalation.created_by == current_user.id or
+                escalation.assigned_to == current_user.id or
+                (related_records and related_records.get('tutor_id') == tutor.id)
+            )
+            
+            if has_access:
+                return redirect(url_for('escalation.view_tutor_escalation', id=id))
+            else:
+                flash('Access denied.', 'error')
+                return redirect(url_for('escalation.my_escalations'))
+        else:
+            flash('Tutor profile not found.', 'error')
+            return redirect(url_for('dashboard.index'))    
     # Check access
     if current_user.role == 'coordinator' and escalation.department_id != current_user.department_id:
         flash('Access denied. You can only view escalations from your department.', 'error')
@@ -527,3 +552,122 @@ def test_data():
         
     except Exception as e:
         return f"<h2>Error:</h2><pre>{str(e)}</pre>"
+# Add these functions to the END of your existing app/routes/escalation.py file
+
+def tutor_required(f):
+    """Decorator to require tutor access"""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if current_user.role != 'tutor':
+            flash('Access denied. This page is for tutors only.', 'error')
+            return redirect(url_for('dashboard.index'))
+        return f(*args, **kwargs)
+    return decorated_function
+
+@bp.route('/my-escalations')
+@login_required
+@tutor_required  
+def my_escalations():
+    """View escalations related to current tutor"""
+    tutor = Tutor.query.filter_by(user_id=current_user.id).first()
+    if not tutor:
+        flash('Tutor profile not found.', 'error')
+        return redirect(url_for('dashboard.index'))
+    
+    # Get escalations created by tutor OR related to tutor OR assigned to tutor
+    escalations = Escalation.query.filter(
+        or_(
+            Escalation.created_by == current_user.id,
+            Escalation.related_records.contains(f'"tutor_id": {tutor.id}'),
+            Escalation.assigned_to == current_user.id
+        )
+    ).order_by(Escalation.created_at.desc()).all()
+    
+    return render_template('escalation/tutor_list.html', escalations=escalations)
+
+@bp.route('/view-tutor/<int:id>')
+@login_required
+@tutor_required
+def view_tutor_escalation(id):
+    """View escalation details for tutors"""
+    escalation = Escalation.query.get_or_404(id)
+    tutor = Tutor.query.filter_by(user_id=current_user.id).first()
+    
+    # Check if tutor has access
+    related_records = escalation.get_related_records()
+    has_access = (
+        escalation.created_by == current_user.id or
+        escalation.assigned_to == current_user.id or
+        (related_records and related_records.get('tutor_id') == tutor.id)
+    )
+    
+    if not has_access:
+        flash('Access denied.', 'error')
+        return redirect(url_for('escalation.my_escalations'))
+    
+    # Get related student
+    student = None
+    if 'student_id' in related_records:
+        student = Student.query.get(related_records['student_id'])
+    
+    # Get comments
+    comments = escalation.get_comments()
+    for comment in comments:
+        user = User.query.get(comment['user_id'])
+        comment['user_name'] = user.full_name if user else 'Unknown'
+    
+    return render_template('escalation/tutor_view.html', 
+                         escalation=escalation, student=student, comments=comments)
+
+@bp.route('/tutor-comment/<int:id>', methods=['POST'])
+@login_required
+@tutor_required
+def add_tutor_comment(id):
+    """Add comment as tutor"""
+    escalation = Escalation.query.get_or_404(id)
+    tutor = Tutor.query.filter_by(user_id=current_user.id).first()
+    
+    # Check access
+    related_records = escalation.get_related_records()
+    has_access = (
+        escalation.created_by == current_user.id or
+        escalation.assigned_to == current_user.id or
+        (related_records and related_records.get('tutor_id') == tutor.id)
+    )
+    
+    if not has_access:
+        return jsonify({'error': 'Access denied'}), 403
+    
+    comment_text = request.json.get('comment', '').strip()
+    if not comment_text:
+        return jsonify({'error': 'Comment cannot be empty'}), 400
+    
+    escalation.add_comment(current_user.id, comment_text)
+    db.session.commit()
+    
+    return jsonify({'success': True, 'message': 'Comment added'})
+
+@bp.route('/tutor-stats')
+@login_required
+@tutor_required
+def tutor_stats():
+    """Get tutor escalation stats"""
+    tutor = Tutor.query.filter_by(user_id=current_user.id).first()
+    if not tutor:
+        return jsonify({'error': 'Tutor not found'}), 404
+    
+    query = Escalation.query.filter(
+        or_(
+            Escalation.created_by == current_user.id,
+            Escalation.related_records.contains(f'"tutor_id": {tutor.id}'),
+            Escalation.assigned_to == current_user.id
+        )
+    )
+    
+    total = query.count()
+    overdue = query.filter(
+        Escalation.due_date < datetime.utcnow(),
+        Escalation.status.notin_(['resolved', 'closed'])
+    ).count()
+    
+    return jsonify({'total': total, 'overdue': overdue})

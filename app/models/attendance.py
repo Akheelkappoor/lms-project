@@ -67,6 +67,28 @@ class Attendance(db.Model):
     
     def __init__(self, **kwargs):
         super(Attendance, self).__init__(**kwargs)
+        
+    @property
+    def status(self):
+        """Backward compatibility property for templates"""
+        if self.student_present and self.tutor_present:
+            if self.student_late_minutes > 0 or self.tutor_late_minutes > 0:
+                return 'late'
+            return 'present'
+        return 'absent'
+    
+    @property 
+    def duration_hours(self):
+        """Calculate class duration in hours"""
+        if self.class_duration_actual:
+            return round(self.class_duration_actual / 60, 1)
+        elif self.scheduled_start and self.scheduled_end:
+            start_datetime = datetime.combine(date.today(), self.scheduled_start)
+            end_datetime = datetime.combine(date.today(), self.scheduled_end)
+            duration_minutes = (end_datetime - start_datetime).total_seconds() / 60
+            return round(duration_minutes / 60, 1)
+        return 1.0  # Default 1 hour
+
     
     def mark_tutor_attendance(self, present, join_time=None, leave_time=None, absence_reason=None):
         """Mark tutor attendance"""
@@ -121,13 +143,15 @@ class Attendance(db.Model):
             self.student_absence_reason = absence_reason
     
     def calculate_actual_duration(self):
-        """Calculate actual class duration"""
+        """Calculate and set actual class duration"""
         if self.tutor_join_time and self.tutor_leave_time:
-            duration_delta = self.tutor_leave_time - self.tutor_join_time
-            self.class_duration_actual = int(duration_delta.total_seconds() / 60)
-        elif self.student_join_time and self.student_leave_time:
-            duration_delta = self.student_leave_time - self.student_join_time
-            self.class_duration_actual = int(duration_delta.total_seconds() / 60)
+            duration = (self.tutor_leave_time - self.tutor_join_time).total_seconds() / 60
+            self.class_duration_actual = int(duration)
+        elif self.scheduled_start and self.scheduled_end:
+            start_dt = datetime.combine(self.class_date, self.scheduled_start)
+            end_dt = datetime.combine(self.class_date, self.scheduled_end)
+            duration = (end_dt - start_dt).total_seconds() / 60
+            self.class_duration_actual = int(duration)
     
     def calculate_tutor_penalty(self, penalty_settings=None):
         """Calculate penalty for tutor based on attendance issues"""

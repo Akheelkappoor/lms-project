@@ -1845,47 +1845,6 @@ def class_details(class_id):
     
     return render_template('admin/class_details.html', class_item=class_obj, students=students)
 
-
-@bp.route('/api/v1/check-class-conflict')
-@login_required
-@admin_required
-def api_check_class_conflict():
-    """Check for scheduling conflicts"""
-    try:
-        tutor_id = request.args.get('tutor_id', type=int)
-        date_str = request.args.get('date')
-        time_str = request.args.get('time')
-        
-        if not all([tutor_id, date_str, time_str]):
-            return jsonify({'error': 'Missing required parameters'}), 400
-        
-        tutor = Tutor.query.get_or_404(tutor_id)
-        scheduled_date = datetime.strptime(date_str, '%Y-%m-%d').date()
-        scheduled_time = datetime.strptime(time_str, '%H:%M').time()
-        
-        # Check tutor availability
-        day_of_week = scheduled_date.strftime('%A').lower()
-        is_available = tutor.is_available_at(day_of_week, time_str)
-        
-        # Check for existing classes
-        existing_class = Class.query.filter_by(
-            tutor_id=tutor_id,
-            scheduled_date=scheduled_date,
-            scheduled_time=scheduled_time,
-            status='scheduled'
-        ).first()
-        
-        return jsonify({
-            'available': is_available,
-            'has_conflict': bool(existing_class),
-            'can_schedule': is_available and not existing_class,
-            'message': 'Available' if (is_available and not existing_class) else 
-                      'Tutor not available at this time' if not is_available else 
-                      'Tutor already has a class at this time'
-        })
-        
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
     
 @bp.route('/api/v1/compatible-tutors')
 @login_required
@@ -2236,9 +2195,13 @@ def salary_generation():
     tutor_salary_data = []
     for tutor in tutors:
         salary_calc = tutor.calculate_monthly_salary(current_month, current_year)
+        
+        # Convert dict to object-like access for template compatibility
+        calculation_obj = type('obj', (object,), salary_calc)
+        
         tutor_salary_data.append({
             'tutor': tutor,
-            'calculation': salary_calc,
+            'calculation': calculation_obj,
             'outstanding': tutor.get_outstanding_salary()
         })
     
@@ -2246,6 +2209,47 @@ def salary_generation():
                          tutors=tutor_salary_data,
                          current_month=current_month,
                          current_year=current_year)
+    
+@bp.route('/tutors/<int:tutor_id>/salary')
+@login_required
+@admin_required
+def tutor_salary_details(tutor_id):
+    """View detailed salary information for a specific tutor"""
+    from datetime import datetime
+    from app.models.attendance import Attendance
+    
+    tutor = Tutor.query.get_or_404(tutor_id)
+    
+    # Get month and year from query parameters
+    month = request.args.get('month', datetime.now().month, type=int)
+    year = request.args.get('year', datetime.now().year, type=int)
+    
+    # Calculate salary for the specified period
+    salary_calculation = tutor.calculate_monthly_salary(month, year)
+    
+    # Get attendance records for this period
+    attendance_records = tutor._get_monthly_attendance_records(month, year)
+    
+    # Get salary payment history
+    salary_history = tutor.get_salary_history()
+    
+    # Get outstanding amount
+    outstanding_amount = tutor.get_outstanding_salary()
+    
+    # Calculate additional statistics
+    total_late_minutes = sum(att.tutor_late_minutes or 0 for att in attendance_records)
+    total_early_leaves = sum(att.tutor_early_leave_minutes or 0 for att in attendance_records)
+    
+    return render_template('admin/tutor_salary_details.html',
+                         tutor=tutor,
+                         month=month,
+                         year=year,
+                         salary_calculation=salary_calculation,
+                         attendance_records=attendance_records,
+                         salary_history=salary_history,
+                         outstanding_amount=outstanding_amount,
+                         total_late_minutes=total_late_minutes,
+                         total_early_leaves=total_early_leaves)
 
 @bp.route('/fee-collection')
 @login_required
@@ -4054,3 +4058,208 @@ def api_tutor_batch_availability(tutor_id):
 
     except Exception as e:
         return jsonify({'error': f'Error checking availability: {str(e)}'}), 500
+    
+    
+@bp.route('/api/v1/check-class-conflict')
+@login_required
+@admin_required
+def api_check_class_conflict():
+    """Enhanced conflict checking that includes reschedule exclusions"""
+    try:
+        tutor_id = request.args.get('tutor_id', type=int)
+        date_str = request.args.get('date')
+        time_str = request.args.get('time')
+        duration = request.args.get('duration', type=int)
+        exclude_class = request.args.get('exclude_class', type=int)  # For reschedule checks
+        
+        if not all([tutor_id, date_str, time_str, duration]):
+            return jsonify({
+                'success': False,
+                'error': 'Missing required parameters'
+            }), 400
+        
+        # Parse date and time
+        from datetime import datetime, date, time
+        schedule_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+        schedule_time = datetime.strptime(time_str, '%H:%M').time()
+        
+        # Check for time conflicts
+        conflict_exists, conflicting_class = Class.check_time_conflict(
+            tutor_id, schedule_date, schedule_time, duration, exclude_class
+        )
+        
+        tutor = Tutor.query.get(tutor_id)
+        if not tutor:
+            return jsonify({
+                'success': False,
+                'error': 'Tutor not found'
+            }), 404
+        
+        # Check tutor availability
+        day_name = schedule_date.strftime('%A').lower()
+        availability_check = True
+        
+        if hasattr(tutor, 'is_available_at'):
+            availability_check = tutor.is_available_at(day_name, time_str)
+        
+        can_schedule = not conflict_exists and availability_check
+        
+        message = "Available"
+        if conflict_exists:
+            message = f"Tutor has another class at {conflicting_class.scheduled_time.strftime('%H:%M')}"
+        elif not availability_check:
+            message = f"Tutor is not available on {day_name.title()} at {time_str}"
+        
+        return jsonify({
+            'success': True,
+            'can_schedule': can_schedule,
+            'has_conflict': conflict_exists,
+            'tutor_available': availability_check,
+            'message': message,
+            'conflicting_class_id': conflicting_class.id if conflicting_class else None
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+        
+
+@bp.route('/api/v1/classes/<int:class_id>/reschedule', methods=['POST'])
+@login_required
+@admin_required
+def api_reschedule_class(class_id):
+    """API endpoint for rescheduling classes"""
+    try:
+        class_item = Class.query.get_or_404(class_id)
+        
+        # Check department access for coordinators
+        if current_user.role == 'coordinator':
+            if class_item.tutor.user.department_id != current_user.department_id:
+                return jsonify({'success': False, 'error': 'Access denied'}), 403
+        
+        data = request.get_json()
+        new_date_str = data.get('scheduled_date')
+        new_time_str = data.get('scheduled_time')
+        reason = data.get('reschedule_reason', 'Rescheduled by admin')
+        
+        if not new_date_str or not new_time_str:
+            return jsonify({'success': False, 'error': 'Date and time are required'}), 400
+        
+        # Parse date and time
+        from datetime import datetime
+        new_date = datetime.strptime(new_date_str, '%Y-%m-%d').date()
+        new_time = datetime.strptime(new_time_str, '%H:%M').time()
+        
+        # Check for conflicts
+        conflict_exists, conflicting_class = Class.check_time_conflict(
+            class_item.tutor_id, new_date, new_time, class_item.duration, class_id
+        )
+        
+        if conflict_exists:
+            return jsonify({
+                'success': False,
+                'error': f'Time conflict with existing class at {conflicting_class.scheduled_time}'
+            })
+        
+        # Update class
+        old_date = class_item.scheduled_date
+        old_time = class_item.scheduled_time
+        
+        class_item.scheduled_date = new_date
+        class_item.scheduled_time = new_time
+        class_item.calculate_end_time()
+        class_item.updated_at = datetime.utcnow()
+        
+        # Add admin note
+        note = f"Rescheduled by {current_user.full_name} from {old_date} {old_time} to {new_date} {new_time}. Reason: {reason}"
+        if class_item.admin_notes:
+            class_item.admin_notes += f"\n{note}"
+        else:
+            class_item.admin_notes = note
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Class rescheduled successfully',
+            'new_date': new_date.strftime('%Y-%m-%d'),
+            'new_time': new_time.strftime('%H:%M')
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@bp.route('/api/v1/classes/<int:class_id>/cancel', methods=['POST'])
+@login_required
+@admin_required
+def api_cancel_class(class_id):
+    """API endpoint for cancelling classes"""
+    try:
+        class_item = Class.query.get_or_404(class_id)
+        
+        # Check department access for coordinators
+        if current_user.role == 'coordinator':
+            if class_item.tutor.user.department_id != current_user.department_id:
+                return jsonify({'success': False, 'error': 'Access denied'}), 403
+        
+        data = request.get_json() or {}
+        reason = data.get('reason', 'Cancelled by admin')
+        
+        # Cancel the class
+        class_item.cancel_class(reason)
+        
+        return jsonify({
+            'success': True,
+            'message': 'Class cancelled successfully'
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+# ADD THIS ROUTE for dashboard statistics
+@bp.route('/api/v1/dashboard/reschedule-stats')
+@login_required
+@admin_required
+def api_reschedule_stats():
+    """Get reschedule request statistics for dashboard"""
+    try:
+        from app.models.reschedule_request import RescheduleRequest
+        
+        # Base query
+        query = RescheduleRequest.query
+        
+        # Filter by department for coordinators
+        if current_user.role == 'coordinator':
+            from app.models.tutor import Tutor
+            from app.models.user import User
+            query = query.join(Class).join(Tutor).join(User).filter(
+                User.department_id == current_user.department_id
+            )
+        
+        # Get counts
+        total_requests = query.count()
+        pending_requests = query.filter_by(status='pending').count()
+        approved_requests = query.filter_by(status='approved').count()
+        rejected_requests = query.filter_by(status='rejected').count()
+        
+        # Get requests with conflicts
+        conflict_requests = query.filter_by(has_conflicts=True, status='pending').count()
+        
+        return jsonify({
+            'success': True,
+            'stats': {
+                'total_requests': total_requests,
+                'pending_requests': pending_requests,
+                'approved_requests': approved_requests,
+                'rejected_requests': rejected_requests,
+                'conflict_requests': conflict_requests
+            }
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+    

@@ -10,7 +10,7 @@ from app.models.system_document import SystemDocument
 from app.models.escalation import Escalation
 from app.models.demo_student import DemoStudent
 from app.models.notice import Notice, NoticeAttachment, NoticeDistribution
-
+from app.models.reschedule_request import RescheduleRequest
 __all__ = [
     'User', 
     'Department', 
@@ -23,6 +23,7 @@ __all__ = [
     'DemoStudent',
     'Notice', 
     'NoticeAttachment', 
-    'NoticeDistribution'
+    'NoticeDistribution',
+    'RescheduleRequest'
 
 ]

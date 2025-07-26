@@ -1010,6 +1010,17 @@
                 </li>
                 {% endif %}
 
+                <!-- 🔥 NEW: Reschedule Management (Admin/Coordinator) 🔥 -->
+                {% if current_user.role in ['superadmin', 'admin', 'coordinator'] %}
+                <li class="nav-item">
+                    <a href="{{ url_for('reschedule.admin_reschedule_requests') }}" class="nav-link {% if request.endpoint and 'reschedule' in request.endpoint and 'admin' in request.endpoint %}active{% endif %}">
+                        <i class="fas fa-calendar-alt"></i>
+                        <span>Reschedule Requests</span>
+                        <span class="badge bg-warning ms-auto" id="reschedule-badge" style="display: none;">0</span>
+                    </a>
+                </li>
+                {% endif %}
+
                 <!-- Demo Management -->
                 {% if current_user.has_permission('demo_management') or current_user.role in ['superadmin', 'admin', 'coordinator'] %}
                 <li class="nav-item">
@@ -1134,6 +1145,28 @@
                 </li>
                 
                 <li class="nav-item">
+                    <a href="{{ url_for('escalation.my_escalations') }}" class="nav-link {% if request.endpoint and 'escalation' in request.endpoint and 'my_escalations' in request.endpoint %}active{% endif %}">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <span>My Escalations</span>
+                        <span class="badge bg-danger ms-auto" id="escalationBadge" style="display: none;">0</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="{{ url_for('escalation.create_escalation') }}" class="nav-link {% if request.endpoint and 'escalation' in request.endpoint and 'create' in request.endpoint %}active{% endif %}">
+                        <i class="fas fa-plus-circle"></i>
+                        <span>Create Escalation</span>
+                    </a>
+                </li>
+                
+                <!-- 🔥 NEW: My Reschedule Requests (Tutor) 🔥 -->
+                <li class="nav-item">
+                    <a href="{{ url_for('reschedule.tutor_reschedule_requests') }}" class="nav-link {% if request.endpoint and 'reschedule' in request.endpoint and 'tutor' in request.endpoint %}active{% endif %}">
+                        <i class="fas fa-calendar-alt"></i>
+                        <span>My Reschedule Requests</span>
+                    </a>
+                </li>
+                
+                <li class="nav-item">
                     <a href="{{ url_for('tutor.my_students') }}" class="nav-link {% if request.endpoint and 'tutor.my_students' in request.endpoint %}active{% endif %}">
                         <i class="fas fa-user-graduate"></i>
                         <span>My Students</span>
@@ -1224,6 +1257,7 @@
             initTooltips();
             initDemoNavigation();
             initNoticeUpdates(); // NEW: Notice system integration
+            initRescheduleUpdates(); // 🔥 NEW: Reschedule system integration 🔥
         });
 
         function initSidebar() {
@@ -1344,6 +1378,43 @@
                 })
                 .catch(error => {
                     console.error('Error updating notice count:', error);
+                });
+        }
+
+        if ({{ 'true' if current_user.role == 'tutor' else 'false' }}) {
+            fetch('/escalations/tutor-stats')
+                .then(response => response.json())
+                .then(data => {
+                    const badge = document.getElementById('escalationBadge');
+                    if (badge && data.overdue > 0) {
+                        badge.textContent = data.overdue;
+                        badge.style.display = 'inline-block';
+                    }
+                })
+                .catch(() => {});
+        }
+
+        // 🔥 NEW: Reschedule system integration 🔥
+        function initRescheduleUpdates() {
+            updateRescheduleBadge();
+            // Update reschedule badge every 30 seconds
+            setInterval(updateRescheduleBadge, 30000);
+        }
+
+        function updateRescheduleBadge() {
+            fetch('/reschedule/api/reschedule-requests/pending-count')
+                .then(response => response.json())
+                .then(data => {
+                    const badge = document.getElementById('reschedule-badge');
+                    if (badge && data.success && data.pending_count > 0) {
+                        badge.textContent = data.pending_count;
+                        badge.style.display = 'inline-block';
+                    } else if (badge) {
+                        badge.style.display = 'none';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error updating reschedule badge:', error);
                 });
         }
 

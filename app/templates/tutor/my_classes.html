@@ -18,6 +18,10 @@
                     <i class="fas fa-calendar-day"></i>
                     Today's Classes
                 </a>
+                <a href="{{ url_for('reschedule.tutor_reschedule_requests') }}" class="btn btn-outline-warning">
+                    <i class="fas fa-calendar-alt"></i>
+                    My Reschedule Requests
+                </a>
                 <button class="btn btn-primary" onclick="location.reload()">
                     <i class="fas fa-sync-alt"></i>
                     Refresh
@@ -159,6 +163,14 @@
                                 <button class="btn btn-sm btn-success" onclick="startClass('{{ class.id }}')">
                                     <i class="fas fa-play"></i> Start
                                 </button>
+                                <!-- 🔥 NEW: Reschedule Button for Today's Classes 🔥 -->
+                                {% if class.is_upcoming() %}
+                                <a href="{{ url_for('reschedule.create_reschedule_request', class_id=class.id) }}" 
+                                   class="btn btn-sm btn-outline-warning" 
+                                   title="Request Reschedule">
+                                    <i class="fas fa-calendar-alt"></i>
+                                </a>
+                                {% endif %}
                             {% elif class.status == 'ongoing' %}
                                 <button class="btn btn-sm btn-warning" onclick="completeClass('{{ class.id }}')">
                                     <i class="fas fa-check"></i> Complete
@@ -280,6 +292,16 @@
                                         <a href="{{ class.meeting_link }}" target="_blank" 
                                            class="btn btn-outline-info" data-bs-toggle="tooltip" title="Join Meeting">
                                             <i class="fas fa-video"></i>
+                                        </a>
+                                    {% endif %}
+                                    
+                                    <!-- 🔥 NEW: Reschedule Request Button 🔥 -->
+                                    {% if class.status == 'scheduled' and class.is_upcoming() %}
+                                        <a href="{{ url_for('reschedule.create_reschedule_request', class_id=class.id) }}" 
+                                           class="btn btn-outline-warning" 
+                                           data-bs-toggle="tooltip" 
+                                           title="Request Reschedule">
+                                            <i class="fas fa-calendar-alt"></i>
                                         </a>
                                     {% endif %}
                                     
@@ -451,6 +473,24 @@
     height: 8px;
 }
 
+/* 🔥 NEW: Reschedule Button Styles 🔥 */
+.btn-outline-warning:hover {
+    background-color: var(--warning-color);
+    border-color: var(--warning-color);
+    color: #212529;
+}
+
+.btn-group-sm .btn-outline-warning {
+    border-color: #ffc107;
+    color: #856404;
+}
+
+.btn-group-sm .btn-outline-warning:hover {
+    background-color: #ffc107;
+    border-color: #ffc107;
+    color: #212529;
+}
+
 @media (max-width: 768px) {
     .today-class-card {
         margin-bottom: 1rem;
@@ -466,6 +506,12 @@
     
     .btn-group .btn {
         margin-bottom: 0.25rem;
+    }
+    
+    .header-actions .btn-group {
+        flex-direction: row;
+        flex-wrap: wrap;
+        gap: 0.5rem;
     }
 }
 </style>

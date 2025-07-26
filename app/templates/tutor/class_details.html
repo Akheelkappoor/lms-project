@@ -13,15 +13,25 @@
                     <nav aria-label="breadcrumb">
                         <ol class="breadcrumb">
                             <li class="breadcrumb-item"><a href="{{ url_for('dashboard.index') }}">Dashboard</a></li>
-                            <li class="breadcrumb-item"><a href="{{ url_for('tutor.my_classes') }}">My Classes</a></li>
+                            {% if current_user.role == 'tutor' %}
+                                <li class="breadcrumb-item"><a href="{{ url_for('tutor.my_classes') }}">My Classes</a></li>
+                            {% else %}
+                                <li class="breadcrumb-item"><a href="{{ url_for('admin.classes') }}">Classes</a></li>
+                            {% endif %}
                             <li class="breadcrumb-item active">{{ class_item.subject }}</li>
                         </ol>
                     </nav>
                 </div>
                 <div>
-                    <a href="{{ url_for('tutor.my_classes') }}" class="btn btn-secondary">
-                        <i class="fas fa-arrow-left"></i> Back to Classes
-                    </a>
+                    {% if current_user.role == 'tutor' %}
+                        <a href="{{ url_for('tutor.my_classes') }}" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left"></i> Back to My Classes
+                        </a>
+                    {% else %}
+                        <a href="{{ url_for('admin.classes') }}" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left"></i> Back to Classes
+                        </a>
+                    {% endif %}
                 </div>
             </div>
         </div>
@@ -100,19 +110,61 @@
                     <div class="mt-4 pt-3 border-top">
                         <div class="btn-group" role="group">
                             {% if class_item.status == 'scheduled' %}
-                                <button class="btn btn-success" onclick="startClass({{ class_item.id }})">
-                                    <i class="fas fa-play"></i> Start Class
-                                </button>
+                                {% if current_user.role == 'tutor' %}
+                                    <button class="btn btn-success" onclick="startClass({{ class_item.id }})">
+                                        <i class="fas fa-play"></i> Start Class
+                                    </button>
+                                {% endif %}
+                                
                                 {% if class_item.meeting_link %}
                                 <a href="{{ class_item.meeting_link }}" target="_blank" class="btn btn-info">
                                     <i class="fas fa-video"></i> Join Meeting
                                 </a>
                                 {% endif %}
                                 
+                                <!-- 🔥 NEW: Reschedule Buttons 🔥 -->
+                                {% if current_user.role == 'tutor' and class_item.is_upcoming() %}
+                                    <!-- Tutor Request Reschedule -->
+                                    <a href="{{ url_for('reschedule.create_reschedule_request', class_id=class_item.id) }}" 
+                                       class="btn btn-warning">
+                                        <i class="fas fa-calendar-alt"></i> Request Reschedule
+                                    </a>
+                                {% elif current_user.role in ['admin', 'coordinator', 'superadmin'] and class_item.is_upcoming() %}
+                                    <!-- Admin Quick Reschedule -->
+                                    <div class="btn-group">
+                                        <a href="{{ url_for('reschedule.quick_reschedule_class', class_id=class_item.id) }}" 
+                                           class="btn btn-warning">
+                                            <i class="fas fa-calendar-alt"></i> Quick Reschedule
+                                        </a>
+                                        <button type="button" class="btn btn-warning dropdown-toggle dropdown-toggle-split" 
+                                                data-bs-toggle="dropdown">
+                                            <span class="visually-hidden">Toggle Dropdown</span>
+                                        </button>
+                                        <ul class="dropdown-menu">
+                                            <li>
+                                                <a class="dropdown-item" 
+                                                   href="{{ url_for('reschedule.quick_reschedule_class', class_id=class_item.id) }}">
+                                                    <i class="fas fa-bolt"></i> Quick Reschedule (Admin)
+                                                </a>
+                                            </li>
+                                            <li><hr class="dropdown-divider"></li>
+                                            <li>
+                                                <a class="dropdown-item" 
+                                                   href="{{ url_for('reschedule.admin_reschedule_requests') }}?class={{ class_item.id }}">
+                                                    <i class="fas fa-list"></i> View Reschedule Requests
+                                                </a>
+                                            </li>
+                                        </ul>
+                                    </div>
+                                {% endif %}
+                                
                             {% elif class_item.status == 'ongoing' %}
-                                <button class="btn btn-success" onclick="completeClass({{ class_item.id }})">
-                                    <i class="fas fa-check"></i> Complete Class
-                                </button>
+                                {% if current_user.role == 'tutor' %}
+                                    <button class="btn btn-success" onclick="completeClass({{ class_item.id }})">
+                                        <i class="fas fa-check"></i> Complete Class
+                                    </button>
+                                {% endif %}
+                                
                                 {% if class_item.meeting_link %}
                                 <a href="{{ class_item.meeting_link }}" target="_blank" class="btn btn-info">
                                     <i class="fas fa-video"></i> Join Meeting
@@ -128,8 +180,8 @@
                                 </button>
                             {% endif %}
                             
-                            <!-- 🔥 ADD ATTENDANCE BUTTON HERE 🔥 -->
-                            {% if class_item.status in ['ongoing', 'completed'] %}
+                            <!-- 🔥 Attendance Button 🔥 -->
+                            {% if class_item.status in ['ongoing', 'completed'] and current_user.role == 'tutor' %}
                                 <a href="{{ url_for('tutor.attendance_form', class_id=class_item.id) }}" class="btn btn-warning">
                                     <i class="fas fa-calendar-check"></i> Mark Attendance
                                 </a>
@@ -154,6 +206,64 @@
                     {% endif %}
                 </div>
             </div>
+
+            <!-- 🔥 NEW: Reschedule Requests Section 🔥 -->
+            {% if current_user.role in ['admin', 'coordinator', 'superadmin'] %}
+                {% set reschedule_requests = class_item.reschedule_requests|selectattr('status', 'equalto', 'pending')|list %}
+                {% if reschedule_requests %}
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-warning text-dark">
+                        <h6 class="mb-0">
+                            <i class="fas fa-calendar-alt"></i>
+                            Pending Reschedule Requests ({{ reschedule_requests|length }})
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        {% for request in reschedule_requests %}
+                        <div class="reschedule-request-card mb-3 p-3 border rounded">
+                            <div class="row align-items-center">
+                                <div class="col-md-8">
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <div>
+                                            <h6 class="mb-1">
+                                                <strong>Requested by:</strong> {{ request.requester.full_name }}
+                                                <span class="badge bg-info ms-2">{{ request.request_date.strftime('%d %b %Y') }}</span>
+                                            </h6>
+                                            <p class="mb-1">
+                                                <strong>New Schedule:</strong> 
+                                                {{ request.requested_date.strftime('%A, %d %B %Y') }} at {{ request.requested_time.strftime('%I:%M %p') }}
+                                            </p>
+                                            <p class="mb-1"><strong>Reason:</strong> {{ request.reason }}</p>
+                                            {% if request.has_conflicts %}
+                                                <div class="alert alert-danger alert-sm mb-2">
+                                                    <i class="fas fa-exclamation-triangle"></i>
+                                                    <strong>Conflicts detected:</strong> This request has scheduling conflicts.
+                                                </div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4 text-end">
+                                    <div class="btn-group btn-group-sm">
+                                        <a href="{{ url_for('reschedule.view_reschedule_request', request_id=request.id) }}" 
+                                           class="btn btn-outline-primary">
+                                            <i class="fas fa-eye"></i> Review
+                                        </a>
+                                        {% if not request.has_conflicts %}
+                                            <button class="btn btn-outline-success" 
+                                                    onclick="quickApproveReschedule({{ request.id }})">
+                                                <i class="fas fa-check"></i> Approve
+                                            </button>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+            {% endif %}
 
             <!-- Students in this Class -->
             {% if students %}
@@ -203,9 +313,15 @@
                                     </td>
                                     <td>
                                         <div class="btn-group btn-group-sm">
-                                            <a href="{{ url_for('tutor.student_profile', student_id=student.id) }}" class="btn btn-outline-primary">
-                                                <i class="fas fa-eye"></i>
-                                            </a>
+                                            {% if current_user.role == 'tutor' %}
+                                                <a href="{{ url_for('tutor.student_profile', student_id=student.id) }}" class="btn btn-outline-primary">
+                                                    <i class="fas fa-eye"></i>
+                                                </a>
+                                            {% else %}
+                                                <a href="{{ url_for('student.student_profile', student_id=student.id) }}" class="btn btn-outline-primary">
+                                                    <i class="fas fa-eye"></i>
+                                                </a>
+                                            {% endif %}
                                         </div>
                                     </td>
                                 </tr>
@@ -309,6 +425,46 @@
 .badge {
     font-size: 0.8rem;
 }
+
+/* 🔥 NEW: Reschedule Request Card Styles 🔥 */
+.reschedule-request-card {
+    background: rgba(255, 193, 7, 0.05);
+    border-color: rgba(255, 193, 7, 0.2) !important;
+    transition: all 0.3s ease;
+}
+
+.reschedule-request-card:hover {
+    background: rgba(255, 193, 7, 0.1);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.alert-sm {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+}
+
+.dropdown-toggle-split {
+    border-left: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+/* Responsive improvements */
+@media (max-width: 768px) {
+    .btn-group {
+        flex-direction: column;
+        width: 100%;
+    }
+    
+    .btn-group .btn {
+        margin-right: 0;
+        margin-bottom: 0.5rem;
+    }
+    
+    .reschedule-request-card .col-md-4 {
+        margin-top: 1rem;
+        text-align: center !important;
+    }
+}
 </style>
 
 <script>
@@ -367,6 +523,31 @@ function completeClass(classId) {
         console.error('Error:', error);
         LMS.showAlert('Error completing class', 'error');
     });
+}
+
+// 🔥 NEW: Quick approve reschedule function 🔥
+async function quickApproveReschedule(requestId) {
+    if (!confirm('Are you sure you want to approve this reschedule request?')) return;
+    
+    try {
+        const response = await fetch(`/reschedule/admin/reschedule-request/${requestId}/quick-approve`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+            }
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            LMS.showAlert('Reschedule request approved successfully!', 'success');
+            setTimeout(() => location.reload(), 1500);
+        } else {
+            LMS.showAlert('Error: ' + result.error, 'error');
+        }
+    } catch (error) {
+        LMS.showAlert('Error approving request', 'error');
+    }
 }
 </script>
 {% endblock %}

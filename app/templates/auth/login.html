@@ -376,23 +376,6 @@
         display: none;
     }
 }
-
-/* Loading state for form submission */
-.auth-form.loading .btn {
-    pointer-events: none;
-    opacity: 0.7;
-}
-
-.auth-form.loading .btn::after {
-    content: '';
-    width: 1rem;
-    height: 1rem;
-    border: 2px solid transparent;
-    border-top: 2px solid currentColor;
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-    margin-left: 0.5rem;
-}
 </style>
 
 <script>
@@ -408,11 +391,6 @@ function togglePassword() {
         passwordIcon.className = 'fas fa-eye';
     }
 }
-
-// Add loading state on form submission
-document.querySelector('.auth-form').addEventListener('submit', function() {
-    this.classList.add('loading');
-});
 
 // Auto-focus first input
 document.addEventListener('DOMContentLoaded', function() {

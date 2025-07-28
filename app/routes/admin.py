@@ -4263,3 +4263,1629 @@ def api_reschedule_stats():
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
     
+    
+@bp.route('/api/v1/classes/create', methods=['POST'])
+@login_required
+@admin_required
+def api_create_class():
+    """JSON API endpoint for creating classes (AJAX/Modal)"""
+    try:
+        data = request.get_json()
+        
+        # Validate required fields
+        required_fields = ['subject', 'class_type', 'scheduled_date', 'scheduled_time', 'duration', 'tutor_id']
+        for field in required_fields:
+            if not data.get(field):
+                return jsonify({'success': False, 'error': f'{field} is required'}), 400
+        
+        # Parse date and time
+        try:
+            scheduled_date = datetime.strptime(data['scheduled_date'], '%Y-%m-%d').date()
+            scheduled_time = datetime.strptime(data['scheduled_time'], '%H:%M').time()
+            duration = int(data['duration'])
+            tutor_id = int(data['tutor_id'])
+        except ValueError as e:
+            return jsonify({'success': False, 'error': 'Invalid date, time, or duration format'}), 400
+        
+        # Get tutor and validate
+        tutor = Tutor.query.get(tutor_id)
+        if not tutor:
+            return jsonify({'success': False, 'error': 'Tutor not found'}), 404
+        
+        # Check department access for coordinators
+        if current_user.role == 'coordinator':
+            if tutor.user.department_id != current_user.department_id:
+                return jsonify({'success': False, 'error': 'Access denied'}), 403
+        
+        # Check for scheduling conflicts
+        existing_class = Class.query.filter_by(
+            tutor_id=tutor_id,
+            scheduled_date=scheduled_date,
+            scheduled_time=scheduled_time,
+            status='scheduled'
+        ).first()
+        
+        if existing_class:
+            return jsonify({
+                'success': False, 
+                'error': f'Tutor already has a class scheduled at this time'
+            }), 409
+        
+        # Create class
+        new_class = Class(
+            subject=data['subject'],
+            class_type=data['class_type'],
+            scheduled_date=scheduled_date,
+            scheduled_time=scheduled_time,
+            duration=duration,
+            tutor_id=tutor_id,
+            grade=data.get('grade', ''),
+            board=data.get('board', ''),
+            meeting_link=data.get('meeting_link', ''),
+            class_notes=data.get('notes', ''),
+            status='scheduled',
+            created_by=current_user.id
+        )
+        
+        # Calculate end time
+        new_class.calculate_end_time()
+        
+        # Handle student assignment
+        if data.get('primary_student_id'):
+            new_class.primary_student_id = int(data['primary_student_id'])
+        
+        if data.get('students'):
+            students = [int(s) for s in data['students'] if s]
+            new_class.set_students(students)
+        
+        db.session.add(new_class)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Class created successfully',
+            'class_id': new_class.id,
+            'data': new_class.to_dict()
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@bp.route('/api/v1/classes/<int:class_id>')
+@login_required
+@admin_required
+def api_get_class_details(class_id):
+    """Get detailed information about a specific class"""
+    try:
+        class_item = Class.query.get_or_404(class_id)
+        
+        # Check department access for coordinators
+        if current_user.role == 'coordinator':
+            if class_item.tutor.user.department_id != current_user.department_id:
+                return jsonify({'success': False, 'error': 'Access denied'}), 403
+        
+        # Build detailed response
+        class_data = {
+            'id': class_item.id,
+            'subject': class_item.subject,
+            'class_type': class_item.class_type,
+            'grade': class_item.grade,
+            'board': class_item.board,
+            'scheduled_date': class_item.scheduled_date.strftime('%Y-%m-%d'),
+            'scheduled_time': class_item.scheduled_time.strftime('%H:%M'),
+            'end_time': class_item.end_time.strftime('%H:%M') if class_item.end_time else None,
+            'duration': class_item.duration,
+            'duration_display': class_item.get_duration_display(),
+            'status': class_item.status,
+            'completion_status': class_item.completion_status,
+            'meeting_link': class_item.meeting_link,
+            'meeting_id': class_item.meeting_id,
+            'class_notes': class_item.class_notes,
+            'topics_covered': class_item.topics_covered,
+            'homework_assigned': class_item.homework_assigned,
+            'tutor_feedback': class_item.tutor_feedback,
+            'student_feedback': class_item.student_feedback,
+            'admin_notes': class_item.admin_notes,
+            'created_at': class_item.created_at.isoformat() if class_item.created_at else None,
+            'updated_at': class_item.updated_at.isoformat() if class_item.updated_at else None
+        }
+        
+        # Add tutor information
+        if class_item.tutor and class_item.tutor.user:
+            class_data['tutor'] = {
+                'id': class_item.tutor.id,
+                'name': class_item.tutor.user.full_name,
+                'email': class_item.tutor.user.email,
+                'phone': class_item.tutor.user.phone
+            }
+        
+        # Add student information
+        students = class_item.get_student_objects()
+        class_data['students'] = []
+        for student in students:
+            if hasattr(student, 'full_name'):  # Regular student
+                class_data['students'].append({
+                    'id': student.id,
+                    'name': student.full_name,
+                    'grade': student.grade,
+                    'type': 'regular'
+                })
+            elif hasattr(student, 'full_name'):  # Demo student
+                class_data['students'].append({
+                    'id': student.id,
+                    'name': student.full_name,
+                    'grade': student.grade,
+                    'type': 'demo'
+                })
+        
+        # Add attendance information
+        attendance_records = Attendance.query.filter_by(class_id=class_id).all()
+        class_data['attendance'] = []
+        for attendance in attendance_records:
+            class_data['attendance'].append({
+                'student_id': attendance.student_id,
+                'status': attendance.status,
+                'join_time': attendance.join_time.isoformat() if attendance.join_time else None,
+                'leave_time': attendance.leave_time.isoformat() if attendance.leave_time else None
+            })
+        
+        return jsonify({
+            'success': True,
+            'data': class_data
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@bp.route('/api/v1/timetable/month')
+@login_required
+@admin_required
+def api_timetable_month():
+    """Get monthly timetable data"""
+    try:
+        date_param = request.args.get('date', datetime.now().strftime('%Y-%m-%d'))
+        target_date = datetime.strptime(date_param, '%Y-%m-%d').date()
+        
+        # Get first and last day of month
+        first_day = target_date.replace(day=1)
+        if target_date.month == 12:
+            last_day = target_date.replace(year=target_date.year + 1, month=1, day=1) - timedelta(days=1)
+        else:
+            last_day = target_date.replace(month=target_date.month + 1, day=1) - timedelta(days=1)
+        
+        # Get classes for the month
+        classes = Class.query.filter(
+            Class.scheduled_date >= first_day,
+            Class.scheduled_date <= last_day
+        ).order_by(Class.scheduled_date, Class.scheduled_time).all()
+        
+        # Group classes by date
+        classes_by_date = {}
+        for cls in classes:
+            date_key = cls.scheduled_date.strftime('%Y-%m-%d')
+            if date_key not in classes_by_date:
+                classes_by_date[date_key] = []
+            
+            try:
+                class_item = {
+                    'id': cls.id,
+                    'subject': cls.subject,
+                    'class_type': cls.class_type,
+                    'scheduled_time': cls.scheduled_time.strftime('%H:%M'),
+                    'duration': cls.duration,
+                    'status': cls.status,
+                    'tutor_name': 'No Tutor Assigned',
+                    'student_count': 0
+                }
+                
+                # Get tutor name safely
+                if cls.tutor and hasattr(cls.tutor, 'user') and cls.tutor.user:
+                    class_item['tutor_name'] = cls.tutor.user.full_name
+                
+                # Get student count safely
+                try:
+                    if hasattr(cls, 'get_students'):
+                        student_ids = cls.get_students()
+                        class_item['student_count'] = len(student_ids) if student_ids else 0
+                except:
+                    pass
+                
+                classes_by_date[date_key].append(class_item)
+            except:
+                continue
+        
+        # Generate calendar stats
+        total_classes = len(classes)
+        status_counts = {}
+        for cls in classes:
+            status = cls.status
+            status_counts[status] = status_counts.get(status, 0) + 1
+        
+        stats = {
+            'total_classes': total_classes,
+            'scheduled_classes': status_counts.get('scheduled', 0),
+            'completed_classes': status_counts.get('completed', 0),
+            'cancelled_classes': status_counts.get('cancelled', 0),
+            'status_breakdown': status_counts
+        }
+        
+        return jsonify({
+            'success': True,
+            'classes_by_date': classes_by_date,
+            'stats': stats,
+            'month_start': first_day.strftime('%Y-%m-%d'),
+            'month_end': last_day.strftime('%Y-%m-%d')
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+        
+@bp.route('/api/v1/search/tutors')
+@login_required
+@admin_required
+def api_search_tutors():
+    """Advanced tutor search with filters"""
+    try:
+        # Get search parameters
+        search_term = request.args.get('q', '').strip()
+        department_id = request.args.get('department_id', type=int)
+        subjects = request.args.getlist('subjects')
+        availability_day = request.args.get('availability_day', '')
+        availability_time = request.args.get('availability_time', '')
+        min_rating = request.args.get('min_rating', type=float)
+        status = request.args.get('status', 'active')
+        
+        # Base query
+        query = Tutor.query.join(User).filter(Tutor.status == status)
+        
+        # Department filter for coordinators
+        if current_user.role == 'coordinator':
+            query = query.filter(User.department_id == current_user.department_id)
+        elif department_id:
+            query = query.filter(User.department_id == department_id)
+        
+        # Text search in name and email
+        if search_term:
+            search_pattern = f"%{search_term}%"
+            query = query.filter(
+                or_(
+                    User.full_name.ilike(search_pattern),
+                    User.email.ilike(search_pattern),
+                    User.username.ilike(search_pattern)
+                )
+            )
+        
+        # Get results
+        tutors = query.limit(50).all()
+        
+        # Build response
+        results = []
+        for tutor in tutors:
+            # Apply additional filters
+            if subjects:
+                tutor_subjects = tutor.get_subjects_taught()
+                if not any(subject in tutor_subjects for subject in subjects):
+                    continue
+            
+            if availability_day and availability_time:
+                if not tutor.is_available_at(availability_day, availability_time):
+                    continue
+            
+            if min_rating:
+                if tutor.get_average_rating() < min_rating:
+                    continue
+            
+            results.append({
+                'id': tutor.id,
+                'name': tutor.user.full_name if tutor.user else '',
+                'email': tutor.user.email if tutor.user else '',
+                'phone': tutor.user.phone if tutor.user else '',
+                'subjects': tutor.get_subjects_taught(),
+                'experience_years': tutor.experience_years,
+                'hourly_rate': float(tutor.hourly_rate) if tutor.hourly_rate else 0,
+                'rating': tutor.get_average_rating(),
+                'total_classes': tutor.get_total_classes_taught(),
+                'availability': tutor.get_availability(),
+                'status': tutor.status,
+                'department': tutor.user.department.name if tutor.user and tutor.user.department else ''
+            })
+        
+        return jsonify({
+            'success': True,
+            'results': results,
+            'count': len(results)
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@bp.route('/api/v1/search/students')
+@login_required
+@admin_required
+def api_search_students():
+    """Advanced student search with filters"""
+    try:
+        # Get search parameters
+        search_term = request.args.get('q', '').strip()
+        grade = request.args.get('grade', '')
+        board = request.args.get('board', '')
+        subjects = request.args.getlist('subjects')
+        enrollment_status = request.args.get('enrollment_status', '')
+        is_active = request.args.get('is_active', type=bool)
+        
+        # Base query
+        query = Student.query
+        
+        # Department filter for coordinators
+        if current_user.role == 'coordinator':
+            query = query.filter(Student.department_id == current_user.department_id)
+        
+        # Text search
+        if search_term:
+            search_pattern = f"%{search_term}%"
+            query = query.filter(
+                or_(
+                    Student.full_name.ilike(search_pattern),
+                    Student.email.ilike(search_pattern),
+                    Student.phone.ilike(search_pattern)
+                )
+            )
+        
+        # Filters
+        if grade:
+            query = query.filter(Student.grade == grade)
+        
+        if board:
+            query = query.filter(Student.board == board)
+        
+        if enrollment_status:
+            query = query.filter(Student.enrollment_status == enrollment_status)
+        
+        if is_active is not None:
+            query = query.filter(Student.is_active == is_active)
+        
+        # Get results
+        students = query.limit(50).all()
+        
+        # Build response
+        results = []
+        for student in students:
+            # Apply subject filter
+            if subjects:
+                student_subjects = student.get_subjects_enrolled()
+                if not any(subject in student_subjects for subject in subjects):
+                    continue
+            
+            results.append({
+                'id': student.id,
+                'name': student.full_name,
+                'email': student.email,
+                'phone': student.phone,
+                'grade': student.grade,
+                'board': student.board,
+                'subjects': student.get_subjects_enrolled(),
+                'enrollment_status': student.enrollment_status,
+                'is_active': student.is_active,
+                'joining_date': student.joining_date.isoformat() if student.joining_date else None,
+                'total_classes': student.get_total_classes_attended(),
+                'fee_status': student.get_fee_status()
+            })
+        
+        return jsonify({
+            'success': True,
+            'results': results,
+            'count': len(results)
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+    
+    
+# ADD THESE ROUTES TO app/routes/admin.py
+
+# ============ SEND TIMETABLE FUNCTIONALITY ============
+
+@bp.route('/api/v1/timetable/send', methods=['POST'])
+@login_required
+@admin_required
+def api_send_timetable():
+    """Send timetable to tutors and students via different methods"""
+    try:
+        data = request.get_json()
+        method = data.get('method', 'email')  # email, pdf, sms, whatsapp
+        view = data.get('view', 'week')
+        date_str = data.get('date', datetime.now().strftime('%Y-%m-%d'))
+        recipients = data.get('recipients', 'all')  # all, tutors, students
+        
+        target_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+        
+        # Get timetable data based on view
+        if view == 'week':
+            classes_data = get_weekly_timetable_data(target_date)
+        elif view == 'month':
+            classes_data = get_monthly_timetable_data(target_date)
+        else:  # today
+            classes_data = get_daily_timetable_data(target_date)
+        
+        # Get recipients
+        recipients_list = get_timetable_recipients(recipients)
+        
+        if not recipients_list:
+            return jsonify({'success': False, 'error': 'No recipients found'}), 400
+        
+        # Send based on method
+        if method == 'email':
+            result = send_timetable_email(classes_data, recipients_list, view, target_date)
+        elif method == 'pdf':
+            result = send_timetable_pdf(classes_data, recipients_list, view, target_date)
+        elif method == 'sms':
+            result = send_timetable_sms(classes_data, recipients_list, view, target_date)
+        elif method == 'whatsapp':
+            result = send_timetable_whatsapp(classes_data, recipients_list, view, target_date)
+        else:
+            return jsonify({'success': False, 'error': f'Unsupported method: {method}'}), 400
+        
+        return jsonify(result)
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+def get_weekly_timetable_data(target_date):
+    """Get weekly timetable data for sending"""
+    start_of_week = target_date - timedelta(days=target_date.weekday())
+    end_of_week = start_of_week + timedelta(days=6)
+    
+    classes = Class.query.filter(
+        Class.scheduled_date >= start_of_week,
+        Class.scheduled_date <= end_of_week
+    ).order_by(Class.scheduled_date, Class.scheduled_time).all()
+    
+    return {
+        'period': f"Week of {start_of_week.strftime('%B %d, %Y')}",
+        'start_date': start_of_week,
+        'end_date': end_of_week,
+        'classes': [cls.to_dict() for cls in classes],
+        'view_type': 'weekly'
+    }
+
+def get_monthly_timetable_data(target_date):
+    """Get monthly timetable data for sending"""
+    first_day = target_date.replace(day=1)
+    if target_date.month == 12:
+        last_day = target_date.replace(year=target_date.year + 1, month=1, day=1) - timedelta(days=1)
+    else:
+        last_day = target_date.replace(month=target_date.month + 1, day=1) - timedelta(days=1)
+    
+    classes = Class.query.filter(
+        Class.scheduled_date >= first_day,
+        Class.scheduled_date <= last_day
+    ).order_by(Class.scheduled_date, Class.scheduled_time).all()
+    
+    return {
+        'period': f"{target_date.strftime('%B %Y')}",
+        'start_date': first_day,
+        'end_date': last_day,
+        'classes': [cls.to_dict() for cls in classes],
+        'view_type': 'monthly'
+    }
+
+def get_daily_timetable_data(target_date):
+    """Get daily timetable data for sending"""
+    classes = Class.query.filter(
+        Class.scheduled_date == target_date
+    ).order_by(Class.scheduled_time).all()
+    
+    return {
+        'period': target_date.strftime('%B %d, %Y'),
+        'start_date': target_date,
+        'end_date': target_date,
+        'classes': [cls.to_dict() for cls in classes],
+        'view_type': 'daily'
+    }
+
+def get_timetable_recipients(recipients_type):
+    """Get list of recipients for timetable distribution"""
+    recipients = []
+    
+    if recipients_type in ['all', 'tutors']:
+        # Get active tutors
+        tutors = Tutor.query.join(User).filter(
+            Tutor.status == 'active',
+            User.is_active == True,
+            User.email.isnot(None)
+        ).all()
+        
+        for tutor in tutors:
+            if tutor.user and tutor.user.email:
+                recipients.append({
+                    'type': 'tutor',
+                    'id': tutor.id,
+                    'name': tutor.user.full_name,
+                    'email': tutor.user.email,
+                    'phone': tutor.user.phone
+                })
+    
+    if recipients_type in ['all', 'students']:
+        # Get active students
+        students = Student.query.filter(
+            Student.is_active == True,
+            Student.email.isnot(None)
+        ).all()
+        
+        for student in students:
+            if student.email:
+                recipients.append({
+                    'type': 'student',
+                    'id': student.id,
+                    'name': student.full_name,
+                    'email': student.email,
+                    'phone': student.phone
+                })
+    
+    return recipients
+
+def send_timetable_email(classes_data, recipients, view, target_date):
+    """Send timetable via email"""
+    try:
+        from flask import render_template_string
+        from flask_mail import Message, Mail
+        
+        # Email template
+        email_template = """
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <style>
+                body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background: #f8f9fa; }
+                .container { max-width: 800px; margin: 0 auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+                .header { background: linear-gradient(135deg, #F1A150, #C86706); color: white; padding: 20px; border-radius: 8px; margin-bottom: 30px; text-align: center; }
+                .period { font-size: 24px; font-weight: bold; margin: 0; }
+                .subtitle { font-size: 14px; opacity: 0.9; margin: 5px 0 0 0; }
+                .class-table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+                .class-table th, .class-table td { padding: 12px; text-align: left; border-bottom: 1px solid #e2e8f0; }
+                .class-table th { background: #f8fafc; font-weight: 600; color: #374151; }
+                .status-scheduled { background: #F1A150; color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px; }
+                .status-ongoing { background: #28a745; color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px; }
+                .status-completed { background: #17a2b8; color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px; }
+                .status-cancelled { background: #dc3545; color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px; }
+                .footer { margin-top: 30px; padding-top: 20px; border-top: 1px solid #e2e8f0; color: #6c757d; font-size: 14px; text-align: center; }
+                .stats { display: flex; gap: 20px; margin: 20px 0; }
+                .stat { background: #f8fafc; padding: 15px; border-radius: 8px; text-align: center; flex: 1; }
+                .stat-value { font-size: 24px; font-weight: bold; color: #F1A150; margin: 0; }
+                .stat-label { font-size: 12px; color: #6c757d; margin: 5px 0 0 0; text-transform: uppercase; }
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="header">
+                    <h1 class="period">{{ classes_data.period }} Timetable</h1>
+                    <p class="subtitle">{{ classes_data.view_type|title }} Schedule Overview</p>
+                </div>
+                
+                {% if classes_data.classes %}
+                <div class="stats">
+                    <div class="stat">
+                        <div class="stat-value">{{ classes_data.classes|length }}</div>
+                        <div class="stat-label">Total Classes</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-value">{{ classes_data.classes|selectattr('status', 'equalto', 'scheduled')|list|length }}</div>
+                        <div class="stat-label">Scheduled</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-value">{{ classes_data.classes|selectattr('status', 'equalto', 'completed')|list|length }}</div>
+                        <div class="stat-label">Completed</div>
+                    </div>
+                </div>
+                
+                <table class="class-table">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Time</th>
+                            <th>Subject</th>
+                            <th>Tutor</th>
+                            <th>Students</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for class in classes_data.classes %}
+                        <tr>
+                            <td>{{ class.scheduled_date }}</td>
+                            <td>{{ class.scheduled_time }}</td>
+                            <td><strong>{{ class.subject }}</strong></td>
+                            <td>{{ class.tutor_name }}</td>
+                            <td>{{ class.student_names|join(', ') if class.student_names else 'No students' }}</td>
+                            <td><span class="status-{{ class.status }}">{{ class.status|title }}</span></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <div style="text-align: center; padding: 40px; color: #6c757d;">
+                    <h3>No classes scheduled for this period</h3>
+                    <p>Enjoy your free time!</p>
+                </div>
+                {% endif %}
+                
+                <div class="footer">
+                    <p>This timetable was generated automatically from {{ APP_NAME }} on {{ current_datetime.strftime('%B %d, %Y at %I:%M %p') }}.</p>
+                    <p>For any questions or changes, please contact the administration.</p>
+                </div>
+            </div>
+        </body>
+        </html>
+        """
+        
+        # Generate email content
+        email_content = render_template_string(
+            email_template,
+            classes_data=classes_data,
+            APP_NAME=current_app.config.get('APP_NAME', 'LMS'),
+            current_datetime=datetime.now()
+        )
+        
+        # Send emails
+        mail = Mail(current_app)
+        sent_count = 0
+        failed_count = 0
+        
+        for recipient in recipients:
+            try:
+                msg = Message(
+                    subject=f"Your {classes_data['view_type'].title()} Timetable - {classes_data['period']}",
+                    sender=current_app.config['MAIL_USERNAME'],
+                    recipients=[recipient['email']]
+                )
+                msg.html = email_content
+                
+                mail.send(msg)
+                sent_count += 1
+                
+            except Exception as e:
+                print(f"Failed to send email to {recipient['email']}: {str(e)}")
+                failed_count += 1
+        
+        return {
+            'success': True,
+            'message': f'Timetable sent to {sent_count} recipients via email',
+            'sent_count': sent_count,
+            'failed_count': failed_count
+        }
+        
+    except Exception as e:
+        return {'success': False, 'error': f'Email sending failed: {str(e)}'}
+
+def send_timetable_pdf(classes_data, recipients, view, target_date):
+    """Generate and send timetable as PDF"""
+    try:
+        from reportlab.lib.pagesizes import letter, A4
+        from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+        from reportlab.lib import colors
+        from reportlab.lib.units import inch
+        import io
+        
+        # Create PDF buffer
+        buffer = io.BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=A4, margin=0.5*inch)
+        
+        # Get styles
+        styles = getSampleStyleSheet()
+        title_style = ParagraphStyle(
+            'CustomTitle',
+            parent=styles['Heading1'],
+            fontSize=24,
+            textColor=colors.HexColor('#F1A150'),
+            alignment=1,  # Center
+            spaceAfter=20
+        )
+        
+        # Build content
+        content = []
+        
+        # Title
+        content.append(Paragraph(f"{classes_data['period']} Timetable", title_style))
+        content.append(Spacer(1, 20))
+        
+        if classes_data['classes']:
+            # Create table data
+            table_data = [['Date', 'Time', 'Subject', 'Tutor', 'Status']]
+            
+            for cls in classes_data['classes']:
+                table_data.append([
+                    cls['scheduled_date'],
+                    cls['scheduled_time'],
+                    cls['subject'],
+                    cls['tutor_name'],
+                    cls['status'].title()
+                ])
+            
+            # Create table
+            table = Table(table_data, colWidths=[1.2*inch, 1*inch, 2*inch, 2*inch, 1*inch])
+            table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#F1A150')),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, 0), 12),
+                ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+                ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+                ('GRID', (0, 0), (-1, -1), 1, colors.black)
+            ]))
+            
+            content.append(table)
+        else:
+            content.append(Paragraph("No classes scheduled for this period", styles['Normal']))
+        
+        # Build PDF
+        doc.build(content)
+        buffer.seek(0)
+        
+        # Send PDF via email
+        from flask_mail import Message, Mail
+        mail = Mail(current_app)
+        sent_count = 0
+        failed_count = 0
+        
+        for recipient in recipients:
+            try:
+                msg = Message(
+                    subject=f"Timetable PDF - {classes_data['period']}",
+                    sender=current_app.config['MAIL_USERNAME'],
+                    recipients=[recipient['email']]
+                )
+                msg.body = f"Hello {recipient['name']},\n\nPlease find attached your {classes_data['view_type']} timetable for {classes_data['period']}.\n\nBest regards,\nThe Academic Team"
+                
+                # Attach PDF
+                buffer.seek(0)
+                msg.attach(
+                    f"timetable_{target_date.strftime('%Y_%m_%d')}.pdf",
+                    "application/pdf",
+                    buffer.read()
+                )
+                
+                mail.send(msg)
+                sent_count += 1
+                
+            except Exception as e:
+                print(f"Failed to send PDF to {recipient['email']}: {str(e)}")
+                failed_count += 1
+        
+        return {
+            'success': True,
+            'message': f'Timetable PDF sent to {sent_count} recipients',
+            'sent_count': sent_count,
+            'failed_count': failed_count
+        }
+        
+    except Exception as e:
+        return {'success': False, 'error': f'PDF generation failed: {str(e)}'}
+
+def send_timetable_sms(classes_data, recipients, view, target_date):
+    """Send timetable summary via SMS"""
+    try:
+        # Note: This requires SMS service integration (Twilio, etc.)
+        # For now, we'll create a summary message
+        
+        class_count = len(classes_data['classes'])
+        scheduled_count = len([c for c in classes_data['classes'] if c['status'] == 'scheduled'])
+        
+        message = f"📅 {classes_data['period']} Timetable Summary:\n"
+        message += f"📚 {class_count} total classes\n"
+        message += f"⏰ {scheduled_count} scheduled\n"
+        
+        if classes_data['classes']:
+            message += "\nNext classes:\n"
+            for cls in classes_data['classes'][:3]:  # First 3 classes
+                message += f"• {cls['subject']} - {cls['scheduled_date']} {cls['scheduled_time']}\n"
+            
+            if len(classes_data['classes']) > 3:
+                message += f"...and {len(classes_data['classes']) - 3} more"
+        
+        message += f"\nFor full details, check your email or login to {current_app.config.get('APP_NAME', 'LMS')}."
+        
+        # Simulate SMS sending (integrate with actual SMS service)
+        sent_count = 0
+        failed_count = 0
+        
+        for recipient in recipients:
+            if recipient.get('phone'):
+                try:
+                    # Here you would integrate with SMS service like Twilio
+                    # send_sms(recipient['phone'], message)
+                    print(f"SMS to {recipient['phone']}: {message}")
+                    sent_count += 1
+                except Exception as e:
+                    print(f"Failed to send SMS to {recipient['phone']}: {str(e)}")
+                    failed_count += 1
+            else:
+                failed_count += 1
+        
+        return {
+            'success': True,
+            'message': f'Timetable SMS sent to {sent_count} recipients',
+            'sent_count': sent_count,
+            'failed_count': failed_count,
+            'note': 'SMS integration requires setup with SMS provider'
+        }
+        
+    except Exception as e:
+        return {'success': False, 'error': f'SMS sending failed: {str(e)}'}
+
+def send_timetable_whatsapp(classes_data, recipients, view, target_date):
+    """Send timetable summary via WhatsApp"""
+    try:
+        # Note: This requires WhatsApp Business API integration
+        # For now, we'll create a summary message
+        
+        message = f"🎓 *{classes_data['period']} Timetable*\n\n"
+        
+        if classes_data['classes']:
+            message += f"📊 *Summary:* {len(classes_data['classes'])} classes scheduled\n\n"
+            
+            # Group by date
+            from collections import defaultdict
+            classes_by_date = defaultdict(list)
+            for cls in classes_data['classes']:
+                classes_by_date[cls['scheduled_date']].append(cls)
+            
+            for date, day_classes in sorted(classes_by_date.items()):
+                message += f"📅 *{date}*\n"
+                for cls in day_classes:
+                    status_emoji = {
+                        'scheduled': '⏰',
+                        'ongoing': '🔄',
+                        'completed': '✅',
+                        'cancelled': '❌'
+                    }.get(cls['status'], '📝')
+                    
+                    message += f"{status_emoji} {cls['scheduled_time']} - {cls['subject']}\n"
+                    message += f"   👨‍🏫 {cls['tutor_name']}\n"
+                message += "\n"
+        else:
+            message += "No classes scheduled for this period. Enjoy your free time! 😊"
+        
+        message += f"\nFor more details, visit {current_app.config.get('APP_NAME', 'LMS')} portal."
+        
+        # Simulate WhatsApp sending (integrate with actual WhatsApp API)
+        sent_count = 0
+        failed_count = 0
+        
+        for recipient in recipients:
+            if recipient.get('phone'):
+                try:
+                    # Here you would integrate with WhatsApp Business API
+                    # send_whatsapp(recipient['phone'], message)
+                    print(f"WhatsApp to {recipient['phone']}: {message}")
+                    sent_count += 1
+                except Exception as e:
+                    print(f"Failed to send WhatsApp to {recipient['phone']}: {str(e)}")
+                    failed_count += 1
+            else:
+                failed_count += 1
+        
+        return {
+            'success': True,
+            'message': f'Timetable WhatsApp sent to {sent_count} recipients',
+            'sent_count': sent_count,
+            'failed_count': failed_count,
+            'note': 'WhatsApp integration requires setup with WhatsApp Business API'
+        }
+        
+    except Exception as e:
+        return {'success': False, 'error': f'WhatsApp sending failed: {str(e)}'}
+
+# ============ BULK RESCHEDULE FUNCTIONALITY ============
+
+@bp.route('/api/v1/classes/bulk-reschedule', methods=['POST'])
+@login_required
+@admin_required
+def api_bulk_reschedule():
+    """Bulk reschedule multiple classes"""
+    try:
+        data = request.get_json()
+        class_ids = data.get('class_ids', [])
+        reschedule_rules = data.get('reschedule_rules', {})
+        
+        if not class_ids:
+            return jsonify({'success': False, 'error': 'No classes selected'}), 400
+        
+        # Get classes
+        classes = Class.query.filter(Class.id.in_(class_ids)).all()
+        
+        if not classes:
+            return jsonify({'success': False, 'error': 'No classes found'}), 404
+        
+        # Check department access for coordinators
+        if current_user.role == 'coordinator':
+            for cls in classes:
+                if cls.tutor.user.department_id != current_user.department_id:
+                    return jsonify({'success': False, 'error': 'Access denied for some classes'}), 403
+        
+        updated_classes = []
+        conflicts = []
+        
+        for cls in classes:
+            try:
+                # Apply reschedule rules
+                new_date = cls.scheduled_date
+                new_time = cls.scheduled_time
+                
+                # Date shift
+                if reschedule_rules.get('date_shift_days'):
+                    new_date = cls.scheduled_date + timedelta(days=reschedule_rules['date_shift_days'])
+                
+                # Time shift
+                if reschedule_rules.get('time_shift_minutes'):
+                    time_minutes = cls.scheduled_time.hour * 60 + cls.scheduled_time.minute
+                    time_minutes += reschedule_rules['time_shift_minutes']
+                    
+                    # Handle overflow/underflow
+                    time_minutes = max(0, min(1439, time_minutes))  # 0-1439 minutes in a day
+                    
+                    new_time = time(time_minutes // 60, time_minutes % 60)
+                
+                # Specific date/time
+                if reschedule_rules.get('new_date'):
+                    new_date = datetime.strptime(reschedule_rules['new_date'], '%Y-%m-%d').date()
+                
+                if reschedule_rules.get('new_time'):
+                    new_time = datetime.strptime(reschedule_rules['new_time'], '%H:%M').time()
+                
+                # Check for conflicts
+                conflict_exists, conflicting_class = Class.check_time_conflict(
+                    cls.tutor_id, new_date, new_time, cls.duration, cls.id
+                )
+                
+                if conflict_exists:
+                    conflicts.append({
+                        'class_id': cls.id,
+                        'subject': cls.subject,
+                        'original_date': cls.scheduled_date.isoformat(),
+                        'original_time': cls.scheduled_time.strftime('%H:%M'),
+                        'new_date': new_date.isoformat(),
+                        'new_time': new_time.strftime('%H:%M'),
+                        'conflict_with': conflicting_class.id,
+                        'conflict_subject': conflicting_class.subject
+                    })
+                else:
+                    # Update class
+                    old_date = cls.scheduled_date
+                    old_time = cls.scheduled_time
+                    
+                    cls.scheduled_date = new_date
+                    cls.scheduled_time = new_time
+                    cls.calculate_end_time()
+                    cls.updated_at = datetime.utcnow()
+                    
+                    # Add admin note
+                    note = f"Bulk rescheduled by {current_user.full_name} from {old_date} {old_time} to {new_date} {new_time}"
+                    if cls.admin_notes:
+                        cls.admin_notes += f"\n{note}"
+                    else:
+                        cls.admin_notes = note
+                    
+                    updated_classes.append({
+                        'class_id': cls.id,
+                        'subject': cls.subject,
+                        'new_date': new_date.isoformat(),
+                        'new_time': new_time.strftime('%H:%M')
+                    })
+                    
+            except Exception as e:
+                conflicts.append({
+                    'class_id': cls.id,
+                    'subject': cls.subject,
+                    'error': str(e)
+                })
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': f'Successfully rescheduled {len(updated_classes)} classes',
+            'updated_classes': updated_classes,
+            'conflicts': conflicts,
+            'updated_count': len(updated_classes),
+            'conflict_count': len(conflicts)
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+    
+    
+# ADD THESE ADDITIONAL ROUTES TO app/routes/admin.py
+
+# ============ EDIT CLASS ENDPOINT ============
+
+@bp.route('/api/v1/classes/<int:class_id>/edit', methods=['POST'])
+@login_required
+@admin_required
+def api_edit_class(class_id):
+    """Edit class details"""
+    try:
+        class_item = Class.query.get_or_404(class_id)
+        
+        # Check department access for coordinators
+        if current_user.role == 'coordinator':
+            if class_item.tutor.user.department_id != current_user.department_id:
+                return jsonify({'success': False, 'error': 'Access denied'}), 403
+        
+        data = request.get_json()
+        
+        # Update basic fields
+        if 'subject' in data:
+            class_item.subject = data['subject']
+        if 'grade' in data:
+            class_item.grade = data['grade']
+        if 'duration' in data:
+            class_item.duration = int(data['duration'])
+        if 'meeting_link' in data:
+            class_item.meeting_link = data['meeting_link']
+        if 'class_notes' in data:
+            class_item.class_notes = data['class_notes']
+        
+        # Handle date/time changes
+        if 'scheduled_date' in data or 'scheduled_time' in data:
+            new_date = datetime.strptime(data['scheduled_date'], '%Y-%m-%d').date() if 'scheduled_date' in data else class_item.scheduled_date
+            new_time = datetime.strptime(data['scheduled_time'], '%H:%M').time() if 'scheduled_time' in data else class_item.scheduled_time
+            
+            # Check for conflicts if date/time changed
+            if new_date != class_item.scheduled_date or new_time != class_item.scheduled_time:
+                conflict_exists, conflicting_class = Class.check_time_conflict(
+                    class_item.tutor_id, new_date, new_time, class_item.duration, class_id
+                )
+                
+                if conflict_exists:
+                    return jsonify({
+                        'success': False,
+                        'error': f'Time conflict with existing class: {conflicting_class.subject}'
+                    }), 409
+                
+                class_item.scheduled_date = new_date
+                class_item.scheduled_time = new_time
+                class_item.calculate_end_time()
+        
+        class_item.updated_at = datetime.utcnow()
+        
+        # Add edit note
+        edit_note = f"Edited by {current_user.full_name} on {datetime.now().strftime('%Y-%m-%d %H:%M')}"
+        if class_item.admin_notes:
+            class_item.admin_notes += f"\n{edit_note}"
+        else:
+            class_item.admin_notes = edit_note
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Class updated successfully',
+            'data': class_item.to_dict()
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+# ============ CHANGE STATUS ENDPOINT ============
+
+@bp.route('/api/v1/classes/<int:class_id>/status', methods=['POST'])
+@login_required
+@admin_required
+def api_change_class_status(class_id):
+    """Change class status"""
+    try:
+        class_item = Class.query.get_or_404(class_id)
+        
+        # Check department access for coordinators
+        if current_user.role == 'coordinator':
+            if class_item.tutor.user.department_id != current_user.department_id:
+                return jsonify({'success': False, 'error': 'Access denied'}), 403
+        
+        data = request.get_json()
+        new_status = data.get('status')
+        
+        if new_status not in ['scheduled', 'ongoing', 'completed', 'cancelled']:
+            return jsonify({'success': False, 'error': 'Invalid status'}), 400
+        
+        old_status = class_item.status
+        class_item.status = new_status
+        
+        # Handle status-specific logic
+        if new_status == 'ongoing':
+            class_item.actual_start_time = datetime.now()
+        elif new_status == 'completed':
+            class_item.actual_end_time = datetime.now()
+            if not class_item.actual_start_time:
+                class_item.actual_start_time = datetime.now() - timedelta(minutes=class_item.duration)
+        
+        class_item.updated_at = datetime.utcnow()
+        
+        # Add status change note
+        status_note = f"Status changed from {old_status} to {new_status} by {current_user.full_name}"
+        if class_item.admin_notes:
+            class_item.admin_notes += f"\n{status_note}"
+        else:
+            class_item.admin_notes = status_note
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': f'Class status changed to {new_status}',
+            'data': class_item.to_dict()
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+# ============ EXPORT TIMETABLE ENDPOINT ============
+
+@bp.route('/api/v1/timetable/export', methods=['POST'])
+@login_required
+@admin_required
+def api_export_timetable():
+    """Export timetable in various formats"""
+    try:
+        data = request.get_json()
+        format_type = data.get('format', 'pdf').lower()
+        view = data.get('view', 'week')
+        date_str = data.get('date', datetime.now().strftime('%Y-%m-%d'))
+        
+        target_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+        
+        # Get timetable data based on view
+        if view == 'week':
+            classes_data = get_weekly_timetable_data(target_date)
+        elif view == 'month':
+            classes_data = get_monthly_timetable_data(target_date)
+        else:  # today
+            classes_data = get_daily_timetable_data(target_date)
+        
+        if format_type == 'pdf':
+            return export_timetable_pdf(classes_data, target_date)
+        elif format_type == 'excel':
+            return export_timetable_excel(classes_data, target_date)
+        elif format_type == 'csv':
+            return export_timetable_csv(classes_data, target_date)
+        elif format_type == 'ical':
+            return export_timetable_ical(classes_data, target_date)
+        else:
+            return jsonify({'success': False, 'error': f'Unsupported format: {format_type}'}), 400
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+def export_timetable_pdf(classes_data, target_date):
+    """Export timetable as PDF"""
+    try:
+        from reportlab.lib.pagesizes import letter, landscape
+        from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+        from reportlab.lib import colors
+        from reportlab.lib.units import inch
+        from flask import make_response
+        import io
+        
+        # Create PDF buffer
+        buffer = io.BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=landscape(letter), margin=0.5*inch)
+        
+        # Get styles
+        styles = getSampleStyleSheet()
+        title_style = ParagraphStyle(
+            'CustomTitle',
+            parent=styles['Heading1'],
+            fontSize=20,
+            textColor=colors.HexColor('#F1A150'),
+            alignment=1,  # Center
+            spaceAfter=20
+        )
+        
+        # Build content
+        content = []
+        
+        # Title
+        content.append(Paragraph(f"Class Timetable - {classes_data['period']}", title_style))
+        content.append(Spacer(1, 20))
+        
+        if classes_data['classes']:
+            # Create table data
+            table_data = [['Date', 'Time', 'Subject', 'Tutor', 'Students', 'Duration', 'Status']]
+            
+            for cls in classes_data['classes']:
+                student_names = ', '.join(cls.get('student_names', []))[:30] + '...' if len(', '.join(cls.get('student_names', []))) > 30 else ', '.join(cls.get('student_names', []))
+                
+                table_data.append([
+                    cls['scheduled_date'],
+                    cls['scheduled_time'],
+                    cls['subject'][:20] + '...' if len(cls['subject']) > 20 else cls['subject'],
+                    cls['tutor_name'][:15] + '...' if len(cls['tutor_name']) > 15 else cls['tutor_name'],
+                    student_names or 'No students',
+                    f"{cls['duration']} min",
+                    cls['status'].title()
+                ])
+            
+            # Create table
+            table = Table(table_data, colWidths=[1*inch, 0.8*inch, 1.5*inch, 1.2*inch, 1.5*inch, 0.8*inch, 0.8*inch])
+            table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#F1A150')),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, 0), 10),
+                ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+                ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+                ('GRID', (0, 0), (-1, -1), 1, colors.black),
+                ('FONTSIZE', (0, 1), (-1, -1), 8),
+                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ]))
+            
+            content.append(table)
+        else:
+            content.append(Paragraph("No classes scheduled for this period", styles['Normal']))
+        
+        # Build PDF
+        doc.build(content)
+        buffer.seek(0)
+        
+        # Create response
+        response = make_response(buffer.read())
+        response.headers['Content-Type'] = 'application/pdf'
+        response.headers['Content-Disposition'] = f'attachment; filename=timetable_{target_date.strftime("%Y_%m_%d")}.pdf'
+        
+        return response
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': f'PDF export failed: {str(e)}'}), 500
+
+def export_timetable_excel(classes_data, target_date):
+    """Export timetable as Excel"""
+    try:
+        import pandas as pd
+        from flask import make_response
+        import io
+        
+        if not classes_data['classes']:
+            return jsonify({'success': False, 'error': 'No classes to export'}), 400
+        
+        # Convert to DataFrame
+        df_data = []
+        for cls in classes_data['classes']:
+            df_data.append({
+                'Date': cls['scheduled_date'],
+                'Time': cls['scheduled_time'],
+                'Subject': cls['subject'],
+                'Tutor': cls['tutor_name'],
+                'Students': ', '.join(cls.get('student_names', [])),
+                'Duration (min)': cls['duration'],
+                'Status': cls['status'].title(),
+                'Meeting Link': cls.get('meeting_link', ''),
+                'Notes': cls.get('class_notes', '')
+            })
+        
+        df = pd.DataFrame(df_data)
+        
+        # Create Excel buffer
+        buffer = io.BytesIO()
+        with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
+            df.to_excel(writer, sheet_name='Timetable', index=False)
+            
+            # Get workbook and worksheet
+            workbook = writer.book
+            worksheet = writer.sheets['Timetable']
+            
+            # Auto-adjust column widths
+            for column in worksheet.columns:
+                max_length = 0
+                column_letter = column[0].column_letter
+                for cell in column:
+                    try:
+                        if len(str(cell.value)) > max_length:
+                            max_length = len(str(cell.value))
+                    except:
+                        pass
+                adjusted_width = min(max_length + 2, 50)
+                worksheet.column_dimensions[column_letter].width = adjusted_width
+        
+        buffer.seek(0)
+        
+        # Create response
+        response = make_response(buffer.read())
+        response.headers['Content-Type'] = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        response.headers['Content-Disposition'] = f'attachment; filename=timetable_{target_date.strftime("%Y_%m_%d")}.xlsx'
+        
+        return response
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': f'Excel export failed: {str(e)}'}), 500
+
+def export_timetable_csv(classes_data, target_date):
+    """Export timetable as CSV"""
+    try:
+        from flask import make_response
+        import csv
+        import io
+        
+        if not classes_data['classes']:
+            return jsonify({'success': False, 'error': 'No classes to export'}), 400
+        
+        # Create CSV buffer
+        output = io.StringIO()
+        writer = csv.writer(output)
+        
+        # Write header
+        writer.writerow(['Date', 'Time', 'Subject', 'Tutor', 'Students', 'Duration (min)', 'Status', 'Meeting Link', 'Notes'])
+        
+        # Write data
+        for cls in classes_data['classes']:
+            writer.writerow([
+                cls['scheduled_date'],
+                cls['scheduled_time'],
+                cls['subject'],
+                cls['tutor_name'],
+                ', '.join(cls.get('student_names', [])),
+                cls['duration'],
+                cls['status'].title(),
+                cls.get('meeting_link', ''),
+                cls.get('class_notes', '')
+            ])
+        
+        output.seek(0)
+        
+        # Create response
+        response = make_response(output.getvalue())
+        response.headers['Content-Type'] = 'text/csv'
+        response.headers['Content-Disposition'] = f'attachment; filename=timetable_{target_date.strftime("%Y_%m_%d")}.csv'
+        
+        return response
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': f'CSV export failed: {str(e)}'}), 500
+
+def export_timetable_ical(classes_data, target_date):
+    """Export timetable as iCal"""
+    try:
+        from flask import make_response
+        
+        if not classes_data['classes']:
+            return jsonify({'success': False, 'error': 'No classes to export'}), 400
+        
+        # Create iCal content
+        ical_content = "BEGIN:VCALENDAR\n"
+        ical_content += "VERSION:2.0\n"
+        ical_content += "PRODID:-//Your LMS//Timetable Export//EN\n"
+        ical_content += "METHOD:PUBLISH\n"
+        
+        for cls in classes_data['classes']:
+            # Parse date and time
+            class_date = datetime.strptime(cls['scheduled_date'], '%Y-%m-%d').date()
+            class_time = datetime.strptime(cls['scheduled_time'], '%H:%M').time()
+            start_datetime = datetime.combine(class_date, class_time)
+            end_datetime = start_datetime + timedelta(minutes=cls['duration'])
+            
+            # Format for iCal (UTC)
+            start_str = start_datetime.strftime('%Y%m%dT%H%M%S')
+            end_str = end_datetime.strftime('%Y%m%dT%H%M%S')
+            
+            ical_content += "BEGIN:VEVENT\n"
+            ical_content += f"UID:class-{cls['id']}-{int(start_datetime.timestamp())}\n"
+            ical_content += f"DTSTART:{start_str}\n"
+            ical_content += f"DTEND:{end_str}\n"
+            ical_content += f"SUMMARY:{cls['subject']}\n"
+            ical_content += f"DESCRIPTION:Tutor: {cls['tutor_name']}\\nStatus: {cls['status']}\\nDuration: {cls['duration']} minutes\n"
+            
+            if cls.get('meeting_link'):
+                ical_content += f"LOCATION:{cls['meeting_link']}\n"
+            
+            ical_content += f"STATUS:{cls['status'].upper()}\n"
+            ical_content += "END:VEVENT\n"
+        
+        ical_content += "END:VCALENDAR\n"
+        
+        # Create response
+        response = make_response(ical_content)
+        response.headers['Content-Type'] = 'text/calendar'
+        response.headers['Content-Disposition'] = f'attachment; filename=timetable_{target_date.strftime("%Y_%m_%d")}.ics'
+        
+        return response
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': f'iCal export failed: {str(e)}'}), 500
+
+# ============ ADVANCED FILTERING ============
+
+@bp.route('/api/v1/timetable/filter')
+@login_required
+@admin_required
+def api_filter_timetable():
+    """Advanced timetable filtering"""
+    try:
+        # Get filter parameters
+        start_date = request.args.get('start_date')
+        end_date = request.args.get('end_date')
+        tutor_ids = request.args.getlist('tutor_ids')
+        student_ids = request.args.getlist('student_ids')
+        subjects = request.args.getlist('subjects')
+        statuses = request.args.getlist('statuses')
+        class_types = request.args.getlist('class_types')
+        time_from = request.args.get('time_from')
+        time_to = request.args.get('time_to')
+        
+        # Build query
+        query = Class.query
+        
+        # Date range filter
+        if start_date:
+            query = query.filter(Class.scheduled_date >= datetime.strptime(start_date, '%Y-%m-%d').date())
+        if end_date:
+            query = query.filter(Class.scheduled_date <= datetime.strptime(end_date, '%Y-%m-%d').date())
+        
+        # Tutor filter
+        if tutor_ids:
+            query = query.filter(Class.tutor_id.in_([int(tid) for tid in tutor_ids]))
+        
+        # Subject filter
+        if subjects:
+            query = query.filter(Class.subject.in_(subjects))
+        
+        # Status filter
+        if statuses:
+            query = query.filter(Class.status.in_(statuses))
+        
+        # Class type filter
+        if class_types:
+            query = query.filter(Class.class_type.in_(class_types))
+        
+        # Time range filter
+        if time_from:
+            query = query.filter(Class.scheduled_time >= datetime.strptime(time_from, '%H:%M').time())
+        if time_to:
+            query = query.filter(Class.scheduled_time <= datetime.strptime(time_to, '%H:%M').time())
+        
+        # Department filter for coordinators
+        if current_user.role == 'coordinator':
+            query = query.join(Tutor).join(User).filter(User.department_id == current_user.department_id)
+        
+        # Get results
+        classes = query.order_by(Class.scheduled_date, Class.scheduled_time).all()
+        
+        # Build response
+        classes_data = []
+        for cls in classes:
+            try:
+                class_item = cls.to_dict()
+                
+                # Filter by students if specified
+                if student_ids:
+                    class_students = cls.get_students() or []
+                    if not any(int(sid) in class_students for sid in student_ids):
+                        continue
+                
+                classes_data.append(class_item)
+            except:
+                continue
+        
+        # Calculate stats
+        total_classes = len(classes_data)
+        status_counts = {}
+        for cls in classes_data:
+            status = cls['status']
+            status_counts[status] = status_counts.get(status, 0) + 1
+        
+        stats = {
+            'total_classes': total_classes,
+            'status_breakdown': status_counts,
+            'date_range': {
+                'start': start_date,
+                'end': end_date
+            }
+        }
+        
+        return jsonify({
+            'success': True,
+            'classes': classes_data,
+            'stats': stats,
+            'filters_applied': {
+                'start_date': start_date,
+                'end_date': end_date,
+                'tutor_count': len(tutor_ids) if tutor_ids else 0,
+                'student_count': len(student_ids) if student_ids else 0,
+                'subjects': subjects,
+                'statuses': statuses
+            }
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+# ============ CONFLICT DETECTION ============
+
+@bp.route('/api/v1/classes/conflicts')
+@login_required
+@admin_required
+def api_check_conflicts():
+    """Check for scheduling conflicts"""
+    try:
+        # Get parameters
+        start_date = request.args.get('start_date')
+        end_date = request.args.get('end_date')
+        
+        if not start_date or not end_date:
+            return jsonify({'success': False, 'error': 'Start and end dates required'}), 400
+        
+        start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
+        end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
+        
+        # Get classes in date range
+        classes = Class.query.filter(
+            Class.scheduled_date >= start_date,
+            Class.scheduled_date <= end_date,
+            Class.status.in_(['scheduled', 'ongoing'])
+        ).order_by(Class.scheduled_date, Class.scheduled_time).all()
+        
+        # Check for conflicts
+        conflicts = []
+        checked_pairs = set()
+        
+        for i, class1 in enumerate(classes):
+            for j, class2 in enumerate(classes):
+                if i >= j:  # Don't check same class or already checked pairs
+                    continue
+                
+                pair_key = tuple(sorted([class1.id, class2.id]))
+                if pair_key in checked_pairs:
+                    continue
+                checked_pairs.add(pair_key)
+                
+                # Check if same tutor and overlapping time
+                if (class1.tutor_id == class2.tutor_id and 
+                    class1.scheduled_date == class2.scheduled_date):
+                    
+                    # Check time overlap
+                    start1 = datetime.combine(class1.scheduled_date, class1.scheduled_time)
+                    end1 = start1 + timedelta(minutes=class1.duration)
+                    start2 = datetime.combine(class2.scheduled_date, class2.scheduled_time)
+                    end2 = start2 + timedelta(minutes=class2.duration)
+                    
+                    if start1 < end2 and start2 < end1:  # Times overlap
+                        conflicts.append({
+                            'type': 'tutor_conflict',
+                            'tutor_name': class1.tutor.user.full_name if class1.tutor and class1.tutor.user else 'Unknown',
+                            'classes': [
+                                {
+                                    'id': class1.id,
+                                    'subject': class1.subject,
+                                    'date': class1.scheduled_date.isoformat(),
+                                    'time': class1.scheduled_time.strftime('%H:%M'),
+                                    'duration': class1.duration
+                                },
+                                {
+                                    'id': class2.id,
+                                    'subject': class2.subject,
+                                    'date': class2.scheduled_date.isoformat(),
+                                    'time': class2.scheduled_time.strftime('%H:%M'),
+                                    'duration': class2.duration
+                                }
+                            ]
+                        })
+        
+        return jsonify({
+            'success': True,
+            'conflicts': conflicts,
+            'conflict_count': len(conflicts),
+            'classes_checked': len(classes)
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+    

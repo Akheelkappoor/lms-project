@@ -382,3 +382,481 @@ class Class(db.Model):
 
         return None
     
+    
+    def get_scheduled_datetime_str(self):
+        """Get formatted scheduled datetime string"""
+        if self.scheduled_date and self.scheduled_time:
+            dt = datetime.combine(self.scheduled_date, self.scheduled_time)
+            return dt.strftime('%Y-%m-%d %H:%M')
+        return None
+
+    def get_time_until_class_formatted(self):
+        """Get human-readable time until class"""
+        delta = self.time_until_class()
+        if delta.total_seconds() <= 0:
+            return "Class time has passed"
+        
+        days = delta.days
+        hours, remainder = divmod(delta.seconds, 3600)
+        minutes = remainder // 60
+        
+        if days > 0:
+            return f"{days} day{'s' if days != 1 else ''}, {hours} hour{'s' if hours != 1 else ''}"
+        elif hours > 0:
+            return f"{hours} hour{'s' if hours != 1 else ''}, {minutes} minute{'s' if minutes != 1 else ''}"
+        else:
+            return f"{minutes} minute{'s' if minutes != 1 else ''}"
+
+    def can_be_started(self, minutes_before=15):
+        """Check if class can be started within X minutes of scheduled time"""
+        if self.status != 'scheduled':
+            return False
+        
+        now = datetime.now()
+        scheduled_dt = datetime.combine(self.scheduled_date, self.scheduled_time)
+        
+        # Can start 15 minutes before or anytime after scheduled time
+        start_window = scheduled_dt - timedelta(minutes=minutes_before)
+        end_window = scheduled_dt + timedelta(minutes=self.duration)
+        
+        return start_window <= now <= end_window
+
+    def get_conflict_score(self):
+        """Calculate conflict score based on overlapping classes"""
+        conflicts = Class.query.filter(
+            Class.tutor_id == self.tutor_id,
+            Class.scheduled_date == self.scheduled_date,
+            Class.id != self.id,
+            Class.status.in_(['scheduled', 'ongoing'])
+        ).all()
+        
+        conflict_count = 0
+        for other_class in conflicts:
+            # Check time overlap
+            start1 = datetime.combine(self.scheduled_date, self.scheduled_time)
+            end1 = start1 + timedelta(minutes=self.duration)
+            start2 = datetime.combine(other_class.scheduled_date, other_class.scheduled_time)
+            end2 = start2 + timedelta(minutes=other_class.duration)
+            
+            if start1 < end2 and start2 < end1:
+                conflict_count += 1
+        
+        return conflict_count
+
+    def get_attendance_summary(self):
+        """Get attendance summary for this class"""
+        from app.models.attendance import Attendance
+        
+        attendance_records = Attendance.query.filter_by(class_id=self.id).all()
+        
+        summary = {
+            'total_students': len(attendance_records),
+            'present': len([a for a in attendance_records if a.status == 'present']),
+            'absent': len([a for a in attendance_records if a.status == 'absent']),
+            'late': len([a for a in attendance_records if a.status == 'late']),
+            'attendance_rate': 0
+        }
+        
+        if summary['total_students'] > 0:
+            summary['attendance_rate'] = round((summary['present'] / summary['total_students']) * 100, 1)
+        
+        return summary
+
+    def get_quality_metrics(self):
+        """Get quality metrics for this class"""
+        metrics = {
+            'completion_rate': 100 if self.status == 'completed' else 0,
+            'on_time_start': False,
+            'full_duration': False,
+            'student_satisfaction': 0,
+            'tutor_satisfaction': 0
+        }
+        
+        # Check if started on time (within 5 minutes)
+        if self.actual_start_time and self.scheduled_time:
+            scheduled_dt = datetime.combine(self.scheduled_date, self.scheduled_time)
+            start_diff = abs((self.actual_start_time - scheduled_dt).total_seconds())
+            metrics['on_time_start'] = start_diff <= 300  # 5 minutes
+        
+        # Check if full duration was completed
+        if self.actual_start_time and self.actual_end_time:
+            actual_duration = (self.actual_end_time - self.actual_start_time).total_seconds() / 60
+            expected_duration = self.duration
+            metrics['full_duration'] = actual_duration >= (expected_duration * 0.9)  # 90% of expected
+        
+        # Parse feedback scores (if available)
+        if self.student_feedback:
+            try:
+                import json
+                feedback_data = json.loads(self.student_feedback)
+                if 'rating' in feedback_data:
+                    metrics['student_satisfaction'] = feedback_data['rating']
+            except:
+                pass
+        
+        if self.tutor_feedback:
+            try:
+                import json
+                feedback_data = json.loads(self.tutor_feedback)
+                if 'rating' in feedback_data:
+                    metrics['tutor_satisfaction'] = feedback_data['rating']
+            except:
+                pass
+        
+        return metrics
+
+    def generate_meeting_room(self):
+        """Generate a meeting room/link if not already set"""
+        if self.meeting_link:
+            return self.meeting_link
+        
+        # Generate a simple meeting room identifier
+        import uuid
+        room_id = str(uuid.uuid4())[:8].upper()
+        
+        # You can integrate with actual meeting platforms here
+        # For now, create a placeholder
+        self.meeting_id = room_id
+        self.meeting_link = f"https://meet.example.com/room/{room_id}"
+        
+        return self.meeting_link
+
+    def send_notifications(self, notification_type='reminder'):
+        """Send notifications for this class"""
+        from app.utils.notification_utils import send_class_notification
+        
+        recipients = []
+        
+        # Add tutor
+        if self.tutor and self.tutor.user and self.tutor.user.email:
+            recipients.append({
+                'type': 'tutor',
+                'email': self.tutor.user.email,
+                'name': self.tutor.user.full_name,
+                'phone': self.tutor.user.phone
+            })
+        
+        # Add students
+        students = self.get_student_objects()
+        for student in students:
+            if hasattr(student, 'email') and student.email:
+                recipients.append({
+                    'type': 'student',
+                    'email': student.email,
+                    'name': student.full_name if hasattr(student, 'full_name') else student.name,
+                    'phone': getattr(student, 'phone', None)
+                })
+        
+        # Send notifications
+        for recipient in recipients:
+            try:
+                send_class_notification(self, recipient, notification_type)
+            except Exception as e:
+                print(f"Failed to send notification to {recipient['email']}: {str(e)}")
+
+    def get_preparation_checklist(self):
+        """Get preparation checklist for this class"""
+        checklist = []
+        
+        # Basic preparations
+        checklist.append({
+            'item': 'Meeting link ready',
+            'completed': bool(self.meeting_link),
+            'required': True
+        })
+        
+        checklist.append({
+            'item': 'Class materials prepared',
+            'completed': bool(self.materials),
+            'required': False
+        })
+        
+        checklist.append({
+            'item': 'Students notified',
+            'completed': self.created_at and (datetime.utcnow() - self.created_at).days >= 1,
+            'required': True
+        })
+        
+        # Check if it's within 1 hour of class time
+        if self.is_upcoming() and self.time_until_class().total_seconds() <= 3600:
+            checklist.append({
+                'item': 'Final reminder sent',
+                'completed': False,  # Would check notification log
+                'required': True
+            })
+        
+        return checklist
+
+    def get_similar_classes(self, limit=5):
+        """Get similar classes (same subject, tutor, or students)"""
+        similar_classes = Class.query.filter(
+            Class.id != self.id,
+            or_(
+                Class.subject == self.subject,
+                Class.tutor_id == self.tutor_id,
+                # Could add student overlap check here
+            )
+        ).order_by(Class.scheduled_date.desc()).limit(limit).all()
+        
+        return similar_classes
+
+    def export_to_ical_event(self):
+        """Export this class as an iCal event"""
+        if not self.scheduled_date or not self.scheduled_time:
+            return None
+        
+        start_dt = datetime.combine(self.scheduled_date, self.scheduled_time)
+        end_dt = start_dt + timedelta(minutes=self.duration)
+        
+        # Basic iCal event format
+        event = f"""BEGIN:VEVENT
+    UID:class-{self.id}-{int(start_dt.timestamp())}
+    DTSTART:{start_dt.strftime('%Y%m%dT%H%M%S')}
+    DTEND:{end_dt.strftime('%Y%m%dT%H%M%S')}
+    SUMMARY:{self.subject}
+    DESCRIPTION:Tutor: {self.tutor.user.full_name if self.tutor and self.tutor.user else 'TBA'}\\nStatus: {self.status}\\nDuration: {self.duration} minutes
+    STATUS:{self.status.upper()}
+    CATEGORIES:Education,Class
+    PRIORITY:5"""
+
+        if self.meeting_link:
+            event += f"\nLOCATION:{self.meeting_link}"
+        
+        if self.class_notes:
+            event += f"\nCOMMENT:{self.class_notes}"
+        
+        event += "\nEND:VEVENT"
+        
+        return event
+
+    @classmethod
+    def get_dashboard_stats(cls, user=None, date_range=None):
+        """Get dashboard statistics for classes"""
+        from sqlalchemy import func
+        
+        # Base query
+        query = cls.query
+        
+        # Filter by user role and permissions
+        if user:
+            if user.role == 'coordinator':
+                query = query.join(Tutor).join(User).filter(User.department_id == user.department_id)
+            elif user.role == 'tutor':
+                tutor = Tutor.query.filter_by(user_id=user.id).first()
+                if tutor:
+                    query = query.filter(cls.tutor_id == tutor.id)
+        
+        # Date range filter
+        if date_range:
+            if 'start' in date_range:
+                query = query.filter(cls.scheduled_date >= date_range['start'])
+            if 'end' in date_range:
+                query = query.filter(cls.scheduled_date <= date_range['end'])
+        
+        # Get counts by status
+        stats = {}
+        
+        # Overall stats
+        stats['total_classes'] = query.count()
+        stats['scheduled'] = query.filter(cls.status == 'scheduled').count()
+        stats['completed'] = query.filter(cls.status == 'completed').count()
+        stats['cancelled'] = query.filter(cls.status == 'cancelled').count()
+        stats['ongoing'] = query.filter(cls.status == 'ongoing').count()
+        
+        # Today's stats
+        today = datetime.now().date()
+        today_query = query.filter(cls.scheduled_date == today)
+        stats['today'] = {
+            'total': today_query.count(),
+            'scheduled': today_query.filter(cls.status == 'scheduled').count(),
+            'completed': today_query.filter(cls.status == 'completed').count(),
+            'ongoing': today_query.filter(cls.status == 'ongoing').count(),
+            'cancelled': today_query.filter(cls.status == 'cancelled').count()
+        }
+        
+        # This week's stats
+        week_start = today - timedelta(days=today.weekday())
+        week_end = week_start + timedelta(days=6)
+        week_query = query.filter(
+            cls.scheduled_date >= week_start,
+            cls.scheduled_date <= week_end
+        )
+        stats['this_week'] = {
+            'total': week_query.count(),
+            'completed': week_query.filter(cls.status == 'completed').count(),
+            'scheduled': week_query.filter(cls.status == 'scheduled').count()
+        }
+        
+        # Calculate completion rate
+        if stats['total_classes'] > 0:
+            stats['completion_rate'] = round((stats['completed'] / stats['total_classes']) * 100, 1)
+        else:
+            stats['completion_rate'] = 0
+        
+        # Upcoming classes (next 7 days)
+        upcoming_query = query.filter(
+            cls.scheduled_date > today,
+            cls.scheduled_date <= today + timedelta(days=7),
+            cls.status == 'scheduled'
+        )
+        stats['upcoming_count'] = upcoming_query.count()
+        
+        return stats
+
+    @classmethod
+    def get_popular_time_slots(cls, days=30):
+        """Get most popular time slots for scheduling"""
+        from sqlalchemy import func
+        
+        # Get classes from last X days
+        start_date = datetime.now().date() - timedelta(days=days)
+        
+        time_slots = db.session.query(
+            cls.scheduled_time,
+            func.count(cls.id).label('count')
+        ).filter(
+            cls.scheduled_date >= start_date,
+            cls.status.in_(['scheduled', 'completed'])
+        ).group_by(cls.scheduled_time).order_by(func.count(cls.id).desc()).limit(10).all()
+        
+        return [{'time': slot[0].strftime('%H:%M'), 'count': slot[1]} for slot in time_slots]
+
+    @classmethod
+    def get_busiest_days(cls, weeks=4):
+        """Get busiest days of the week"""
+        from sqlalchemy import func, extract
+        
+        # Get classes from last X weeks
+        start_date = datetime.now().date() - timedelta(weeks=weeks)
+        
+        # PostgreSQL: EXTRACT(DOW FROM scheduled_date)
+        # SQLite: strftime('%w', scheduled_date)
+        # MySQL: DAYOFWEEK(scheduled_date)
+        
+        # Use a database-agnostic approach
+        classes = cls.query.filter(
+            cls.scheduled_date >= start_date,
+            cls.status.in_(['scheduled', 'completed'])
+        ).all()
+        
+        day_counts = {0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0}  # Mon-Sun
+        
+        for class_item in classes:
+            day_of_week = class_item.scheduled_date.weekday()  # 0=Monday
+            day_counts[day_of_week] += 1
+        
+        day_names = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+        
+        return [{'day': day_names[i], 'count': day_counts[i]} for i in range(7)]
+
+    def to_dict_detailed(self):
+        """Convert to detailed dictionary with all relationships"""
+        base_dict = self.to_dict()
+        
+        # Add detailed information
+        base_dict.update({
+            'tutor_details': {
+                'id': self.tutor.id if self.tutor else None,
+                'name': self.tutor.user.full_name if self.tutor and self.tutor.user else None,
+                'email': self.tutor.user.email if self.tutor and self.tutor.user else None,
+                'phone': self.tutor.user.phone if self.tutor and self.tutor.user else None,
+                'subjects': self.tutor.get_subjects_taught() if self.tutor else [],
+                'experience': self.tutor.experience_years if self.tutor else 0
+            },
+            'student_details': [
+                {
+                    'id': student.id,
+                    'name': getattr(student, 'full_name', 'Unknown'),
+                    'grade': getattr(student, 'grade', ''),
+                    'email': getattr(student, 'email', ''),
+                    'type': 'demo' if hasattr(student, 'demo_status') else 'regular'
+                }
+                for student in self.get_student_objects()
+            ],
+            'attendance_summary': self.get_attendance_summary(),
+            'quality_metrics': self.get_quality_metrics(),
+            'time_until_class': self.get_time_until_class_formatted() if self.is_upcoming() else None,
+            'can_be_started': self.can_be_started(),
+            'conflict_score': self.get_conflict_score(),
+            'preparation_checklist': self.get_preparation_checklist()
+        })
+        
+        return base_dict
+
+    # ============ CLASS INSTANCE METHODS ============
+
+    def __str__(self):
+        """String representation of the class"""
+        return f"{self.subject} - {self.scheduled_date} {self.scheduled_time} ({self.status})"
+
+    def __eq__(self, other):
+        """Check equality based on ID"""
+        if not isinstance(other, Class):
+            return False
+        return self.id == other.id
+
+    def __hash__(self):
+        """Hash method for set operations"""
+        return hash(self.id) if self.id else hash(id(self))
+
+    # ============ VALIDATION METHODS ============
+
+    def validate_scheduling(self):
+        """Validate class scheduling constraints"""
+        errors = []
+        
+        # Check if date is in the past
+        if self.scheduled_date < datetime.now().date():
+            errors.append("Cannot schedule classes in the past")
+        
+        # Check if time is reasonable (not too early or late)
+        if self.scheduled_time:
+            hour = self.scheduled_time.hour
+            if hour < 6 or hour > 23:
+                errors.append("Class time should be between 6:00 AM and 11:00 PM")
+        
+        # Check duration is reasonable
+        if self.duration < 15:
+            errors.append("Class duration must be at least 15 minutes")
+        elif self.duration > 480:  # 8 hours
+            errors.append("Class duration cannot exceed 8 hours")
+        
+        # Check tutor availability
+        if self.tutor_id:
+            conflict_exists, conflicting_class = self.check_time_conflict(
+                self.tutor_id, self.scheduled_date, self.scheduled_time, self.duration, self.id
+            )
+            if conflict_exists:
+                errors.append(f"Tutor has a conflicting class: {conflicting_class.subject}")
+        
+        return errors
+
+    def is_editable(self):
+        """Check if class can be edited"""
+        # Can't edit if class is in progress or completed
+        if self.status in ['ongoing', 'completed']:
+            return False
+        
+        # Can't edit if class is in the past
+        if self.is_past():
+            return False
+        
+        # Can't edit if class starts in less than 1 hour (emergency changes only)
+        if self.is_upcoming() and self.time_until_class().total_seconds() < 3600:
+            return False
+        
+        return True
+
+    def is_deletable(self):
+        """Check if class can be deleted"""
+        # Can't delete completed classes (for record keeping)
+        if self.status == 'completed':
+            return False
+        
+        # Can't delete if class has started
+        if self.actual_start_time:
+            return False
+        
+        return True
+    
+    

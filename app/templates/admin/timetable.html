@@ -1,16 +1,36 @@
 {% extends "base.html" %}
 
-{% block title %}Enhanced Class Scheduling & Timetable{% endblock %}
+{% block title %}Timetable Management{% endblock %}
 
 {% block extra_css %}
 <style>
-    /* Override base layout for full calendar view */
+    /* ============ MINIMAL COLOR PALETTE ============ */
+    :root {
+        --minimal-white: #ffffff;
+        --minimal-gray-50: #f9fafb;
+        --minimal-gray-100: #f3f4f6;
+        --minimal-gray-200: #e5e7eb;
+        --minimal-gray-300: #d1d5db;
+        --minimal-gray-400: #9ca3af;
+        --minimal-gray-500: #6b7280;
+        --minimal-gray-600: #4b5563;
+        --minimal-gray-700: #374151;
+        --minimal-gray-800: #1f2937;
+        --minimal-orange: var(--primary-color);
+        --minimal-orange-light: var(--primary-light);
+    }
+
+    /* ============ PERFECT LAYOUT ============ */
     .main-content {
         margin-left: var(--sidebar-width) !important;
         width: calc(100% - var(--sidebar-width)) !important;
         padding: 0 !important;
-        background: #f8fafc;
+        margin-top: 0 !important;
+        margin-right: 0 !important;
+        margin-bottom: 0 !important;
         min-height: 100vh;
+        background: var(--minimal-gray-50);
+        position: relative;
     }
 
     @media (max-width: 1024px) {
@@ -20,629 +40,306 @@
         }
     }
 
-    /* ============ ENHANCED HEADER ============ */
-    .calendar-header {
-        background: white;
-        border-bottom: 2px solid #e2e8f0;
+    .timetable-container {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 2rem;
+        display: flex;
+        flex-direction: column;
+        gap: 2rem;
+    }
+
+    /* ============ BOX COMPONENT ============ */
+    .box {
+        background: var(--minimal-white);
+        border-radius: 12px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        border: 1px solid var(--minimal-gray-200);
+        overflow: hidden;
+    }
+
+    .box-header {
         padding: 1.5rem 2rem;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        flex-wrap: wrap;
-        gap: 1rem;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        border-bottom: 1px solid var(--minimal-gray-200);
+        background: var(--minimal-gray-50);
     }
 
-    .header-left {
-        display: flex;
-        align-items: center;
-        gap: 1.5rem;
-    }
-
-    .header-title {
-        font-size: 1.5rem;
-        font-weight: 700;
-        color: var(--text-primary);
+    .box-title {
+        font-size: 1.125rem;
+        font-weight: 600;
+        color: var(--minimal-gray-800);
         margin: 0;
         display: flex;
         align-items: center;
         gap: 0.5rem;
     }
 
-    .header-title i {
-        color: var(--primary-color);
+    .box-content {
+        padding: 1.5rem 2rem;
     }
 
-    .date-navigation {
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
-        background: var(--bg-light);
-        padding: 0.5rem;
-        border-radius: 12px;
-        border: 1px solid var(--border-color);
-    }
-
-    .nav-btn {
-        background: white;
-        border: 1px solid var(--border-color);
-        color: var(--text-secondary);
-        padding: 0.5rem 0.75rem;
-        border-radius: 8px;
-        cursor: pointer;
-        transition: var(--transition);
-        font-size: 0.875rem;
-        display: flex;
-        align-items: center;
-        gap: 0.25rem;
-    }
-
-    .nav-btn:hover {
-        background: var(--primary-color);
-        color: white;
-        border-color: var(--primary-color);
-        transform: translateY(-1px);
-    }
-
-    .current-date {
-        font-size: 1rem;
-        font-weight: 600;
-        color: var(--text-primary);
-        min-width: 200px;
-        text-align: center;
-    }
-
-    .header-right {
-        display: flex;
-        align-items: center;
+    /* ============ SEARCH & FILTERS ============ */
+    .search-grid {
+        display: grid;
+        grid-template-columns: 2fr 1fr 1fr 1fr;
         gap: 1rem;
+        margin-bottom: 1.5rem;
     }
 
-    /* ============ ENHANCED VIEW TOGGLE ============ */
-    .view-toggle {
-        background: var(--bg-light);
-        border-radius: 12px;
-        padding: 0.25rem;
-        display: flex;
-        gap: 0.25rem;
-        border: 1px solid var(--border-color);
-    }
-
-    .view-btn {
-        padding: 0.75rem 1.25rem;
-        font-size: 0.875rem;
-        font-weight: 500;
-        border-radius: 8px;
-        border: none;
-        background: transparent;
-        color: var(--text-secondary);
-        cursor: pointer;
-        transition: var(--transition);
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-    }
-
-    .view-btn.active {
-        background: var(--primary-color);
-        color: white;
-        box-shadow: 0 2px 8px rgba(241, 161, 80, 0.3);
-    }
-
-    .view-btn:hover:not(.active) {
-        background: rgba(241, 161, 80, 0.1);
-        color: var(--primary-color);
-    }
-
-    /* ============ ENHANCED SEARCH & FILTERS ============ */
-    .search-filters {
-        background: white;
-        border-bottom: 1px solid var(--border-color);
-        padding: 1rem 2rem;
-        display: flex;
-        align-items: center;
-        gap: 1rem;
-        flex-wrap: wrap;
-    }
-
-    .search-group {
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
-        min-width: 300px;
-    }
-
-    .search-input {
-        flex: 1;
+    .search-input, .filter-select {
+        width: 100%;
         padding: 0.75rem 1rem;
-        border: 1px solid var(--border-color);
+        border: 1px solid var(--minimal-gray-300);
         border-radius: 8px;
         font-size: 0.875rem;
-        transition: var(--transition);
-        background: white;
+        background: var(--minimal-white);
+        transition: border-color 0.2s ease;
     }
 
-    .search-input:focus {
+    .search-input:focus, .filter-select:focus {
         outline: none;
-        border-color: var(--primary-color);
+        border-color: var(--minimal-orange);
         box-shadow: 0 0 0 3px rgba(241, 161, 80, 0.1);
     }
 
-    .filter-dropdown {
-        position: relative;
-        min-width: 150px;
-    }
-
-    .filter-btn {
-        padding: 0.75rem 1rem;
-        border: 1px solid var(--border-color);
-        border-radius: 8px;
-        background: white;
-        color: var(--text-secondary);
-        cursor: pointer;
+    .date-controls {
         display: flex;
         align-items: center;
-        justify-content: space-between;
-        gap: 0.5rem;
-        width: 100%;
+        gap: 1rem;
+        justify-content: center;
+    }
+
+    .date-nav-btn {
+        padding: 0.75rem 1rem;
+        background: var(--minimal-white);
+        border: 1px solid var(--minimal-gray-300);
+        border-radius: 8px;
+        color: var(--minimal-gray-600);
+        cursor: pointer;
+        transition: all 0.2s ease;
         font-size: 0.875rem;
-        transition: var(--transition);
     }
 
-    .filter-btn:hover {
-        border-color: var(--primary-color);
-        color: var(--primary-color);
+    .date-nav-btn:hover {
+        background: var(--minimal-gray-50);
+        border-color: var(--minimal-orange);
+        color: var(--minimal-orange);
     }
 
-    .filter-btn.active {
-        border-color: var(--primary-color);
-        background: rgba(241, 161, 80, 0.1);
-        color: var(--primary-color);
+    .current-date {
+        font-weight: 600;
+        color: var(--minimal-gray-800);
+        min-width: 200px;
+        text-align: center;
+        font-size: 1rem;
     }
 
+    /* ============ STATISTICS ============ */
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 1.5rem;
+        margin-bottom: 1rem;
+    }
+
+    .stat-card {
+        background: var(--minimal-white);
+        border: 1px solid var(--minimal-gray-200);
+        border-radius: 12px;
+        padding: 1.5rem;
+        text-align: center;
+        transition: all 0.2s ease;
+    }
+
+    .stat-card:hover {
+        border-color: var(--minimal-orange);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+
+    .stat-number {
+        font-size: 2rem;
+        font-weight: 700;
+        color: var(--minimal-gray-800);
+        margin: 0 0 0.5rem 0;
+    }
+
+    .stat-label {
+        font-size: 0.875rem;
+        color: var(--minimal-gray-600);
+        margin: 0;
+    }
+
+    .stat-card.total { border-left: 4px solid var(--minimal-orange); }
+    .stat-card.scheduled { border-left: 4px solid #3b82f6; }
+    .stat-card.completed { border-left: 4px solid #10b981; }
+    .stat-card.cancelled { border-left: 4px solid #ef4444; }
+
+    /* ============ ACTION BUTTONS ============ */
     .action-buttons {
         display: flex;
-        gap: 0.75rem;
-        margin-left: auto;
+        justify-content: center;
+        gap: 1rem;
+        margin-top: 1.5rem;
+        flex-wrap: wrap;
     }
 
-    .btn {
-        padding: 0.75rem 1.25rem;
+    .action-btn {
+        padding: 0.75rem 1.5rem;
+        background: var(--minimal-white);
+        border: 1px solid var(--minimal-gray-300);
         border-radius: 8px;
-        border: none;
-        font-size: 0.875rem;
-        font-weight: 500;
+        color: var(--minimal-gray-600);
         cursor: pointer;
-        transition: var(--transition);
+        transition: all 0.2s ease;
+        font-size: 0.875rem;
         display: flex;
         align-items: center;
         gap: 0.5rem;
         text-decoration: none;
     }
 
-    .btn-primary {
-        background: var(--primary-color);
+    .action-btn:hover {
+        background: var(--minimal-orange);
         color: white;
+        border-color: var(--minimal-orange);
+        transform: translateY(-1px);
     }
 
-    .btn-primary:hover {
-        background: var(--primary-dark);
-        transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(241, 161, 80, 0.3);
-    }
-
-    .btn-secondary {
-        background: white;
-        color: var(--text-secondary);
-        border: 1px solid var(--border-color);
-    }
-
-    .btn-secondary:hover {
-        background: var(--bg-light);
-        border-color: var(--primary-color);
-        color: var(--primary-color);
-    }
-
-    .btn-secondary.active {
-        background: var(--primary-color);
+    .action-btn.export {
+        background: #10b981;
         color: white;
-        border-color: var(--primary-color);
+        border-color: #10b981;
     }
 
-    /* ============ ENHANCED CALENDAR LAYOUT ============ */
-    .calendar-layout {
-        display: flex;
-        height: calc(100vh - 180px);
+    .action-btn.export:hover {
+        background: #059669;
+        border-color: #059669;
     }
 
-    .sidebar-panel {
-        width: 300px;
-        background: white;
-        border-right: 1px solid var(--border-color);
-        overflow-y: auto;
-        flex-shrink: 0;
-    }
-
-    .calendar-main {
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-        overflow: hidden;
-        padding: 0 2rem;
-        background: white;
-    }
-
-    .calendar-grid {
-        flex: 1;
-        overflow: auto;
-        position: relative;
-    }
-
-    /* ============ 24-HOUR WEEKLY VIEW ============ */
-    .weekly-view {
-        display: grid;
-        grid-template-columns: 80px 1fr;
-        height: 100%;
-        min-height: 1200px; /* 24 hours * 50px per hour */
-    }
-
-    .time-column {
-        background: #f8fafc;
-        border-right: 2px solid var(--border-color);
-        position: sticky;
-        left: 0;
-        z-index: 2;
+    /* ============ TIMETABLE DISPLAY ============ */
+    .timetable-display {
+        min-height: 400px;
     }
 
     .time-slot {
-        height: 50px; /* Each hour = 50px */
-        border-bottom: 1px solid #e2e8f0;
+        display: flex;
+        border-bottom: 1px solid var(--minimal-gray-200);
+        min-height: 70px;
+        align-items: stretch;
+    }
+
+    .time-slot:last-child {
+        border-bottom: none;
+    }
+
+    .time-label {
+        width: 120px;
+        background: var(--minimal-gray-50);
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 0.75rem;
-        font-weight: 500;
-        color: var(--text-secondary);
-        position: relative;
-    }
-
-    .time-slot:nth-child(even) {
-        background: rgba(248, 250, 252, 0.5);
-    }
-
-    .day-columns {
-        display: grid;
-        grid-template-columns: repeat(7, 1fr);
-        grid-template-rows: 60px 1fr;
-    }
-
-    .day-header {
-        background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
-        color: white;
-        border-bottom: 2px solid var(--primary-dark);
-        border-right: 1px solid rgba(255,255,255,0.2);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        flex-direction: column;
-        gap: 0.25rem;
-        font-weight: 600;
-        position: sticky;
-        top: 0;
-        z-index: 1;
-    }
-
-    .day-header.today {
-        background: linear-gradient(135deg, var(--primary-dark), var(--primary-color));
-        box-shadow: inset 0 0 0 2px rgba(255,255,255,0.3);
-    }
-
-    .day-name {
         font-size: 0.875rem;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
+        font-weight: 600;
+        color: var(--minimal-gray-600);
+        border-right: 1px solid var(--minimal-gray-200);
+        flex-shrink: 0;
     }
 
-    .day-date {
-        font-size: 1.25rem;
-        font-weight: 700;
-    }
-
-    .day-column {
-        border-right: 1px solid var(--border-color);
-        position: relative;
-        min-height: 1200px; /* 24 hours * 50px */
-    }
-
-    .day-column:last-child {
-        border-right: none;
-    }
-
-    /* ============ ENHANCED CLASS BLOCKS ============ */
-    .class-block {
-        position: absolute;
-        left: 2px;
-        right: 2px;
-        z-index: 1;
-        cursor: pointer;
-        transition: var(--transition);
-        border-radius: 6px;
-        overflow: hidden;
-        font-size: 0.75rem;
-        line-height: 1.3;
-        border: 2px solid rgba(255,255,255,0.9);
-        padding: 4px 6px;
-        color: white;
-    }
-
-    .class-block:hover {
-        transform: scale(1.02);
-        z-index: 10;
-        box-shadow: 0 8px 25px rgba(0,0,0,0.15);
-    }
-
-    .class-single {
-        background: var(--primary-color);
-        color: white;
-        padding: 8px;
-    }
-
-    .class-conflict {
-        border-left: 4px solid #fff;
-        padding: 4px 6px;
-    }
-
-    .status-scheduled { background: var(--primary-color); }
-    .status-ongoing { background: var(--success-color); }
-    .status-completed { background: var(--info-color); }
-    .status-cancelled { background: var(--danger-color); }
-
-    .conflict-container {
-        position: absolute;
-        left: 2px;
-        right: 2px;
+    .time-content {
+        flex: 1;
+        padding: 1rem;
         display: flex;
-        gap: 1px;
-        height: 100%;
-        padding: 2px;
+        align-items: center;
+        gap: 1rem;
+        flex-wrap: wrap;
+        min-height: 70px;
+    }
+
+    .class-item {
+        background: linear-gradient(135deg, var(--minimal-orange), var(--minimal-orange-light));
+        border: 1px solid var(--minimal-gray-300);
+        border-radius: 8px;
+        padding: 0.75rem 1rem;
+        font-size: 0.875rem;
+        color: white;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        position: relative;
+        min-width: 200px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .class-item:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     }
 
     .class-subject {
         font-weight: 600;
         display: block;
+        margin-bottom: 0.25rem;
+        font-size: 0.9rem;
     }
 
     .class-tutor {
-        font-size: 9px;
+        font-size: 0.75rem;
         opacity: 0.9;
+        display: block;
     }
 
-    .conflict-indicator {
-        position: absolute;
-        top: 2px;
-        right: 2px;
-        width: 6px;
-        height: 6px;
-        background: #fff;
-        border-radius: 50%;
+    .class-students {
+        font-size: 0.7rem;
         opacity: 0.8;
+        display: block;
+        margin-top: 0.25rem;
     }
 
-    /* ============ MONTHLY VIEW STYLES ============ */
-    .monthly-calendar {
-        padding: 1rem;
-        height: 100%;
-    }
-
-    .month-header {
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        margin-bottom: 1rem;
-        padding: 1rem;
-        background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
-        border-radius: 12px;
-        color: white;
-    }
-
-    .month-nav {
-        display: flex;
-        align-items: center;
-        gap: 2rem;
-    }
-
-    .month-title {
-        margin: 0;
-        font-size: 1.5rem;
-        font-weight: 600;
-        min-width: 200px;
-        text-align: center;
-    }
-
-    .calendar-grid-monthly {
-        display: grid;
-        grid-template-columns: repeat(7, 1fr);
-        gap: 1px;
-        background: var(--border-color);
-        border-radius: 8px;
-        overflow: hidden;
-        height: calc(100% - 120px);
-    }
-
-    .day-header-monthly {
-        background: var(--bg-light);
-        padding: 1rem;
-        text-align: center;
-        font-weight: 600;
-        color: var(--text-secondary);
+    .empty-slot {
+        color: var(--minimal-gray-400);
+        font-style: italic;
         font-size: 0.875rem;
     }
 
-    .calendar-cell {
-        background: white;
-        min-height: 120px;
-        padding: 0.5rem;
+    /* ============ MONTHLY OVERVIEW ============ */
+    .month-grid {
+        display: grid;
+        grid-template-columns: repeat(6, 1fr);
+        gap: 1rem;
+    }
+
+    .month-card {
+        background: var(--minimal-white);
+        border: 1px solid var(--minimal-gray-200);
+        border-radius: 8px;
+        padding: 1rem;
+        text-align: center;
         cursor: pointer;
         transition: all 0.2s ease;
-        display: flex;
-        flex-direction: column;
     }
 
-    .calendar-cell:hover {
-        background: var(--bg-light);
+    .month-card:hover {
+        border-color: var(--minimal-orange);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        transform: translateY(-1px);
     }
 
-    .calendar-cell.today {
-        background: rgba(241, 161, 80, 0.1);
-        border: 2px solid var(--primary-color);
-    }
-
-    .calendar-cell.other-month {
-        background: #f8f9fa;
-        color: var(--text-muted);
-    }
-
-    .calendar-cell.other-month .cell-date {
-        opacity: 0.5;
-    }
-
-    .cell-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
+    .month-name {
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: var(--minimal-gray-700);
         margin-bottom: 0.5rem;
     }
 
-    .cell-date {
-        font-weight: 600;
-        font-size: 1rem;
-    }
-
-    .class-count {
-        background: var(--primary-color);
-        color: white;
-        border-radius: 50%;
-        width: 20px;
-        height: 20px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 0.75rem;
-        font-weight: 600;
-    }
-
-    .cell-content {
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-        gap: 2px;
-        overflow: hidden;
-    }
-
-    .monthly-class-item {
-        padding: 4px 6px;
-        border-radius: 4px;
-        font-size: 0.75rem;
-        cursor: pointer;
-        transition: all 0.2s ease;
-        display: flex;
-        flex-direction: column;
-        border-left: 3px solid transparent;
-    }
-
-    .monthly-class-item:hover {
-        transform: scale(1.02);
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    }
-
-    .monthly-class-item.status-scheduled {
-        background: rgba(241, 161, 80, 0.1);
-        border-left-color: var(--primary-color);
-    }
-
-    .monthly-class-item.status-ongoing {
-        background: rgba(40, 167, 69, 0.1);
-        border-left-color: var(--success-color);
-    }
-
-    .monthly-class-item.status-completed {
-        background: rgba(23, 162, 184, 0.1);
-        border-left-color: var(--info-color);
-    }
-
-    .monthly-class-item.status-cancelled {
-        background: rgba(220, 53, 69, 0.1);
-        border-left-color: var(--danger-color);
-    }
-
-    .class-time {
-        font-weight: 600;
-        color: var(--text-primary);
-    }
-
-    .more-classes-indicator {
-        padding: 4px 6px;
-        background: var(--bg-light);
-        border-radius: 4px;
-        font-size: 0.75rem;
-        color: var(--text-secondary);
-        cursor: pointer;
-        text-align: center;
-        margin-top: 2px;
-    }
-
-    .more-classes-indicator:hover {
-        background: var(--primary-color);
-        color: white;
-    }
-
-    /* ============ SIDEBAR COMPONENTS ============ */
-    .sidebar-section {
-        padding: 1.5rem;
-        border-bottom: 1px solid var(--border-color);
-    }
-
-    .sidebar-title {
-        font-size: 1rem;
-        font-weight: 600;
-        color: var(--text-primary);
-        margin: 0 0 1rem 0;
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-    }
-
-    .sidebar-title i {
-        color: var(--primary-color);
-    }
-
-    .stats-grid {
-        display: grid;
-        grid-template-columns: repeat(2, 1fr);
-        gap: 0.75rem;
-    }
-
-    .stat-card {
-        background: var(--bg-light);
-        padding: 1rem;
-        border-radius: 8px;
-        text-align: center;
-        border: 1px solid var(--border-color);
-    }
-
-    .stat-value {
+    .month-count {
         font-size: 1.5rem;
         font-weight: 700;
-        color: var(--primary-color);
-        margin: 0;
+        color: var(--minimal-gray-800);
+        margin-bottom: 0.25rem;
     }
 
-    .stat-label {
+    .month-label {
         font-size: 0.75rem;
-        color: var(--text-secondary);
-        margin: 0.25rem 0 0 0;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
+        color: var(--minimal-gray-500);
     }
 
     /* ============ MODAL STYLES ============ */
@@ -652,8 +349,8 @@
         left: 0;
         right: 0;
         bottom: 0;
-        background: rgba(0, 0, 0, 0.6);
-        display: flex;
+        background: rgba(0, 0, 0, 0.5);
+        display: none;
         align-items: center;
         justify-content: center;
         z-index: 1000;
@@ -661,34 +358,27 @@
     }
 
     .modal-content {
-        background: white;
-        border-radius: 16px;
-        padding: 2rem;
+        background: var(--minimal-white);
+        border-radius: 12px;
         max-width: 600px;
         width: 100%;
-        max-height: 90vh;
+        max-height: 80vh;
         overflow-y: auto;
-        box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-    }
-
-    .large-modal {
-        max-width: 900px;
-        max-height: 90vh;
+        box-shadow: 0 20px 25px rgba(0, 0, 0, 0.1);
     }
 
     .modal-header {
+        padding: 1.5rem 2rem;
+        border-bottom: 1px solid var(--minimal-gray-200);
         display: flex;
-        align-items: center;
         justify-content: space-between;
-        margin-bottom: 2rem;
-        padding-bottom: 1rem;
-        border-bottom: 1px solid var(--border-color);
+        align-items: center;
     }
 
     .modal-title {
-        font-size: 1.25rem;
+        font-size: 1.125rem;
         font-weight: 600;
-        color: var(--text-primary);
+        color: var(--minimal-gray-800);
         margin: 0;
     }
 
@@ -696,270 +386,72 @@
         background: none;
         border: none;
         font-size: 1.5rem;
-        color: var(--text-secondary);
+        color: var(--minimal-gray-400);
         cursor: pointer;
         padding: 0.25rem;
-        border-radius: 50%;
-        transition: var(--transition);
+        border-radius: 4px;
+        transition: color 0.2s ease;
     }
 
     .modal-close:hover {
-        background: var(--bg-light);
-        color: var(--text-primary);
+        color: var(--minimal-gray-600);
     }
 
-    .form-grid {
-        display: grid;
-        grid-template-columns: repeat(2, 1fr);
-        gap: 1rem;
+    .modal-body {
+        padding: 1.5rem 2rem;
     }
 
-    .form-group {
-        margin-bottom: 1.5rem;
-    }
-
-    .form-group.full-width {
-        grid-column: 1 / -1;
-    }
-
-    .form-label {
-        display: block;
-        margin-bottom: 0.5rem;
-        font-weight: 500;
-        color: var(--text-primary);
-        font-size: 0.875rem;
-    }
-
-    .form-input, .form-select {
-        width: 100%;
-        padding: 0.75rem;
-        border: 1px solid var(--border-color);
-        border-radius: 8px;
-        font-size: 0.875rem;
-        transition: var(--transition);
-        background: white;
-    }
-
-    .form-input:focus, .form-select:focus {
-        outline: none;
-        border-color: var(--primary-color);
-        box-shadow: 0 0 0 3px rgba(241, 161, 80, 0.1);
-    }
-
-    .form-actions {
+    .detail-row {
         display: flex;
-        justify-content: flex-end;
-        gap: 1rem;
-        margin-top: 2rem;
-        padding-top: 1rem;
-        border-top: 1px solid var(--border-color);
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.75rem 0;
+        border-bottom: 1px solid var(--minimal-gray-200);
     }
 
-    /* ============ SEND TIMETABLE FEATURE ============ */
-    .send-timetable-section {
-        background: linear-gradient(135deg, rgba(241, 161, 80, 0.1), rgba(241, 161, 80, 0.05));
-        border: 1px solid rgba(241, 161, 80, 0.2);
-        border-radius: 12px;
-        padding: 1.5rem;
-        margin-top: 1rem;
+    .detail-row:last-child {
+        border-bottom: none;
     }
 
-    .send-options {
-        display: grid;
-        grid-template-columns: repeat(2, 1fr);
-        gap: 0.75rem;
-        margin-top: 1rem;
+    .detail-label {
+        font-weight: 600;
+        color: var(--minimal-gray-700);
     }
 
-    .send-btn {
-        padding: 0.75rem 1rem;
-        border: 1px solid var(--primary-color);
-        border-radius: 8px;
-        background: white;
-        color: var(--primary-color);
-        cursor: pointer;
-        transition: var(--transition);
-        text-align: center;
-        font-size: 0.875rem;
-        font-weight: 500;
+    .detail-value {
+        color: var(--minimal-gray-600);
+    }
+
+    .status-badge {
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+
+    .status-scheduled { background: #dbeafe; color: #1e40af; }
+    .status-ongoing { background: #dcfce7; color: #166534; }
+    .status-completed { background: #f3e8ff; color: #7c3aed; }
+    .status-cancelled { background: #fee2e2; color: #dc2626; }
+
+    /* ============ LOADING SPINNER ============ */
+    .loading {
         display: flex;
         align-items: center;
         justify-content: center;
-        gap: 0.5rem;
-    }
-
-    .send-btn:hover {
-        background: var(--primary-color);
-        color: white;
-        transform: translateY(-1px);
-    }
-
-    /* ============ BULK OPERATIONS ============ */
-    .bulk-actions-toolbar {
-        position: fixed;
-        bottom: 20px;
-        left: 50%;
-        transform: translateX(-50%);
-        background: white;
-        border: 1px solid var(--border-color);
-        border-radius: 12px;
-        padding: 1rem 1.5rem;
-        box-shadow: 0 8px 25px rgba(0,0,0,0.15);
-        z-index: 1000;
-        min-width: 600px;
-    }
-
-    .bulk-actions-content {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 1rem;
-    }
-
-    .bulk-selection-info {
-        font-weight: 600;
-        color: var(--primary-color);
-    }
-
-    .bulk-actions-buttons {
-        display: flex;
-        gap: 0.75rem;
-    }
-
-    .bulk-action-btn:disabled {
-        opacity: 0.5;
-        cursor: not-allowed;
-    }
-
-    .class-block.selected {
-        border: 3px solid var(--primary-color) !important;
-        box-shadow: 0 0 0 2px rgba(241, 161, 80, 0.3) !important;
-    }
-
-    /* ============ DRAG & DROP STYLES ============ */
-    .drop-zone {
-        transition: all 0.2s ease;
-        border: 2px dashed transparent;
-    }
-
-    .drop-zone:hover {
-        border-color: var(--primary-color);
-        background: rgba(241, 161, 80, 0.1);
-    }
-
-    .drop-zone-active {
-        border-color: var(--primary-color) !important;
-        background: rgba(241, 161, 80, 0.2) !important;
-    }
-
-    .class-block[draggable="true"] {
-        border: 2px solid rgba(241, 161, 80, 0.5);
-        cursor: move;
-    }
-
-    .class-block[draggable="true"]:hover {
-        transform: scale(1.05);
-        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-    }
-
-    /* ============ ADVANCED FILTERS ============ */
-    .filter-sections {
-        display: grid;
-        grid-template-columns: repeat(2, 1fr);
-        gap: 2rem;
-        max-height: 60vh;
-        overflow-y: auto;
-    }
-
-    .filter-section {
-        background: var(--bg-light);
-        padding: 1.5rem;
-        border-radius: 8px;
-    }
-
-    .filter-section-title {
-        margin: 0 0 1rem 0;
-        font-size: 1rem;
-        font-weight: 600;
-        color: var(--text-primary);
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-    }
-
-    .filter-section-title i {
-        color: var(--primary-color);
-    }
-
-    .multi-select-container {
-        max-height: 200px;
-        overflow-y: auto;
-    }
-
-    .search-box {
-        margin-bottom: 0.75rem;
-    }
-
-    .search-box input {
-        width: 100%;
-        padding: 0.5rem;
-        border: 1px solid var(--border-color);
-        border-radius: 4px;
-        font-size: 0.875rem;
-    }
-
-    .checkbox-list {
-        display: flex;
-        flex-direction: column;
-        gap: 0.5rem;
-        max-height: 150px;
-        overflow-y: auto;
-    }
-
-    .checkbox-item {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        padding: 0.5rem;
-        cursor: pointer;
-        border-radius: 4px;
-        transition: background-color 0.2s;
-    }
-
-    .checkbox-item:hover {
-        background: rgba(241, 161, 80, 0.1);
-    }
-
-    .checkbox-item input[type="checkbox"] {
-        margin: 0;
-    }
-
-    .item-subtitle {
-        color: var(--text-secondary);
-        font-size: 0.75rem;
-        margin-left: auto;
-    }
-
-    /* ============ LOADING STATES ============ */
-    .loading-indicator {
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        display: none;
-        flex-direction: column;
-        align-items: center;
-        gap: 1rem;
-        color: var(--text-secondary);
+        padding: 3rem;
+        color: var(--minimal-gray-500);
     }
 
     .spinner {
-        width: 40px;
-        height: 40px;
-        border: 3px solid var(--border-color);
-        border-top: 3px solid var(--primary-color);
+        width: 32px;
+        height: 32px;
+        border: 3px solid var(--minimal-gray-300);
+        border-top: 3px solid var(--minimal-orange);
         border-radius: 50%;
         animation: spin 1s linear infinite;
+        margin-right: 1rem;
     }
 
     @keyframes spin {
@@ -967,762 +459,351 @@
         100% { transform: rotate(360deg); }
     }
 
-    /* ============ RESPONSIVE DESIGN ============ */
-    @media (max-width: 768px) {
-        .calendar-header {
-            padding: 1rem;
-            flex-direction: column;
-            align-items: stretch;
-        }
-
-        .search-filters {
-            padding: 1rem;
-            flex-direction: column;
-            gap: 1rem;
-        }
-
-        .calendar-layout {
-            flex-direction: column;
-            height: auto;
-        }
-
-        .sidebar-panel {
-            width: 100%;
-            order: 2;
-        }
-
-        .calendar-main {
-            order: 1;
-            min-height: 600px;
-        }
-
-        .weekly-view {
-            grid-template-columns: 60px 1fr;
-        }
-
-        .day-columns {
-            grid-template-columns: repeat(7, minmax(100px, 1fr));
-        }
-
-        .bulk-actions-toolbar {
-            left: 10px;
-            right: 10px;
-            transform: none;
-            min-width: auto;
-        }
-
-        .filter-sections {
-            grid-template-columns: 1fr;
-        }
+    /* ============ NOTIFICATIONS ============ */
+    .notification {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: var(--minimal-white);
+        border: 1px solid var(--minimal-gray-200);
+        border-radius: 8px;
+        padding: 1rem 1.5rem;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        z-index: 1001;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        max-width: 400px;
+        animation: slideIn 0.3s ease-out;
     }
 
-    /* ============ ALERT ANIMATIONS ============ */
+    .notification.success { border-left: 4px solid #10b981; }
+    .notification.error { border-left: 4px solid #ef4444; }
+    .notification.info { border-left: 4px solid var(--minimal-orange); }
+
     @keyframes slideIn {
         from { transform: translateX(100%); opacity: 0; }
         to { transform: translateX(0); opacity: 1; }
     }
-    @keyframes slideOut {
-        from { transform: translateX(0); opacity: 1; }
-        to { transform: translateX(100%); opacity: 0; }
-    }
-    
-    .custom-alert {
-        position: fixed;
-        top: 20px;
-        right: 20px;
-        z-index: 9999;
-        padding: 1rem;
-        border-radius: 8px;
-        min-width: 300px;
-        max-width: 500px;
-        animation: slideIn 0.3s ease-out;
-        font-family: Inter, sans-serif;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-    }
-    
-    .custom-alert .alert-content {
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
-    }
-    
-    .custom-alert .alert-close {
-        background: none;
-        border: none;
-        color: inherit;
-        cursor: pointer;
-        padding: 0.25rem;
-        margin-left: auto;
+
+    /* ============ RESPONSIVE DESIGN ============ */
+    @media (max-width: 1024px) {
+        .search-grid {
+            grid-template-columns: 1fr 1fr;
+        }
+        
+        .stats-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+        
+        .month-grid {
+            grid-template-columns: repeat(3, 1fr);
+        }
     }
 
-    /* ============ STATUS BADGES ============ */
-    .status-badge {
-        padding: 0.25rem 0.5rem;
-        border-radius: 4px;
-        font-size: 0.75rem;
-        font-weight: 500;
-        text-transform: uppercase;
-    }
-
-    .status-badge.status-scheduled {
-        background: var(--primary-color);
-        color: white;
-    }
-
-    .status-badge.status-ongoing {
-        background: var(--success-color);
-        color: white;
-    }
-
-    .status-badge.status-completed {
-        background: var(--info-color);
-        color: white;
-    }
-
-    .status-badge.status-cancelled {
-        background: var(--danger-color);
-        color: white;
-    }
-
-    /* ============ UTILITY CLASSES ============ */
-    .alert {
-        padding: 1rem;
-        border-radius: 8px;
-        margin-bottom: 1rem;
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-    }
-
-    .alert-warning {
-        background: #fff3cd;
-        border: 1px solid #ffeaa7;
-        color: #856404;
-    }
-
-    .alert-info {
-        background: #d1ecf1;
-        border: 1px solid #bee5eb;
-        color: #0c5460;
-    }
-
-    .alert-success {
-        background: #d4edda;
-        border: 1px solid #c3e6cb;
-        color: #155724;
-    }
-
-    .alert-danger {
-        background: #f8d7da;
-        border: 1px solid #f5c6cb;
-        color: #721c24;
-    }
-
-    .form-help {
-        color: var(--text-secondary);
-        font-size: 0.75rem;
-        margin-top: 0.25rem;
-    }
-
-    .text-center {
-        text-align: center;
-    }
-
-    .d-flex {
-        display: flex;
-    }
-
-    .align-items-center {
-        align-items: center;
-    }
-
-    .justify-content-between {
-        justify-content: space-between;
-    }
-
-    .gap-1 {
-        gap: 0.25rem;
-    }
-
-    .gap-2 {
-        gap: 0.5rem;
-    }
-
-    .gap-3 {
-        gap: 0.75rem;
-    }
-
-    .gap-4 {
-        gap: 1rem;
+    @media (max-width: 768px) {
+        .timetable-container {
+            padding: 1rem;
+            gap: 1.5rem;
+        }
+        
+        .search-grid {
+            grid-template-columns: 1fr;
+        }
+        
+        .stats-grid {
+            grid-template-columns: 1fr;
+        }
+        
+        .month-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+        
+        .time-slot {
+            flex-direction: column;
+        }
+        
+        .time-label {
+            width: 100%;
+            padding: 0.5rem;
+            border-right: none;
+            border-bottom: 1px solid var(--minimal-gray-200);
+        }
+        
+        .action-buttons {
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        .action-btn {
+            width: 100%;
+            justify-content: center;
+        }
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="main-content">
-    <!-- Enhanced Header -->
-    <div class="calendar-header">
-        <div class="header-left">
-            <h1 class="header-title">
-                <i class="fas fa-calendar-alt"></i>
-                Class Timetable
-            </h1>
-            <div class="date-navigation">
-                <button class="nav-btn" onclick="navigateWeek(-1)">
-                    <i class="fas fa-chevron-left"></i>
-                    Previous
-                </button>
-                <div class="current-date" id="currentMonth">
-                    Loading...
-                </div>
-                <button class="nav-btn" onclick="navigateWeek(1)">
-                    Next
-                    <i class="fas fa-chevron-right"></i>
-                </button>
-                <button class="nav-btn" onclick="goToToday()">
-                    <i class="fas fa-home"></i>
-                    Today
-                </button>
-            </div>
+<div class="timetable-container">
+    <!-- SEARCH & FILTERS -->
+    <div class="box">
+        <div class="box-header">
+            <h2 class="box-title">
+                <i class="fas fa-search"></i>
+                Search & Filter Timetable
+            </h2>
         </div>
-        
-        <div class="header-right">
-            <div class="view-toggle">
-                <button class="view-btn active" onclick="switchView('week')">
-                    <i class="fas fa-calendar-week"></i>
-                    Week
+        <div class="box-content">
+            <div class="search-grid">
+                <input type="text" class="search-input" placeholder="🔍 Search by subject, tutor, or student..." id="globalSearch">
+                
+                <select class="filter-select" id="tutorFilter">
+                    <option value="">🎓 All Tutors</option>
+                    {% for tutor in tutors %}
+                    <option value="{{ tutor.id }}">{{ tutor.user.full_name if tutor.user else 'Unknown' }}</option>
+                    {% endfor %}
+                </select>
+                
+                <select class="filter-select" id="studentFilter">
+                    <option value="">👨‍🎓 All Students</option>
+                    {% for student in students %}
+                    <option value="{{ student.id }}">{{ student.full_name }}</option>
+                    {% endfor %}
+                </select>
+                
+                <select class="filter-select" id="departmentFilter">
+                    <option value="">🏢 All Departments</option>
+                    {% for dept in departments %}
+                    <option value="{{ dept.id }}">{{ dept.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="date-controls">
+                <button class="date-nav-btn" onclick="navigateDay(-1)">
+                    <i class="fas fa-chevron-left"></i> Previous
                 </button>
-                <button class="view-btn" onclick="switchView('month')">
-                    <i class="fas fa-calendar"></i>
-                    Month
+                <span class="current-date" id="currentDate">Today</span>
+                <button class="date-nav-btn" onclick="navigateDay(1)">
+                    Next <i class="fas fa-chevron-right"></i>
                 </button>
-                <button class="view-btn" onclick="switchView('today')">
-                    <i class="fas fa-clock"></i>
-                    Today
+                <button class="date-nav-btn" onclick="goToToday()">
+                    <i class="fas fa-calendar-day"></i> Today
                 </button>
             </div>
         </div>
     </div>
 
-    <!-- Enhanced Search & Filters -->
-    <div class="search-filters">
-        <div class="search-group">
-            <input type="text" 
-                   id="globalSearch" 
-                   class="search-input" 
-                   placeholder="Search classes, tutors, or students...">
+    <!-- STATISTICS -->
+    <div class="box">
+        <div class="box-header">
+            <h2 class="box-title">
+                <i class="fas fa-chart-bar"></i>
+                Today's Statistics
+            </h2>
         </div>
-        
-        <div class="filter-dropdown">
-            <button class="filter-btn" id="tutorFilterBtn">
-                <span>All Tutors</span>
-                <i class="fas fa-chevron-down"></i>
-            </button>
-        </div>
-        
-        <div class="filter-dropdown">
-            <button class="filter-btn" id="studentFilterBtn">
-                <span>All Students</span>
-                <i class="fas fa-chevron-down"></i>
-            </button>
-        </div>
-        
-        <div class="filter-dropdown">
-            <button class="filter-btn" id="statusFilterBtn">
-                <span>All Status</span>
-                <i class="fas fa-chevron-down"></i>
-            </button>
-        </div>
-        
-        <div class="action-buttons">
-            <button class="btn btn-secondary" onclick="clearAllFilters()">
-                <i class="fas fa-times"></i>
-                Clear Filters
-            </button>
-            <button class="btn btn-secondary" id="rescheduleModeBtn" onclick="enableReschedulingMode()">
-                <i class="fas fa-calendar-alt"></i>
-                Reschedule Mode
-            </button>
-            <button class="btn btn-secondary" id="bulkSelectBtn" onclick="toggleBulkSelection()">
-                <i class="fas fa-check-square"></i>
-                Bulk Select
-            </button>
-            <button class="btn btn-secondary" onclick="openAdvancedFilters()">
-                <i class="fas fa-filter"></i>
-                Advanced Filters
-            </button>
-            <button class="btn btn-primary" onclick="openQuickClassModal()">
-                <i class="fas fa-plus"></i>
-                Add Class
-            </button>
+        <div class="box-content">
+            <div class="stats-grid">
+                <div class="stat-card total">
+                    <div class="stat-number" id="totalClasses">0</div>
+                    <div class="stat-label">Total Classes</div>
+                </div>
+                <div class="stat-card scheduled">
+                    <div class="stat-number" id="scheduledClasses">0</div>
+                    <div class="stat-label">Scheduled</div>
+                </div>
+                <div class="stat-card completed">
+                    <div class="stat-number" id="completedClasses">0</div>
+                    <div class="stat-label">Completed</div>
+                </div>
+                <div class="stat-card cancelled">
+                    <div class="stat-number" id="cancelledClasses">0</div>
+                    <div class="stat-label">Cancelled</div>
+                </div>
+            </div>
+            
+            <div class="action-buttons">
+                <button class="action-btn" onclick="sendTimetableEmail()">
+                    <i class="fas fa-envelope"></i>
+                    Send Email
+                </button>
+                <button class="action-btn" onclick="sendTimetableSMS()">
+                    <i class="fas fa-sms"></i>
+                    Send SMS
+                </button>
+                <a href="#" class="action-btn export" onclick="exportTimetablePDF(); return false;">
+                    <i class="fas fa-file-pdf"></i>
+                    Export PDF
+                </a>
+            </div>
         </div>
     </div>
 
-    <!-- Calendar Layout -->
-    <div class="calendar-layout">
-        <!-- Enhanced Sidebar -->
-        <div class="sidebar-panel">
-            <!-- Statistics -->
-            <div class="sidebar-section">
-                <h3 class="sidebar-title">
-                    <i class="fas fa-chart-line"></i>
-                    Today's Overview
-                </h3>
-                <div class="stats-grid">
-                    <div class="stat-card">
-                        <div class="stat-value" id="scheduledCount">0</div>
-                        <div class="stat-label">Scheduled</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-value" id="ongoingCount">0</div>
-                        <div class="stat-label">Ongoing</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-value" id="completedCount">0</div>
-                        <div class="stat-label">Completed</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-value" id="cancelledCount">0</div>
-                        <div class="stat-label">Cancelled</div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Send Timetable Feature -->
-            <div class="sidebar-section">
-                <h3 class="sidebar-title">
-                    <i class="fas fa-paper-plane"></i>
-                    Send Timetable
-                </h3>
-                <div class="send-timetable-section">
-                    <p style="margin: 0 0 1rem 0; color: var(--text-secondary); font-size: 0.875rem;">
-                        Send current timetable to tutors and students
-                    </p>
-                    <div class="send-options">
-                        <button class="send-btn" onclick="sendTimetable('email')">
-                            <i class="fas fa-envelope"></i>
-                            Email
-                        </button>
-                        <button class="send-btn" onclick="sendTimetable('pdf')">
-                            <i class="fas fa-file-pdf"></i>
-                            PDF
-                        </button>
-                        <button class="send-btn" onclick="sendTimetable('sms')">
-                            <i class="fas fa-sms"></i>
-                            SMS
-                        </button>
-                        <button class="send-btn" onclick="sendTimetable('whatsapp')">
-                            <i class="fab fa-whatsapp"></i>
-                            WhatsApp
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Quick Actions -->
-            <div class="sidebar-section">
-                <h3 class="sidebar-title">
-                    <i class="fas fa-bolt"></i>
-                    Quick Actions
-                </h3>
-                <div style="display: flex; flex-direction: column; gap: 0.75rem;">
-                    <button class="btn btn-primary" onclick="openQuickClassModal()">
-                        <i class="fas fa-plus"></i>
-                        Quick Add Class
-                    </button>
-                    <button class="btn btn-secondary" onclick="openBulkRescheduleModal()">
-                        <i class="fas fa-calendar-alt"></i>
-                        Bulk Reschedule
-                    </button>
-                    <button class="btn btn-secondary" onclick="exportTimetable()">
-                        <i class="fas fa-download"></i>
-                        Export Calendar
-                    </button>
+    <!-- DAILY TIMETABLE -->
+    <div class="box">
+        <div class="box-header">
+            <h2 class="box-title">
+                <i class="fas fa-calendar-day"></i>
+                Daily Timetable View
+            </h2>
+        </div>
+        <div class="box-content">
+            <div class="timetable-display" id="timetableContent">
+                <div class="loading">
+                    <div class="spinner"></div>
+                    Loading timetable data...
                 </div>
             </div>
         </div>
+    </div>
 
-        <!-- Main Calendar -->
-        <div class="calendar-main">
-            <div class="loading-indicator">
-                <div class="spinner"></div>
-                <div>Loading timetable...</div>
-            </div>
-
-            <!-- Weekly View -->
-            <div id="weeklyView" class="calendar-grid">
-                <div class="weekly-view">
-                    <!-- Time Column (24-hour) -->
-                    <div class="time-column" id="timeSlots">
-                        <!-- Generated by JavaScript -->
-                    </div>
-                    
-                    <!-- Day Columns -->
-                    <div class="day-columns">
-                        <!-- Day Headers -->
-                        <div class="day-header" data-day="0">
-                            <div class="day-name">Mon</div>
-                            <div class="day-date" id="day-0">1</div>
-                        </div>
-                        <div class="day-header" data-day="1">
-                            <div class="day-name">Tue</div>
-                            <div class="day-date" id="day-1">2</div>
-                        </div>
-                        <div class="day-header" data-day="2">
-                            <div class="day-name">Wed</div>
-                            <div class="day-date" id="day-2">3</div>
-                        </div>
-                        <div class="day-header" data-day="3">
-                            <div class="day-name">Thu</div>
-                            <div class="day-date" id="day-3">4</div>
-                        </div>
-                        <div class="day-header" data-day="4">
-                            <div class="day-name">Fri</div>
-                            <div class="day-date" id="day-4">5</div>
-                        </div>
-                        <div class="day-header" data-day="5">
-                            <div class="day-name">Sat</div>
-                            <div class="day-date" id="day-5">6</div>
-                        </div>
-                        <div class="day-header" data-day="6">
-                            <div class="day-name">Sun</div>
-                            <div class="day-date" id="day-6">7</div>
-                        </div>
-                        
-                        <!-- Day Content -->
-                        <div class="day-column" id="calendarGrid-0"></div>
-                        <div class="day-column" id="calendarGrid-1"></div>
-                        <div class="day-column" id="calendarGrid-2"></div>
-                        <div class="day-column" id="calendarGrid-3"></div>
-                        <div class="day-column" id="calendarGrid-4"></div>
-                        <div class="day-column" id="calendarGrid-5"></div>
-                        <div class="day-column" id="calendarGrid-6"></div>
-                    </div>
+    <!-- MONTHLY OVERVIEW -->
+    <div class="box">
+        <div class="box-header">
+            <h2 class="box-title">
+                <i class="fas fa-calendar"></i>
+                Monthly Overview - 2025
+            </h2>
+        </div>
+        <div class="box-content">
+            <div class="month-grid">
+                <div class="month-card" onclick="viewMonth(1, 'January')">
+                    <div class="month-name">January</div>
+                    <div class="month-count" id="jan-count">0</div>
+                    <div class="month-label">classes</div>
                 </div>
-            </div>
-
-            <!-- Monthly View -->
-            <div id="monthlyView" class="calendar-grid" style="display: none;">
-                <div id="monthlyCalendar">
-                    <!-- Generated by JavaScript -->
+                <div class="month-card" onclick="viewMonth(2, 'February')">
+                    <div class="month-name">February</div>
+                    <div class="month-count" id="feb-count">0</div>
+                    <div class="month-label">classes</div>
                 </div>
-            </div>
-
-            <!-- Daily View -->
-            <div id="dailyView" class="calendar-grid" style="display: none;">
-                <div id="dailyClasses">
-                    <!-- Generated by JavaScript -->
+                <div class="month-card" onclick="viewMonth(3, 'March')">
+                    <div class="month-name">March</div>
+                    <div class="month-count" id="mar-count">0</div>
+                    <div class="month-label">classes</div>
+                </div>
+                <div class="month-card" onclick="viewMonth(4, 'April')">
+                    <div class="month-name">April</div>
+                    <div class="month-count" id="apr-count">0</div>
+                    <div class="month-label">classes</div>
+                </div>
+                <div class="month-card" onclick="viewMonth(5, 'May')">
+                    <div class="month-name">May</div>
+                    <div class="month-count" id="may-count">0</div>
+                    <div class="month-label">classes</div>
+                </div>
+                <div class="month-card" onclick="viewMonth(6, 'June')">
+                    <div class="month-name">June</div>
+                    <div class="month-count" id="jun-count">0</div>
+                    <div class="month-label">classes</div>
+                </div>
+                <div class="month-card" onclick="viewMonth(7, 'July')">
+                    <div class="month-name">July</div>
+                    <div class="month-count" id="jul-count">0</div>
+                    <div class="month-label">classes</div>
+                </div>
+                <div class="month-card" onclick="viewMonth(8, 'August')">
+                    <div class="month-name">August</div>
+                    <div class="month-count" id="aug-count">0</div>
+                    <div class="month-label">classes</div>
+                </div>
+                <div class="month-card" onclick="viewMonth(9, 'September')">
+                    <div class="month-name">September</div>
+                    <div class="month-count" id="sep-count">0</div>
+                    <div class="month-label">classes</div>
+                </div>
+                <div class="month-card" onclick="viewMonth(10, 'October')">
+                    <div class="month-name">October</div>
+                    <div class="month-count" id="oct-count">0</div>
+                    <div class="month-label">classes</div>
+                </div>
+                <div class="month-card" onclick="viewMonth(11, 'November')">
+                    <div class="month-name">November</div>
+                    <div class="month-count" id="nov-count">0</div>
+                    <div class="month-label">classes</div>
+                </div>
+                <div class="month-card" onclick="viewMonth(12, 'December')">
+                    <div class="month-name">December</div>
+                    <div class="month-count" id="dec-count">0</div>
+                    <div class="month-label">classes</div>
                 </div>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Enhanced Quick Class Modal -->
-<div id="quickClassModal" class="modal-overlay" style="display: none;">
+<!-- CLASS DETAILS MODAL -->
+<div class="modal-overlay" id="classModal">
     <div class="modal-content">
         <div class="modal-header">
-            <h2 class="modal-title">Create New Class</h2>
-            <button class="modal-close" onclick="closeQuickClassModal()">
-                <i class="fas fa-times"></i>
-            </button>
+            <h3 class="modal-title" id="modalTitle">Class Details</h3>
+            <button class="modal-close" onclick="closeModal()">&times;</button>
         </div>
-
-        <form id="quickClassForm" onsubmit="createQuickClass(event)">
-            <div class="form-grid">
-                <!-- Subject -->
-                <div class="form-group">
-                    <label class="form-label">Subject *</label>
-                    <input type="text" name="subject" class="form-input" required 
-                           placeholder="e.g., Mathematics, Physics">
-                </div>
-
-                <!-- Class Type -->
-                <div class="form-group">
-                    <label class="form-label">Type *</label>
-                    <select name="class_type" class="form-select" required>
-                        <option value="">Select type</option>
-                        <option value="one_on_one">One-on-One</option>
-                        <option value="group">Group Class</option>
-                        <option value="demo">Demo Class</option>
-                        <option value="assessment">Assessment</option>
-                    </select>
-                </div>
-
-                <!-- Tutor -->
-                <div class="form-group">
-                    <label class="form-label">Tutor *</label>
-                    <select name="tutor_id" class="form-select" required>
-                        <option value="">Select tutor</option>
-                        {% for tutor in tutors %}
-                        <option value="{{ tutor.id }}">{{ tutor.user.full_name }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-
-                <!-- Grade -->
-                <div class="form-group">
-                    <label class="form-label">Grade</label>
-                    <select name="grade" class="form-select">
-                        <option value="">Select grade</option>
-                        <option value="6">Grade 6</option>
-                        <option value="7">Grade 7</option>
-                        <option value="8">Grade 8</option>
-                        <option value="9">Grade 9</option>
-                        <option value="10">Grade 10</option>
-                        <option value="11">Grade 11</option>
-                        <option value="12">Grade 12</option>
-                    </select>
-                </div>
-
-                <!-- Date -->
-                <div class="form-group">
-                    <label class="form-label">Date *</label>
-                    <input type="date" name="scheduled_date" class="form-input" required>
-                </div>
-
-                <!-- Time (24-hour) -->
-                <div class="form-group">
-                    <label class="form-label">Time * (24-hour format)</label>
-                    <input type="time" name="scheduled_time" class="form-input" required 
-                           step="1800" placeholder="HH:MM">
-                </div>
-
-                <!-- Duration -->
-                <div class="form-group">
-                    <label class="form-label">Duration (minutes)</label>
-                    <select name="duration" class="form-select">
-                        <option value="30">30 minutes</option>
-                        <option value="45">45 minutes</option>
-                        <option value="60" selected>60 minutes</option>
-                        <option value="90">90 minutes</option>
-                        <option value="120">120 minutes</option>
-                    </select>
-                </div>
-
-                <!-- Meeting Link -->
-                <div class="form-group">
-                    <label class="form-label">Meeting Link</label>
-                    <input type="url" name="meeting_link" class="form-input" 
-                           placeholder="https://zoom.us/j/...">
-                </div>
-
-                <!-- Notes -->
-                <div class="form-group full-width">
-                    <label class="form-label">Notes (Optional)</label>
-                    <textarea name="notes" class="form-input" rows="3" 
-                              placeholder="Additional notes about this class..."></textarea>
-                </div>
-            </div>
-
-            <div class="form-actions">
-                <button type="button" onclick="closeQuickClassModal()" class="btn btn-secondary">
-                    Cancel
-                </button>
-                <button type="submit" class="btn btn-primary">
-                    <i class="fas fa-plus"></i>
-                    Create Class
-                </button>
-            </div>
-        </form>
-    </div>
-</div>
-
-<!-- Class Details Modal -->
-<div id="classDetailsModal" class="modal-overlay" style="display: none;">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h2 class="modal-title">Class Details</h2>
-            <button class="modal-close" onclick="closeClassDetailsModal()">
-                <i class="fas fa-times"></i>
-            </button>
-        </div>
-
-        <div id="classDetailsContent">
-            <!-- Content loaded dynamically -->
+        <div class="modal-body" id="modalBody">
+            <!-- Class details will be populated here -->
         </div>
     </div>
 </div>
 
 <script>
-// ============ GLOBAL VARIABLES ============
-let currentDate = new Date();
-let currentView = 'week';
-let classesData = [];
-let searchFilters = {};
-let draggedClass = null;
-let reschedulingMode = false;
-let selectedClasses = new Set();
-
-// ============ INITIALIZATION ============
+// ============ COMPLETE WORKING TIMETABLE SYSTEM ============
 document.addEventListener('DOMContentLoaded', function() {
-    initializeCalendar();
+    console.log('🚀 Initializing Complete Timetable System...');
+    
+    initializeTimetable();
+    updateDateDisplay();
     loadTimetableData();
-    setupEventListeners();
-    initializeSearch();
+    loadMonthlyStats();
+    
+    // Add event listeners
+    document.getElementById('globalSearch').addEventListener('input', debounce(handleSearch, 500));
+    document.getElementById('tutorFilter').addEventListener('change', handleFilterChange);
+    document.getElementById('studentFilter').addEventListener('change', handleFilterChange);
+    document.getElementById('departmentFilter').addEventListener('change', handleFilterChange);
+    
+    // Auto-refresh every 5 minutes
+    setInterval(loadTimetableData, 300000);
 });
 
-function initializeCalendar() {
-    generateTimeSlots24Hour();
-    generateCalendarGrid24Hour();
-    updateDateDisplay();
-}
+// ============ GLOBAL VARIABLES ============
+let currentDate = new Date();
+let classesData = [];
+let searchFilters = {};
 
-function setupEventListeners() {
-    // Set default date to today
-    const dateInput = document.querySelector('[name="scheduled_date"]');
-    if (dateInput) {
-        dateInput.value = new Date().toISOString().split('T')[0];
-    }
+// ============ INITIALIZATION ============
+function initializeTimetable() {
+    console.log('Setting up timetable system...');
     
-    // Setup time input with 24-hour format
-    const timeInput = document.querySelector('[name="scheduled_time"]');
-    if (timeInput) {
-        timeInput.addEventListener('change', validateTimeInput);
-    }
-}
-
-function validateTimeInput(event) {
-    const timeValue = event.target.value;
-    const timePattern = /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/;
-    
-    if (timeValue && !timePattern.test(timeValue)) {
-        showAlert('Please enter a valid time in 24-hour format (HH:MM)', 'error');
-        event.target.focus();
-    }
-}
-
-// ============ 24-HOUR TIME SYSTEM ============
-function generateTimeSlots24Hour() {
-    const container = document.getElementById('timeSlots');
-    if (!container) return;
-    
-    const times = [];
-    
-    // Generate 24-hour time slots (every 30 minutes)
-    for (let hour = 0; hour < 24; hour++) {
-        for (let minute = 0; minute < 60; minute += 30) {
-            const timeString = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
-            times.push(`
-                <div class="time-slot" data-time="${timeString}">
-                    <div class="time-label">${timeString}</div>
-                </div>
-            `);
+    // Close modal when clicking outside
+    document.getElementById('classModal').addEventListener('click', function(e) {
+        if (e.target === this) {
+            closeModal();
         }
-    }
-    
-    container.innerHTML = times.join('');
-}
-
-function generateCalendarGrid24Hour() {
-    for (let day = 0; day < 7; day++) {
-        const container = document.getElementById(`calendarGrid-${day}`);
-        if (!container) continue;
-        
-        const slots = [];
-        // Generate 48 slots (24 hours × 2 slots per hour)
-        for (let hour = 0; hour < 24; hour++) {
-            for (let halfHour = 0; halfHour < 2; halfHour++) {
-                const minute = halfHour * 30;
-                const timeSlot = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
-                slots.push(`
-                    <div class="time-slot" 
-                         data-day="${day}" 
-                         data-hour="${hour}" 
-                         data-minute="${minute}"
-                         data-time="${timeSlot}"
-                         onclick="handleTimeSlotClick(${day}, '${timeSlot}')">
-                    </div>
-                `);
-            }
-        }
-        
-        container.innerHTML = slots.join('');
-    }
-}
-
-// ============ ENHANCED ERROR HANDLING ============
-function showAlert(message, type = 'info', duration = 5000) {
-    // Remove existing alerts
-    const existingAlerts = document.querySelectorAll('.custom-alert');
-    existingAlerts.forEach(alert => alert.remove());
-    
-    // Create new alert
-    const alert = document.createElement('div');
-    alert.className = `custom-alert alert-${type}`;
-    
-    const iconMap = {
-        'success': 'fa-check-circle',
-        'error': 'fa-exclamation-circle',
-        'warning': 'fa-exclamation-triangle',
-        'info': 'fa-info-circle'
-    };
-    
-    alert.innerHTML = `
-        <div class="alert-content">
-            <i class="fas ${iconMap[type] || 'fa-info-circle'}"></i>
-            <span class="alert-message">${message}</span>
-            <button class="alert-close" onclick="this.parentElement.parentElement.remove()">
-                <i class="fas fa-times"></i>
-            </button>
-        </div>
-    `;
-    
-    // Add styles
-    Object.assign(alert.style, {
-        position: 'fixed',
-        top: '20px',
-        right: '20px',
-        zIndex: '9999',
-        padding: '1rem',
-        borderRadius: '8px',
-        backgroundColor: getAlertColor(type),
-        color: type === 'warning' ? '#856404' : 'white',
-        boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-        minWidth: '300px',
-        maxWidth: '500px',
-        animation: 'slideIn 0.3s ease-out',
-        fontFamily: 'Inter, sans-serif'
     });
     
-    document.body.appendChild(alert);
-    
-    // Auto remove
-    if (duration > 0) {
-        setTimeout(() => {
-            if (alert.parentElement) {
-                alert.style.animation = 'slideOut 0.3s ease-in';
-                setTimeout(() => alert.remove(), 300);
-            }
-        }, duration);
-    }
-}
-
-function getAlertColor(type) {
-    const colors = {
-        'success': '#28a745',
-        'error': '#dc3545',
-        'warning': '#ffc107',
-        'info': '#17a2b8'
-    };
-    return colors[type] || colors.info;
+    console.log('✅ Timetable system initialized');
 }
 
 // ============ DATA LOADING ============
 async function loadTimetableData() {
+    console.log('📊 Loading timetable data...');
+    showLoading(true);
+    
     try {
-        showLoading(true);
-        
-        const endpoint = getApiEndpoint();
+        const endpoint = '/admin/api/v1/timetable/today';
         const params = new URLSearchParams({
             date: currentDate.toISOString().split('T')[0],
-            filter_type: searchFilters.type || 'all',
-            filter_value: searchFilters.value || ''
+            ...searchFilters
         });
         
-        console.log('Loading timetable data:', `${endpoint}?${params}`);
+        console.log(`🔗 API Call: ${endpoint}?${params}`);
         
-        const response = await fetch(`${endpoint}?${params}`);
+        const response = await fetch(`${endpoint}?${params}`, {
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCSRFToken()
+            }
+        });
         
         if (!response.ok) {
             throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -1732,364 +813,276 @@ async function loadTimetableData() {
         
         if (data.success) {
             classesData = data.classes || [];
-            updateStats(data.stats || {});
-            renderClasses();
-            console.log(`Loaded ${classesData.length} classes for ${currentView} view`);
+            updateStats(data.stats);
+            renderTimetable();
+            console.log(`✅ Loaded ${classesData.length} classes successfully`);
         } else {
-            throw new Error(data.error || 'Unknown API error');
+            throw new Error(data.error || 'API returned error');
         }
+        
     } catch (error) {
-        console.error('Error loading timetable:', error);
-        showAlert(`Failed to load timetable: ${error.message}`, 'error');
-        renderEmptyState();
+        console.error('❌ Error loading timetable:', error);
+        showNotification('Failed to load timetable data. Please try again.', 'error');
+        
+        // Show empty state
+        classesData = [];
+        updateStats({total_classes: 0, today: {scheduled: 0, ongoing: 0, completed: 0, cancelled: 0}});
+        renderEmptyTimetable();
     } finally {
         showLoading(false);
     }
 }
 
-function getApiEndpoint() {
-    const endpoints = {
-        today:  '/admin/api/v1/timetable/today',
-        week:   '/admin/api/v1/timetable/week',
-        month:  '/admin/api/v1/timetable/month'
-    };
-    return endpoints[currentView] || endpoints.week;
-}
-
-// ============ CONFLICT RESOLUTION RENDERING ============
-function renderClasses() {
-    // Clear existing classes
-    document.querySelectorAll('.class-block').forEach(el => el.remove());
+// ============ RENDER TIMETABLE ============
+function renderTimetable() {
+    const container = document.getElementById('timetableContent');
     
-    if (currentView === 'week') {
-        renderWeeklyClassesWithConflictResolution();
-    } else if (currentView === 'today') {
-        renderDailyClasses();
-    } else if (currentView === 'month') {
-        renderMonthlyClasses();
+    if (!classesData || classesData.length === 0) {
+        renderEmptyTimetable();
+        return;
     }
-}
-
-function renderWeeklyClassesWithConflictResolution() {
-    // Group classes by day and time to detect conflicts
-    const classesByDayTime = {};
     
+    // Group classes by hour (9 AM to 9 PM)
+    const classesByTime = {};
     classesData.forEach(cls => {
-        const classDate = new Date(cls.scheduled_date);
-        const dayOfWeek = classDate.getDay();
-        const adjustedDay = dayOfWeek === 0 ? 6 : dayOfWeek - 1; // Monday = 0
+        const timeStr = cls.scheduled_time || '00:00';
+        const hour = parseInt(timeStr.split(':')[0]);
+        const timeKey = hour;
         
-        const timeKey = cls.scheduled_time;
-        const dayTimeKey = `${adjustedDay}-${timeKey}`;
-        
-        if (!classesByDayTime[dayTimeKey]) {
-            classesByDayTime[dayTimeKey] = [];
+        if (!classesByTime[timeKey]) {
+            classesByTime[timeKey] = [];
         }
-        classesByDayTime[dayTimeKey].push(cls);
+        classesByTime[timeKey].push(cls);
     });
     
-    // Render classes with conflict resolution
-    Object.keys(classesByDayTime).forEach(dayTimeKey => {
-        const [day, time] = dayTimeKey.split('-');
-        const classes = classesByDayTime[dayTimeKey];
-        
-        if (classes.length === 1) {
-            // Single class - normal rendering
-            renderSingleClass(classes[0], parseInt(day), time);
-        } else {
-            // Multiple classes - render as bars
-            renderConflictingClasses(classes, parseInt(day), time);
-        }
-    });
-}
-
-function renderSingleClass(cls, day, time) {
-    const container = document.getElementById(`calendarGrid-${day}`);
-    if (!container) return;
-    
-    const timeSlot = container.querySelector(`[data-time="${time}"]`);
-    if (!timeSlot) return;
-    
-    const classBlock = createClassBlock(cls, 'single');
-    timeSlot.appendChild(classBlock);
-}
-
-function renderConflictingClasses(classes, day, time) {
-    const container = document.getElementById(`calendarGrid-${day}`);
-    if (!container) return;
-    
-    const timeSlot = container.querySelector(`[data-time="${time}"]`);
-    if (!timeSlot) return;
-    
-    // Create container for multiple classes
-    const conflictContainer = document.createElement('div');
-    conflictContainer.className = 'conflict-container';
-    
-    classes.forEach((cls, index) => {
-        const classBar = createClassBlock(cls, 'conflict', index);
-        classBar.style.flex = '1';
-        classBar.style.minWidth = `${100 / classes.length}%`;
-        conflictContainer.appendChild(classBar);
-    });
-    
-    timeSlot.appendChild(conflictContainer);
-}
-
-function createClassBlock(cls, type = 'single', index = 0) {
-    const block = document.createElement('div');
-    block.className = `class-block class-${type} status-${cls.status}`;
-    block.setAttribute('data-class-id', cls.id);
-    block.onclick = () => openClassDetails(cls.id);
-    
-    // Color coding by status
-    const statusColors = {
-        'scheduled': '#F1A150',
-        'ongoing': '#28a745',
-        'completed': '#17a2b8',
-        'cancelled': '#dc3545'
-    };
-    
-    // For conflicting classes, use slightly different shades
-    let backgroundColor = statusColors[cls.status] || '#6c757d';
-    if (type === 'conflict') {
-        const variation = index * 0.1;
-        backgroundColor = adjustColorBrightness(backgroundColor, variation);
-    }
-    
-    block.style.cssText = `
-        background: ${backgroundColor};
-        color: white;
-        padding: 4px 6px;
-        border-radius: 4px;
-        cursor: pointer;
-        font-size: 11px;
-        font-weight: 500;
-        line-height: 1.2;
-        min-height: 24px;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        transition: all 0.2s ease;
-        border: 1px solid rgba(255,255,255,0.2);
-        position: relative;
-        overflow: hidden;
-    `;
-    
-    // Content
-    const subject = cls.subject.length > 12 ? cls.subject.substring(0, 12) + '...' : cls.subject;
-    const tutor = cls.tutor_name.length > 15 ? cls.tutor_name.substring(0, 15) + '...' : cls.tutor_name;
-    
-    block.innerHTML = `
-        <div class="class-subject" title="${cls.subject}">${subject}</div>
-        <div class="class-tutor" style="font-size: 9px; opacity: 0.9;" title="${cls.tutor_name}">${tutor}</div>
-        ${type === 'conflict' ? `<div class="conflict-indicator"></div>` : ''}
-    `;
-    
-    // Hover effects
-    block.addEventListener('mouseenter', function() {
-        this.style.transform = 'scale(1.05)';
-        this.style.zIndex = '10';
-        this.style.boxShadow = '0 4px 12px rgba(0,0,0,0.3)';
-    });
-    
-    block.addEventListener('mouseleave', function() {
-        this.style.transform = 'scale(1)';
-        this.style.zIndex = '1';
-        this.style.boxShadow = 'none';
-    });
-    
-    return block;
-}
-
-function adjustColorBrightness(color, amount) {
-    const hex = color.replace('#', '');
-    const r = parseInt(hex.substr(0, 2), 16);
-    const g = parseInt(hex.substr(2, 2), 16);
-    const b = parseInt(hex.substr(4, 2), 16);
-    
-    const newR = Math.max(0, Math.min(255, r + (amount * 255)));
-    const newG = Math.max(0, Math.min(255, g + (amount * 255)));
-    const newB = Math.max(0, Math.min(255, b + (amount * 255)));
-    
-    return `rgb(${Math.round(newR)}, ${Math.round(newG)}, ${Math.round(newB)})`;
-}
-
-// ============ MONTHLY VIEW ============
-function renderMonthlyClasses() {
-    const container = document.getElementById('monthlyCalendar');
-    if (!container) return;
-    
-    // Get current month info
-    const year = currentDate.getFullYear();
-    const month = currentDate.getMonth();
-    
-    // Get first day of month and calculate grid
-    const firstDay = new Date(year, month, 1);
-    const lastDay = new Date(year, month + 1, 0);
-    const daysInMonth = lastDay.getDate();
-    const startingDayOfWeek = firstDay.getDay();
-    
-    // Calculate total grid cells needed
-    const totalCells = Math.ceil((daysInMonth + startingDayOfWeek) / 7) * 7;
-    
-    let calendarHTML = `
-        <div class="monthly-calendar">
-            <div class="month-header">
-                <div class="month-nav">
-                    <button class="nav-btn" onclick="navigateMonth(-1)">
-                        <i class="fas fa-chevron-left"></i>
-                    </button>
-                    <h2 class="month-title">${firstDay.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</h2>
-                    <button class="nav-btn" onclick="navigateMonth(1)">
-                        <i class="fas fa-chevron-right"></i>
-                    </button>
-                </div>
-            </div>
-            
-            <div class="calendar-grid-monthly">
-                <!-- Day headers -->
-                <div class="day-header-monthly">Sun</div>
-                <div class="day-header-monthly">Mon</div>
-                <div class="day-header-monthly">Tue</div>
-                <div class="day-header-monthly">Wed</div>
-                <div class="day-header-monthly">Thu</div>
-                <div class="day-header-monthly">Fri</div>
-                <div class="day-header-monthly">Sat</div>
-    `;
-    
-    // Generate calendar cells
-    let cellDate = new Date(firstDay);
-    cellDate.setDate(cellDate.getDate() - startingDayOfWeek);
-    
-    for (let i = 0; i < totalCells; i++) {
-        const isCurrentMonth = cellDate.getMonth() === month;
-        const isToday = cellDate.toDateString() === new Date().toDateString();
-        const dateKey = cellDate.toISOString().split('T')[0];
-        
-        // Get classes for this date
-        const dayClasses = classesData.filter(cls => cls.scheduled_date === dateKey);
-        
-        calendarHTML += `
-            <div class="calendar-cell ${!isCurrentMonth ? 'other-month' : ''} ${isToday ? 'today' : ''}" 
-                 data-date="${dateKey}" onclick="selectMonthlyDate('${dateKey}')">
-                <div class="cell-header">
-                    <span class="cell-date">${cellDate.getDate()}</span>
-                    ${dayClasses.length > 0 ? `<span class="class-count">${dayClasses.length}</span>` : ''}
-                </div>
-                <div class="cell-content">
-                    ${renderMonthlyClassItems(dayClasses)}
-                </div>
-            </div>
-        `;
-        
-        cellDate.setDate(cellDate.getDate() + 1);
-    }
-    
-    calendarHTML += `
-            </div>
-        </div>
-    `;
-    
-    container.innerHTML = calendarHTML;
-}
-
-function renderMonthlyClassItems(dayClasses) {
-    if (dayClasses.length === 0) return '';
-    
-    // Sort classes by time
-    dayClasses.sort((a, b) => a.scheduled_time.localeCompare(b.scheduled_time));
-    
-    // Show max 3 classes, then "X more"
-    const maxVisible = 3;
     let html = '';
     
-    for (let i = 0; i < Math.min(dayClasses.length, maxVisible); i++) {
-        const cls = dayClasses[i];
+    // Generate time slots from 9 AM to 9 PM
+    for (let hour = 9; hour <= 21; hour++) {
+        const displayTime = hour <= 12 ? 
+            (hour === 12 ? '12:00 PM' : `${hour}:00 AM`) : 
+            `${hour - 12}:00 PM`;
+        
+        const timeClasses = classesByTime[hour] || [];
+        
         html += `
-            <div class="monthly-class-item status-${cls.status}" onclick="openClassDetails(${cls.id}); event.stopPropagation();">
-                <span class="class-time">${cls.scheduled_time}</span>
-                <span class="class-subject">${cls.subject.length > 15 ? cls.subject.substring(0, 15) + '...' : cls.subject}</span>
+            <div class="time-slot">
+                <div class="time-label">${displayTime}</div>
+                <div class="time-content">
+                    ${renderTimeClasses(timeClasses)}
+                </div>
             </div>
         `;
     }
     
-    if (dayClasses.length > maxVisible) {
+    container.innerHTML = html;
+}
+
+function renderTimeClasses(classes) {
+    if (classes.length === 0) {
+        return '<span class="empty-slot">No classes scheduled</span>';
+    }
+    
+    let html = '';
+    
+    classes.forEach(cls => {
+        const studentInfo = cls.student_count > 0 ? 
+            `${cls.student_count} student${cls.student_count > 1 ? 's' : ''}` : 
+            'No students';
+        
         html += `
-            <div class="more-classes-indicator" onclick="showDayDetails('${dayClasses[0].scheduled_date}'); event.stopPropagation();">
-                +${dayClasses.length - maxVisible} more
+            <div class="class-item" onclick="openClassDetails(${cls.id})">
+                <span class="class-subject">${cls.subject}</span>
+                <span class="class-tutor">👨‍🏫 ${cls.tutor_name}</span>
+                <span class="class-students">👥 ${studentInfo}</span>
             </div>
         `;
-    }
+    });
     
     return html;
 }
 
-// ============ DAILY VIEW ============
-function renderDailyClasses() {
-    const container = document.getElementById('dailyClasses');
-    if (!container) return;
-    
-    const today = new Date().toISOString().split('T')[0];
-    const todayClasses = classesData.filter(cls => cls.scheduled_date === today);
-    
-    if (todayClasses.length === 0) {
-        container.innerHTML = `
-            <div class="text-center py-8">
-                <i class="fas fa-calendar-times text-4xl text-gray-400 mb-4"></i>
-                <h3 class="text-lg font-medium text-gray-900 mb-2">No classes today</h3>
-                <p class="text-gray-600">Enjoy your free day!</p>
-            </div>
-        `;
-        return;
-    }
-    
-    const classesHtml = todayClasses.map(cls => `
-        <div class="today-class-card" onclick="openClassDetails(${cls.id})">
-            <div class="flex items-center justify-between">
-                <div>
-                    <h3 class="font-semibold text-gray-900">${cls.subject}</h3>
-                    <p class="text-sm text-gray-600">${cls.tutor_name}</p>
-                    <div class="flex items-center gap-2 mt-1">
-                        <span class="status-dot ${cls.status}"></span>
-                        <span class="text-xs text-gray-500">${cls.status}</span>
-                    </div>
-                </div>
-                <div class="text-right">
-                    <div class="text-lg font-bold text-gray-900">${cls.scheduled_time}</div>
-                    <div class="text-sm text-gray-500">${cls.duration} min</div>
-                </div>
-            </div>
+function renderEmptyTimetable() {
+    const container = document.getElementById('timetableContent');
+    container.innerHTML = `
+        <div style="text-align: center; padding: 3rem; color: var(--minimal-gray-500);">
+            <i class="fas fa-calendar-times" style="font-size: 3rem; margin-bottom: 1rem; opacity: 0.5;"></i>
+            <h3 style="margin: 0 0 1rem 0; color: var(--minimal-gray-600);">No Classes Scheduled</h3>
+            <p style="margin: 0;">No classes found for the selected date and filters.</p>
         </div>
-    `).join('');
-    
-    container.innerHTML = classesHtml;
+    `;
 }
 
-// ============ NAVIGATION FUNCTIONS ============
-function switchView(view) {
-    currentView = view;
-    
-    // Update button states
-    document.querySelectorAll('.view-btn').forEach(btn => btn.classList.remove('active'));
-    event.target.classList.add('active');
-    
-    // Show/hide views
-    document.getElementById('weeklyView').style.display = view === 'week' ? 'block' : 'none';
-    document.getElementById('monthlyView').style.display = view === 'month' ? 'block' : 'none';
-    document.getElementById('dailyView').style.display = view === 'today' ? 'block' : 'none';
-    
-    loadTimetableData();
+// ============ CLASS DETAILS MODAL ============
+async function openClassDetails(classId) {
+    try {
+        showLoading(true);
+        
+        const response = await fetch(`/admin/api/v1/timetable/class/${classId}`, {
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCSRFToken()
+            }
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            const cls = data.class;
+            document.getElementById('modalTitle').textContent = `${cls.subject} - Class Details`;
+            
+            let modalContent = `
+                <div class="detail-row">
+                    <span class="detail-label">Subject:</span>
+                    <span class="detail-value">${cls.subject}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Date & Time:</span>
+                    <span class="detail-value">${cls.scheduled_date} at ${cls.scheduled_time}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Duration:</span>
+                    <span class="detail-value">${cls.duration} minutes</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Status:</span>
+                    <span class="detail-value"><span class="status-badge status-${cls.status}">${cls.status}</span></span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Tutor:</span>
+                    <span class="detail-value">${cls.tutor.name}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Class Type:</span>
+                    <span class="detail-value">${cls.class_type}</span>
+                </div>
+            `;
+            
+            if (cls.grade) {
+                modalContent += `
+                    <div class="detail-row">
+                        <span class="detail-label">Grade:</span>
+                        <span class="detail-value">${cls.grade}</span>
+                    </div>
+                `;
+            }
+            
+            if (cls.students && cls.students.length > 0) {
+                modalContent += `
+                    <div class="detail-row">
+                        <span class="detail-label">Students:</span>
+                        <span class="detail-value">${cls.students.map(s => s.name).join(', ')}</span>
+                    </div>
+                `;
+            }
+            
+            if (cls.meeting_link) {
+                modalContent += `
+                    <div class="detail-row">
+                        <span class="detail-label">Meeting Link:</span>
+                        <span class="detail-value"><a href="${cls.meeting_link}" target="_blank" style="color: var(--minimal-orange);">Join Class</a></span>
+                    </div>
+                `;
+            }
+            
+            if (cls.class_notes) {
+                modalContent += `
+                    <div class="detail-row">
+                        <span class="detail-label">Notes:</span>
+                        <span class="detail-value">${cls.class_notes}</span>
+                    </div>
+                `;
+            }
+            
+            document.getElementById('modalBody').innerHTML = modalContent;
+            document.getElementById('classModal').style.display = 'flex';
+        } else {
+            showNotification('Failed to load class details', 'error');
+        }
+        
+    } catch (error) {
+        console.error('Error loading class details:', error);
+        showNotification('Failed to load class details', 'error');
+    } finally {
+        showLoading(false);
+    }
 }
 
-function navigateWeek(direction) {
-    const days = direction * 7;
-    currentDate.setDate(currentDate.getDate() + days);
-    updateDateDisplay();
-    loadTimetableData();
+function closeModal() {
+    document.getElementById('classModal').style.display = 'none';
 }
 
-function navigateMonth(direction) {
-    currentDate.setMonth(currentDate.getMonth() + direction);
+// ============ MONTHLY STATS ============
+async function loadMonthlyStats() {
+    try {
+        const response = await fetch('/admin/api/v1/timetable/monthly-stats', {
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCSRFToken()
+            }
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            if (data.success) {
+                Object.entries(data.stats).forEach(([month, count]) => {
+                    const element = document.getElementById(`${month}-count`);
+                    if (element) {
+                        element.textContent = count;
+                    }
+                });
+                console.log('✅ Monthly stats loaded');
+            }
+        }
+    } catch (error) {
+        console.error('Error loading monthly stats:', error);
+        // Set default values
+        const months = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+        months.forEach(month => {
+            const element = document.getElementById(`${month}-count`);
+            if (element) {
+                element.textContent = '0';
+            }
+        });
+    }
+}
+
+// ============ MONTH VIEW DETAILS ============
+async function viewMonth(monthNumber, monthName) {
+    try {
+        showLoading(true);
+        
+        const response = await fetch(`/admin/api/v1/timetable/month-details/${monthNumber}`, {
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCSRFToken()
+            }
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            if (data.success) {
+                showNotification(`${monthName}: ${data.total_classes} classes found`, 'info');
+                console.log('Month details:', data.classes_by_date);
+            } else {
+                showNotification(`No data available for ${monthName}`, 'info');
+            }
+        }
+    } catch (error) {
+        console.error('Error loading month details:', error);
+        showNotification(`Failed to load ${monthName} details`, 'error');
+    } finally {
+        showLoading(false);
+    }
+}
+
+// ============ NAVIGATION ============
+function navigateDay(direction) {
+    currentDate.setDate(currentDate.getDate() + direction);
     updateDateDisplay();
     loadTimetableData();
 }
@@ -2101,1194 +1094,66 @@ function goToToday() {
 }
 
 function updateDateDisplay() {
-    const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
-                       'July', 'August', 'September', 'October', 'November', 'December'];
-    
-    document.getElementById('currentMonth').textContent = 
-        `${monthNames[currentDate.getMonth()]} ${currentDate.getFullYear()}`;
-    
-    // Update day headers for weekly view
-    const startOfWeek = new Date(currentDate);
-    startOfWeek.setDate(currentDate.getDate() - currentDate.getDay() + 1); // Monday start
-    
-    for (let i = 0; i < 7; i++) {
-        const day = new Date(startOfWeek);
-        day.setDate(startOfWeek.getDate() + i);
-        const dayElement = document.getElementById(`day-${i}`);
-        if (dayElement) {
-            dayElement.textContent = day.getDate();
-        }
-        
-        // Mark today
-        const header = document.querySelector(`[data-day="${i}"]`);
-        if (header) {
-            const isToday = day.toDateString() === new Date().toDateString();
-            header.classList.toggle('today', isToday);
-        }
-    }
+    const options = { 
+        weekday: 'long', 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric' 
+    };
+    document.getElementById('currentDate').textContent = currentDate.toLocaleDateString('en-US', options);
 }
 
-// ============ MODAL FUNCTIONS ============
-function handleTimeSlotClick(day, timeSlot) {
-    const startOfWeek = new Date(currentDate);
-    startOfWeek.setDate(currentDate.getDate() - currentDate.getDay() + 1); // Monday start
-    
-    const selectedDate = new Date(startOfWeek);
-    selectedDate.setDate(startOfWeek.getDate() + day);
-    
-    // Pre-fill quick class modal
-    document.querySelector('[name="scheduled_date"]').value = selectedDate.toISOString().split('T')[0];
-    document.querySelector('[name="scheduled_time"]').value = timeSlot;
-    
-    openQuickClassModal();
+// ============ STATISTICS ============
+function updateStats(stats) {
+    document.getElementById('totalClasses').textContent = stats.total_classes || 0;
+    document.getElementById('scheduledClasses').textContent = stats.today?.scheduled || 0;
+    document.getElementById('completedClasses').textContent = stats.today?.completed || 0;
+    document.getElementById('cancelledClasses').textContent = stats.today?.cancelled || 0;
 }
 
-function openQuickClassModal() {
-    document.getElementById('quickClassModal').style.display = 'flex';
-    // Set default date to today if not set
-    const dateInput = document.querySelector('[name="scheduled_date"]');
-    if (!dateInput.value) {
-        dateInput.value = new Date().toISOString().split('T')[0];
-    }
-}
-
-function closeQuickClassModal() {
-    document.getElementById('quickClassModal').style.display = 'none';
-    document.getElementById('quickClassForm').reset();
-}
-
-async function createQuickClass(event) {
-    event.preventDefault();
-    
-    const formData = new FormData(event.target);
-    const classData = Object.fromEntries(formData.entries());
-    
-    try {
-        showLoading(true);
-        
-        const response = await fetch('/admin/api/v1/classes/create', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
-            },
-            body: JSON.stringify(classData)
-        });
-        
-        const result = await response.json();
-        
-        if (result.success) {
-            showAlert('Class created successfully!', 'success');
-            closeQuickClassModal();
-            loadTimetableData(); // Refresh calendar
-        } else {
-            showAlert(result.error || 'Failed to create class', 'error');
-        }
-    } catch (error) {
-        console.error('Error creating class:', error);
-        showAlert('Network error: Failed to create class', 'error');
-    } finally {
-        showLoading(false);
-    }
-}
-
-async function openClassDetails(classId) {
-    document.getElementById('classDetailsModal').style.display = 'flex';
-    
-    try {
-        const response = await fetch(`/admin/api/v1/classes/${classId}`);
-        const data = await response.json();
-        
-        if (data.success) {
-            const cls = data.data;
-            document.getElementById('classDetailsContent').innerHTML = `
-                <div style="display: grid; gap: 1rem;">
-                    <div style="background: var(--bg-light); padding: 1rem; border-radius: 8px;">
-                        <h3 style="margin: 0 0 0.5rem 0; color: var(--primary-color);">${cls.subject}</h3>
-                        <p style="margin: 0; color: var(--text-secondary);">
-                            ${cls.scheduled_date} at ${cls.scheduled_time} (${cls.duration_display || cls.duration + ' min'})
-                        </p>
-                    </div>
-                    
-                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem;">
-                        <div>
-                            <strong>Tutor:</strong><br>
-                            ${cls.tutor ? cls.tutor.name : 'Not assigned'}
-                        </div>
-                        <div>
-                            <strong>Status:</strong><br>
-                            <span class="status-badge status-${cls.status}">${cls.status}</span>
-                        </div>
-                    </div>
-                    
-                    ${cls.meeting_link ? `
-                        <div>
-                            <strong>Meeting Link:</strong><br>
-                            <a href="${cls.meeting_link}" target="_blank" class="btn btn-primary">
-                                <i class="fas fa-video"></i> Join Meeting
-                            </a>
-                        </div>
-                    ` : ''}
-                    
-                    <div style="display: flex; gap: 1rem; margin-top: 1rem;">
-                        <button class="btn btn-secondary" onclick="rescheduleClass(${cls.id})">
-                            <i class="fas fa-calendar-alt"></i> Reschedule
-                        </button>
-                        <button class="btn btn-secondary" onclick="editClass(${cls.id})">
-                            <i class="fas fa-edit"></i> Edit
-                        </button>
-                        <button class="btn btn-secondary" onclick="cancelClass(${cls.id})">
-                            <i class="fas fa-times"></i> Cancel
-                        </button>
-                    </div>
-                </div>
-            `;
-        } else {
-            showAlert('Error loading class details', 'error');
-        }
-    } catch (error) {
-        console.error('Error loading class details:', error);
-        showAlert('Failed to load class details', 'error');
-    }
-}
-
-function closeClassDetailsModal() {
-    document.getElementById('classDetailsModal').style.display = 'none';
-}
-
-// ============ SEARCH & FILTER INITIALIZATION ============
-function initializeSearch() {
-    const searchInput = document.getElementById('globalSearch');
-    
-    if (searchInput) {
-        let searchTimeout;
-        searchInput.addEventListener('input', function() {
-            clearTimeout(searchTimeout);
-            searchTimeout = setTimeout(() => {
-                performSearch();
-            }, 300); // Debounce search
-        });
-    }
-}
-
-function performSearch() {
-    const searchTerm = document.getElementById('globalSearch').value.trim();
-    if (searchTerm) {
+// ============ SEARCH & FILTERS ============
+function handleSearch(event) {
+    const searchTerm = event.target.value.trim();
+    if (searchTerm.length >= 3) {
         searchFilters.search = searchTerm;
         loadTimetableData();
-    } else {
+    } else if (searchTerm.length === 0) {
         delete searchFilters.search;
         loadTimetableData();
     }
 }
 
-// ============ SEND TIMETABLE FUNCTIONS ============
-async function sendTimetable(method) {
-    try {
-        showLoading(true);
-        
-        const response = await fetch('/admin/api/v1/timetable/send', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
-            },
-            body: JSON.stringify({
-                method: method,
-                view: currentView,
-                date: currentDate.toISOString().split('T')[0],
-                recipients: 'all'
-            })
-        });
-        
-        const result = await response.json();
-        
-        if (result.success) {
-            showAlert(`Timetable sent successfully via ${method}!`, 'success');
-        } else {
-            showAlert(result.error || `Failed to send timetable via ${method}`, 'error');
-        }
-    } catch (error) {
-        console.error('Error sending timetable:', error);
-        showAlert(`Failed to send timetable via ${method}`, 'error');
-    } finally {
-        showLoading(false);
-    }
-}
-
-// ============ UTILITY FUNCTIONS ============
-function showLoading(show) {
-    const loadingIndicators = document.querySelectorAll('.loading-indicator');
-    const buttons = document.querySelectorAll('.btn');
-    
-    if (show) {
-        buttons.forEach(btn => {
-            btn.disabled = true;
-            btn.classList.add('loading');
-        });
-        loadingIndicators.forEach(indicator => indicator.style.display = 'flex');
-    } else {
-        buttons.forEach(btn => {
-            btn.disabled = false;
-            btn.classList.remove('loading');
-        });
-        loadingIndicators.forEach(indicator => indicator.style.display = 'none');
-    }
-}
-
-function renderEmptyState() {
-    const mainContent = document.querySelector('.calendar-main');
-    if (mainContent) {
-        mainContent.innerHTML = `
-            <div class="empty-state" style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: #6c757d;">
-                <i class="fas fa-calendar-times" style="font-size: 64px; margin-bottom: 16px; opacity: 0.5;"></i>
-                <h3>No classes found</h3>
-                <p>Try adjusting your filters or date range</p>
-                <button class="btn btn-primary" onclick="loadTimetableData()">
-                    <i class="fas fa-refresh"></i> Retry
-                </button>
-            </div>
-        `;
-    }
-}
-
-function updateStats(stats) {
-    if (stats.today) {
-        document.getElementById('scheduledCount').textContent = stats.today.scheduled || 0;
-        document.getElementById('ongoingCount').textContent = stats.today.ongoing || 0;
-        document.getElementById('completedCount').textContent = stats.today.completed || 0;
-        document.getElementById('cancelledCount').textContent = stats.today.cancelled || 0;
-    } else {
-        // Use week stats if today stats not available
-        document.getElementById('scheduledCount').textContent = stats.scheduled_classes || 0;
-        document.getElementById('ongoingCount').textContent = 0;
-        document.getElementById('completedCount').textContent = stats.completed_classes || 0;
-        document.getElementById('cancelledCount').textContent = stats.cancelled_classes || 0;
-    }
-}
-
-function clearAllFilters() {
+function handleFilterChange() {
+    // Clear previous filters
     searchFilters = {};
-    document.getElementById('globalSearch').value = '';
+    
+    const tutorId = document.getElementById('tutorFilter').value;
+    const studentId = document.getElementById('studentFilter').value;
+    const deptId = document.getElementById('departmentFilter').value;
+    
+    if (tutorId) searchFilters.tutor_id = tutorId;
+    if (studentId) searchFilters.student_id = studentId;
+    if (deptId) searchFilters.department_id = deptId;
+    
     loadTimetableData();
-    showAlert('All filters cleared', 'info');
-}
-
-// ============ PLACEHOLDER FUNCTIONS ============
-// ============ COMPLETE TIMETABLE JAVASCRIPT IMPLEMENTATIONS ============
-// Add this to your app/templates/admin/timetable.html <script> section
-
-// ============ SEARCH INITIALIZATION FUNCTIONS ============
-
-async function initializeTutorSearch() {
-    try {
-        const response = await fetch('/admin/api/v1/search/tutors?q=');
-        const data = await response.json();
-        
-        if (data.success) {
-            populateTutorDropdown(data.results);
-        }
-    } catch (error) {
-        console.error('Error loading tutors:', error);
-    }
-}
-
-async function initializeStudentSearch() {
-    try {
-        const response = await fetch('/admin/api/v1/search/students?q=');
-        const data = await response.json();
-        
-        if (data.success) {
-            populateStudentDropdown(data.results);
-        }
-    } catch (error) {
-        console.error('Error loading students:', error);
-    }
-}
-
-function populateTutorDropdown(tutors) {
-    const dropdown = document.getElementById('tutorFilter');
-    if (!dropdown) return;
-    
-    // Clear existing options
-    dropdown.innerHTML = '<option value="">All Tutors</option>';
-    
-    // Add tutor options
-    tutors.forEach(tutor => {
-        const option = document.createElement('option');
-        option.value = tutor.id;
-        option.textContent = `${tutor.name} (${tutor.subjects.join(', ')})`;
-        dropdown.appendChild(option);
-    });
-}
-
-function populateStudentDropdown(students) {
-    const dropdown = document.getElementById('studentFilter');
-    if (!dropdown) return;
-    
-    // Clear existing options
-    dropdown.innerHTML = '<option value="">All Students</option>';
-    
-    // Add student options
-    students.forEach(student => {
-        const option = document.createElement('option');
-        option.value = student.id;
-        option.textContent = `${student.name} (Grade ${student.grade})`;
-        dropdown.appendChild(option);
-    });
-}
-
-// ============ RESCHEDULING MODE FUNCTIONS ============
-
-function enableReschedulingMode() {
-    reschedulingMode = !reschedulingMode;
-    const button = document.getElementById('rescheduleModeBtn');
-    
-    if (reschedulingMode) {
-        button.classList.add('active');
-        button.innerHTML = '<i class="fas fa-times"></i> Exit Reschedule Mode';
-        showAlert('Rescheduling mode enabled. Drag classes to new time slots.', 'info');
-        enableDragAndDrop();
-    } else {
-        button.classList.remove('active');
-        button.innerHTML = '<i class="fas fa-calendar-alt"></i> Reschedule Mode';
-        showAlert('Rescheduling mode disabled.', 'info');
-        disableDragAndDrop();
-    }
-}
-
-function enableDragAndDrop() {
-    // Make class blocks draggable
-    document.querySelectorAll('.class-block').forEach(block => {
-        block.draggable = true;
-        block.style.cursor = 'move';
-        block.addEventListener('dragstart', handleDragStart);
-        block.addEventListener('dragend', handleDragEnd);
-    });
-    
-    // Make time slots droppable
-    document.querySelectorAll('.time-slot').forEach(slot => {
-        slot.addEventListener('dragover', handleDragOver);
-        slot.addEventListener('drop', handleDrop);
-        slot.classList.add('drop-zone');
-    });
-    
-    // Add visual indicators
-    addReschedulingStyles();
-}
-
-function disableDragAndDrop() {
-    document.querySelectorAll('.class-block').forEach(block => {
-        block.draggable = false;
-        block.style.cursor = 'pointer';
-        block.removeEventListener('dragstart', handleDragStart);
-        block.removeEventListener('dragend', handleDragEnd);
-    });
-    
-    document.querySelectorAll('.time-slot').forEach(slot => {
-        slot.removeEventListener('dragover', handleDragOver);
-        slot.removeEventListener('drop', handleDrop);
-        slot.classList.remove('drop-zone');
-    });
-    
-    removeReschedulingStyles();
-}
-
-function addReschedulingStyles() {
-    const style = document.createElement('style');
-    style.id = 'rescheduling-styles';
-    style.textContent = `
-        .drop-zone {
-            transition: all 0.2s ease;
-            border: 2px dashed transparent;
-        }
-        
-        .drop-zone:hover {
-            border-color: var(--primary-color);
-            background: rgba(241, 161, 80, 0.1);
-        }
-        
-        .drop-zone-active {
-            border-color: var(--primary-color) !important;
-            background: rgba(241, 161, 80, 0.2) !important;
-        }
-        
-        .class-block[draggable="true"] {
-            border: 2px solid rgba(241, 161, 80, 0.5);
-        }
-        
-        .class-block[draggable="true"]:hover {
-            transform: scale(1.05);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-        }
-    `;
-    document.head.appendChild(style);
-}
-
-function removeReschedulingStyles() {
-    const style = document.getElementById('rescheduling-styles');
-    if (style) style.remove();
-}
-
-// ============ BULK SELECTION FUNCTIONS ============
-
-function toggleBulkSelection() {
-    const isActive = document.body.classList.toggle('bulk-selection-mode');
-    const button = document.getElementById('bulkSelectBtn');
-    
-    if (isActive) {
-        button.classList.add('active');
-        button.innerHTML = '<i class="fas fa-times"></i> Exit Bulk Select';
-        showAlert('Bulk selection mode enabled. Click classes to select/deselect.', 'info');
-        enableBulkSelection();
-    } else {
-        button.classList.remove('active');
-        button.innerHTML = '<i class="fas fa-check-square"></i> Bulk Select';
-        showAlert('Bulk selection mode disabled.', 'info');
-        disableBulkSelection();
-    }
-}
-
-function enableBulkSelection() {
-    document.querySelectorAll('.class-block').forEach(block => {
-        block.addEventListener('click', handleBulkSelection);
-        block.style.cursor = 'pointer';
-    });
-    
-    // Add bulk actions toolbar
-    showBulkActionsToolbar();
-}
-
-function disableBulkSelection() {
-    selectedClasses.clear();
-    
-    document.querySelectorAll('.class-block').forEach(block => {
-        block.removeEventListener('click', handleBulkSelection);
-        block.classList.remove('selected');
-    });
-    
-    hideBulkActionsToolbar();
-    updateBulkSelectionCount();
-}
-
-function handleBulkSelection(event) {
-    event.stopPropagation();
-    
-    const classId = event.target.getAttribute('data-class-id');
-    if (!classId) return;
-    
-    if (selectedClasses.has(classId)) {
-        selectedClasses.delete(classId);
-        event.target.classList.remove('selected');
-    } else {
-        selectedClasses.add(classId);
-        event.target.classList.add('selected');
-    }
-    
-    updateBulkSelectionCount();
-}
-
-function showBulkActionsToolbar() {
-    const toolbar = document.createElement('div');
-    toolbar.id = 'bulkActionsToolbar';
-    toolbar.className = 'bulk-actions-toolbar';
-    toolbar.innerHTML = `
-        <div class="bulk-actions-content">
-            <div class="bulk-selection-info">
-                <span id="bulkSelectionCount">0</span> classes selected
-            </div>
-            <div class="bulk-actions-buttons">
-                <button class="btn btn-secondary bulk-action-btn" onclick="openBulkRescheduleModal()" disabled>
-                    <i class="fas fa-calendar-alt"></i> Reschedule
-                </button>
-                <button class="btn btn-secondary bulk-action-btn" onclick="bulkCancelClasses()" disabled>
-                    <i class="fas fa-times"></i> Cancel
-                </button>
-                <button class="btn btn-secondary bulk-action-btn" onclick="bulkChangeStatus()" disabled>
-                    <i class="fas fa-edit"></i> Change Status
-                </button>
-                <button class="btn btn-secondary" onclick="selectAllVisibleClasses()">
-                    <i class="fas fa-check-double"></i> Select All
-                </button>
-                <button class="btn btn-secondary" onclick="clearBulkSelection()">
-                    <i class="fas fa-times"></i> Clear
-                </button>
-            </div>
-        </div>
-    `;
-    
-    // Add styles
-    toolbar.style.cssText = `
-        position: fixed;
-        bottom: 20px;
-        left: 50%;
-        transform: translateX(-50%);
-        background: white;
-        border: 1px solid var(--border-color);
-        border-radius: 12px;
-        padding: 1rem 1.5rem;
-        box-shadow: 0 8px 25px rgba(0,0,0,0.15);
-        z-index: 1000;
-        min-width: 600px;
-    `;
-    
-    document.body.appendChild(toolbar);
-}
-
-function hideBulkActionsToolbar() {
-    const toolbar = document.getElementById('bulkActionsToolbar');
-    if (toolbar) toolbar.remove();
-}
-
-function updateBulkSelectionCount() {
-    const count = selectedClasses.size;
-    const counter = document.getElementById('bulkSelectionCount');
-    if (counter) {
-        counter.textContent = count;
-        counter.style.display = count > 0 ? 'inline' : 'none';
-    }
-    
-    // Enable/disable bulk action buttons
-    const bulkButtons = document.querySelectorAll('.bulk-action-btn');
-    bulkButtons.forEach(btn => {
-        btn.disabled = count === 0;
-    });
-}
-
-function selectAllVisibleClasses() {
-    document.querySelectorAll('.class-block').forEach(block => {
-        const classId = block.getAttribute('data-class-id');
-        if (classId) {
-            selectedClasses.add(classId);
-            block.classList.add('selected');
-        }
-    });
-    updateBulkSelectionCount();
-}
-
-function clearBulkSelection() {
-    selectedClasses.clear();
-    document.querySelectorAll('.class-block').forEach(block => {
-        block.classList.remove('selected');
-    });
-    updateBulkSelectionCount();
-}
-
-// ============ ADVANCED FILTERS MODAL ============
-
-function openAdvancedFilters() {
-    const modal = document.createElement('div');
-    modal.id = 'advancedFiltersModal';
-    modal.className = 'modal-overlay';
-    modal.innerHTML = `
-        <div class="modal-content large-modal">
-            <div class="modal-header">
-                <h2 class="modal-title">Advanced Filters</h2>
-                <button class="modal-close" onclick="closeAdvancedFilters()">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-            
-            <form id="advancedFiltersForm" onsubmit="applyAdvancedFilters(event)">
-                <div class="filter-sections">
-                    <!-- Date Range Section -->
-                    <div class="filter-section">
-                        <h3 class="filter-section-title">
-                            <i class="fas fa-calendar-alt"></i>
-                            Date Range
-                        </h3>
-                        <div class="form-grid">
-                            <div class="form-group">
-                                <label class="form-label">Start Date</label>
-                                <input type="date" name="start_date" class="form-input">
-                            </div>
-                            <div class="form-group">
-                                <label class="form-label">End Date</label>
-                                <input type="date" name="end_date" class="form-input">
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Time Range Section -->
-                    <div class="filter-section">
-                        <h3 class="filter-section-title">
-                            <i class="fas fa-clock"></i>
-                            Time Range
-                        </h3>
-                        <div class="form-grid">
-                            <div class="form-group">
-                                <label class="form-label">From Time</label>
-                                <input type="time" name="time_from" class="form-input">
-                            </div>
-                            <div class="form-group">
-                                <label class="form-label">To Time</label>
-                                <input type="time" name="time_to" class="form-input">
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Tutors Section -->
-                    <div class="filter-section">
-                        <h3 class="filter-section-title">
-                            <i class="fas fa-chalkboard-teacher"></i>
-                            Tutors
-                        </h3>
-                        <div class="multi-select-container">
-                            <div class="search-box">
-                                <input type="text" placeholder="Search tutors..." onkeyup="filterTutorList(this.value)">
-                            </div>
-                            <div class="checkbox-list" id="tutorsList">
-                                <!-- Populated by JavaScript -->
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Students Section -->
-                    <div class="filter-section">
-                        <h3 class="filter-section-title">
-                            <i class="fas fa-user-graduate"></i>
-                            Students
-                        </h3>
-                        <div class="multi-select-container">
-                            <div class="search-box">
-                                <input type="text" placeholder="Search students..." onkeyup="filterStudentList(this.value)">
-                            </div>
-                            <div class="checkbox-list" id="studentsList">
-                                <!-- Populated by JavaScript -->
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Subjects Section -->
-                    <div class="filter-section">
-                        <h3 class="filter-section-title">
-                            <i class="fas fa-book"></i>
-                            Subjects
-                        </h3>
-                        <div class="checkbox-list" id="subjectsList">
-                            <!-- Populated by JavaScript -->
-                        </div>
-                    </div>
-                    
-                    <!-- Status Section -->
-                    <div class="filter-section">
-                        <h3 class="filter-section-title">
-                            <i class="fas fa-info-circle"></i>
-                            Status
-                        </h3>
-                        <div class="checkbox-list">
-                            <label class="checkbox-item">
-                                <input type="checkbox" name="statuses" value="scheduled" checked>
-                                <span class="checkmark"></span>
-                                Scheduled
-                            </label>
-                            <label class="checkbox-item">
-                                <input type="checkbox" name="statuses" value="ongoing">
-                                <span class="checkmark"></span>
-                                Ongoing
-                            </label>
-                            <label class="checkbox-item">
-                                <input type="checkbox" name="statuses" value="completed">
-                                <span class="checkmark"></span>
-                                Completed
-                            </label>
-                            <label class="checkbox-item">
-                                <input type="checkbox" name="statuses" value="cancelled">
-                                <span class="checkmark"></span>
-                                Cancelled
-                            </label>
-                        </div>
-                    </div>
-                    
-                    <!-- Class Types Section -->
-                    <div class="filter-section">
-                        <h3 class="filter-section-title">
-                            <i class="fas fa-tags"></i>
-                            Class Types
-                        </h3>
-                        <div class="checkbox-list">
-                            <label class="checkbox-item">
-                                <input type="checkbox" name="class_types" value="one_on_one" checked>
-                                <span class="checkmark"></span>
-                                One-on-One
-                            </label>
-                            <label class="checkbox-item">
-                                <input type="checkbox" name="class_types" value="group" checked>
-                                <span class="checkmark"></span>
-                                Group Class
-                            </label>
-                            <label class="checkbox-item">
-                                <input type="checkbox" name="class_types" value="demo" checked>
-                                <span class="checkmark"></span>
-                                Demo Class
-                            </label>
-                            <label class="checkbox-item">
-                                <input type="checkbox" name="class_types" value="assessment">
-                                <span class="checkmark"></span>
-                                Assessment
-                            </label>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="form-actions">
-                    <button type="button" onclick="resetAdvancedFilters()" class="btn btn-secondary">
-                        <i class="fas fa-undo"></i>
-                        Reset
-                    </button>
-                    <button type="button" onclick="closeAdvancedFilters()" class="btn btn-secondary">
-                        Cancel
-                    </button>
-                    <button type="submit" class="btn btn-primary">
-                        <i class="fas fa-filter"></i>
-                        Apply Filters
-                    </button>
-                </div>
-            </form>
-        </div>
-    `;
-    
-    document.body.appendChild(modal);
-    
-    // Load tutors and students
-    loadTutorsForFilter();
-    loadStudentsForFilter();
-    loadSubjectsForFilter();
-    
-    // Add advanced filter styles
-    addAdvancedFilterStyles();
-}
-
-function closeAdvancedFilters() {
-    const modal = document.getElementById('advancedFiltersModal');
-    if (modal) modal.remove();
-}
-
-async function loadTutorsForFilter() {
-    try {
-        const response = await fetch('/admin/api/v1/search/tutors?q=');
-        const data = await response.json();
-        
-        if (data.success) {
-            const container = document.getElementById('tutorsList');
-            container.innerHTML = data.results.map(tutor => `
-                <label class="checkbox-item" data-name="${tutor.name.toLowerCase()}">
-                    <input type="checkbox" name="tutor_ids" value="${tutor.id}">
-                    <span class="checkmark"></span>
-                    ${tutor.name}
-                    <small class="item-subtitle">${tutor.subjects.join(', ')}</small>
-                </label>
-            `).join('');
-        }
-    } catch (error) {
-        console.error('Error loading tutors for filter:', error);
-    }
-}
-
-async function loadStudentsForFilter() {
-    try {
-        const response = await fetch('/admin/api/v1/search/students?q=');
-        const data = await response.json();
-        
-        if (data.success) {
-            const container = document.getElementById('studentsList');
-            container.innerHTML = data.results.map(student => `
-                <label class="checkbox-item" data-name="${student.name.toLowerCase()}">
-                    <input type="checkbox" name="student_ids" value="${student.id}">
-                    <span class="checkmark"></span>
-                    ${student.name}
-                    <small class="item-subtitle">Grade ${student.grade} - ${student.board}</small>
-                </label>
-            `).join('');
-        }
-    } catch (error) {
-        console.error('Error loading students for filter:', error);
-    }
-}
-
-function loadSubjectsForFilter() {
-    // Get unique subjects from current classes data
-    const subjects = [...new Set(classesData.map(cls => cls.subject))].sort();
-    
-    const container = document.getElementById('subjectsList');
-    container.innerHTML = subjects.map(subject => `
-        <label class="checkbox-item">
-            <input type="checkbox" name="subjects" value="${subject}" checked>
-            <span class="checkmark"></span>
-            ${subject}
-        </label>
-    `).join('');
-}
-
-function filterTutorList(searchTerm) {
-    const items = document.querySelectorAll('#tutorsList .checkbox-item');
-    items.forEach(item => {
-        const name = item.getAttribute('data-name');
-        item.style.display = name.includes(searchTerm.toLowerCase()) ? 'flex' : 'none';
-    });
-}
-
-function filterStudentList(searchTerm) {
-    const items = document.querySelectorAll('#studentsList .checkbox-item');
-    items.forEach(item => {
-        const name = item.getAttribute('data-name');
-        item.style.display = name.includes(searchTerm.toLowerCase()) ? 'flex' : 'none';
-    });
-}
-
-async function applyAdvancedFilters(event) {
-    event.preventDefault();
-    
-    const formData = new FormData(event.target);
-    const filters = {};
-    
-    // Build filter parameters
-    if (formData.get('start_date')) filters.start_date = formData.get('start_date');
-    if (formData.get('end_date')) filters.end_date = formData.get('end_date');
-    if (formData.get('time_from')) filters.time_from = formData.get('time_from');
-    if (formData.get('time_to')) filters.time_to = formData.get('time_to');
-    
-    filters.tutor_ids = formData.getAll('tutor_ids');
-    filters.student_ids = formData.getAll('student_ids');
-    filters.subjects = formData.getAll('subjects');
-    filters.statuses = formData.getAll('statuses');
-    filters.class_types = formData.getAll('class_types');
-    
-    try {
-        showLoading(true);
-        
-        const params = new URLSearchParams();
-        Object.keys(filters).forEach(key => {
-            if (Array.isArray(filters[key])) {
-                filters[key].forEach(value => params.append(key, value));
-            } else {
-                params.append(key, filters[key]);
-            }
-        });
-        
-        const response = await fetch(`/admin/api/v1/timetable/filter?${params}`);
-        const data = await response.json();
-        
-        if (data.success) {
-            classesData = data.classes;
-            updateStats(data.stats);
-            renderClasses();
-            
-            showAlert(`Filters applied. Found ${data.classes.length} classes.`, 'success');
-            closeAdvancedFilters();
-        } else {
-            showAlert(data.error || 'Failed to apply filters', 'error');
-        }
-    } catch (error) {
-        console.error('Error applying filters:', error);
-        showAlert('Failed to apply filters', 'error');
-    } finally {
-        showLoading(false);
-    }
-}
-
-function resetAdvancedFilters() {
-    const form = document.getElementById('advancedFiltersForm');
-    form.reset();
-    
-    // Reset checkboxes to default state
-    document.querySelectorAll('[name="statuses"]').forEach(cb => {
-        cb.checked = cb.value === 'scheduled';
-    });
-    
-    document.querySelectorAll('[name="class_types"]').forEach(cb => {
-        cb.checked = ['one_on_one', 'group', 'demo'].includes(cb.value);
-    });
-    
-    document.querySelectorAll('[name="subjects"]').forEach(cb => {
-        cb.checked = true;
-    });
-}
-
-function addAdvancedFilterStyles() {
-    if (document.getElementById('advanced-filter-styles')) return;
-    
-    const style = document.createElement('style');
-    style.id = 'advanced-filter-styles';
-    style.textContent = `
-        .large-modal {
-            max-width: 900px;
-            max-height: 90vh;
-        }
-        
-        .filter-sections {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 2rem;
-            max-height: 60vh;
-            overflow-y: auto;
-        }
-        
-        .filter-section {
-            background: var(--bg-light);
-            padding: 1.5rem;
-            border-radius: 8px;
-        }
-        
-        .filter-section-title {
-            margin: 0 0 1rem 0;
-            font-size: 1rem;
-            font-weight: 600;
-            color: var(--text-primary);
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-        
-        .filter-section-title i {
-            color: var(--primary-color);
-        }
-        
-        .multi-select-container {
-            max-height: 200px;
-            overflow-y: auto;
-        }
-        
-        .search-box {
-            margin-bottom: 0.75rem;
-        }
-        
-        .search-box input {
-            width: 100%;
-            padding: 0.5rem;
-            border: 1px solid var(--border-color);
-            border-radius: 4px;
-            font-size: 0.875rem;
-        }
-        
-        .checkbox-list {
-            display: flex;
-            flex-direction: column;
-            gap: 0.5rem;
-            max-height: 150px;
-            overflow-y: auto;
-        }
-        
-        .checkbox-item {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            padding: 0.5rem;
-            cursor: pointer;
-            border-radius: 4px;
-            transition: background-color 0.2s;
-        }
-        
-        .checkbox-item:hover {
-            background: rgba(241, 161, 80, 0.1);
-        }
-        
-        .checkbox-item input[type="checkbox"] {
-            margin: 0;
-        }
-        
-        .item-subtitle {
-            color: var(--text-secondary);
-            font-size: 0.75rem;
-            margin-left: auto;
-        }
-    `;
-    document.head.appendChild(style);
-}
-
-// ============ BULK RESCHEDULE MODAL ============
-
-function openBulkRescheduleModal() {
-    if (selectedClasses.size === 0) {
-        showAlert('No classes selected', 'warning');
-        return;
-    }
-    
-    const modal = document.createElement('div');
-    modal.id = 'bulkRescheduleModal';
-    modal.className = 'modal-overlay';
-    modal.innerHTML = `
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2 class="modal-title">Bulk Reschedule ${selectedClasses.size} Classes</h2>
-                <button class="modal-close" onclick="closeBulkRescheduleModal()">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-            
-            <form id="bulkRescheduleForm" onsubmit="submitBulkReschedule(event)">
-                <div class="form-group">
-                    <label class="form-label">Reschedule Method</label>
-                    <select id="rescheduleMethod" class="form-select" onchange="toggleRescheduleOptions()">
-                        <option value="shift">Shift all classes by time/date</option>
-                        <option value="specific">Move to specific date/time</option>
-                    </select>
-                </div>
-                
-                <div id="shiftOptions">
-                    <div class="form-grid">
-                        <div class="form-group">
-                            <label class="form-label">Shift Days</label>
-                            <input type="number" name="date_shift_days" class="form-input" 
-                                   placeholder="0" min="-365" max="365">
-                            <small class="form-help">Positive = future, Negative = past</small>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Shift Minutes</label>
-                            <input type="number" name="time_shift_minutes" class="form-input" 
-                                   placeholder="0" min="-1440" max="1440" step="30">
-                            <small class="form-help">30 = +30 min, -60 = -1 hour</small>
-                        </div>
-                    </div>
-                </div>
-                
-                <div id="specificOptions" style="display: none;">
-                    <div class="form-grid">
-                        <div class="form-group">
-                            <label class="form-label">New Date</label>
-                            <input type="date" name="new_date" class="form-input">
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">New Time</label>
-                            <input type="time" name="new_time" class="form-input">
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="form-group">
-                    <label class="form-label">Reason for Rescheduling</label>
-                    <textarea name="reason" class="form-input" rows="3" 
-                              placeholder="Enter reason for bulk rescheduling..." required></textarea>
-                </div>
-                
-                <div class="alert alert-warning">
-                    <i class="fas fa-exclamation-triangle"></i>
-                    This will reschedule ${selectedClasses.size} classes. Classes with conflicts will be skipped.
-                </div>
-                
-                <div class="form-actions">
-                    <button type="button" onclick="closeBulkRescheduleModal()" class="btn btn-secondary">
-                        Cancel
-                    </button>
-                    <button type="submit" class="btn btn-primary">
-                        <i class="fas fa-calendar-alt"></i>
-                        Reschedule Classes
-                    </button>
-                </div>
-            </form>
-        </div>
-    `;
-    
-    document.body.appendChild(modal);
-}
-
-function closeBulkRescheduleModal() {
-    const modal = document.getElementById('bulkRescheduleModal');
-    if (modal) modal.remove();
-}
-
-function toggleRescheduleOptions() {
-    const method = document.getElementById('rescheduleMethod').value;
-    const shiftOptions = document.getElementById('shiftOptions');
-    const specificOptions = document.getElementById('specificOptions');
-    
-    if (method === 'shift') {
-        shiftOptions.style.display = 'block';
-        specificOptions.style.display = 'none';
-    } else {
-        shiftOptions.style.display = 'none';
-        specificOptions.style.display = 'block';
-    }
-}
-
-async function submitBulkReschedule(event) {
-    event.preventDefault();
-    
-    const formData = new FormData(event.target);
-    const rescheduleData = {
-        class_ids: Array.from(selectedClasses),
-        reschedule_rules: {}
-    };
-    
-    // Build reschedule rules based on method
-    const method = document.getElementById('rescheduleMethod').value;
-    
-    if (method === 'shift') {
-        if (formData.get('date_shift_days')) {
-            rescheduleData.reschedule_rules.date_shift_days = parseInt(formData.get('date_shift_days'));
-        }
-        if (formData.get('time_shift_minutes')) {
-            rescheduleData.reschedule_rules.time_shift_minutes = parseInt(formData.get('time_shift_minutes'));
-        }
-    } else {
-        if (formData.get('new_date')) {
-            rescheduleData.reschedule_rules.new_date = formData.get('new_date');
-        }
-        if (formData.get('new_time')) {
-            rescheduleData.reschedule_rules.new_time = formData.get('new_time');
-        }
-    }
-    
-    rescheduleData.reason = formData.get('reason');
-    
-    try {
-        showLoading(true);
-        
-        const response = await fetch('/admin/api/v1/classes/bulk-reschedule', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
-            },
-            body: JSON.stringify(rescheduleData)
-        });
-        
-        const result = await response.json();
-        
-        if (result.success) {
-            showAlert(`Successfully rescheduled ${result.updated_count} classes. ${result.conflict_count} conflicts skipped.`, 'success');
-            closeBulkRescheduleModal();
-            clearBulkSelection();
-            loadTimetableData(); // Refresh calendar
-            
-            // Show conflict details if any
-            if (result.conflicts.length > 0) {
-                showConflictSummary(result.conflicts);
-            }
-        } else {
-            showAlert(result.error || 'Failed to reschedule classes', 'error');
-        }
-    } catch (error) {
-        console.error('Error bulk rescheduling:', error);
-        showAlert('Failed to reschedule classes', 'error');
-    } finally {
-        showLoading(false);
-    }
 }
 
 // ============ EXPORT FUNCTIONALITY ============
-
-async function exportTimetable() {
-    const format = prompt('Export format (pdf/excel/csv/ical):');
-    if (!format || !['pdf', 'excel', 'csv', 'ical'].includes(format.toLowerCase())) {
-        showAlert('Invalid export format', 'error');
-        return;
-    }
-    
+async function exportTimetablePDF() {
     try {
         showLoading(true);
+        showNotification('Generating PDF...', 'info');
         
-        const response = await fetch(`/admin/api/v1/timetable/export`, {
-            method: 'POST',
+        const params = new URLSearchParams({
+            date: currentDate.toISOString().split('T')[0],
+            view: 'today',
+            ...searchFilters
+        });
+        
+        const response = await fetch(`/admin/api/v1/timetable/export-pdf?${params}`, {
             headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
-            },
-            body: JSON.stringify({
-                format: format.toLowerCase(),
-                view: currentView,
-                date: currentDate.toISOString().split('T')[0]
-            })
+                'X-CSRFToken': getCSRFToken()
+            }
         });
         
         if (response.ok) {
@@ -3296,656 +1161,130 @@ async function exportTimetable() {
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `timetable_${currentDate.toISOString().split('T')[0]}.${format}`;
+            a.download = `timetable_${currentDate.toISOString().split('T')[0]}.pdf`;
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
             window.URL.revokeObjectURL(url);
             
-            showAlert(`Timetable exported as ${format.toUpperCase()}`, 'success');
+            showNotification('PDF downloaded successfully!', 'success');
         } else {
-            showAlert('Failed to export timetable', 'error');
+            showNotification('Failed to generate PDF', 'error');
         }
     } catch (error) {
-        console.error('Error exporting timetable:', error);
-        showAlert('Failed to export timetable', 'error');
+        console.error('Error exporting PDF:', error);
+        showNotification('Failed to export PDF', 'error');
     } finally {
         showLoading(false);
     }
 }
 
-// ============ CLASS OPERATION FUNCTIONS ============
-
-async function rescheduleClass(classId) {
-    const modal = document.createElement('div');
-    modal.className = 'modal-overlay';
-    modal.innerHTML = `
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2 class="modal-title">Reschedule Class</h2>
-                <button class="modal-close" onclick="this.closest('.modal-overlay').remove()">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-            
-            <form onsubmit="submitReschedule(event, ${classId})">
-                <div class="form-grid">
-                    <div class="form-group">
-                        <label class="form-label">New Date *</label>
-                        <input type="date" name="scheduled_date" class="form-input" required>
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">New Time *</label>
-                        <input type="time" name="scheduled_time" class="form-input" required>
-                    </div>
-                </div>
-                
-                <div class="form-group">
-                    <label class="form-label">Reason for Rescheduling</label>
-                    <textarea name="reschedule_reason" class="form-input" rows="3" 
-                              placeholder="Enter reason for rescheduling..." required></textarea>
-                </div>
-                
-                <div class="form-actions">
-                    <button type="button" onclick="this.closest('.modal-overlay').remove()" class="btn btn-secondary">
-                        Cancel
-                    </button>
-                    <button type="submit" class="btn btn-primary">
-                        <i class="fas fa-calendar-alt"></i>
-                        Reschedule
-                    </button>
-                </div>
-            </form>
-        </div>
-    `;
-    
-    document.body.appendChild(modal);
-}
-
-async function submitReschedule(event, classId) {
-    event.preventDefault();
-    
-    const formData = new FormData(event.target);
-    const rescheduleData = {
-        scheduled_date: formData.get('scheduled_date'),
-        scheduled_time: formData.get('scheduled_time'),
-        reschedule_reason: formData.get('reschedule_reason')
-    };
-    
+// ============ SEND FUNCTIONALITY ============
+async function sendTimetableEmail() {
     try {
         showLoading(true);
+        showNotification('Sending timetable via email...', 'info');
         
-        const response = await fetch(`/admin/api/v1/classes/${classId}/reschedule`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
-            },
-            body: JSON.stringify(rescheduleData)
+        const params = new URLSearchParams({
+            date: currentDate.toISOString().split('T')[0],
+            view: 'today',
+            recipients: 'all'
         });
         
-        const result = await response.json();
+        const response = await fetch(`/admin/api/v1/timetable/send-email?${params}`, {
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCSRFToken()
+            }
+        });
         
-        if (result.success) {
-            showAlert('Class rescheduled successfully!', 'success');
-            event.target.closest('.modal-overlay').remove();
-            closeClassDetailsModal();
-            loadTimetableData();
+        if (response.ok) {
+            const data = await response.json();
+            if (data.success) {
+                showNotification(`Timetable sent to ${data.sent_count} recipients via email!`, 'success');
+            } else {
+                showNotification(data.error || 'Failed to send email', 'error');
+            }
         } else {
-            showAlert(result.error || 'Failed to reschedule class', 'error');
+            showNotification('Failed to send timetable via email', 'error');
         }
     } catch (error) {
-        console.error('Error rescheduling class:', error);
-        showAlert('Failed to reschedule class', 'error');
+        console.error('Error sending email:', error);
+        showNotification('Failed to send timetable via email', 'error');
     } finally {
         showLoading(false);
     }
 }
 
-async function editClass(classId) {
+async function sendTimetableSMS() {
     try {
-        // First get class details
-        const response = await fetch(`/admin/api/v1/classes/${classId}`);
-        const data = await response.json();
-        
-        if (!data.success) {
-            showAlert('Failed to load class details', 'error');
-            return;
-        }
-        
-        const cls = data.data;
-        
-        const modal = document.createElement('div');
-        modal.className = 'modal-overlay';
-        modal.innerHTML = `
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h2 class="modal-title">Edit Class</h2>
-                    <button class="modal-close" onclick="this.closest('.modal-overlay').remove()">
-                        <i class="fas fa-times"></i>
-                    </button>
-                </div>
-                
-                <form onsubmit="submitEditClass(event, ${classId})">
-                    <div class="form-grid">
-                        <div class="form-group">
-                            <label class="form-label">Subject *</label>
-                            <input type="text" name="subject" class="form-input" value="${cls.subject}" required>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Grade</label>
-                            <input type="text" name="grade" class="form-input" value="${cls.grade || ''}">
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Date *</label>
-                            <input type="date" name="scheduled_date" class="form-input" value="${cls.scheduled_date}" required>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Time *</label>
-                            <input type="time" name="scheduled_time" class="form-input" value="${cls.scheduled_time}" required>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Duration (minutes)</label>
-                            <input type="number" name="duration" class="form-input" value="${cls.duration}" min="15" max="300">
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Meeting Link</label>
-                            <input type="url" name="meeting_link" class="form-input" value="${cls.meeting_link || ''}">
-                        </div>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label class="form-label">Class Notes</label>
-                        <textarea name="class_notes" class="form-input" rows="3">${cls.class_notes || ''}</textarea>
-                    </div>
-                    
-                    <div class="form-actions">
-                        <button type="button" onclick="this.closest('.modal-overlay').remove()" class="btn btn-secondary">
-                            Cancel
-                        </button>
-                        <button type="submit" class="btn btn-primary">
-                            <i class="fas fa-save"></i>
-                            Save Changes
-                        </button>
-                    </div>
-                </form>
+        showLoading(true);
+        showNotification('SMS functionality coming soon...', 'info');
+    } catch (error) {
+        console.error('Error sending SMS:', error);
+        showNotification('Failed to send SMS', 'error');
+    } finally {
+        showLoading(false);
+    }
+}
+
+// ============ UTILITY FUNCTIONS ============
+function showLoading(show) {
+    const container = document.getElementById('timetableContent');
+    if (show && container) {
+        container.innerHTML = `
+            <div class="loading">
+                <div class="spinner"></div>
+                Loading timetable data...
             </div>
         `;
-        
-        document.body.appendChild(modal);
-        
-    } catch (error) {
-        console.error('Error loading class for editing:', error);
-        showAlert('Failed to load class details', 'error');
     }
 }
 
-async function submitEditClass(event, classId) {
-    event.preventDefault();
+function showNotification(message, type = 'info') {
+    // Remove existing notifications
+    const existingNotifications = document.querySelectorAll('.notification');
+    existingNotifications.forEach(n => n.remove());
     
-    const formData = new FormData(event.target);
-    const classData = Object.fromEntries(formData.entries());
+    const notification = document.createElement('div');
+    notification.className = `notification ${type}`;
     
-    try {
-        showLoading(true);
-        
-        const response = await fetch(`/admin/api/v1/classes/${classId}/edit`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
-            },
-            body: JSON.stringify(classData)
-        });
-        
-        const result = await response.json();
-        
-        if (result.success) {
-            showAlert('Class updated successfully!', 'success');
-            event.target.closest('.modal-overlay').remove();
-            closeClassDetailsModal();
-            loadTimetableData();
-        } else {
-            showAlert(result.error || 'Failed to update class', 'error');
-        }
-    } catch (error) {
-        console.error('Error updating class:', error);
-        showAlert('Failed to update class', 'error');
-    } finally {
-        showLoading(false);
-    }
-}
-
-async function cancelClass(classId) {
-    if (!confirm('Are you sure you want to cancel this class?')) return;
-    
-    const reason = prompt('Enter reason for cancellation:') || 'Cancelled by admin';
-    
-    try {
-        showLoading(true);
-        
-        const response = await fetch(`/admin/api/v1/classes/${classId}/cancel`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
-            },
-            body: JSON.stringify({ reason })
-        });
-        
-        const result = await response.json();
-        
-        if (result.success) {
-            showAlert('Class cancelled successfully', 'success');
-            closeClassDetailsModal();
-            loadTimetableData();
-        } else {
-            showAlert(result.error || 'Failed to cancel class', 'error');
-        }
-    } catch (error) {
-        console.error('Error cancelling class:', error);
-        showAlert('Failed to cancel class', 'error');
-    } finally {
-        showLoading(false);
-    }
-}
-
-// ============ MONTHLY VIEW FUNCTIONS ============
-
-function selectMonthlyDate(dateStr) {
-    const selectedDate = new Date(dateStr);
-    currentDate = selectedDate;
-    
-    // Switch to day view
-    switchView('today');
-}
-
-function showDayDetails(dateStr) {
-    const dayClasses = classesData.filter(cls => cls.scheduled_date === dateStr);
-    
-    const modal = document.createElement('div');
-    modal.className = 'modal-overlay';
-    modal.innerHTML = `
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2 class="modal-title">Classes for ${new Date(dateStr).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</h2>
-                <button class="modal-close" onclick="this.closest('.modal-overlay').remove()">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-            
-            <div class="day-classes-list">
-                ${dayClasses.length === 0 ? '<p>No classes scheduled for this day.</p>' : 
-                  dayClasses.map(cls => `
-                    <div class="day-class-item" onclick="openClassDetails(${cls.id})">
-                        <div class="class-time-large">${cls.scheduled_time}</div>
-                        <div class="class-details">
-                            <h4>${cls.subject}</h4>
-                            <p>Tutor: ${cls.tutor_name}</p>
-                            <span class="status-badge status-${cls.status}">${cls.status}</span>
-                        </div>
-                    </div>
-                  `).join('')
-                }
-            </div>
-            
-            <div class="form-actions">
-                <button class="btn btn-primary" onclick="selectMonthlyDate('${dateStr}'); this.closest('.modal-overlay').remove();">
-                    View Day Schedule
-                </button>
-            </div>
-        </div>
-    `;
-    
-    document.body.appendChild(modal);
-}
-
-// ============ HELPER FUNCTIONS ============
-
-function clearAllFilters() {
-    searchFilters = {};
-    loadTimetableData();
-    showAlert('All filters cleared', 'info');
-}
-
-async function bulkCancelClasses() {
-    if (selectedClasses.size === 0) {
-        showAlert('No classes selected', 'warning');
-        return;
-    }
-    
-    const reason = prompt(`Enter reason for cancelling ${selectedClasses.size} classes:`);
-    if (!reason) return;
-    
-    try {
-        showLoading(true);
-        
-        const promises = Array.from(selectedClasses).map(classId => 
-            fetch(`/admin/api/v1/classes/${classId}/cancel`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
-                },
-                body: JSON.stringify({ reason })
-            })
-        );
-        
-        const results = await Promise.all(promises);
-        const successCount = results.filter(r => r.ok).length;
-        
-        showAlert(`Successfully cancelled ${successCount} out of ${selectedClasses.size} classes`, 'success');
-        clearBulkSelection();
-        loadTimetableData();
-        
-    } catch (error) {
-        console.error('Error bulk cancelling:', error);
-        showAlert('Failed to cancel classes', 'error');
-    } finally {
-        showLoading(false);
-    }
-}
-
-async function bulkChangeStatus() {
-    if (selectedClasses.size === 0) {
-        showAlert('No classes selected', 'warning');
-        return;
-    }
-    
-    const newStatus = prompt('Enter new status (scheduled, ongoing, completed, cancelled):');
-    if (!newStatus || !['scheduled', 'ongoing', 'completed', 'cancelled'].includes(newStatus)) {
-        showAlert('Invalid status', 'error');
-        return;
-    }
-    
-    try {
-        showLoading(true);
-        
-        const promises = Array.from(selectedClasses).map(classId => 
-            fetch(`/admin/api/v1/classes/${classId}/status`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
-                },
-                body: JSON.stringify({ status: newStatus })
-            })
-        );
-        
-        const results = await Promise.all(promises);
-        const successCount = results.filter(r => r.ok).length;
-        
-        showAlert(`Successfully updated status for ${successCount} out of ${selectedClasses.size} classes`, 'success');
-        clearBulkSelection();
-        loadTimetableData();
-        
-    } catch (error) {
-        console.error('Error bulk status change:', error);
-        showAlert('Failed to update class status', 'error');
-    } finally {
-        showLoading(false);
-    }
-}
-
-function showConflictSummary(conflicts) {
-    const modal = document.createElement('div');
-    modal.className = 'modal-overlay';
-    modal.innerHTML = `
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2 class="modal-title">Rescheduling Conflicts</h2>
-                <button class="modal-close" onclick="this.closest('.modal-overlay').remove()">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-            
-            <div class="alert alert-warning">
-                <i class="fas fa-exclamation-triangle"></i>
-                The following classes could not be rescheduled due to conflicts:
-            </div>
-            
-            <div class="conflict-list">
-                ${conflicts.map(conflict => `
-                    <div class="conflict-item" style="padding: 1rem; border: 1px solid #e2e8f0; border-radius: 8px; margin-bottom: 0.5rem;">
-                        <strong>${conflict.subject}</strong><br>
-                        <small>
-                            ${conflict.original_date} ${conflict.original_time} → ${conflict.new_date} ${conflict.new_time}<br>
-                            ${conflict.error || `Conflicts with: ${conflict.conflict_subject}`}
-                        </small>
-                    </div>
-                `).join('')}
-            </div>
-            
-            <div class="form-actions">
-                <button class="btn btn-primary" onclick="this.closest('.modal-overlay').remove()">
-                    OK
-                </button>
-            </div>
-        </div>
-    `;
-    
-    document.body.appendChild(modal);
-}
-
-
-// Drag and drop handlers
-function handleDragStart(event) {
-    draggedClass = {
-        element: event.target,
-        classId: event.target.getAttribute('data-class-id'),
-        originalParent: event.target.parentNode
+    const iconMap = {
+        'success': 'fa-check-circle',
+        'error': 'fa-exclamation-circle',
+        'info': 'fa-info-circle'
     };
     
-    event.target.style.opacity = '0.5';
-    event.dataTransfer.effectAllowed = 'move';
-}
-
-function handleDragEnd(event) {
-    event.target.style.opacity = '1';
+    notification.innerHTML = `
+        <i class="fas ${iconMap[type] || 'fa-info-circle'}"></i>
+        <span>${message}</span>
+    `;
     
-    // Clean up visual indicators
-    document.querySelectorAll('.drop-zone-active').forEach(zone => {
-        zone.classList.remove('drop-zone-active');
-    });
-}
-
-function handleDragOver(event) {
-    event.preventDefault();
-    event.dataTransfer.dropEffect = 'move';
+    document.body.appendChild(notification);
     
-    // Add visual feedback
-    event.target.classList.add('drop-zone-active');
-}
-
-function handleDrop(event) {
-    event.preventDefault();
-    
-    if (!draggedClass) return;
-    
-    const dropZone = event.target.closest('.time-slot');
-    if (!dropZone) return;
-    
-    // Get new time slot information
-    const day = dropZone.getAttribute('data-day');
-    const time = dropZone.getAttribute('data-time');
-    
-    if (!day || !time) return;
-    
-    // Calculate new date
-    const startOfWeek = new Date(currentDate);
-    startOfWeek.setDate(currentDate.getDate() - currentDate.getDay() + 1);
-    
-    const newDate = new Date(startOfWeek);
-    newDate.setDate(startOfWeek.getDate() + parseInt(day));
-    
-    // Confirm reschedule
-    const confirmation = confirm(
-        `Reschedule this class to ${newDate.toDateString()} at ${time}?`
-    );
-    
-    if (confirmation) {
-        rescheduleClassToTimeSlot(draggedClass.classId, newDate.toISOString().split('T')[0], time);
-    }
-    
-    draggedClass = null;
-}
-
-async function rescheduleClassToTimeSlot(classId, newDate, newTime) {
-    try {
-        showLoading(true);
-        
-        const response = await fetch(`/admin/api/v1/classes/${classId}/reschedule`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
-            },
-            body: JSON.stringify({
-                scheduled_date: newDate,
-                scheduled_time: newTime,
-                reschedule_reason: 'Rescheduled via drag and drop'
-            })
-        });
-        
-        const result = await response.json();
-        
-        if (result.success) {
-            showAlert('Class rescheduled successfully!', 'success');
-            loadTimetableData(); // Refresh calendar
-        } else {
-            showAlert(result.error || 'Failed to reschedule class', 'error');
+    setTimeout(() => {
+        if (notification.parentNode) {
+            notification.parentNode.removeChild(notification);
         }
-    } catch (error) {
-        console.error('Error rescheduling class:', error);
-        showAlert('Failed to reschedule class', 'error');
-    } finally {
-        showLoading(false);
-    }
+    }, 5000);
 }
 
-// Add required CSS for bulk selection
-const bulkSelectionStyles = document.createElement('style');
-bulkSelectionStyles.textContent = `
-    .bulk-selection-mode .class-block {
-        cursor: pointer !important;
-        transition: all 0.2s ease;
-    }
-    
-    .bulk-selection-mode .class-block:hover {
-        opacity: 0.8;
-        transform: scale(1.05);
-    }
-    
-    .class-block.selected {
-        border: 3px solid var(--primary-color) !important;
-        box-shadow: 0 0 0 2px rgba(241, 161, 80, 0.3) !important;
-    }
-    
-    .alert {
-        padding: 1rem;
-        border-radius: 8px;
-        margin-bottom: 1rem;
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-    }
-    
-    .alert-warning {
-        background: #fff3cd;
-        border: 1px solid #ffeaa7;
-        color: #856404;
-    }
-    
-    .form-help {
-        color: var(--text-secondary);
-        font-size: 0.75rem;
-        margin-top: 0.25rem;
-    }
-    
-    .day-classes-list {
-        display: flex;
-        flex-direction: column;
-        gap: 1rem;
-        max-height: 400px;
-        overflow-y: auto;
-    }
-    
-    .day-class-item {
-        display: flex;
-        gap: 1rem;
-        padding: 1rem;
-        border: 1px solid var(--border-color);
-        border-radius: 8px;
-        cursor: pointer;
-        transition: all 0.2s ease;
-    }
-    
-    .day-class-item:hover {
-        background: var(--bg-light);
-        transform: translateY(-1px);
-    }
-    
-    .class-time-large {
-        font-size: 1.25rem;
-        font-weight: 600;
-        color: var(--primary-color);
-        min-width: 80px;
-    }
-    
-    .class-details h4 {
-        margin: 0 0 0.5rem 0;
-        font-size: 1rem;
-    }
-    
-    .class-details p {
-        margin: 0 0 0.5rem 0;
-        color: var(--text-secondary);
-        font-size: 0.875rem;
-    }
-    
-    .status-badge {
-        padding: 0.25rem 0.5rem;
-        border-radius: 4px;
-        font-size: 0.75rem;
-        font-weight: 500;
-        text-transform: uppercase;
-    }
-    
-    .status-badge.status-scheduled {
-        background: var(--primary-color);
-        color: white;
-    }
-    
-    .status-badge.status-ongoing {
-        background: var(--success-color);
-        color: white;
-    }
-    
-    .status-badge.status-completed {
-        background: var(--info-color);
-        color: white;
-    }
-    
-    .status-badge.status-cancelled {
-        background: var(--danger-color);
-        color: white;
-    }
-`;
-document.head.appendChild(bulkSelectionStyles);
+function getCSRFToken() {
+    return document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+}
 
-console.log('✅ All timetable functions loaded successfully!');
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
 
-// ============ GLOBAL EXPORTS ============
-window.TimetableManager = {
-    loadTimetableData,
-    showAlert,
-    createQuickClass,
-    handleTimeSlotClick,
-    renderClasses,
-    switchView,
-    sendTimetable
-};
-
-console.log('Enhanced Timetable System Loaded Successfully!');
+console.log('✅ Complete Timetable System loaded successfully! 🚀');
 </script>
 {% endblock %}

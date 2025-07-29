@@ -1355,6 +1355,7 @@
             }
         }
 
+
         function hideGlobalLoader() {
             const loader = document.getElementById('globalLoader');
             if (loader) {
@@ -1371,6 +1372,16 @@
         window.addEventListener('load', function() {
             // Small delay to ensure smooth transition
             setTimeout(hideGlobalLoader, 500);
+        });
+
+        window.addEventListener('pageshow', function(event) {
+            // Hide loader when page is shown (including browser back)
+            hideGlobalLoader();
+        });
+        
+
+        window.addEventListener('popstate', function(event) {
+            hideGlobalLoader();
         });
 
         // Hide loader when DOM is ready (faster for some pages)
@@ -1399,7 +1410,10 @@
                 showGlobalLoader();
             }
         });
-        // END: Global Page Loader JavaScript
+        
+        setTimeout(function() {
+            hideGlobalLoader();
+        }, 5000);
 
         // Enhanced JavaScript functionality
         document.addEventListener('DOMContentLoaded', function() {

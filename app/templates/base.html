@@ -1184,7 +1184,7 @@
                 </li>
                 {% endif %}
 
-                {% if current_user.has_permission('timetable_management') %}
+                {% if current_user.role in ['superadmin', 'admin', 'coordinator'] %}
                 <li class="nav-item">
                     <a href="{{ url_for('admin.timetable') }}" class="nav-link {% if request.endpoint and 'timetable' in request.endpoint %}active{% endif %}">
                         <i class="fas fa-calendar-alt"></i>

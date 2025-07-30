@@ -1,0 +1,927 @@
+{% extends "base.html" %}
+
+{% block title %}Send Timetable Email{% endblock %}
+
+{% block extra_css %}
+<style>
+    :root {
+        --primary: #F1A150;
+        --primary-dark: #C86706;
+        --success: #10b981;
+        --info: #3b82f6;
+        --warning: #f59e0b;
+        --danger: #ef4444;
+        --gray-50: #f9fafb;
+        --gray-100: #f3f4f6;
+        --gray-200: #e5e7eb;
+        --gray-300: #d1d5db;
+        --gray-500: #6b7280;
+        --gray-600: #4b5563;
+        --gray-700: #374151;
+        --gray-800: #1f2937;
+        --white: #ffffff;
+    }
+
+    .main-content {
+        margin-left: var(--sidebar-width) !important;
+        width: calc(100% - var(--sidebar-width)) !important;
+        padding: 0 !important;
+        min-height: 100vh;
+        background: var(--gray-50);
+    }
+
+    @media (max-width: 1024px) {
+        .main-content {
+            margin-left: 0 !important;
+            width: 100% !important;
+        }
+    }
+
+    .email-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 2rem;
+    }
+
+    .email-header {
+        background: linear-gradient(135deg, var(--success), #059669);
+        color: white;
+        padding: 2rem;
+        border-radius: 12px;
+        margin-bottom: 2rem;
+        text-align: center;
+    }
+
+    .email-title {
+        font-size: 2rem;
+        font-weight: 700;
+        margin: 0 0 0.5rem 0;
+    }
+
+    .email-subtitle {
+        font-size: 1rem;
+        opacity: 0.9;
+        margin: 0;
+    }
+
+    .back-button {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        background: var(--white);
+        color: var(--gray-700);
+        padding: 0.75rem 1rem;
+        border-radius: 8px;
+        text-decoration: none;
+        margin-bottom: 2rem;
+        transition: all 0.2s ease;
+        border: 1px solid var(--gray-300);
+    }
+
+    .back-button:hover {
+        background: var(--gray-50);
+        transform: translateY(-1px);
+    }
+
+    .email-form-container {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 2rem;
+    }
+
+    .form-section {
+        background: var(--white);
+        padding: 2rem;
+        border-radius: 12px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        border: 1px solid var(--gray-200);
+    }
+
+    .section-title {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: var(--gray-800);
+        margin: 0 0 1.5rem 0;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .form-group {
+        margin-bottom: 1.5rem;
+    }
+
+    .form-label {
+        display: block;
+        margin-bottom: 0.5rem;
+        font-weight: 500;
+        color: var(--gray-700);
+    }
+
+    .form-control, .form-select {
+        width: 100%;
+        padding: 0.75rem 1rem;
+        border: 1px solid var(--gray-300);
+        border-radius: 8px;
+        font-size: 0.875rem;
+        background: var(--white);
+        transition: all 0.2s ease;
+    }
+
+    .form-control:focus, .form-select:focus {
+        outline: none;
+        border-color: var(--primary);
+        box-shadow: 0 0 0 3px rgba(241, 161, 80, 0.1);
+    }
+
+    .form-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1rem;
+    }
+
+    .checkbox-group {
+        border: 1px solid var(--gray-300);
+        border-radius: 8px;
+        padding: 1rem;
+        max-height: 300px;
+        overflow-y: auto;
+        scrollbar-width: thin;
+        scrollbar-color: var(--gray-300) transparent;
+    }
+
+    .checkbox-group::-webkit-scrollbar {
+        width: 8px;
+    }
+
+    .checkbox-group::-webkit-scrollbar-track {
+        background: var(--gray-100);
+        border-radius: 4px;
+    }
+
+    .checkbox-group::-webkit-scrollbar-thumb {
+        background: var(--gray-400);
+        border-radius: 4px;
+    }
+
+    .checkbox-item {
+        display: flex;
+        align-items: center;
+        padding: 0.75rem;
+        margin-bottom: 0.5rem;
+        background: var(--white);
+        border: 1px solid var(--gray-200);
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .checkbox-item:hover {
+        background: var(--gray-50);
+        border-color: var(--primary);
+    }
+
+    .checkbox-item input[type="checkbox"] {
+        margin-right: 0.75rem;
+    }
+
+    .recipient-info {
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+    }
+
+    .recipient-name {
+        font-weight: 500;
+        color: var(--gray-800);
+    }
+
+    .recipient-type {
+        font-size: 0.75rem;
+        color: var(--gray-500);
+    }
+
+    .recipient-stats {
+        background: var(--gray-100);
+        padding: 0.25rem 0.5rem;
+        border-radius: 12px;
+        font-size: 0.7rem;
+        color: var(--gray-600);
+        margin-left: auto;
+    }
+
+    .preview-section {
+        grid-column: 1 / -1;
+        background: var(--white);
+        padding: 2rem;
+        border-radius: 12px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        border: 1px solid var(--gray-200);
+        margin-top: 2rem;
+    }
+
+    .email-preview {
+        border: 1px solid var(--gray-300);
+        border-radius: 8px;
+        padding: 1.5rem;
+        background: var(--gray-50);
+        max-height: 500px;
+        overflow-y: auto;
+        margin-bottom: 1.5rem;
+        scrollbar-width: thin;
+        scrollbar-color: var(--gray-300) transparent;
+    }
+
+    .email-preview::-webkit-scrollbar {
+        width: 8px;
+    }
+
+    .email-preview::-webkit-scrollbar-track {
+        background: var(--gray-100);
+        border-radius: 4px;
+    }
+
+    .email-preview::-webkit-scrollbar-thumb {
+        background: var(--gray-400);
+        border-radius: 4px;
+    }
+
+    .email-stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+        gap: 1rem;
+        background: var(--gray-50);
+        padding: 1.5rem;
+        border-radius: 8px;
+        margin-bottom: 1.5rem;
+    }
+
+    .stat-item {
+        text-align: center;
+    }
+
+    .stat-number {
+        font-size: 1.5rem;
+        font-weight: bold;
+        color: var(--success);
+    }
+
+    .stat-label {
+        font-size: 0.8rem;
+        color: var(--gray-600);
+    }
+
+    .btn {
+        padding: 0.75rem 1.5rem;
+        border-radius: 8px;
+        font-size: 0.875rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        border: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        text-decoration: none;
+    }
+
+    .btn-primary {
+        background: var(--primary);
+        color: white;
+    }
+
+    .btn-primary:hover {
+        background: var(--primary-dark);
+        transform: translateY(-1px);
+    }
+
+    .btn-success {
+        background: var(--success);
+        color: white;
+    }
+
+    .btn-success:hover {
+        background: #059669;
+        transform: translateY(-1px);
+    }
+
+    .btn-outline {
+        background: transparent;
+        color: var(--gray-600);
+        border: 1px solid var(--gray-300);
+    }
+
+    .btn-outline:hover {
+        background: var(--gray-50);
+    }
+
+    .button-group {
+        display: flex;
+        gap: 1rem;
+        justify-content: flex-end;
+    }
+
+    .loading-spinner {
+        display: inline-block;
+        width: 20px;
+        height: 20px;
+        border: 2px solid var(--gray-300);
+        border-top: 2px solid var(--primary);
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+
+    .notification {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        max-width: 400px;
+        background: var(--white);
+        border: 1px solid var(--gray-200);
+        border-radius: 8px;
+        padding: 1rem;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        z-index: 1001;
+        animation: slideIn 0.3s ease-out;
+    }
+
+    .notification.success { border-left: 4px solid var(--success); }
+    .notification.error { border-left: 4px solid var(--danger); }
+    .notification.info { border-left: 4px solid var(--info); }
+
+    @keyframes slideIn {
+        from { transform: translateX(100%); opacity: 0; }
+        to { transform: translateX(0); opacity: 1; }
+    }
+
+    .recipients-summary {
+        background: var(--gray-50);
+        padding: 1rem;
+        border-radius: 6px;
+        margin-bottom: 1rem;
+        border: 1px solid var(--gray-200);
+    }
+
+    .summary-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 0.5rem;
+    }
+
+    .summary-item:last-child {
+        margin-bottom: 0;
+    }
+
+    .summary-label {
+        font-weight: 500;
+        color: var(--gray-700);
+    }
+
+    .summary-value {
+        font-weight: 600;
+        color: var(--primary);
+    }
+
+    @media (max-width: 768px) {
+        .email-form-container {
+            grid-template-columns: 1fr;
+            gap: 1rem;
+        }
+        
+        .form-row {
+            grid-template-columns: 1fr;
+        }
+        
+        .email-stats {
+            grid-template-columns: repeat(2, 1fr);
+        }
+        
+        .button-group {
+            flex-direction: column;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="email-container">
+    <!-- Header -->
+    <a href="/admin/timetable" class="back-button">
+        <i class="fas fa-arrow-left"></i>
+        Back to Timetable
+    </a>
+
+    <div class="email-header">
+        <h1 class="email-title">📧 Send Timetable Email</h1>
+        <p class="email-subtitle">Send customized timetable emails to tutors and students with smart previews</p>
+    </div>
+
+    <!-- Email Form -->
+    <form id="emailForm">
+        <div class="email-form-container">
+            <!-- Settings Section -->
+            <div class="form-section">
+                <h3 class="section-title">
+                    <i class="fas fa-cog"></i>
+                    Email Settings
+                </h3>
+
+                <div class="form-group">
+                    <label class="form-label">📅 Time Period</label>
+                    <select class="form-select" name="period" id="emailPeriod">
+                        <option value="single">Today Only</option>
+                        <option value="week">This Week</option>
+                        <option value="month">This Month</option>
+                        <option value="year">This Year</option>
+                    </select>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">📆 Date</label>
+                        <input type="date" class="form-control" name="date" id="emailDate" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">📧 Recipients</label>
+                        <select class="form-select" name="recipients" id="emailRecipients">
+                            <option value="all">👥 All (Tutors + Students)</option>
+                            <option value="tutors">👨‍🏫 Tutors Only</option>
+                            <option value="students">👨‍🎓 Students Only</option>
+                            <option value="specific">🎯 Specific People</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">✨ Email Subject Style</label>
+                    <select class="form-select" name="subject_style" id="subjectStyle">
+                        <option value="standard">📋 Standard (Professional)</option>
+                        <option value="personal">👋 Personal (With Greetings)</option>
+                        <option value="contextual">🧠 Smart (Context-Aware)</option>
+                    </select>
+                </div>
+
+                <div class="form-group" id="subjectPreview" style="display: none;">
+                    <label class="form-label">📝 Subject Preview</label>
+                    <div id="subjectPreviewText" style="background: var(--gray-50); padding: 1rem; border-radius: 6px; font-style: italic; color: var(--gray-600);">
+                        Preview will appear here...
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recipients Section -->
+            <div class="form-section">
+                <h3 class="section-title">
+                    <i class="fas fa-users"></i>
+                    Recipients
+                </h3>
+
+                <div id="recipientsSummary" class="recipients-summary">
+                    <p style="color: var(--gray-600); margin: 0;">Select recipients from the dropdown to see the breakdown</p>
+                </div>
+
+                <div class="form-group" id="specificRecipientsGroup" style="display: none;">
+                    <label class="form-label">🎯 Select Specific Recipients</label>
+                    <div id="specificRecipientsList" class="checkbox-group">
+                        <!-- Will be populated dynamically -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Preview Section -->
+        <div class="preview-section" id="previewSection" style="display: none;">
+            <h3 class="section-title">
+                <i class="fas fa-eye"></i>
+                Email Preview & Statistics
+            </h3>
+
+            <div class="email-stats" id="emailStats">
+                <div class="stat-item">
+                    <div class="stat-number" id="recipientCount">0</div>
+                    <div class="stat-label">Recipients</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number" id="classCount">0</div>
+                    <div class="stat-label">Classes</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number" id="tutorCount">0</div>
+                    <div class="stat-label">Tutors</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number" id="studentCount">0</div>
+                    <div class="stat-label">Students</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number" id="estimatedTime">0s</div>
+                    <div class="stat-label">Send Time</div>
+                </div>
+            </div>
+
+            <div class="email-preview" id="emailPreview">
+                <!-- Preview will be loaded here -->
+            </div>
+
+            <div class="button-group">
+                <button type="button" class="btn btn-outline" onclick="resetForm()">
+                    <i class="fas fa-undo"></i> Reset
+                </button>
+                <button type="button" class="btn btn-primary" onclick="generatePreview()" id="previewBtn">
+                    <i class="fas fa-eye"></i> Generate Preview
+                </button>
+                <button type="button" class="btn btn-success" onclick="sendEmail()" id="sendBtn" disabled>
+                    <i class="fas fa-paper-plane"></i> Send Email
+                </button>
+            </div>
+        </div>
+    </form>
+</div>
+
+<script>
+// ============ ENHANCED EMAIL MANAGEMENT SYSTEM ============
+const TUTORS_DATA = [
+    {% for tutor in tutors %}
+    {
+        id: {{ tutor.id }},
+        name: "{{ (tutor.user.full_name if tutor.user else 'Unknown')|replace('"', '\\"') }}",
+        email: "{{ (tutor.user.email if tutor.user else 'No email')|replace('"', '\\"') }}",
+        department: "{{ (tutor.user.department.name if tutor.user and tutor.user.department else 'N/A')|replace('"', '\\"') }}"
+    }{% if not loop.last %},{% endif %}
+    {% endfor %}
+];
+
+const STUDENTS_DATA = [
+    {% for student in students %}
+    {
+        id: {{ student.id }},
+        name: "{{ student.full_name|replace('"', '\\"') }}",
+        email: "{{ (student.email or 'No email')|replace('"', '\\"') }}",
+        department: "{{ (student.department.name if student.department else 'N/A')|replace('"', '\\"') }}"
+    }{% if not loop.last %},{% endif %}
+    {% endfor %}
+];
+
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('📧 Enhanced Email Management System loaded');
+    
+    // Set default date to today
+    document.getElementById('emailDate').value = new Date().toISOString().split('T')[0];
+    
+    setupEventListeners();
+    updateRecipientsSummary();
+    generateSubjectPreview();
+});
+
+function setupEventListeners() {
+    document.getElementById('emailRecipients').addEventListener('change', function() {
+        const value = this.value;
+        const specificGroup = document.getElementById('specificRecipientsGroup');
+        
+        if (value === 'specific') {
+            specificGroup.style.display = 'block';
+            loadSpecificRecipients();
+        } else {
+            specificGroup.style.display = 'none';
+        }
+        
+        updateRecipientsSummary();
+    });
+    
+    document.getElementById('subjectStyle').addEventListener('change', generateSubjectPreview);
+    document.getElementById('emailDate').addEventListener('change', generateSubjectPreview);
+    document.getElementById('emailPeriod').addEventListener('change', generateSubjectPreview);
+}
+
+function updateRecipientsSummary() {
+    const recipientType = document.getElementById('emailRecipients').value;
+    const summaryDiv = document.getElementById('recipientsSummary');
+    
+    let tutorCount = 0;
+    let studentCount = 0;
+    let totalCount = 0;
+    
+    switch(recipientType) {
+        case 'all':
+            tutorCount = TUTORS_DATA.length;
+            studentCount = STUDENTS_DATA.length;
+            totalCount = tutorCount + studentCount;
+            break;
+        case 'tutors':
+            tutorCount = TUTORS_DATA.length;
+            totalCount = tutorCount;
+            break;
+        case 'students':
+            studentCount = STUDENTS_DATA.length;
+            totalCount = studentCount;
+            break;
+        case 'specific':
+            const selected = document.querySelectorAll('input[name="specific_ids"]:checked');
+            selected.forEach(cb => {
+                if (cb.value.startsWith('tutor_')) tutorCount++;
+                else studentCount++;
+            });
+            totalCount = tutorCount + studentCount;
+            break;
+    }
+    
+    summaryDiv.innerHTML = `
+        <div class="summary-item">
+            <span class="summary-label">👥 Total Recipients:</span>
+            <span class="summary-value">${totalCount}</span>
+        </div>
+        <div class="summary-item">
+            <span class="summary-label">👨‍🏫 Tutors:</span>
+            <span class="summary-value">${tutorCount}</span>
+        </div>
+        <div class="summary-item">
+            <span class="summary-label">👨‍🎓 Students:</span>
+            <span class="summary-value">${studentCount}</span>
+        </div>
+    `;
+}
+
+function loadSpecificRecipients() {
+    const container = document.getElementById('specificRecipientsList');
+    let html = '';
+    
+    // Add tutors section
+    if (TUTORS_DATA.length > 0) {
+        html += '<h6 style="margin: 0 0 1rem 0; color: var(--gray-600); font-size: 0.9rem;">👨‍🏫 Tutors:</h6>';
+        TUTORS_DATA.forEach(tutor => {
+            html += `
+                <label class="checkbox-item">
+                    <input type="checkbox" name="specific_ids" value="tutor_${tutor.id}" onchange="updateSpecificCount()">
+                    <div class="recipient-info">
+                        <span class="recipient-name">${tutor.name}</span>
+                        <span class="recipient-type">${tutor.email} • ${tutor.department}</span>
+                    </div>
+                    <div class="recipient-stats">Tutor</div>
+                </label>
+            `;
+        });
+    }
+    
+    // Add students section
+    if (STUDENTS_DATA.length > 0) {
+        html += '<h6 style="margin: 1rem 0 0.5rem 0; color: var(--gray-600); font-size: 0.9rem;">👨‍🎓 Students:</h6>';
+        STUDENTS_DATA.forEach(student => {
+            html += `
+                <label class="checkbox-item">
+                    <input type="checkbox" name="specific_ids" value="student_${student.id}" onchange="updateSpecificCount()">
+                    <div class="recipient-info">
+                        <span class="recipient-name">${student.name}</span>
+                        <span class="recipient-type">${student.email} • ${student.department}</span>
+                    </div>
+                    <div class="recipient-stats">Student</div>
+                </label>
+            `;
+        });
+    }
+    
+    if (TUTORS_DATA.length === 0 && STUDENTS_DATA.length === 0) {
+        html = '<p style="color: var(--gray-500); font-style: italic; text-align: center; padding: 2rem;">No recipients available.</p>';
+    }
+    
+    container.innerHTML = html;
+}
+
+function updateSpecificCount() {
+    updateRecipientsSummary();
+}
+
+async function generateSubjectPreview() {
+    try {
+        const period = document.getElementById('emailPeriod').value;
+        const date = document.getElementById('emailDate').value;
+        const subjectStyle = document.getElementById('subjectStyle').value;
+        
+        if (!date || !subjectStyle) return;
+        
+        const response = await fetch('/admin/api/v1/timetable/subject-preview', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCSRFToken()
+            },
+            body: JSON.stringify({
+                date: date,
+                period: period,
+                style: subjectStyle,
+                recipient_type: 'tutor',
+                recipient_name: 'John Doe'
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            const preview = data.subject_options[subjectStyle] || `📧 ${subjectStyle} subject for ${period}`;
+            document.getElementById('subjectPreviewText').textContent = preview;
+            document.getElementById('subjectPreview').style.display = 'block';
+        }
+        
+    } catch (error) {
+        console.error('❌ Error generating subject preview:', error);
+    }
+}
+
+async function generatePreview() {
+    try {
+        const previewBtn = document.getElementById('previewBtn');
+        previewBtn.innerHTML = '<span class="loading-spinner"></span> Generating...';
+        previewBtn.disabled = true;
+        
+        const form = document.getElementById('emailForm');
+        const formData = new FormData(form);
+        
+        // Get selected specific recipients if any
+        const specificIds = [];
+        if (formData.get('recipients') === 'specific') {
+            const checkboxes = document.querySelectorAll('input[name="specific_ids"]:checked');
+            
+            if (checkboxes.length === 0) {
+                showNotification('Please select at least one specific recipient', 'error');
+                return;
+            }
+            
+            checkboxes.forEach(cb => specificIds.push(cb.value));
+        }
+        
+        const emailData = {
+            date: formData.get('date'),
+            period: formData.get('period'),
+            recipients: formData.get('recipients'),
+            subject_style: formData.get('subject_style'),
+            specific_ids: specificIds
+        };
+        
+        const response = await fetch('/admin/api/v1/timetable/enhanced-email-preview', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCSRFToken()
+            },
+            body: JSON.stringify(emailData)
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            // Show preview section
+            document.getElementById('previewSection').style.display = 'block';
+            
+            // Update stats
+            document.getElementById('recipientCount').textContent = data.recipient_count || 0;
+            document.getElementById('classCount').textContent = data.class_count || 0;
+            
+            if (data.recipients_breakdown) {
+                document.getElementById('tutorCount').textContent = data.recipients_breakdown.tutors || 0;
+                document.getElementById('studentCount').textContent = data.recipients_breakdown.students || 0;
+            }
+            
+            document.getElementById('estimatedTime').textContent = data.estimated_send_time || '0s';
+            
+            // Show preview
+            document.getElementById('emailPreview').innerHTML = data.preview_html || '<p style="color: var(--gray-500);">No preview available</p>';
+            
+            // Enable send button
+            document.getElementById('sendBtn').disabled = false;
+            
+            showNotification('📧 Enhanced email preview generated successfully!', 'success');
+            
+            // Scroll to preview
+            document.getElementById('previewSection').scrollIntoView({ behavior: 'smooth' });
+        } else {
+            showNotification(data.error || 'Failed to generate preview', 'error');
+        }
+        
+    } catch (error) {
+        console.error('❌ Error generating preview:', error);
+        showNotification('Failed to generate preview: ' + error.message, 'error');
+    } finally {
+        const previewBtn = document.getElementById('previewBtn');
+        previewBtn.innerHTML = '<i class="fas fa-eye"></i> Generate Preview';
+        previewBtn.disabled = false;
+    }
+}
+
+async function sendEmail() {
+    try {
+        if (!confirm('Are you sure you want to send this timetable email to all selected recipients? This action cannot be undone.')) {
+            return;
+        }
+        
+        const sendBtn = document.getElementById('sendBtn');
+        sendBtn.innerHTML = '<span class="loading-spinner"></span> Sending...';
+        sendBtn.disabled = true;
+        
+        const form = document.getElementById('emailForm');
+        const formData = new FormData(form);
+        
+        // Get selected specific recipients if any
+        const specificIds = [];
+        if (formData.get('recipients') === 'specific') {
+            const checkboxes = document.querySelectorAll('input[name="specific_ids"]:checked');
+            checkboxes.forEach(cb => specificIds.push(cb.value));
+        }
+        
+        const emailData = {
+            date: formData.get('date'),
+            period: formData.get('period'),
+            recipients: formData.get('recipients'),
+            subject_style: formData.get('subject_style'),
+            specific_ids: specificIds
+        };
+        
+        const response = await fetch('/admin/api/v1/timetable/send-email', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCSRFToken()
+            },
+            body: JSON.stringify(emailData)
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showNotification(
+                `📧 Email sent successfully to ${data.sent_count || 0} recipients!` +
+                (data.failed_count > 0 ? ` (${data.failed_count} failed)` : ''), 
+                'success'
+            );
+            
+            // Reset form after successful send
+            setTimeout(() => {
+                resetForm();
+            }, 2000);
+        } else {
+            showNotification(data.error || 'Failed to send email', 'error');
+        }
+        
+    } catch (error) {
+        console.error('❌ Error sending email:', error);
+        showNotification('Failed to send email: ' + error.message, 'error');
+    } finally {
+        const sendBtn = document.getElementById('sendBtn');
+        sendBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Send Email';
+        sendBtn.disabled = false;
+    }
+}
+
+function resetForm() {
+    document.getElementById('emailForm').reset();
+    document.getElementById('emailDate').value = new Date().toISOString().split('T')[0];
+    document.getElementById('previewSection').style.display = 'none';
+    document.getElementById('specificRecipientsGroup').style.display = 'none';
+    document.getElementById('subjectPreview').style.display = 'none';
+    document.getElementById('sendBtn').disabled = true;
+    
+    updateRecipientsSummary();
+    generateSubjectPreview();
+}
+
+// ============ UTILITY FUNCTIONS ============
+function showNotification(message, type = 'info') {
+    const existingNotifications = document.querySelectorAll('.notification');
+    existingNotifications.forEach(n => n.remove());
+    
+    const notification = document.createElement('div');
+    notification.className = `notification ${type}`;
+    
+    const iconMap = {
+        'success': 'fa-check-circle',
+        'error': 'fa-exclamation-circle',
+        'info': 'fa-info-circle',
+        'warning': 'fa-exclamation-triangle'
+    };
+    
+    notification.innerHTML = `
+        <i class="fas ${iconMap[type] || 'fa-info-circle'}"></i>
+        <span style="margin-left: 0.75rem;">${message}</span>
+    `;
+    
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        if (notification.parentNode) {
+            notification.parentNode.removeChild(notification);
+        }
+    }, 5000);
+}
+
+function getCSRFToken() {
+    return document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+}
+
+console.log('✅ Enhanced Email Management System ready! 📧');
+</script>
+{% endblock %}

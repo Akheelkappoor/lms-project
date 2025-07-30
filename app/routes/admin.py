@@ -19,6 +19,9 @@ from functools import wraps
 from app.utils.email import send_password_reset_email, send_onboarding_email
 from app.forms.user import EditStudentForm
 from sqlalchemy import text
+from app.utils.enhanced_email_subjects import create_better_email_subject, get_enhanced_subject_options
+import urllib.parse
+from flask import make_response
 
 bp = Blueprint('admin', __name__)
 
@@ -1254,7 +1257,7 @@ def classes():
     if class_type_filter:
         query = query.filter_by(class_type=class_type_filter)
     
-    classes = query.order_by(Class.scheduled_date.desc(), Class.scheduled_time.desc()).paginate(
+    classes = query.order_by(Class.scheduled_date, Class.scheduled_time).paginate(
         page=page, per_page=20, error_out=False
     )
     
@@ -2667,6 +2670,37 @@ def api_timetable_year():
             'monthly_stats': {},
             'stats': {'total_classes': 0, 'scheduled': 0, 'completed': 0, 'cancelled': 0, 'ongoing': 0}
         }), 500
+       
+@bp.route('/api/v1/tutor/<int:tutor_id>/details')
+@login_required
+@admin_required
+def api_tutor_details(tutor_id):
+    """Get tutor detailed information"""
+    try:
+        tutor = Tutor.query.get_or_404(tutor_id)
+        
+        details = {
+            'name': tutor.user.full_name if tutor.user else 'Unknown',
+            'email': tutor.user.email if tutor.user else 'No email',
+            'phone': tutor.user.phone if tutor.user else None,
+            'experience': tutor.experience,
+            'subjects': tutor.get_subjects(),
+            'status': tutor.status,
+            'qualification': tutor.qualification,
+            'hourly_rate': tutor.hourly_rate,
+            'monthly_salary': tutor.monthly_salary
+        }
+        
+        return jsonify({
+            'success': True,
+            'details': details
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500       
         
 # ============ QUICK CLASS CREATION ============
 
@@ -2748,22 +2782,42 @@ def api_create_quick_class():
 
 # ============ EXPORT FUNCTIONALITY ============
 
-@bp.route('/api/v1/timetable/export-pdf')
+@bp.route('/timetable/export')
 @login_required
 @admin_required
-def api_export_timetable_pdf():
-    """Export timetable as PDF with filters - OPTIONAL FEATURE"""
+def timetable_export():
+    """Timetable export management page"""
+    tutors = Tutor.query.all()
+    departments = Department.query.filter_by(is_active=True).all()
+    
+    return render_template('admin/timetable_export.html', 
+                         tutors=tutors, 
+                         departments=departments)
+
+
+@bp.route('/api/v1/timetable/export-preview', methods=['POST'])
+@login_required
+@admin_required
+def api_export_preview():
+    """Generate detailed export preview with real data"""
     try:
-        # Get parameters
-        date_param = request.args.get('date', datetime.now().strftime('%Y-%m-%d'))
-        view = request.args.get('view', 'today')  # today, week, month
-        tutor_id = request.args.get('tutor_id', type=int)
-        student_id = request.args.get('student_id', type=int)
+        data = request.get_json()
+        export_type = data.get('export_type', 'pdf')
+        period = data.get('period', 'today')
+        date_param = data.get('date', datetime.now().strftime('%Y-%m-%d'))
+        scope = data.get('scope', 'all')
+        tutor_id = data.get('tutor_id')
+        department_id = data.get('department_id')
+        subject_filter = data.get('subject_filter', '')
         
+        # Parse date
         target_date = datetime.strptime(date_param, '%Y-%m-%d').date()
         
-        # Get data based on view
-        if view == 'week':
+        # Build query based on period
+        if period == 'today':
+            query = Class.query.filter(Class.scheduled_date == target_date)
+            period_name = target_date.strftime('%B %d, %Y')
+        elif period == 'week':
             start_of_week = target_date - timedelta(days=target_date.weekday())
             end_of_week = start_of_week + timedelta(days=6)
             query = Class.query.filter(
@@ -2771,7 +2825,7 @@ def api_export_timetable_pdf():
                 Class.scheduled_date <= end_of_week
             )
             period_name = f"Week of {start_of_week.strftime('%B %d, %Y')}"
-        elif view == 'month':
+        elif period == 'month':
             first_day = target_date.replace(day=1)
             if target_date.month == 12:
                 last_day = target_date.replace(year=target_date.year + 1, month=1, day=1) - timedelta(days=1)
@@ -2782,577 +2836,610 @@ def api_export_timetable_pdf():
                 Class.scheduled_date <= last_day
             )
             period_name = target_date.strftime('%B %Y')
-        else:  # today
-            query = Class.query.filter(Class.scheduled_date == target_date)
-            period_name = target_date.strftime('%B %d, %Y')
+        elif period == 'quarter':
+            quarter = (target_date.month - 1) // 3 + 1
+            quarter_start = target_date.replace(month=(quarter-1)*3+1, day=1)
+            if quarter == 4:
+                quarter_end = target_date.replace(year=target_date.year+1, month=1, day=1) - timedelta(days=1)
+            else:
+                quarter_end = target_date.replace(month=quarter*3+1, day=1) - timedelta(days=1)
+            query = Class.query.filter(
+                Class.scheduled_date >= quarter_start,
+                Class.scheduled_date <= quarter_end
+            )
+            period_name = f"Q{quarter} {target_date.year}"
+        else:  # year
+            start_date = target_date.replace(month=1, day=1)
+            end_date = target_date.replace(month=12, day=31)
+            query = Class.query.filter(
+                Class.scheduled_date >= start_date,
+                Class.scheduled_date <= end_date
+            )
+            period_name = f"Year {target_date.year}"
         
         # Apply filters
+        if scope == 'scheduled':
+            query = query.filter(Class.status == 'scheduled')
+        elif scope == 'completed':
+            query = query.filter(Class.status == 'completed')
+        elif scope == 'cancelled':
+            query = query.filter(Class.status == 'cancelled')
+        
         if tutor_id:
             query = query.filter(Class.tutor_id == tutor_id)
-        if student_id:
-            query = query.filter(
-                db.or_(
-                    Class.primary_student_id == student_id,
-                    Class.demo_student_id == student_id
-                )
-            )
+            
+        if department_id:
+            query = query.join(Tutor, Class.tutor_id == Tutor.id)\
+                         .join(User, Tutor.user_id == User.id)\
+                         .filter(User.department_id == department_id)
         
+        if subject_filter:
+            query = query.filter(Class.subject.ilike(f'%{subject_filter}%'))
+        
+        # Get classes
         classes = query.order_by(Class.scheduled_date, Class.scheduled_time).all()
         
-        # Generate simple PDF (you'll need to install reportlab: pip install reportlab)
-        try:
-            from reportlab.lib.pagesizes import letter, A4
-            from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
-            from reportlab.lib.styles import getSampleStyleSheet
-            from reportlab.lib import colors
-            from reportlab.lib.units import inch
-            from flask import make_response
-            import io
+        # Calculate statistics
+        total_records = len(classes)
+        total_hours = sum(cls.duration for cls in classes) / 60  # Convert to hours
+        unique_tutors = len(set(cls.tutor_id for cls in classes if cls.tutor_id))
+        unique_students = len(set(cls.primary_student_id for cls in classes if cls.primary_student_id))
+        
+        # Status breakdown
+        status_counts = {}
+        for cls in classes:
+            status_counts[cls.status] = status_counts.get(cls.status, 0) + 1
+        
+        # Estimate file size and pages
+        if export_type == 'pdf':
+            estimated_pages = max(1, (total_records // 25) + 1)  # ~25 records per page
+            estimated_size = f"{estimated_pages * 150}KB"  # ~150KB per page
+        elif export_type == 'excel':
+            estimated_pages = max(1, (total_records // 1000) + 1)  # Worksheets
+            estimated_size = f"{total_records * 0.5}KB"  # ~0.5KB per record
+        elif export_type == 'csv':
+            estimated_pages = 1
+            estimated_size = f"{total_records * 0.2}KB"  # ~0.2KB per record
+        else:  # calendar
+            estimated_pages = 1
+            estimated_size = f"{total_records * 0.3}KB"  # ~0.3KB per event
+        
+        # Generation time estimate
+        generation_time = max(1, total_records // 100)  # ~100 records per second
+        
+        # Generate detailed preview HTML
+        preview_html = f"""
+        <div style="font-family: Arial, sans-serif; max-width: 100%; overflow-x: auto;">
+            <div style="background: linear-gradient(135deg, #F1A150, #C86706); color: white; padding: 1.5rem; border-radius: 8px; margin-bottom: 1.5rem;">
+                <h3 style="margin: 0 0 0.5rem 0;">{export_type.upper()} Export Preview</h3>
+                <p style="margin: 0; opacity: 0.9;">{period_name} • {total_records} Records</p>
+            </div>
             
-            # Create PDF buffer
-            buffer = io.BytesIO()
-            doc = SimpleDocTemplate(buffer, pagesize=A4, margin=0.5*inch)
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+                <div style="text-align: center; background: #f8f9fa; padding: 1rem; border-radius: 6px;">
+                    <div style="font-size: 1.5rem; font-weight: bold; color: #F1A150;">{total_records}</div>
+                    <div style="font-size: 0.8rem; color: #666;">Total Classes</div>
+                </div>
+                <div style="text-align: center; background: #f8f9fa; padding: 1rem; border-radius: 6px;">
+                    <div style="font-size: 1.5rem; font-weight: bold; color: #10b981;">{total_hours:.1f}h</div>
+                    <div style="font-size: 0.8rem; color: #666;">Total Hours</div>
+                </div>
+                <div style="text-align: center; background: #f8f9fa; padding: 1rem; border-radius: 6px;">
+                    <div style="font-size: 1.5rem; font-weight: bold; color: #3b82f6;">{unique_tutors}</div>
+                    <div style="font-size: 0.8rem; color: #666;">Tutors</div>
+                </div>
+                <div style="text-align: center; background: #f8f9fa; padding: 1rem; border-radius: 6px;">
+                    <div style="font-size: 1.5rem; font-weight: bold; color: #8b5cf6;">{unique_students}</div>
+                    <div style="font-size: 0.8rem; color: #666;">Students</div>
+                </div>
+            </div>
             
-            # Get styles
-            styles = getSampleStyleSheet()
+            <div style="background: white; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden; margin-bottom: 1.5rem;">
+                <div style="background: #f8f9fa; padding: 1rem; border-bottom: 1px solid #e5e7eb;">
+                    <h4 style="margin: 0;">Sample Data Preview (First 5 Records)</h4>
+                </div>
+                <table style="width: 100%; border-collapse: collapse;">
+                    <thead style="background: #F1A150; color: white;">
+                        <tr>
+                            <th style="padding: 0.75rem; text-align: left; border-bottom: 1px solid #ddd;">Date</th>
+                            <th style="padding: 0.75rem; text-align: left; border-bottom: 1px solid #ddd;">Time</th>
+                            <th style="padding: 0.75rem; text-align: left; border-bottom: 1px solid #ddd;">Subject</th>
+                            <th style="padding: 0.75rem; text-align: left; border-bottom: 1px solid #ddd;">Tutor</th>
+                            <th style="padding: 0.75rem; text-align: left; border-bottom: 1px solid #ddd;">Duration</th>
+                            <th style="padding: 0.75rem; text-align: left; border-bottom: 1px solid #ddd;">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+        """
+        
+        # Add sample rows (first 5 classes)
+        for i, cls in enumerate(classes[:5]):
+            tutor_name = cls.tutor.user.full_name if cls.tutor and cls.tutor.user else 'No Tutor'
+            bg_color = '#f8f9fa' if i % 2 == 0 else 'white'
+            preview_html += f"""
+                        <tr style="background: {bg_color};">
+                            <td style="padding: 0.75rem; border-bottom: 1px solid #eee;">{cls.scheduled_date.strftime('%m/%d/%Y')}</td>
+                            <td style="padding: 0.75rem; border-bottom: 1px solid #eee;">{cls.scheduled_time.strftime('%H:%M') if cls.scheduled_time else '00:00'}</td>
+                            <td style="padding: 0.75rem; border-bottom: 1px solid #eee;">{cls.subject}</td>
+                            <td style="padding: 0.75rem; border-bottom: 1px solid #eee;">{tutor_name}</td>
+                            <td style="padding: 0.75rem; border-bottom: 1px solid #eee;">{cls.duration} min</td>
+                            <td style="padding: 0.75rem; border-bottom: 1px solid #eee;">
+                                <span style="background: {'#10b981' if cls.status == 'completed' else '#3b82f6' if cls.status == 'scheduled' else '#ef4444'}; color: white; padding: 0.25rem 0.5rem; border-radius: 12px; font-size: 0.75rem;">
+                                    {cls.status.title()}
+                                </span>
+                            </td>
+                        </tr>
+            """
+        
+        if total_records > 5:
+            preview_html += f"""
+                        <tr>
+                            <td colspan="6" style="padding: 1rem; text-align: center; color: #666; font-style: italic;">
+                                ... and {total_records - 5} more records
+                            </td>
+                        </tr>
+            """
+        
+        preview_html += """
+                    </tbody>
+                </table>
+            </div>
             
-            # Build content
-            content = []
-            
-            # Title
-            content.append(Paragraph(f"Class Timetable - {period_name}", styles['Title']))
-            content.append(Spacer(1, 20))
-            
-            if classes:
-                # Create table data
-                table_data = [['Date', 'Time', 'Subject', 'Tutor', 'Duration', 'Status']]
-                
-                for cls in classes:
-                    tutor_name = cls.tutor.user.full_name if cls.tutor and cls.tutor.user else 'No Tutor'
-                    
-                    table_data.append([
-                        cls.scheduled_date.strftime('%m/%d/%Y'),
-                        cls.scheduled_time.strftime('%H:%M') if cls.scheduled_time else '00:00',
-                        cls.subject[:20] + '...' if len(cls.subject) > 20 else cls.subject,
-                        tutor_name[:15] + '...' if len(tutor_name) > 15 else tutor_name,
-                        f"{cls.duration} min",
-                        cls.status.title()
-                    ])
-                
-                # Create table
-                table = Table(table_data, colWidths=[1*inch, 0.8*inch, 1.5*inch, 1.2*inch, 0.8*inch, 0.8*inch])
-                table.setStyle(TableStyle([
-                    ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#F1A150')),
-                    ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-                    ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-                    ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                    ('FONTSIZE', (0, 0), (-1, 0), 9),
-                    ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-                    ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
-                    ('GRID', (0, 0), (-1, -1), 1, colors.black),
-                    ('FONTSIZE', (0, 1), (-1, -1), 8),
-                    ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-                ]))
-                
-                content.append(table)
-                
-            else:
-                content.append(Paragraph("No classes scheduled for this period", styles['Normal']))
-            
-            # Build PDF
-            doc.build(content)
-            buffer.seek(0)
-            
-            # Return PDF response
-            response = make_response(buffer.read())
-            response.headers['Content-Type'] = 'application/pdf'
-            response.headers['Content-Disposition'] = f'attachment; filename=timetable_{target_date.strftime("%Y_%m_%d")}.pdf'
-            
-            return response
-            
-        except ImportError:
-            return jsonify({'success': False, 'error': 'Please install reportlab: pip install reportlab'}), 500
-            
+            <div style="background: #f8f9fa; padding: 1rem; border-radius: 6px;">
+                <h4 style="margin: 0 0 1rem 0;">Status Breakdown</h4>
+        """
+        
+        for status, count in status_counts.items():
+            percentage = (count / total_records * 100) if total_records > 0 else 0
+            color = '#10b981' if status == 'completed' else '#3b82f6' if status == 'scheduled' else '#ef4444'
+            preview_html += f"""
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                    <span style="text-transform: capitalize;">{status}</span>
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                        <div style="width: 100px; height: 8px; background: #e5e7eb; border-radius: 4px; overflow: hidden;">
+                            <div style="width: {percentage}%; height: 100%; background: {color};"></div>
+                        </div>
+                        <span style="font-weight: bold; min-width: 60px;">{count} ({percentage:.1f}%)</span>
+                    </div>
+                </div>
+            """
+        
+        preview_html += """
+            </div>
+        </div>
+        """
+        
+        return jsonify({
+            'success': True,
+            'total_records': total_records,
+            'estimated_size': estimated_size,
+            'page_count': estimated_pages,
+            'generation_time': f"{generation_time}s",
+            'preview_html': preview_html,
+            'statistics': {
+                'total_classes': total_records,
+                'total_hours': round(total_hours, 1),
+                'unique_tutors': unique_tutors,
+                'unique_students': unique_students,
+                'status_breakdown': status_counts,
+                'period_name': period_name
+            }
+        })
+        
     except Exception as e:
+        print(f"Export preview error: {str(e)}")
         return jsonify({'success': False, 'error': str(e)}), 500
-
-def generate_timetable_pdf(classes, period_name, view_type):
-    """Generate PDF content for timetable"""
-    try:
-        from reportlab.lib.pagesizes import letter, A4
-        from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageBreak
-        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-        from reportlab.lib import colors
-        from reportlab.lib.units import inch
-        import io
-        
-        # Create PDF buffer
-        buffer = io.BytesIO()
-        doc = SimpleDocTemplate(buffer, pagesize=A4, margin=0.5*inch)
-        
-        # Get styles
-        styles = getSampleStyleSheet()
-        title_style = ParagraphStyle(
-            'CustomTitle',
-            parent=styles['Heading1'],
-            fontSize=20,
-            textColor=colors.HexColor('#F1A150'),
-            alignment=1,  # Center
-            spaceAfter=20
-        )
-        
-        subtitle_style = ParagraphStyle(
-            'SubTitle',
-            parent=styles['Normal'],
-            fontSize=12,
-            textColor=colors.HexColor('#666666'),
-            alignment=1,
-            spaceAfter=30
-        )
-        
-        # Build content
-        content = []
-        
-        # Title
-        content.append(Paragraph(f"Class Timetable", title_style))
-        content.append(Paragraph(f"{period_name} ({view_type.title()} View)", subtitle_style))
-        
-        if classes:
-            # Create table data
-            table_data = [['Date', 'Time', 'Subject', 'Tutor', 'Students', 'Duration', 'Status']]
-            
-            for cls in classes:
-                # Get student names
-                student_names = []
-                if cls.class_type == 'demo' and cls.demo_student_id:
-                    from app.models.demo_student import DemoStudent
-                    demo_student = DemoStudent.query.get(cls.demo_student_id)
-                    if demo_student:
-                        student_names = [demo_student.full_name]
-                elif cls.primary_student_id:
-                    student = Student.query.get(cls.primary_student_id)
-                    if student:
-                        student_names = [student.full_name]
-                elif cls.students:
-                    try:
-                        import json
-                        student_ids = json.loads(cls.students)
-                        students = Student.query.filter(Student.id.in_(student_ids)).all()
-                        student_names = [s.full_name for s in students]
-                    except:
-                        student_names = []
-                
-                tutor_name = cls.tutor.user.full_name if cls.tutor and cls.tutor.user else 'No Tutor'
-                student_display = ', '.join(student_names[:2])  # Show max 2 names
-                if len(student_names) > 2:
-                    student_display += f' +{len(student_names)-2} more'
-                
-                table_data.append([
-                    cls.scheduled_date.strftime('%m/%d/%Y'),
-                    cls.scheduled_time.strftime('%H:%M') if cls.scheduled_time else '00:00',
-                    cls.subject[:20] + '...' if len(cls.subject) > 20 else cls.subject,
-                    tutor_name[:15] + '...' if len(tutor_name) > 15 else tutor_name,
-                    student_display if student_display else 'No students',
-                    f"{cls.duration} min",
-                    cls.status.title()
-                ])
-            
-            # Create table
-            table = Table(table_data, colWidths=[1*inch, 0.8*inch, 1.5*inch, 1.2*inch, 1.5*inch, 0.7*inch, 0.8*inch])
-            table.setStyle(TableStyle([
-                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#F1A150')),
-                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                ('FONTSIZE', (0, 0), (-1, 0), 9),
-                ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-                ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
-                ('GRID', (0, 0), (-1, -1), 1, colors.black),
-                ('FONTSIZE', (0, 1), (-1, -1), 8),
-                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-                ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.lightgrey])
-            ]))
-            
-            content.append(table)
-            
-            # Add summary
-            content.append(Spacer(1, 30))
-            summary_style = ParagraphStyle(
-                'Summary',
-                parent=styles['Normal'],
-                fontSize=10,
-                textColor=colors.HexColor('#333333')
-            )
-            content.append(Paragraph(f"<b>Summary:</b> {len(classes)} classes scheduled for {period_name}", summary_style))
-            content.append(Paragraph(f"Generated on: {datetime.now().strftime('%B %d, %Y at %I:%M %p')}", summary_style))
-            
-        else:
-            content.append(Paragraph("No classes scheduled for this period", styles['Normal']))
-        
-        # Build PDF
-        doc.build(content)
-        buffer.seek(0)
-        
-        return buffer.read()
-        
-    except Exception as e:
-        print(f"PDF generation error: {str(e)}")
-        raise e
     
 
-# ============ EMAIL PREVIEW AND SENDING ============
-
-@bp.route('/api/v1/timetable/email-preview', methods=['POST'])
+@bp.route('/api/v1/timetable/export', methods=['POST'])
 @login_required
 @admin_required
-def api_email_preview():
-    """Preview timetable email before sending"""
+def api_timetable_export():
+    """Enhanced export with multiple formats"""
+    try:
+        data = request.get_json()
+        export_type = data.get('export_type', 'pdf')
+        period = data.get('period', 'today')
+        date_param = data.get('date', datetime.now().strftime('%Y-%m-%d'))
+        
+        # For now, redirect to existing PDF export for PDF type
+        if export_type == 'pdf':
+            # Build query parameters for existing PDF export
+            params = {
+                'date': date_param,
+                'view': period if period in ['today', 'week', 'month'] else 'today'
+            }
+            
+            # Add filters if provided
+            if data.get('tutor_id'):
+                params['tutor_id'] = data.get('tutor_id')
+            if data.get('student_id'):
+                params['student_id'] = data.get('student_id')
+            
+            # Redirect to existing PDF export endpoint
+            from flask import redirect, url_for
+            return redirect(url_for('admin.api_export_timetable_pdf', **params))
+        
+        # For other formats, return placeholder response
+        return jsonify({
+            'success': False, 
+            'error': f'{export_type.upper()} export will be implemented soon. Use PDF export for now.'
+        }), 400
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+    
+@bp.route('/api/v1/timetable/enhanced-email-preview', methods=['POST'])
+@login_required
+@admin_required
+def api_enhanced_email_preview():
+    """Enhanced email preview with better recipient handling"""
     try:
         data = request.get_json()
         date_param = data.get('date', datetime.now().strftime('%Y-%m-%d'))
-        view = data.get('view', 'today')
-        recipients = data.get('recipients', 'all')  # all, tutors, students, specific_ids
-        specific_ids = data.get('specific_ids', [])  # for targeted sending
+        period = data.get('period', 'single')
+        recipients_type = data.get('recipients', 'all')
+        specific_ids = data.get('specific_ids', [])
+        subject_style = data.get('subject_style', 'standard')
         
         target_date = datetime.strptime(date_param, '%Y-%m-%d').date()
         
-        # Get classes data
-        classes = get_classes_for_email(target_date, view)
+        # Get classes based on period
+        classes = get_classes_for_period(target_date, period)
         
-        # Get recipients list
-        recipients_list = get_email_recipients(recipients, specific_ids, classes)
+        # Get recipients with enhanced details
+        recipients_list = get_enhanced_recipients(recipients_type, specific_ids, classes)
         
-        # Generate preview
-        preview_html = generate_email_preview(classes, target_date, view, recipients_list)
+        # Generate enhanced preview
+        preview_html = generate_enhanced_email_preview(classes, target_date, period, recipients_list, subject_style)
         
         return jsonify({
             'success': True,
             'preview_html': preview_html,
             'recipient_count': len(recipients_list),
-            'recipients': [{'name': r['name'], 'email': r['email'], 'type': r['type']} for r in recipients_list[:10]],  # Show first 10
-            'class_count': len(classes)
+            'class_count': len(classes),
+            'recipients_breakdown': get_recipients_breakdown(recipients_list),
+            'estimated_send_time': calculate_send_time(len(recipients_list))
         })
         
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
-    
-@bp.route('/api/v1/timetable/send-email', methods=['POST'])
+
+# ============ EMAIL PREVIEW AND SENDING ============
+
+@bp.route('/timetable/email')
 @login_required
 @admin_required
-def api_send_timetable_email():
-    """Send timetable email with targeting options"""
+def timetable_email():
+    """Timetable email management page"""
+    tutors = Tutor.query.all()
+    students = Student.query.all()
+    departments = Department.query.filter_by(is_active=True).all()
+    
+    return render_template('admin/timetable_email.html', 
+                         tutors=tutors, 
+                         students=students, 
+                         departments=departments)
+
+    
+
+@bp.route('/api/v1/timetable/subject-preview', methods=['POST'])
+@login_required
+@admin_required
+def api_subject_preview():
+    """Generate smart email subject preview"""
     try:
         data = request.get_json()
-        date_param = data.get('date', datetime.now().strftime('%Y-%m-%d'))
-        view = data.get('view', 'today')
-        recipients = data.get('recipients', 'all')
-        specific_ids = data.get('specific_ids', [])
-        period = data.get('period', 'single')  # single, week, month, year
+        date = data.get('date')
+        period = data.get('period', 'single')
+        style = data.get('style', 'standard')
+        recipient_type = data.get('recipient_type', 'tutor')
+        recipient_name = data.get('recipient_name', 'User')
         
-        target_date = datetime.strptime(date_param, '%Y-%m-%d').date()
+        # Parse date for better formatting
+        date_obj = datetime.strptime(date, '%Y-%m-%d').date()
+        formatted_date = date_obj.strftime('%B %d, %Y')
+        day_name = date_obj.strftime('%A')
         
-        # Get classes based on period
-        if period == 'year':
-            start_date = target_date.replace(month=1, day=1)
-            end_date = target_date.replace(month=12, day=31)
-            classes = Class.query.filter(
-                Class.scheduled_date >= start_date,
-                Class.scheduled_date <= end_date
-            ).order_by(Class.scheduled_date, Class.scheduled_time).all()
-            period_name = f"Year {target_date.year}"
-        elif period == 'month':
-            first_day = target_date.replace(day=1)
-            if target_date.month == 12:
-                last_day = target_date.replace(year=target_date.year + 1, month=1, day=1) - timedelta(days=1)
+        # Generate contextual subjects
+        subjects = {}
+        
+        if style == 'standard':
+            if period == 'single':
+                subjects['standard'] = f"📋 Class Schedule for {formatted_date}"
+            elif period == 'week':
+                subjects['standard'] = f"📋 Weekly Schedule - Week of {formatted_date}"
+            elif period == 'month':
+                subjects['standard'] = f"📋 Monthly Schedule - {date_obj.strftime('%B %Y')}"
             else:
-                last_day = target_date.replace(month=target_date.month + 1, day=1) - timedelta(days=1)
-            classes = Class.query.filter(
-                Class.scheduled_date >= first_day,
-                Class.scheduled_date <= last_day
-            ).order_by(Class.scheduled_date, Class.scheduled_time).all()
-            period_name = target_date.strftime('%B %Y')
-        else:
-            classes = get_classes_for_email(target_date, view)
-            period_name = target_date.strftime('%B %d, %Y')
-        
-        # Get recipients
-        recipients_list = get_email_recipients(recipients, specific_ids, classes)
-        
-        if not recipients_list:
-            return jsonify({'success': False, 'error': 'No recipients found'}), 400
-        
-        # Send emails
-        sent_count = 0
-        failed_count = 0
-        
-        try:
-            from app.utils.email import send_email
-            
-            for recipient in recipients_list:
-                try:
-                    subject = f"Your Timetable for {period_name}"
-                    html_content = generate_timetable_email_html(classes, period_name, recipient, period)
-                    
-                    if send_email(recipient['email'], subject, html_content):
-                        sent_count += 1
-                    else:
-                        failed_count += 1
-                        
-                except Exception as e:
-                    print(f"Failed to send to {recipient['email']}: {str(e)}")
-                    failed_count += 1
-        
-        except ImportError:
-            # Fallback - just return success for now
-            sent_count = len(recipients_list)
-            failed_count = 0
+                subjects['standard'] = f"📋 Yearly Schedule - {date_obj.year}"
+                
+        elif style == 'personal':
+            if recipient_type == 'tutor':
+                subjects['personal'] = f"👋 Hi {recipient_name}! Your classes for {day_name}, {formatted_date}"
+            else:
+                subjects['personal'] = f"👋 Hi {recipient_name}! Your schedule for {day_name}"
+                
+        elif style == 'contextual':
+            # Get current hour for smart timing
+            current_hour = datetime.now().hour
+            if current_hour < 12:
+                greeting = "Good morning"
+            elif current_hour < 17:
+                greeting = "Good afternoon"
+            else:
+                greeting = "Good evening"
+                
+            subjects['contextual'] = f"🧠 {greeting}! Smart schedule update for {formatted_date}"
         
         return jsonify({
             'success': True,
-            'message': f'Timetable sent to {sent_count} recipients',
-            'sent_count': sent_count,
-            'failed_count': failed_count,
-            'total_recipients': len(recipients_list)
+            'subject_options': subjects,
+            'formatted_date': formatted_date,
+            'day_name': day_name
         })
         
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
+
 # ============ HELPER FUNCTIONS ============
 
-def get_classes_for_email(target_date, view):
-    """Get classes for email based on view"""
-    if view == 'week':
+def get_classes_for_period(target_date, period):
+    """Get classes for specified period"""
+    if period == 'week':
         start_of_week = target_date - timedelta(days=target_date.weekday())
         end_of_week = start_of_week + timedelta(days=6)
-        classes = Class.query.filter(
+        return Class.query.filter(
             Class.scheduled_date >= start_of_week,
             Class.scheduled_date <= end_of_week
         ).order_by(Class.scheduled_date, Class.scheduled_time).all()
-    else:  # today
-        classes = Class.query.filter(Class.scheduled_date == target_date).order_by(Class.scheduled_time).all()
-    
-    return classes
+    elif period == 'month':
+        first_day = target_date.replace(day=1)
+        if target_date.month == 12:
+            last_day = target_date.replace(year=target_date.year + 1, month=1, day=1) - timedelta(days=1)
+        else:
+            last_day = target_date.replace(month=target_date.month + 1, day=1) - timedelta(days=1)
+        return Class.query.filter(
+            Class.scheduled_date >= first_day,
+            Class.scheduled_date <= last_day
+        ).order_by(Class.scheduled_date, Class.scheduled_time).all()
+    elif period == 'year':
+        start_date = target_date.replace(month=1, day=1)
+        end_date = target_date.replace(month=12, day=31)
+        return Class.query.filter(
+            Class.scheduled_date >= start_date,
+            Class.scheduled_date <= end_date
+        ).order_by(Class.scheduled_date, Class.scheduled_time).all()
+    else:  # single day
+        return Class.query.filter(Class.scheduled_date == target_date).order_by(Class.scheduled_time).all()
 
-def get_email_recipients(recipients_type, specific_ids, classes):
-    """Get email recipients based on type and specifics"""
+def get_enhanced_recipients(recipients_type, specific_ids, classes):
+    """Get enhanced recipient list with detailed information"""
     recipients_list = []
     
-    if recipients_type == 'specific':
-        # Handle specific IDs
+    if recipients_type == 'all' or recipients_type == 'tutors':
+        tutors = Tutor.query.join(User).filter(User.email.isnot(None)).all()
+        for tutor in tutors:
+            if tutor.user and tutor.user.email:
+                # Count classes for this tutor
+                tutor_classes = [cls for cls in classes if cls.tutor_id == tutor.id]
+                recipients_list.append({
+                    'type': 'tutor',
+                    'id': tutor.id,
+                    'name': tutor.user.full_name,
+                    'email': tutor.user.email,
+                    'department': tutor.user.department.name if tutor.user.department else 'N/A',
+                    'class_count': len(tutor_classes),
+                    'subjects': list(set(cls.subject for cls in tutor_classes))
+                })
+    
+    if recipients_type == 'all' or recipients_type == 'students':
+        students = Student.query.filter(Student.email.isnot(None)).all()
+        for student in students:
+            if student.email:
+                # Count classes for this student
+                student_classes = []
+                for cls in classes:
+                    if cls.primary_student_id == student.id:
+                        student_classes.append(cls)
+                    elif cls.students:
+                        try:
+                            import json
+                            student_ids = json.loads(cls.students)
+                            if student.id in student_ids:
+                                student_classes.append(cls)
+                        except:
+                            pass
+                
+                recipients_list.append({
+                    'type': 'student',
+                    'id': student.id,
+                    'name': student.full_name,
+                    'email': student.email,
+                    'department': student.department.name if student.department else 'N/A',
+                    'class_count': len(student_classes),
+                    'subjects': list(set(cls.subject for cls in student_classes))
+                })
+    
+    if recipients_type == 'specific' and specific_ids:
+        # Handle specific recipients
         for recipient_id in specific_ids:
             if recipient_id.startswith('tutor_'):
                 tutor_id = int(recipient_id.replace('tutor_', ''))
                 tutor = Tutor.query.get(tutor_id)
                 if tutor and tutor.user and tutor.user.email:
+                    tutor_classes = [cls for cls in classes if cls.tutor_id == tutor.id]
                     recipients_list.append({
                         'type': 'tutor',
                         'id': tutor.id,
                         'name': tutor.user.full_name,
-                        'email': tutor.user.email
+                        'email': tutor.user.email,
+                        'department': tutor.user.department.name if tutor.user.department else 'N/A',
+                        'class_count': len(tutor_classes),
+                        'subjects': list(set(cls.subject for cls in tutor_classes))
                     })
             elif recipient_id.startswith('student_'):
                 student_id = int(recipient_id.replace('student_', ''))
                 student = Student.query.get(student_id)
                 if student and student.email:
+                    student_classes = []
+                    for cls in classes:
+                        if cls.primary_student_id == student.id:
+                            student_classes.append(cls)
+                        elif cls.students:
+                            try:
+                                import json
+                                student_ids = json.loads(cls.students)
+                                if student.id in student_ids:
+                                    student_classes.append(cls)
+                            except:
+                                pass
+                    
                     recipients_list.append({
                         'type': 'student',
                         'id': student.id,
                         'name': student.full_name,
-                        'email': student.email
-                    })
-    else:
-        # Get all involved tutors and students
-        if recipients_type in ['all', 'tutors']:
-            tutor_ids = list(set([cls.tutor_id for cls in classes if cls.tutor_id]))
-            tutors = Tutor.query.filter(Tutor.id.in_(tutor_ids)).all()
-            for tutor in tutors:
-                if tutor.user and tutor.user.email:
-                    recipients_list.append({
-                        'type': 'tutor',
-                        'id': tutor.id,
-                        'name': tutor.user.full_name,
-                        'email': tutor.user.email
-                    })
-        
-        if recipients_type in ['all', 'students']:
-            student_ids = set()
-            for cls in classes:
-                if cls.primary_student_id:
-                    student_ids.add(cls.primary_student_id)
-                if cls.students:
-                    try:
-                        import json
-                        ids = json.loads(cls.students)
-                        student_ids.update(ids)
-                    except:
-                        pass
-            
-            students = Student.query.filter(Student.id.in_(student_ids)).all()
-            for student in students:
-                if student.email:
-                    recipients_list.append({
-                        'type': 'student',
-                        'id': student.id,
-                        'name': student.full_name,
-                        'email': student.email
+                        'email': student.email,
+                        'department': student.department.name if student.department else 'N/A',
+                        'class_count': len(student_classes),
+                        'subjects': list(set(cls.subject for cls in student_classes))
                     })
     
     return recipients_list
 
-def generate_email_preview(classes, target_date, view, recipients_list):
-    """Generate HTML preview for email"""
+def get_recipients_breakdown(recipients_list):
+    """Get breakdown of recipients by type"""
+    breakdown = {'tutors': 0, 'students': 0, 'total': len(recipients_list)}
+    for recipient in recipients_list:
+        if recipient['type'] == 'tutor':
+            breakdown['tutors'] += 1
+        else:
+            breakdown['students'] += 1
+    return breakdown
+
+def calculate_send_time(recipient_count):
+    """Calculate estimated send time"""
+    # Estimate ~2 emails per second
+    estimated_seconds = max(1, recipient_count // 2)
+    if estimated_seconds < 60:
+        return f"{estimated_seconds}s"
+    else:
+        return f"{estimated_seconds // 60}m {estimated_seconds % 60}s"
+    
+def generate_enhanced_email_preview(classes, target_date, period, recipients_list, subject_style):
+    """Generate enhanced email preview with detailed information"""
+    period_names = {
+        'single': target_date.strftime('%B %d, %Y'),
+        'week': f"Week of {target_date.strftime('%B %d, %Y')}",
+        'month': target_date.strftime('%B %Y'),
+        'year': f"Year {target_date.year}"
+    }
+    period_name = period_names.get(period, target_date.strftime('%B %d, %Y'))
+    
+    recipients_breakdown = get_recipients_breakdown(recipients_list)
+    
+    # Generate sample subject
+    if subject_style == 'standard':
+        sample_subject = f"📋 Class Schedule for {period_name}"
+    elif subject_style == 'personal':
+        sample_subject = f"👋 Hi [Name]! Your classes for {period_name}"
+    else:  # contextual
+        sample_subject = f"🧠 Smart schedule update for {period_name}"
+    
     preview_html = f"""
-    <div style="max-width: 600px; margin: 0 auto; font-family: Arial, sans-serif;">
-        <h2 style="color: #F1A150;">Timetable Email Preview</h2>
-        <p><strong>Date:</strong> {target_date.strftime('%B %d, %Y')}</p>
-        <p><strong>View:</strong> {view.title()}</p>
-        <p><strong>Recipients:</strong> {len(recipients_list)} people</p>
-        <p><strong>Classes:</strong> {len(classes)} classes</p>
-        
-        <h3>Sample Email Content:</h3>
-        <div style="border: 1px solid #ddd; padding: 20px; background: #f9f9f9;">
-            {generate_timetable_email_html(classes, target_date.strftime('%B %d, %Y'), recipients_list[0] if recipients_list else {'name': 'Sample User', 'type': 'tutor'}, 'single')[:500]}...
+    <div style="font-family: Arial, sans-serif; max-width: 100%; line-height: 1.6;">
+        <div style="background: linear-gradient(135deg, #10b981, #059669); color: white; padding: 1.5rem; border-radius: 8px; margin-bottom: 1.5rem;">
+            <h3 style="margin: 0 0 0.5rem 0;">📧 Email Campaign Preview</h3>
+            <p style="margin: 0; opacity: 0.9;">{period_name} • {len(classes)} Classes • {len(recipients_list)} Recipients</p>
         </div>
         
-        <h3>Recipients List (First 10):</h3>
-        <ul>
-            {''.join([f"<li>{r['name']} ({r['email']}) - {r['type'].title()}</li>" for r in recipients_list[:10]])}
-        </ul>
-        {f"<p>... and {len(recipients_list) - 10} more recipients</p>" if len(recipients_list) > 10 else ""}
-    </div>
-    """
-    return preview_html
-
-def generate_timetable_email_html(classes, period_name, recipient, period_type):
-    """Generate HTML email content for timetable"""
-    # Filter classes relevant to this recipient
-    relevant_classes = []
-    for cls in classes:
-        if recipient['type'] == 'tutor' and cls.tutor and cls.tutor.user and cls.tutor.user.email == recipient['email']:
-            relevant_classes.append(cls)
-        elif recipient['type'] == 'student':
-            # Check if student is in this class
-            student_in_class = False
-            if cls.primary_student_id:
-                student = Student.query.get(cls.primary_student_id)
-                if student and student.email == recipient['email']:
-                    student_in_class = True
-            if cls.students:
-                try:
-                    import json
-                    student_ids = json.loads(cls.students)
-                    students = Student.query.filter(Student.id.in_(student_ids)).all()
-                    for s in students:
-                        if s.email == recipient['email']:
-                            student_in_class = True
-                            break
-                except:
-                    pass
-            if student_in_class:
-                relevant_classes.append(cls)
-    
-    html = f"""
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <meta charset="UTF-8">
-        <style>
-            body {{ font-family: Arial, sans-serif; margin: 0; padding: 20px; background: #f8f9fa; }}
-            .container {{ max-width: 600px; margin: 0 auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }}
-            .header {{ background: linear-gradient(135deg, #F1A150, #C86706); color: white; padding: 20px; border-radius: 8px; margin-bottom: 30px; text-align: center; }}
-            .period {{ font-size: 24px; font-weight: bold; margin: 0; }}
-            .class-table {{ width: 100%; border-collapse: collapse; margin-top: 20px; }}
-            .class-table th, .class-table td {{ padding: 12px; text-align: left; border-bottom: 1px solid #e2e8f0; }}
-            .class-table th {{ background: #f8fafc; font-weight: 600; color: #374151; }}
-            .status-scheduled {{ background: #F1A150; color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px; }}
-            .status-ongoing {{ background: #28a745; color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px; }}
-            .status-completed {{ background: #17a2b8; color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px; }}
-            .status-cancelled {{ background: #dc3545; color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px; }}
-            .footer {{ margin-top: 30px; padding-top: 20px; border-top: 1px solid #e2e8f0; color: #6c757d; font-size: 14px; text-align: center; }}
-        </style>
-    </head>
-    <body>
-        <div class="container">
-            <div class="header">
-                <h1 class="period">{period_name} Timetable</h1>
-                <p>Hello {recipient['name']},</p>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+            <div style="text-align: center; background: #f8f9fa; padding: 1rem; border-radius: 6px;">
+                <div style="font-size: 1.5rem; font-weight: bold; color: #10b981;">{recipients_breakdown['total']}</div>
+                <div style="font-size: 0.8rem; color: #666;">Total Recipients</div>
             </div>
-            
-            <table class="class-table">
-                <thead>
-                    <tr>
-                        <th>Date</th>
-                        <th>Time</th>
-                        <th>Subject</th>
-                        <th>Duration</th>
-                        <th>Status</th>
-                    </tr>
-                </thead>
-                <tbody>
+            <div style="text-align: center; background: #f8f9fa; padding: 1rem; border-radius: 6px;">
+                <div style="font-size: 1.5rem; font-weight: bold; color: #3b82f6;">{recipients_breakdown['tutors']}</div>
+                <div style="font-size: 0.8rem; color: #666;">Tutors</div>
+            </div>
+            <div style="text-align: center; background: #f8f9fa; padding: 1rem; border-radius: 6px;">
+                <div style="font-size: 1.5rem; font-weight: bold; color: #8b5cf6;">{recipients_breakdown['students']}</div>
+                <div style="font-size: 0.8rem; color: #666;">Students</div>
+            </div>
+            <div style="text-align: center; background: #f8f9fa; padding: 1rem; border-radius: 6px;">
+                <div style="font-size: 1.5rem; font-weight: bold; color: #F1A150;">{len(classes)}</div>
+                <div style="font-size: 0.8rem; color: #666;">Classes</div>
+            </div>
+        </div>
+        
+        <div style="background: white; border: 1px solid #e5e7eb; border-radius: 8px; margin-bottom: 1.5rem; overflow: hidden;">
+            <div style="background: #F1A150; color: white; padding: 1rem;">
+                <h4 style="margin: 0;">📧 Sample Email</h4>
+            </div>
+            <div style="padding: 1.5rem;">
+                <div style="margin-bottom: 1rem;">
+                    <strong>Subject:</strong> <span style="color: #059669;">{sample_subject}</span>
+                </div>
+                <div style="border: 1px solid #e5e7eb; padding: 1rem; background: #f8f9fa; border-radius: 6px;">
+                    <p style="margin: 0 0 1rem 0;"><strong>Dear [Recipient Name],</strong></p>
+                    <p style="margin: 0 0 1rem 0;">Here's your schedule for {period_name}:</p>
+                    <div style="background: white; padding: 1rem; border-radius: 4px; margin: 1rem 0;">
+                        <strong>Sample Class Information:</strong><br>
     """
     
-    # Add table rows
-    for cls in relevant_classes:
-        html += f"""
-                    <tr>
-                        <td>{cls.scheduled_date.strftime('%m/%d/%Y')}</td>
-                        <td>{cls.scheduled_time.strftime('%H:%M') if cls.scheduled_time else '00:00'}</td>
-                        <td>{cls.subject}</td>
-                        <td>{cls.duration} min</td>
-                        <td><span class="status-{cls.status}">{cls.status.title()}</span></td>
-                    </tr>
+    # Add sample classes
+    for i, cls in enumerate(classes[:3]):
+        tutor_name = cls.tutor.user.full_name if cls.tutor and cls.tutor.user else 'No Tutor'
+        preview_html += f"""
+                        • {cls.subject} - {cls.scheduled_date.strftime('%m/%d')} at {cls.scheduled_time.strftime('%H:%M') if cls.scheduled_time else '00:00'} with {tutor_name}<br>
         """
     
-    html += f"""
-                </tbody>
-            </table>
-            
-            <div class="footer">
-                <p>You have {len(relevant_classes)} classes scheduled for this {period_type}</p>
-                <p>Best regards,<br>The Academic Team</p>
+    if len(classes) > 3:
+        preview_html += f"                        ... and {len(classes) - 3} more classes<br>"
+    
+    preview_html += """
+                    </div>
+                    <p style="margin: 0;">Best regards,<br>The Academic Team</p>
+                </div>
             </div>
         </div>
-    </body>
-    </html>
+        
+        <div style="background: #f8f9fa; border-radius: 8px; padding: 1rem;">
+            <h4 style="margin: 0 0 1rem 0;">Recipients Sample (First 10)</h4>
+            <div style="max-height: 200px; overflow-y: auto;">
     """
     
-    return html
+    for i, recipient in enumerate(recipients_list[:10]):
+        preview_html += f"""
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem; background: white; margin-bottom: 0.5rem; border-radius: 4px; border: 1px solid #e5e7eb;">
+                    <div>
+                        <strong>{recipient['name']}</strong><br>
+                        <small style="color: #666;">{recipient['email']} • {recipient['type'].title()}</small>
+                    </div>
+                    <div style="text-align: right;">
+                        <small style="background: #{'3b82f6' if recipient['type'] == 'tutor' else '#8b5cf6'}; color: white; padding: 0.25rem 0.5rem; border-radius: 12px;">
+                            {recipient['class_count']} classes
+                        </small>
+                    </div>
+                </div>
+        """
+    
+    if len(recipients_list) > 10:
+        preview_html += f"""
+                <div style="text-align: center; padding: 1rem; color: #666; font-style: italic;">
+                    ... and {len(recipients_list) - 10} more recipients
+                </div>
+        """
+    
+    preview_html += """
+            </div>
+        </div>
+    </div>
+    """
+    
+    return preview_html
 
-@bp.route('/api/v1/timetable/send', methods=['POST'])
-@login_required
-@admin_required
-def api_send_timetable():
-    """Send timetable via email, SMS, or PDF"""
-    try:
-        data = request.get_json()
-        method = data.get('method', 'email')
-        date_str = data.get('date', datetime.now().strftime('%Y-%m-%d'))
-        
-        # For now, return success message
-        # In production, integrate with email/SMS services
-        
-        if method == 'email':
-            message = "Timetable sent successfully via email to all tutors and students"
-        elif method == 'sms':
-            message = "Timetable sent successfully via SMS to all registered numbers"
-        elif method == 'pdf':
-            message = "Timetable PDF generated and sent successfully"
-        else:
-            return jsonify({'success': False, 'error': 'Invalid method'}), 400
-        
-        return jsonify({
-            'success': True,
-            'message': message,
-            'method': method,
-            'date': date_str
-        })
-        
-    except Exception as e:
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
 
 # ============ DASHBOARD REDIRECT ============
 
@@ -5004,11 +5091,6 @@ def course_batch_details(batch_id):
         subject = urllib.parse.unquote(raw_subject)
         tutor_id = int(raw_tutor_id)
 
-        print(f"Parsing batch_id: {batch_id}")
-        print(f"Raw subject: '{raw_subject}'")
-        print(f"Decoded subject: '{subject}'")
-        print(f"Tutor ID: {tutor_id}")
-
     except Exception as e:
         print(f"Error parsing batch_id '{batch_id}': {str(e)}")
         traceback.print_exc()
@@ -5023,7 +5105,7 @@ def course_batch_details(batch_id):
             Class.subject == subject,
             Class.tutor_id == tutor_id
         )
-        .order_by(Class.scheduled_date.desc(), Class.scheduled_time.desc())
+        .order_by(Class.scheduled_date, Class.scheduled_time)
         .all()
     )
 

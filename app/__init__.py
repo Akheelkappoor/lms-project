@@ -8,6 +8,8 @@ from flask_wtf.csrf import CSRFProtect, generate_csrf
 import os
 from flask import render_template
 from datetime import datetime, timedelta
+import json
+
 
 
 db = SQLAlchemy()
@@ -339,5 +341,19 @@ def create_app(config_class=Config):
             pass
             
         return context
+    
+    @app.template_filter('tojsonify')
+    def tojsonify(obj):
+        """Convert object to JSON string for use in templates"""
+        def default_serializer(o):
+            if hasattr(o, '__dict__'):
+                # Convert SQLAlchemy objects to dict
+                return {c.name: getattr(o, c.name) for c in o.__table__.columns}
+            if hasattr(o, 'isoformat'):
+                # Handle datetime objects
+                return o.isoformat()
+            return str(o)
+        
+        return json.dumps(obj, default=default_serializer, ensure_ascii=False)
 
     return app

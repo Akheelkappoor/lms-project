@@ -2700,7 +2700,8 @@ def api_tutor_details(tutor_id):
         return jsonify({
             'success': False,
             'error': str(e)
-        }), 500       
+        }), 500
+               
         
 # ============ QUICK CLASS CREATION ============
 
@@ -3030,7 +3031,50 @@ def api_export_preview():
         print(f"Export preview error: {str(e)}")
         return jsonify({'success': False, 'error': str(e)}), 500
     
-
+@bp.route('/api/v1/timetable/export-pdf')
+@login_required
+@admin_required
+def api_export_timetable_pdf():
+    """Fixed PDF export endpoint"""
+    try:
+        date_param = request.args.get('date', datetime.now().strftime('%Y-%m-%d'))
+        view = request.args.get('view', 'today')
+        
+        # Use your existing PDF generation logic
+        target_date = datetime.strptime(date_param, '%Y-%m-%d').date()
+        
+        if view == 'today':
+            classes = Class.query.filter(Class.scheduled_date == target_date).all()
+        elif view == 'week':
+            start_of_week = target_date - timedelta(days=target_date.weekday())
+            end_of_week = start_of_week + timedelta(days=6)
+            classes = Class.query.filter(
+                Class.scheduled_date >= start_of_week,
+                Class.scheduled_date <= end_of_week
+            ).all()
+        else:  # month
+            first_day = target_date.replace(day=1)
+            if target_date.month == 12:
+                last_day = target_date.replace(year=target_date.year + 1, month=1, day=1) - timedelta(days=1)
+            else:
+                last_day = target_date.replace(month=target_date.month + 1, day=1) - timedelta(days=1)
+            classes = Class.query.filter(
+                Class.scheduled_date >= first_day,
+                Class.scheduled_date <= last_day
+            ).all()
+        
+        # Generate PDF using your existing function
+        pdf_data = generate_timetable_pdf(classes, f"{view.title()} View", view)
+        
+        response = make_response(pdf_data)
+        response.headers['Content-Type'] = 'application/pdf'
+        response.headers['Content-Disposition'] = f'attachment; filename=timetable_{date_param}.pdf'
+        
+        return response
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+    
 @bp.route('/api/v1/timetable/export', methods=['POST'])
 @login_required
 @admin_required
@@ -3068,6 +3112,90 @@ def api_timetable_export():
         
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
+    
+def generate_timetable_pdf(classes, period_name, view_type):
+    """Generate PDF content for timetable - FIXED VERSION"""
+    try:
+        from reportlab.lib.pagesizes import letter, A4
+        from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+        from reportlab.lib import colors
+        from reportlab.lib.units import inch
+        from flask import make_response
+        import io
+        
+        # Create PDF buffer
+        buffer = io.BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=A4, margin=0.5*inch)
+        
+        # Get styles
+        styles = getSampleStyleSheet()
+        title_style = ParagraphStyle(
+            'CustomTitle',
+            parent=styles['Heading1'],
+            fontSize=20,
+            textColor=colors.HexColor('#F1A150'),
+            alignment=1,  # Center
+            spaceAfter=20
+        )
+        
+        # Build content
+        content = []
+        
+        # Title
+        content.append(Paragraph(f"Class Timetable - {period_name}", title_style))
+        content.append(Spacer(1, 20))
+        
+        if classes:
+            # Create table data
+            table_data = [['Date', 'Time', 'Subject', 'Tutor', 'Duration', 'Status']]
+            
+            for cls in classes:
+                tutor_name = cls.tutor.user.full_name if cls.tutor and cls.tutor.user else 'No Tutor'
+                
+                table_data.append([
+                    cls.scheduled_date.strftime('%m/%d/%Y'),
+                    cls.scheduled_time.strftime('%H:%M') if cls.scheduled_time else '00:00',
+                    cls.subject[:30] + '...' if len(cls.subject) > 30 else cls.subject,
+                    tutor_name[:20] + '...' if len(tutor_name) > 20 else tutor_name,
+                    f"{cls.duration} min",
+                    cls.status.title()
+                ])
+            
+            # Create table
+            table = Table(table_data, colWidths=[1*inch, 0.8*inch, 2*inch, 1.5*inch, 0.8*inch, 0.8*inch])
+            table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#F1A150')),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, 0), 10),
+                ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+                ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+                ('GRID', (0, 0), (-1, -1), 1, colors.black),
+                ('FONTSIZE', (0, 1), (-1, -1), 9),
+                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ]))
+            
+            content.append(table)
+            
+            # Add summary
+            content.append(Spacer(1, 30))
+            content.append(Paragraph(f"<b>Total Classes:</b> {len(classes)}", styles['Normal']))
+            content.append(Paragraph(f"<b>Generated:</b> {datetime.now().strftime('%B %d, %Y at %I:%M %p')}", styles['Normal']))
+            
+        else:
+            content.append(Paragraph("No classes scheduled for this period", styles['Normal']))
+        
+        # Build PDF
+        doc.build(content)
+        buffer.seek(0)
+        
+        return buffer.read()
+        
+    except Exception as e:
+        print(f"PDF generation error: {str(e)}")
+        raise e
     
 @bp.route('/api/v1/timetable/enhanced-email-preview', methods=['POST'])
 @login_required

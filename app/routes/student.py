@@ -12,7 +12,7 @@ from app.models.department import Department
 from app.models.user import User
 from app.routes.admin import admin_required
 from sqlalchemy import or_
-
+from app.utils.advanced_permissions import require_permission
 
 bp = Blueprint('student', __name__)
 
@@ -29,14 +29,14 @@ def admin_required(f):
 
 @bp.route('/students')
 @login_required
-@admin_required
+@require_permission('student_management')
 def list_students():
     """List all students (alias for admin.students)"""
     return redirect(url_for('admin.students'))
 
 @bp.route('/students/<int:student_id>')
 @login_required
-@admin_required
+@require_permission('student_management')
 def student_profile(student_id):
     """View student profile"""
     student = Student.query.get_or_404(student_id)
@@ -78,7 +78,7 @@ def student_profile(student_id):
 
 @bp.route('/students/<int:student_id>/edit', methods=['GET', 'POST'])
 @login_required
-@admin_required
+@require_permission('student_management')
 def edit_student(student_id):
     """Edit student information"""
     student = Student.query.get_or_404(student_id)
@@ -146,7 +146,7 @@ def edit_student(student_id):
 
 @bp.route('/students/<int:student_id>/classes')
 @login_required
-@admin_required
+@require_permission('student_management')
 def student_classes(student_id):
     """View student's classes"""
     student = Student.query.get_or_404(student_id)
@@ -201,7 +201,7 @@ def student_classes(student_id):
 
 @bp.route('/students/<int:student_id>/attendance')
 @login_required
-@admin_required
+@require_permission('student_management')
 def student_attendance(student_id):
     """View student's attendance"""
     student = Student.query.get_or_404(student_id)
@@ -248,7 +248,7 @@ def student_attendance(student_id):
 
 @bp.route('/students/<int:student_id>/fees')
 @login_required
-@admin_required
+@require_permission('student_management')
 def student_fees(student_id):
     """View student's fee information"""
     student = Student.query.get_or_404(student_id)
@@ -266,7 +266,7 @@ def student_fees(student_id):
 
 @bp.route('/students/<int:student_id>/fees/payment', methods=['POST'])
 @login_required
-@admin_required
+@require_permission('student_management')
 def record_payment(student_id):
     """Record a fee payment"""
     student = Student.query.get_or_404(student_id)
@@ -315,7 +315,7 @@ def record_payment(student_id):
 
 @bp.route('/students/<int:student_id>/deactivate', methods=['POST'])
 @login_required
-@admin_required
+@require_permission('student_management')
 def deactivate_student(student_id):
     """Deactivate a student"""
     student = Student.query.get_or_404(student_id)
@@ -349,7 +349,7 @@ def deactivate_student(student_id):
 
 @bp.route('/students/<int:student_id>/reactivate', methods=['POST'])
 @login_required
-@admin_required
+@require_permission('student_management')
 def reactivate_student(student_id):
     """Reactivate a student"""
     student = Student.query.get_or_404(student_id)
@@ -380,7 +380,7 @@ def reactivate_student(student_id):
 
 @bp.route('/api/students/search')
 @login_required
-@admin_required
+@require_permission('student_management')
 def search_students():
     """Search students API endpoint"""
     query = request.args.get('q', '')
@@ -458,7 +458,7 @@ def search_students():
 
 @bp.route('/api/students/search-enhanced')
 @login_required
-@admin_required
+@require_permission('student_management')
 def search_students_enhanced():
     """Enhanced student search with pagination and advanced filters"""
     try:
@@ -580,7 +580,7 @@ def search_students_enhanced():
 
 @bp.route('/api/students/filter-options')
 @login_required
-@admin_required
+@require_permission('student_management')
 def get_student_filter_options():
     """Get available filter options for students"""
     

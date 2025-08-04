@@ -9,7 +9,8 @@ from app.models.tutor import Tutor
 from app.models.student import Student
 from app.models.class_model import Class
 from app.models.attendance import Attendance
-
+from app.utils.allocation_helper import allocation_helper
+from sqlalchemy import or_, and_, func
 bp = Blueprint('dashboard', __name__)
 
 @bp.route('/')
@@ -366,3 +367,248 @@ def get_pending_tasks():
         })
     
     return tasks
+
+def get_dashboard_statistics():
+    """Get comprehensive dashboard statistics including allocation data"""
+    try:
+        # Get basic counts
+        total_users = User.query.filter_by(is_active=True).count()
+        total_students = Student.query.filter_by(is_active=True, enrollment_status='active').count()
+        total_tutors = Tutor.query.filter_by(status='active').count()
+        
+        # Get today's classes
+        today = date.today()
+        todays_classes = Class.query.filter_by(scheduled_date=today).count()
+        
+        # Get today's attendance
+        todays_attendance = Attendance.query.filter_by(class_date=today).all()
+        present_count = sum(1 for att in todays_attendance if att.student_present)
+        absent_count = len(todays_attendance) - present_count
+        
+        # Get allocation analytics
+        allocation_analytics = allocation_helper.get_allocation_analytics()
+        
+        # Get department-wise breakdown (if needed)
+        departments = Department.query.filter_by(is_active=True).all()
+        department_stats = []
+        
+        for dept in departments:
+            dept_students = Student.query.filter_by(
+                department_id=dept.id, 
+                is_active=True, 
+                enrollment_status='active'
+            ).count()
+            
+            dept_tutors = Tutor.query.join(User).filter(
+                User.department_id == dept.id,
+                Tutor.status == 'active'
+            ).count()
+            
+            department_stats.append({
+                'id': dept.id,
+                'name': dept.name,
+                'students': dept_students,
+                'tutors': dept_tutors
+            })
+        
+        return {
+            'total_users': total_users,
+            'total_students': total_students,
+            'total_tutors': total_tutors,
+            'todays_classes': todays_classes,
+            'todays_attendance': {
+                'present': present_count,
+                'absent': absent_count,
+                'total': len(todays_attendance)
+            },
+            'allocation_overview': allocation_analytics['overview'],
+            'department_breakdown': department_stats,
+            'last_updated': datetime.now().isoformat()
+        }
+        
+    except Exception as e:
+        print(f"Error getting dashboard statistics: {str(e)}")
+        # Return default values if there's an error
+        return {
+            'total_users': 0,
+            'total_students': 0,
+            'total_tutors': 0,
+            'todays_classes': 0,
+            'todays_attendance': {'present': 0, 'absent': 0, 'total': 0},
+            'allocation_overview': {
+                'total_students': 0,
+                'allocated_students': 0,
+                'unallocated_students': 0,
+                'allocation_percentage': 0,
+                'urgent_cases': 0
+            },
+            'department_breakdown': [],
+            'last_updated': datetime.now().isoformat()
+        }
+
+def get_tutor_statistics(tutor):
+    """Get statistics for tutor dashboard"""
+    try:
+        # Get tutor's classes
+        total_classes = Class.query.filter_by(tutor_id=tutor.id).count()
+        completed_classes = Class.query.filter_by(
+            tutor_id=tutor.id, 
+            status='completed'
+        ).count()
+        
+        # Get this month's classes
+        today = date.today()
+        month_start = today.replace(day=1)
+        this_month_classes = Class.query.filter(
+            Class.tutor_id == tutor.id,
+            Class.scheduled_date >= month_start,
+            Class.scheduled_date <= today
+        ).count()
+        
+        # Get upcoming classes (next 7 days)
+        week_ahead = today + timedelta(days=7)
+        upcoming_classes = Class.query.filter(
+            Class.tutor_id == tutor.id,
+            Class.scheduled_date > today,
+            Class.scheduled_date <= week_ahead,
+            Class.status == 'scheduled'
+        ).count()
+        
+        # Get unique students taught
+        taught_students = set()
+        classes = Class.query.filter_by(tutor_id=tutor.id).all()
+        for cls in classes:
+            try:
+                if cls.primary_student_id:
+                    taught_students.add(cls.primary_student_id)
+                student_ids = cls.get_students() or []
+                taught_students.update(student_ids)
+            except:
+                continue
+        
+        unique_students = len(taught_students)
+        
+        # Calculate completion rate
+        completion_rate = (completed_classes / total_classes * 100) if total_classes > 0 else 0
+        
+        return {
+            'total_classes': total_classes,
+            'completed_classes': completed_classes,
+            'this_month_classes': this_month_classes,
+            'upcoming_classes': upcoming_classes,
+            'unique_students': unique_students,
+            'completion_rate': round(completion_rate, 1),
+            'rating': tutor.rating or 0,
+            'test_score': tutor.test_score or 0
+        }
+        
+    except Exception as e:
+        print(f"Error getting tutor statistics: {str(e)}")
+        return {
+            'total_classes': 0,
+            'completed_classes': 0,
+            'this_month_classes': 0,
+            'upcoming_classes': 0,
+            'unique_students': 0,
+            'completion_rate': 0,
+            'rating': 0,
+            'test_score': 0
+        }
+
+def get_attendance_alerts():
+    """Get attendance alerts for dashboard"""
+    try:
+        today = date.today()
+        alerts = []
+        
+        # Get late arrivals (students who joined > 10 minutes late)
+        late_arrivals = Attendance.query.filter(
+            Attendance.class_date == today,
+            Attendance.student_late_minutes > 10
+        ).all()
+        
+        for attendance in late_arrivals:
+            alerts.append({
+                'type': 'late_arrival',
+                'message': f"Student late by {attendance.student_late_minutes} minutes",
+                'student_id': attendance.student_id,
+                'class_id': attendance.class_id,
+                'severity': 'warning'
+            })
+        
+        # Get no-shows
+        no_shows = Attendance.query.filter(
+            Attendance.class_date == today,
+            Attendance.student_present == False,
+            Attendance.student_absence_reason.is_(None)
+        ).all()
+        
+        for attendance in no_shows:
+            alerts.append({
+                'type': 'no_show',
+                'message': "Student did not attend class",
+                'student_id': attendance.student_id,
+                'class_id': attendance.class_id,
+                'severity': 'danger'
+            })
+        
+        return alerts
+        
+    except Exception as e:
+        print(f"Error getting attendance alerts: {str(e)}")
+        return []
+
+def get_pending_tasks():
+    """Get pending administrative tasks"""
+    try:
+        tasks = []
+        
+        # Get unallocated students (top priority)
+        unallocated_count = allocation_helper.get_allocation_analytics()['overview']['unallocated_students']
+        if unallocated_count > 0:
+            tasks.append({
+                'type': 'allocation',
+                'title': 'Student Allocation Required',
+                'message': f"{unallocated_count} students need tutor assignment",
+                'count': unallocated_count,
+                'priority': 'high',
+                'url': '/admin/allocation-dashboard'
+            })
+        
+        # Get tutors without availability
+        tutors_no_availability = Tutor.query.filter_by(status='active').all()
+        no_availability_count = sum(1 for t in tutors_no_availability if not t.get_availability())
+        
+        if no_availability_count > 0:
+            tasks.append({
+                'type': 'availability',
+                'title': 'Tutor Availability Missing',
+                'message': f"{no_availability_count} tutors haven't set their availability",
+                'count': no_availability_count,
+                'priority': 'medium',
+                'url': '/admin/tutors'
+            })
+        
+        # Get classes scheduled for today without meeting links
+        today = date.today()
+        classes_no_links = Class.query.filter(
+            Class.scheduled_date == today,
+            Class.status == 'scheduled',
+            or_(Class.meeting_link.is_(None), Class.meeting_link == '')
+        ).count()
+        
+        if classes_no_links > 0:
+            tasks.append({
+                'type': 'meeting_links',
+                'title': 'Missing Meeting Links',
+                'message': f"{classes_no_links} today's classes need meeting links",
+                'count': classes_no_links,
+                'priority': 'high',
+                'url': '/admin/classes'
+            })
+        
+        return tasks
+        
+    except Exception as e:
+        print(f"Error getting pending tasks: {str(e)}")
+        return []

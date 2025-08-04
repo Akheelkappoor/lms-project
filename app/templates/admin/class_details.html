@@ -150,6 +150,7 @@
                             Quick Actions
                         </h4>
                         <div class="action-grid">
+                            <!-- Status-specific actions -->
                             {% if class_item.status == 'scheduled' %}
                             <button class="action-btn action-success" onclick="startClass({{ class_item.id }})">
                                 <div class="action-icon">
@@ -160,6 +161,37 @@
                                     <span class="action-desc">Begin the session</span>
                                 </div>
                             </button>
+                            
+                            <button class="action-btn action-primary" onclick="editClass({{ class_item.id }})">
+                                <div class="action-icon">
+                                    <i class="fas fa-edit"></i>
+                                </div>
+                                <div class="action-content">
+                                    <span class="action-title">Edit Class</span>
+                                    <span class="action-desc">Modify all details</span>
+                                </div>
+                            </button>
+                            
+                            <button class="action-btn action-info" onclick="quickEditClass({{ class_item.id }})">
+                                <div class="action-icon">
+                                    <i class="fas fa-bolt"></i>
+                                </div>
+                                <div class="action-content">
+                                    <span class="action-title">Quick Edit</span>
+                                    <span class="action-desc">Change basics quickly</span>
+                                </div>
+                            </button>
+                            
+                            <button class="action-btn action-secondary" onclick="changeTutor({{ class_item.id }})">
+                                <div class="action-icon">
+                                    <i class="fas fa-user-switch"></i>
+                                </div>
+                                <div class="action-content">
+                                    <span class="action-title">Change Tutor</span>
+                                    <span class="action-desc">Assign different tutor</span>
+                                </div>
+                            </button>
+                            
                             <button class="action-btn action-warning" onclick="rescheduleClass({{ class_item.id }})">
                                 <div class="action-icon">
                                     <i class="fas fa-calendar-alt"></i>
@@ -169,6 +201,7 @@
                                     <span class="action-desc">Change date/time</span>
                                 </div>
                             </button>
+                            
                             <button class="action-btn action-danger" onclick="cancelClass({{ class_item.id }})">
                                 <div class="action-icon">
                                     <i class="fas fa-times"></i>
@@ -178,6 +211,7 @@
                                     <span class="action-desc">Cancel this class</span>
                                 </div>
                             </button>
+                            
                             {% elif class_item.status == 'ongoing' %}
                             <button class="action-btn action-primary" onclick="joinClass({{ class_item.id }})">
                                 <div class="action-icon">
@@ -188,6 +222,7 @@
                                     <span class="action-desc">Enter session</span>
                                 </div>
                             </button>
+                            
                             <button class="action-btn action-success" onclick="completeClass({{ class_item.id }})">
                                 <div class="action-icon">
                                     <i class="fas fa-check"></i>
@@ -197,8 +232,9 @@
                                     <span class="action-desc">Mark as done</span>
                                 </div>
                             </button>
+                            
                             {% elif class_item.status == 'completed' %}
-                            <button class="action-btn action-info">
+                            <button class="action-btn action-info" onclick="downloadRecording({{ class_item.id }})">
                                 <div class="action-icon">
                                     <i class="fas fa-download"></i>
                                 </div>
@@ -207,7 +243,8 @@
                                     <span class="action-desc">Download video</span>
                                 </div>
                             </button>
-                            <button class="action-btn action-secondary">
+                            
+                            <button class="action-btn action-secondary" onclick="viewReport({{ class_item.id }})">
                                 <div class="action-icon">
                                     <i class="fas fa-file-alt"></i>
                                 </div>
@@ -218,7 +255,7 @@
                             </button>
                             {% endif %}
                             
-                            <!-- Universal Actions -->
+                            <!-- Universal Actions (available for all statuses) -->
                             <button class="action-btn action-primary" onclick="duplicateClass({{ class_item.id }})">
                                 <div class="action-icon">
                                     <i class="fas fa-copy"></i>
@@ -226,15 +263,6 @@
                                 <div class="action-content">
                                     <span class="action-title">Duplicate</span>
                                     <span class="action-desc">Create similar class</span>
-                                </div>
-                            </button>
-                            <button class="action-btn action-warning" onclick="editClass({{ class_item.id }})">
-                                <div class="action-icon">
-                                    <i class="fas fa-edit"></i>
-                                </div>
-                                <div class="action-content">
-                                    <span class="action-title">Edit</span>
-                                    <span class="action-desc">Modify details</span>
                                 </div>
                             </button>
                         </div>
@@ -287,7 +315,7 @@
                                     <i class="fas fa-clock"></i>
                                 </div>
                                 <div class="stat-content">
-                                    <span class="stat-value">{{ class_item.tutor.get_experience().get('years', 0) }}</span>
+                                    <span class="stat-value">{{ class_item.tutor.get_experience().get('years', 0) if class_item.tutor.get_experience else 0 }}</span>
                                     <span class="stat-label">Years Experience</span>
                                 </div>
                             </div>
@@ -296,7 +324,7 @@
                                     <i class="fas fa-star"></i>
                                 </div>
                                 <div class="stat-content">
-                                    <span class="stat-value">{{ class_item.tutor.get_rating() or 'N/A' }}</span>
+                                    <span class="stat-value">{{ class_item.tutor.get_rating() if class_item.tutor.get_rating else 'N/A' }}</span>
                                     <span class="stat-label">Rating</span>
                                 </div>
                             </div>
@@ -1291,6 +1319,58 @@
         padding: 1rem;
     }
 }
+
+/* ========================================
+   NOTIFICATION STYLES
+   ======================================== */
+
+.notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: white;
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow-lg);
+    border-left: 4px solid var(--primary-color);
+    padding: 1rem 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    max-width: 400px;
+    z-index: 1060;
+    animation: slideInRight 0.3s ease-out;
+}
+
+.notification-success { border-left-color: var(--success-color); }
+.notification-error { border-left-color: var(--danger-color); }
+.notification-warning { border-left-color: var(--warning-color); }
+.notification-info { border-left-color: var(--info-color); }
+
+.notification-content {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex: 1;
+}
+
+.notification-close {
+    background: none;
+    border: none;
+    color: var(--gray-400);
+    cursor: pointer;
+    padding: 0.25rem;
+    border-radius: 50%;
+}
+
+.notification-close:hover {
+    background: var(--gray-100);
+    color: var(--gray-600);
+}
+
+@keyframes slideInRight {
+    from { transform: translateX(100%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
 </style>
 
 <script>
@@ -1306,7 +1386,6 @@ class ClassManager {
     }
 
     setupTooltips() {
-        // Initialize Bootstrap tooltips if available
         if (typeof bootstrap !== 'undefined') {
             const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
             tooltipTriggerList.map(function (tooltipTriggerEl) {
@@ -1316,7 +1395,6 @@ class ClassManager {
     }
 
     setupAnimations() {
-        // Add intersection observer for fade-in animations
         const observer = new IntersectionObserver((entries) => {
             entries.forEach(entry => {
                 if (entry.isIntersecting) {
@@ -1336,7 +1414,7 @@ class ClassManager {
             method,
             headers: {
                 'Content-Type': 'application/json',
-                'X-CSRFToken': document.querySelector('meta[name=csrf-token]')?.getAttribute('content') || ''
+                'X-CSRFToken': this.getCSRFToken()
             }
         };
 
@@ -1354,8 +1432,11 @@ class ClassManager {
         }
     }
 
+    getCSRFToken() {
+        return document.querySelector('meta[name=csrf-token]')?.getAttribute('content') || '';
+    }
+
     showNotification(message, type = 'info') {
-        // Create modern notification
         const notification = document.createElement('div');
         notification.className = `notification notification-${type}`;
         notification.innerHTML = `
@@ -1370,7 +1451,6 @@ class ClassManager {
 
         document.body.appendChild(notification);
 
-        // Auto remove after 5 seconds
         setTimeout(() => {
             if (notification.parentElement) {
                 notification.remove();
@@ -1388,14 +1468,52 @@ class ClassManager {
             element.disabled = false;
         };
     }
+
+    async showConfirmDialog(title, message, confirmText = 'Confirm', type = 'primary') {
+        return new Promise((resolve) => {
+            const modal = document.createElement('div');
+            modal.className = 'modal fade';
+            modal.innerHTML = `
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content modern-modal">
+                        <div class="modal-header">
+                            <h5 class="modal-title">${title}</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <p>${message}</p>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                            <button type="button" class="btn btn-${type}" id="confirmBtn">${confirmText}</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+            const bootstrapModal = new bootstrap.Modal(modal);
+            bootstrapModal.show();
+            
+            modal.querySelector('#confirmBtn').onclick = () => {
+                resolve(true);
+                bootstrapModal.hide();
+            };
+            
+            modal.addEventListener('hidden.bs.modal', () => {
+                resolve(false);
+                modal.remove();
+            });
+        });
+    }
 }
 
 // Initialize
 const classManager = new ClassManager();
 
-// Modern function implementations
+// Function implementations
 async function startClass(classId) {
-    const confirmed = await this.showConfirmDialog(
+    const confirmed = await classManager.showConfirmDialog(
         'Start Class',
         'Are you ready to start this class? Students will be notified.',
         'Start Class'
@@ -1417,7 +1535,7 @@ async function startClass(classId) {
 }
 
 async function completeClass(classId) {
-    const confirmed = await this.showConfirmDialog(
+    const confirmed = await classManager.showConfirmDialog(
         'Complete Class',
         'Mark this class as completed? This action cannot be undone.',
         'Mark Complete'
@@ -1439,7 +1557,7 @@ async function completeClass(classId) {
 }
 
 async function cancelClass(classId) {
-    const confirmed = await this.showConfirmDialog(
+    const confirmed = await classManager.showConfirmDialog(
         'Cancel Class',
         'Are you sure you want to cancel this class? Students will be notified.',
         'Cancel Class',
@@ -1461,19 +1579,15 @@ async function cancelClass(classId) {
     }
 }
 
-
 function rescheduleClass(classId) {
-    // Check user role and redirect accordingly
     const userRole = '{{ current_user.role }}';
     
     if (userRole === 'tutor') {
-        // Redirect tutor to request reschedule form
         window.location.href = `/reschedule/tutor/request-reschedule/${classId}`;
     } else if (['admin', 'coordinator', 'superadmin'].includes(userRole)) {
-        // Redirect admin to quick reschedule form
         window.location.href = `/reschedule/admin/class/${classId}/quick-reschedule`;
     } else {
-        LMS.showAlert('You do not have permission to reschedule classes', 'error');
+        classManager.showNotification('You do not have permission to reschedule classes', 'error');
     }
 }
 
@@ -1513,7 +1627,6 @@ async function confirmReschedule() {
 }
 
 function joinClass(classId) {
-    // Open meeting link in new tab
     classManager.showNotification('Opening class meeting...', 'info');
     // Implementation depends on your meeting platform
 }
@@ -1531,94 +1644,242 @@ function assignStudents(classId) {
 }
 
 function duplicateClass(classId) {
-    classManager.showNotification('Class duplication feature coming soon!', 'info');
+    if (confirm('Create a duplicate of this class? You will be redirected to edit the new class.')) {
+        window.location.href = `/admin/classes/${classId}/duplicate`;
+    }
 }
 
 function editClass(classId) {
-    classManager.showNotification('Class editing feature coming soon!', 'info');
+    fetch(`/admin/api/v1/classes/${classId}/editable`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.editable) {
+                window.location.href = `/admin/classes/${classId}/edit`;
+            } else {
+                classManager.showNotification(
+                    data.reason || 'This class cannot be edited', 
+                    'warning'
+                );
+            }
+        })
+        .catch(error => {
+            console.error('Error checking editability:', error);
+            classManager.showNotification('Error checking if class can be edited', 'error');
+        });
 }
 
-// Modern confirm dialog
-window.showConfirmDialog = function(title, message, confirmText = 'Confirm', type = 'primary') {
-    return new Promise((resolve) => {
-        const modal = document.createElement('div');
-        modal.className = 'modal fade';
-        modal.innerHTML = `
-            <div class="modal-dialog modal-dialog-centered">
-                <div class="modal-content modern-modal">
-                    <div class="modal-header">
-                        <h5 class="modal-title">${title}</h5>
-                    </div>
-                    <div class="modal-body">
-                        <p>${message}</p>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                        <button type="button" class="btn btn-${type}" id="confirmBtn">${confirmText}</button>
-                    </div>
+function quickEditClass(classId) {
+    const modal = document.createElement('div');
+    modal.className = 'modal fade';
+    modal.innerHTML = `
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="fas fa-edit"></i>
+                        Quick Edit Class
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="quickEditForm">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Platform</label>
+                                    <select class="form-control" name="platform">
+                                        <option value="">Select Platform</option>
+                                        <option value="zoom">Zoom</option>
+                                        <option value="google_meet">Google Meet</option>
+                                        <option value="teams">Microsoft Teams</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Meeting Link</label>
+                                    <input type="url" class="form-control" name="meeting_link" 
+                                           placeholder="https://...">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Class Notes</label>
+                            <textarea class="form-control" name="class_notes" rows="3" 
+                                      placeholder="Add notes about this class"></textarea>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" onclick="saveQuickEdit(${classId})">
+                        <i class="fas fa-save"></i> Save Changes
+                    </button>
                 </div>
             </div>
-        `;
-        
-        document.body.appendChild(modal);
-        
-        const bootstrapModal = new bootstrap.Modal(modal);
-        bootstrapModal.show();
-        
-        modal.querySelector('#confirmBtn').onclick = () => {
-            resolve(true);
-            bootstrapModal.hide();
-        };
-        
-        modal.addEventListener('hidden.bs.modal', () => {
-            resolve(false);
-            modal.remove();
-        });
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    const bootstrapModal = new bootstrap.Modal(modal);
+    bootstrapModal.show();
+    
+    modal.addEventListener('hidden.bs.modal', () => {
+        modal.remove();
     });
-};
+}
+
+function saveQuickEdit(classId) {
+    const form = document.getElementById('quickEditForm');
+    const formData = new FormData(form);
+    const data = Object.fromEntries(formData.entries());
+    
+    Object.keys(data).forEach(key => {
+        if (!data[key]) delete data[key];
+    });
+    
+    if (Object.keys(data).length === 0) {
+        classManager.showNotification('No changes to save', 'info');
+        return;
+    }
+    
+    fetch(`/admin/api/v1/classes/${classId}/quick-edit`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': classManager.getCSRFToken()
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            classManager.showNotification('Class updated successfully!', 'success');
+            const modal = bootstrap.Modal.getInstance(document.querySelector('.modal.show'));
+            modal.hide();
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            classManager.showNotification(result.error || 'Failed to update class', 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        classManager.showNotification('Error updating class', 'error');
+    });
+}
+
+function changeTutor(classId) {
+    fetch('/admin/api/v1/tutors/active')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.tutors.length > 0) {
+                showTutorSelectionModal(classId, data.tutors);
+            } else {
+                classManager.showNotification('No active tutors available', 'warning');
+            }
+        })
+        .catch(error => {
+            console.error('Error loading tutors:', error);
+            classManager.showNotification('Error loading tutors', 'error');
+        });
+}
+
+function showTutorSelectionModal(classId, tutors) {
+    const modal = document.createElement('div');
+    modal.className = 'modal fade';
+    modal.innerHTML = `
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="fas fa-user-switch"></i>
+                        Change Tutor
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Select New Tutor</label>
+                        <select class="form-control" id="newTutorSelect">
+                            <option value="">Choose a tutor...</option>
+                            ${tutors.map(tutor => 
+                                `<option value="${tutor.id}" data-subjects="${tutor.subjects.join(', ')}">
+                                    ${tutor.name} - ${tutor.subjects.slice(0, 2).join(', ')}
+                                </option>`
+                            ).join('')}
+                        </select>
+                    </div>
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i>
+                        The system will check for scheduling conflicts before making the change.
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" onclick="confirmTutorChange(${classId})">
+                        <i class="fas fa-exchange-alt"></i> Change Tutor
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    const bootstrapModal = new bootstrap.Modal(modal);
+    bootstrapModal.show();
+    
+    modal.addEventListener('hidden.bs.modal', () => {
+        modal.remove();
+    });
+}
+
+function confirmTutorChange(classId) {
+    const newTutorId = document.getElementById('newTutorSelect').value;
+    
+    if (!newTutorId) {
+        classManager.showNotification('Please select a tutor', 'warning');
+        return;
+    }
+    
+    const btn = event.target;
+    const stopLoading = classManager.showLoading(btn);
+    
+    fetch(`/admin/api/v1/classes/${classId}/quick-edit`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': classManager.getCSRFToken()
+        },
+        body: JSON.stringify({
+            tutor_id: parseInt(newTutorId)
+        })
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            classManager.showNotification('Tutor changed successfully!', 'success');
+            const modal = bootstrap.Modal.getInstance(document.querySelector('.modal.show'));
+            modal.hide();
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            classManager.showNotification(result.error || 'Failed to change tutor', 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        classManager.showNotification('Error changing tutor', 'error');
+    })
+    .finally(() => {
+        stopLoading();
+    });
+}
+
+function downloadRecording(classId) {
+    classManager.showNotification('Feature coming soon!', 'info');
+}
+
+function viewReport(classId) {
+    classManager.showNotification('Feature coming soon!', 'info');
+}
 </script>
-
-<!-- Add notification styles -->
-<style>
-.notification {
-    position: fixed;
-    top: 20px;
-    right: 20px;
-    background: white;
-    border-radius: var(--border-radius);
-    box-shadow: var(--shadow-lg);
-    border-left: 4px solid var(--primary-color);
-    padding: 1rem 1.5rem;
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    max-width: 400px;
-    z-index: 1060;
-    animation: slideInRight 0.3s ease-out;
-}
-
-.notification-success { border-left-color: var(--success-color); }
-.notification-error { border-left-color: var(--danger-color); }
-.notification-info { border-left-color: var(--info-color); }
-
-.notification-content {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    flex: 1;
-}
-
-.notification-close {
-    background: none;
-    border: none;
-    color: var(--gray-400);
-    cursor: pointer;
-    padding: 0.25rem;
-}
-
-@keyframes slideInRight {
-    from { transform: translateX(100%); opacity: 0; }
-    to { transform: translateX(0); opacity: 1; }
-}
-</style>
 {% endblock %}

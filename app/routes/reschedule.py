@@ -13,6 +13,7 @@ from app.forms.reschedule_forms import (
     BulkRescheduleRequestForm, RescheduleRequestSearchForm, QuickRescheduleForm
 )
 from functools import wraps
+from app.utils.advanced_permissions import require_permission
 
 bp = Blueprint('reschedule', __name__)
 
@@ -123,7 +124,7 @@ def create_reschedule_request(class_id):
 
 @bp.route('/admin/reschedule-requests')
 @login_required
-@admin_required
+@require_permission('schedule_management')
 def admin_reschedule_requests():
     """Admin view of all reschedule requests"""
     form = RescheduleRequestSearchForm(department_id=current_user.department_id)
@@ -170,7 +171,7 @@ def admin_reschedule_requests():
 
 @bp.route('/admin/reschedule-request/<int:request_id>')
 @login_required
-@admin_required
+@require_permission('schedule_management')
 def view_reschedule_request(request_id):
     """View detailed reschedule request"""
     reschedule_request = RescheduleRequest.query.get_or_404(request_id)
@@ -193,7 +194,7 @@ def view_reschedule_request(request_id):
 
 @bp.route('/admin/reschedule-request/<int:request_id>/review', methods=['POST'])
 @login_required
-@admin_required
+@require_permission('schedule_management')
 def review_reschedule_request(request_id):
     """Review (approve/reject) a reschedule request"""
     reschedule_request = RescheduleRequest.query.get_or_404(request_id)
@@ -235,7 +236,7 @@ def review_reschedule_request(request_id):
 
 @bp.route('/admin/reschedule-request/<int:request_id>/quick-approve', methods=['POST'])
 @login_required
-@admin_required
+@require_permission('schedule_management')
 def quick_approve_reschedule(request_id):
     """Quick approve reschedule request via AJAX"""
     reschedule_request = RescheduleRequest.query.get_or_404(request_id)
@@ -271,7 +272,7 @@ def quick_approve_reschedule(request_id):
 
 @bp.route('/api/reschedule-request/<int:request_id>/conflicts')
 @login_required
-@admin_required
+@require_permission('schedule_management')
 def api_check_conflicts(request_id):
     """API endpoint to check conflicts for a reschedule request"""
     reschedule_request = RescheduleRequest.query.get_or_404(request_id)
@@ -291,7 +292,7 @@ def api_check_conflicts(request_id):
 
 @bp.route('/api/reschedule-requests/pending-count')
 @login_required
-@admin_required
+@require_permission('schedule_management')
 def api_pending_count():
     """Get count of pending reschedule requests"""
     try:
@@ -319,7 +320,7 @@ def api_pending_count():
 
 @bp.route('/admin/class/<int:class_id>/quick-reschedule', methods=['GET', 'POST'])
 @login_required
-@admin_required
+@require_permission('schedule_management')
 def quick_reschedule_class(class_id):
     """Quick reschedule class without request workflow"""
     class_item = Class.query.get_or_404(class_id)
@@ -377,7 +378,7 @@ def quick_reschedule_class(class_id):
 
 @bp.route('/api/reschedule-requests/recent')
 @login_required
-@admin_required
+@require_permission('schedule_management')
 def api_recent_reschedule_requests():
     """Get recent reschedule requests for dashboard"""
     try:
@@ -479,7 +480,7 @@ def api_tutor_recent_requests():
 
 @bp.route('/api/reschedule-request/<int:request_id>/notification-status')
 @login_required
-@admin_required
+@require_permission('schedule_management')
 def api_reschedule_notification_status(request_id):
     """Check if notifications were sent for a reschedule request"""
     try:
@@ -504,7 +505,7 @@ def api_reschedule_notification_status(request_id):
 
 @bp.route('/api/reschedule-requests/bulk-approve', methods=['POST'])
 @login_required
-@admin_required
+@require_permission('schedule_management')
 def api_bulk_approve_reschedule_requests():
     """Bulk approve reschedule requests"""
     try:
@@ -560,7 +561,7 @@ def api_bulk_approve_reschedule_requests():
 
 @bp.route('/api/reschedule-requests/bulk-reject', methods=['POST'])
 @login_required
-@admin_required
+@require_permission('schedule_management')
 def api_bulk_reject_reschedule_requests():
     """Bulk reject reschedule requests"""
     try:
@@ -606,7 +607,7 @@ def api_bulk_reject_reschedule_requests():
 
 @bp.route('/api/reschedule-requests/search')
 @login_required
-@admin_required
+@require_permission('schedule_management')
 def api_search_reschedule_requests():
     """Search reschedule requests with filters"""
     try:

@@ -1055,9 +1055,8 @@
                     <span class="user-role">{{ current_user.get_role_display() }}</span>
                 </div>
             </div>
-            
             <ul class="nav-menu">
-                <!-- Dashboard -->
+                <!-- Dashboard - Always visible for authenticated users -->
                 <li class="nav-item">
                     <a href="{{ url_for('dashboard.index') }}" class="nav-link {% if request.endpoint and (request.endpoint == 'dashboard.admin_dashboard' or request.endpoint == 'dashboard.tutor_dashboard') %}active{% endif %}">
                         <i class="fas fa-home"></i>
@@ -1065,156 +1064,264 @@
                     </a>
                 </li>
                 
-                <!-- Admin and Coordinator Features -->
+                <!-- ============ ADMIN & COORDINATOR FEATURES ============ -->
                 {% if current_user.role in ['superadmin', 'admin', 'coordinator'] %}
                 
-                <!-- User Management -->
-                {% if current_user.has_permission('user_management') %}
-                <li class="nav-item">
-                    <a href="{{ url_for('admin.users') }}" class="nav-link {% if request.endpoint and 'users' in request.endpoint %}active{% endif %}">
-                        <i class="fas fa-users"></i>
-                        <span>Users</span>
-                    </a>
-                </li>
+                    <!-- User Management - Only with user_management permission -->
+                    {% if current_user.has_permission('user_management') %}
+                    <li class="nav-item">
+                        <a href="{{ url_for('admin.users') }}" class="nav-link {% if request.endpoint and 'users' in request.endpoint %}active{% endif %}">
+                            <i class="fas fa-users"></i>
+                            <span>User Management</span>
+                        </a>
+                    </li>
+                    {% endif %}
+
+                    <!-- Tutor Management - Only with tutor_management permission -->
+                    {% if current_user.has_permission('tutor_management') %}
+                    <li class="nav-item">
+                        <a href="{{ url_for('admin.tutors') }}" class="nav-link {% if request.endpoint and 'tutors' in request.endpoint %}active{% endif %}">
+                            <i class="fas fa-chalkboard-teacher"></i>
+                            <span>Tutor Management</span>
+                        </a>
+                    </li>
+                    {% endif %}
+
+                    <!-- Student Management - Only with student_management permission -->
+                    {% if current_user.has_permission('student_management') %}
+                    <li class="nav-item">
+                        <a href="{{ url_for('admin.students') }}" class="nav-link {% if request.endpoint and 'students' in request.endpoint %}active{% endif %}">
+                            <i class="fas fa-user-graduate"></i>
+                            <span>Student Management</span>
+                        </a>
+                    </li>
+                    {% endif %}
+
+                    <!-- Class Management - Only with class_management permission -->
+                    {% if current_user.has_permission('class_management') %}
+                    <li class="nav-item">
+                        <a href="{{ url_for('admin.classes') }}" class="nav-link {% if request.endpoint and 'classes' in request.endpoint %}active{% endif %}">
+                            <i class="fas fa-chalkboard"></i>
+                            <span>Class Management</span>
+                        </a>
+                    </li>
+
+                    <li class="nav-item">
+                        <a href="{{ url_for('admin.course_batches') }}" class="nav-link {% if request.endpoint and 'course_batches' in request.endpoint %}active{% endif %}">
+                            <i class="fas fa-layer-group"></i>
+                            <span>Course Batches</span>
+                        </a>
+                    </li>
+                    {% endif %}
+
+                    <!-- Schedule Management - Only with schedule_management permission -->
+                    {% if current_user.has_permission('schedule_management') %}
+                    <li class="nav-item">
+                        <a href="{{ url_for('admin.timetable') }}" class="nav-link {% if request.endpoint and 'timetable' in request.endpoint %}active{% endif %}">
+                            <i class="fas fa-calendar-alt"></i>
+                            <span>Schedule Management</span>
+                        </a>
+                    </li>
+
+                    <!-- Reschedule Requests - Same permission as schedule_management -->
+                    <li class="nav-item">
+                        <a href="{{ url_for('reschedule.admin_reschedule_requests') }}" class="nav-link {% if request.endpoint and 'reschedule' in request.endpoint and 'admin' in request.endpoint %}active{% endif %}">
+                            <i class="fas fa-calendar-check"></i>
+                            <span>Reschedule Requests</span>
+                            <span class="badge bg-warning ms-auto" id="reschedule-badge" style="display: none;">0</span>
+                        </a>
+                    </li>
+                    {% endif %}
+
+                    <!-- Notice Management - Only with notice_management permission -->
+                    {% if current_user.has_permission('notice_management') %}
+                    <li class="nav-item">
+                        <a href="{{ url_for('notice.admin_notices') }}" class="nav-link {% if request.endpoint and 'notice' in request.endpoint and 'admin' in request.endpoint %}active{% endif %}">
+                            <i class="fas fa-bullhorn"></i>
+                            <span>Notice Management</span>
+                        </a>
+                    </li>
+                    {% endif %}
+
+                    <!-- Demo Management - Only with demo_management permission -->
+                    {% if current_user.has_permission('demo_management') %}
+                    <li class="nav-item">
+                        <a href="#" class="nav-link dropdown-toggle" data-bs-target="#demoSubmenu" aria-expanded="false">
+                            <i class="fas fa-play-circle"></i>
+                            <span>Demo Management</span>
+                            <i class="fas fa-chevron-down ms-auto"></i>
+                        </a>
+                        <div class="collapse" id="demoSubmenu">
+                            <ul class="nav-menu ps-4">
+                                <li class="nav-item">
+                                    <a href="{{ url_for('demo.demo_students') }}" class="nav-link {% if request.endpoint and 'demo_students' in request.endpoint %}active{% endif %}">
+                                        <i class="fas fa-list"></i>
+                                        <span>All Demo Students</span>
+                                    </a>
+                                </li>
+                                <li class="nav-item">
+                                    <a href="{{ url_for('demo.register_demo_student') }}" class="nav-link {% if request.endpoint and 'register_demo_student' in request.endpoint %}active{% endif %}">
+                                        <i class="fas fa-user-plus"></i>
+                                        <span>Register Demo Student</span>
+                                    </a>
+                                </li>
+                                <li class="nav-item">
+                                    <a href="{{ url_for('demo.demo_classes') }}" class="nav-link {% if request.endpoint and 'demo_classes' in request.endpoint %}active{% endif %}">
+                                        <i class="fas fa-chalkboard"></i>
+                                        <span>All Demo Classes</span>
+                                    </a>
+                                </li>
+                                <li class="nav-item">
+                                    <a href="{{ url_for('demo.schedule_demo_class') }}" class="nav-link {% if request.endpoint and 'schedule_demo_class' in request.endpoint %}active{% endif %}">
+                                        <i class="fas fa-calendar-plus"></i>
+                                        <span>Schedule Demo</span>
+                                    </a>
+                                </li>
+                            </ul>
+                        </div>
+                    </li>
+                    {% endif %}
+
+                    <!-- Escalation Management - Only with escalation_management permission -->
+                    {% if current_user.has_permission('escalation_management') %}
+                    <li class="nav-item">
+                        <a class="nav-link {% if active_page == 'escalations' %}active{% endif %}" 
+                        href="{{ url_for('escalation.list_escalations') }}">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            <span>Escalation Management</span>
+                            <span id="escalation-count" class="badge bg-danger ms-auto" style="display: none;"></span>
+                        </a>
+                    </li>
+                    {% endif %}
+
+                    <!-- Smart Allocation - Class management or admin only -->
+                    {% if current_user.has_permission('class_management') or current_user.role in ['superadmin', 'admin'] %}
+                    <li class="nav-item">
+                        <a href="{{ url_for('admin.allocation_dashboard') }}" class="nav-link {% if request.endpoint and 'allocation_dashboard' in request.endpoint %}active{% endif %}">
+                            <i class="fas fa-brain"></i>
+                            <span>Smart Allocation</span>
+                            {% if analytics and analytics.overview and analytics.overview.urgent_cases > 0 %}
+                            <span class="badge bg-danger ms-2">{{ analytics.overview.urgent_cases }}</span>
+                            {% endif %}
+                        </a>
+                    </li>
+                    {% endif %}
+
+                    <!-- Finance Management - Only with finance_management permission -->
+                    {% if current_user.has_permission('finance_management') %}
+                    <li class="nav-item">
+                        <a href="{{ url_for('admin.finance_dashboard') }}" class="nav-link {% if request.endpoint and 'finance_dashboard' in request.endpoint %}active{% endif %}">
+                            <i class="fa-solid fa-coins"></i>
+                            <span>Finance Management</span>
+                        </a>
+                    </li>
+                    {% endif %}
+
+                    <!-- Report Generation - Only with report_generation permission --> 
+                    {% if current_user.has_permission('report_generation') %}
+                    <li class="nav-item">
+                        <a href="#" class="nav-link {% if request.endpoint and 'reports' in request.endpoint %}active{% endif %}">
+                            <i class="fas fa-chart-bar"></i>
+                            <span>Reports & Analytics</span>
+                        </a>
+                    </li>
+                    {% endif %}
+                    
+                    <!-- Department Management - Admin/Superadmin only (role-based, not permission) -->
+                    {% if current_user.role in ['superadmin', 'admin'] %}
+                    <li class="nav-item">
+                        <a href="{{ url_for('admin.departments') }}" class="nav-link {% if request.endpoint and 'departments' in request.endpoint %}active{% endif %}">
+                            <i class="fas fa-building"></i>
+                            <span>Department Management</span>
+                        </a>
+                    </li>
+                    {% endif %}
+                    
                 {% endif %}
-
-                <!-- Tutor Management -->
-                {% if current_user.has_permission('tutor_management') %}
-                <li class="nav-item">
-                    <a href="{{ url_for('admin.tutors') }}" class="nav-link {% if request.endpoint and 'tutors' in request.endpoint %}active{% endif %}">
-                        <i class="fas fa-chalkboard-teacher"></i>
-                        <span>Tutors</span>
-                    </a>
-                </li>
-                {% endif %}
-
-                <!-- Student Management -->
-                {% if current_user.has_permission('student_management') %}
-                <li class="nav-item">
-                    <a href="{{ url_for('admin.students') }}" class="nav-link {% if request.endpoint and 'students' in request.endpoint %}active{% endif %}">
-                        <i class="fas fa-user-graduate"></i>
-                        <span>Students</span>
-                    </a>
-                </li>
-                {% endif %}
-
-                <!-- Notice Management (NEW) -->
-                {% if current_user.role in ['superadmin', 'admin', 'coordinator'] %}
-                <li class="nav-item">
-                    <a href="{{ url_for('notice.admin_notices') }}" class="nav-link {% if request.endpoint and 'notice' in request.endpoint and 'admin' in request.endpoint %}active{% endif %}">
-                        <i class="fas fa-bullhorn"></i>
-                        <span>Notice Management</span>
-                    </a>
-                </li>
-                {% endif %}
-
-                <!-- 🔥 NEW: Reschedule Management (Admin/Coordinator) 🔥 -->
-                {% if current_user.role in ['superadmin', 'admin', 'coordinator'] %}
-                <li class="nav-item">
-                    <a href="{{ url_for('reschedule.admin_reschedule_requests') }}" class="nav-link {% if request.endpoint and 'reschedule' in request.endpoint and 'admin' in request.endpoint %}active{% endif %}">
-                        <i class="fas fa-calendar-alt"></i>
-                        <span>Reschedule Requests</span>
-                        <span class="badge bg-warning ms-auto" id="reschedule-badge" style="display: none;">0</span>
-                    </a>
-                </li>
-                {% endif %}
-
-                <!-- Demo Management -->
-                {% if current_user.has_permission('demo_management') or current_user.role in ['superadmin', 'admin', 'coordinator'] %}
-                <li class="nav-item">
-                    <a href="#" class="nav-link dropdown-toggle" data-bs-target="#demoSubmenu" aria-expanded="false">
-                        <i class="fas fa-play-circle"></i>
-                        <span>Demo Classes</span>
-                        <i class="fas fa-chevron-down ms-auto"></i>
-                    </a>
-                    <div class="collapse" id="demoSubmenu">
-                        <ul class="nav-menu ps-4">
-                            <li class="nav-item">
-                                <a href="{{ url_for('demo.demo_students') }}" class="nav-link {% if request.endpoint and 'demo_students' in request.endpoint %}active{% endif %}">
-                                    <i class="fas fa-list"></i>
-                                    <span>All Demo Students</span>
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a href="{{ url_for('demo.register_demo_student') }}" class="nav-link {% if request.endpoint and 'register_demo_student' in request.endpoint %}active{% endif %}">
-                                    <i class="fas fa-user-plus"></i>
-                                    <span>Register Demo Student</span>
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a href="{{ url_for('demo.demo_classes') }}" class="nav-link {% if request.endpoint and 'demo_classes' in request.endpoint %}active{% endif %}">
-                                    <i class="fas fa-chalkboard"></i>
-                                    <span>All Demo Classes</span>
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a href="{{ url_for('demo.schedule_demo_class') }}" class="nav-link {% if request.endpoint and 'schedule_demo_class' in request.endpoint %}active{% endif %}">
-                                    <i class="fas fa-calendar-plus"></i>
-                                    <span>Schedule Demo</span>
-                                </a>
-                            </li>
-                        </ul>
-                    </div>
-                </li>
-                {% endif %}
-
-                <li class="nav-item">
-                    <a class="nav-link {% if active_page == 'escalations' %}active{% endif %}" 
-                       href="{{ url_for('escalation.list_escalations') }}">
-                        <i class="fas fa-exclamation-triangle me-2"></i>
-                        <span>Escalations</span>
-                        <span id="escalation-count" class="badge bg-danger ms-auto" style="display: none;"></span>
-                    </a>
-                </li>
-
-                <!-- Class Management -->
-                {% if current_user.has_permission('class_management') %}
-                <li class="nav-item">
-                    <a href="{{ url_for('admin.classes') }}" class="nav-link {% if request.endpoint and 'classes' in request.endpoint %}active{% endif %}">
-                        <i class="fas fa-chalkboard"></i>
-                        <span>Classes</span>
-                    </a>
-                </li>
-
-                <li class="nav-item">
-                    <a href="{{ url_for('admin.course_batches') }}" class="nav-link {% if request.endpoint and 'course_batches' in request.endpoint %}active{% endif %}">
-                        <i class="fas fa-layer-group"></i>
-                        <span>Course Batches</span>
-                    </a>
-                </li>
-                {% endif %}
-
-                {% if current_user.role in ['superadmin', 'admin', 'coordinator'] %}
-                <li class="nav-item">
-                    <a href="{{ url_for('admin.timetable') }}" class="nav-link {% if request.endpoint and 'timetable' in request.endpoint %}active{% endif %}">
-                        <i class="fas fa-calendar-alt"></i>
-                        <span>Timetable</span>
-                    </a>
-                </li>
-                {% endif %}
-
-                {% if current_user.role in ['superadmin','admin'] %}
-                <li class="nav-item">
-                    <a href="{{ url_for('admin.finance_dashboard') }}" class="nav-link {% if request.endpoint and 'finance_dashboard' in request.endpoint %}active{% endif %}">
-                        <i class="fa-solid fa-coins"></i>
-                        <span>Finance</span>
-                    </a>
-                </li>
-                {% endif %}
+                <!-- ============ END: ADMIN & COORDINATOR FEATURES ============ -->
                 
-                <!-- Department Management (Super Admin Only) -->
-                {% if current_user.role in ['superadmin', 'admin'] %}
-                <li class="nav-item">
-                    <a href="{{ url_for('admin.departments') }}" class="nav-link {% if request.endpoint and 'departments' in request.endpoint %}active{% endif %}">
-                        <i class="fas fa-building"></i>
-                        <span>Departments</span>
-                    </a>
-                </li>
-                {% endif %}               
-                
+                <!-- ============ TUTOR SPECIFIC FEATURES ============ -->
+                {% if current_user.role == 'tutor' %}
+                    <!-- Tutor Dashboard Items - Tutors have class_management permission -->
+                    {% if current_user.has_permission('class_management') %}
+                    <li class="nav-item">
+                        <a href="{{ url_for('tutor.my_classes') }}" class="nav-link {% if request.endpoint and 'tutor.my_classes' in request.endpoint %}active{% endif %}">
+                            <i class="fas fa-chalkboard"></i>
+                            <span>My Classes</span>
+                        </a>
+                    </li>
+                    {% endif %}
+
+                    <!-- Tutor Availability - Schedule management -->
+                    {% if current_user.has_permission('schedule_management') or current_user.has_permission('class_management') %}
+                    <li class="nav-item">
+                        <a href="{{ url_for('tutor.availability') }}" class="nav-link {% if request.endpoint and 'availability' in request.endpoint %}active{% endif %}">
+                            <i class="fas fa-calendar-check"></i>
+                            <span>Set Availability</span>
+                            {% if current_user.tutor and not current_user.tutor.get_availability() %}
+                            <span class="badge badge-warning ms-1">Required</span>
+                            {% endif %}
+                        </a>
+                    </li>
+
+                    <!-- My Reschedule Requests -->
+                    <li class="nav-item">
+                        <a href="{{ url_for('reschedule.tutor_reschedule_requests') }}" class="nav-link {% if request.endpoint and 'reschedule' in request.endpoint and 'tutor' in request.endpoint %}active{% endif %}">
+                            <i class="fas fa-calendar-alt"></i>
+                            <span>My Reschedule Requests</span>
+                        </a>
+                    </li>
+                    {% endif %}
+
+                    <!-- Attendance Management - Tutors have this permission -->
+                    {% if current_user.has_permission('attendance_management') %}
+                    <li class="nav-item">
+                        <a href="{{ url_for('tutor.attendance') }}" class="nav-link {% if request.endpoint and 'tutor.attendance' in request.endpoint %}active{% endif %}">
+                            <i class="fas fa-calendar-check"></i>
+                            <span>Mark Attendance</span>
+                        </a>
+                    </li>
+                    {% endif %}
+
+                    <!-- My Students - Tutors can view their students -->
+                    {% if current_user.has_permission('class_management') %}
+                    <li class="nav-item">
+                        <a href="{{ url_for('tutor.my_students') }}" class="nav-link {% if request.endpoint and 'tutor.my_students' in request.endpoint %}active{% endif %}">
+                            <i class="fas fa-user-graduate"></i>
+                            <span>My Students</span>
+                        </a>
+                    </li>
+                    {% endif %}
+                    
+                    <!-- Tutor Escalations - Always available for tutors -->
+                    <li class="nav-item">
+                        <a href="{{ url_for('escalation.my_escalations') }}" class="nav-link {% if request.endpoint and 'escalation' in request.endpoint and 'my_escalations' in request.endpoint %}active{% endif %}">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            <span>My Escalations</span>
+                            <span class="badge bg-danger ms-auto" id="escalationBadge" style="display: none;">0</span>
+                        </a>
+                    </li>
+                    
+                    <li class="nav-item">
+                        <a href="{{ url_for('escalation.create_escalation') }}" class="nav-link {% if request.endpoint and 'escalation' in request.endpoint and 'create' in request.endpoint %}active{% endif %}">
+                            <i class="fas fa-plus-circle"></i>
+                            <span>Create Escalation</span>
+                        </a>
+                    </li>
+                    
+                    <!-- Tutor Salary - Always available -->
+                    <li class="nav-item">
+                        <a href="{{ url_for('tutor.salary') }}" class="nav-link {% if request.endpoint and 'tutor.salary' in request.endpoint %}active{% endif %}">
+                            <i class="fas fa-money-bill-wave"></i>
+                            <span>My Salary</span>
+                        </a>
+                    </li>
                 {% endif %}
+                <!-- ============ END: TUTOR SPECIFIC FEATURES ============ -->
                 
-                <!-- Notice Inbox (All Users) - NEW -->
+                <!-- ============ FEATURES FOR ALL AUTHENTICATED USERS ============ -->
+                
+                <!-- Notice Inbox - All users can view notices -->
                 <li class="nav-item">
                     <a href="{{ url_for('notice.user_notices') }}" class="nav-link {% if request.endpoint and 'notice' in request.endpoint and 'admin' not in request.endpoint %}active{% endif %}">
                         <i class="fas fa-inbox"></i>
@@ -1223,85 +1330,27 @@
                     </a>
                 </li>
                 
-                <!-- Tutor Specific Features -->
-                {% if current_user.role == 'tutor' %}
+                <!-- System Documents - Only with system_documents permission or basic access -->
+                {% if current_user.has_permission('system_documents') or current_user.role in ['tutor', 'student'] %}
                 <li class="nav-item">
-                    <a href="{{ url_for('tutor.availability') }}" class="nav-link {% if request.endpoint and 'availability' in request.endpoint %}active{% endif %}">
-                        <i class="fas fa-calendar-check"></i>
-                        <span>Set Availability</span>
-                        {% if current_user.tutor and not current_user.tutor.get_availability() %}
-                        <span class="badge badge-warning ms-1">Required</span>
-                        {% endif %}
+                    <a href="{{ url_for('admin.system_documents') }}" class="nav-link {% if request.endpoint and 'system_documents' in request.endpoint %}active{% endif %}">
+                        <i class="fas fa-file-alt"></i>
+                        <span>{% if current_user.has_permission('system_documents') %}Document Management{% else %}My Documents{% endif %}</span>
                     </a>
                 </li>
+                {% endif %}
 
+                <!-- Profile Management - All users have profile_management permission -->
+                {% if current_user.has_permission('profile_management') %}
                 <li class="nav-item">
-                    <a href="{{ url_for('tutor.my_classes') }}" class="nav-link {% if request.endpoint and 'tutor.my_classes' in request.endpoint %}active{% endif %}">
-                        <i class="fas fa-chalkboard"></i>
-                        <span>My Classes</span>
-                    </a>
-                </li>
-                
-                <li class="nav-item">
-                    <a href="{{ url_for('escalation.my_escalations') }}" class="nav-link {% if request.endpoint and 'escalation' in request.endpoint and 'my_escalations' in request.endpoint %}active{% endif %}">
-                        <i class="fas fa-exclamation-triangle"></i>
-                        <span>My Escalations</span>
-                        <span class="badge bg-danger ms-auto" id="escalationBadge" style="display: none;">0</span>
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a href="{{ url_for('escalation.create_escalation') }}" class="nav-link {% if request.endpoint and 'escalation' in request.endpoint and 'create' in request.endpoint %}active{% endif %}">
-                        <i class="fas fa-plus-circle"></i>
-                        <span>Create Escalation</span>
-                    </a>
-                </li>
-                
-                <!-- 🔥 NEW: My Reschedule Requests (Tutor) 🔥 -->
-                <li class="nav-item">
-                    <a href="{{ url_for('reschedule.tutor_reschedule_requests') }}" class="nav-link {% if request.endpoint and 'reschedule' in request.endpoint and 'tutor' in request.endpoint %}active{% endif %}">
-                        <i class="fas fa-calendar-alt"></i>
-                        <span>My Reschedule Requests</span>
-                    </a>
-                </li>
-                
-                <li class="nav-item">
-                    <a href="{{ url_for('tutor.my_students') }}" class="nav-link {% if request.endpoint and 'tutor.my_students' in request.endpoint %}active{% endif %}">
-                        <i class="fas fa-user-graduate"></i>
-                        <span>My Students</span>
-                    </a>
-                </li>
-                
-                <li class="nav-item">
-                    <a href="{{ url_for('tutor.attendance') }}" class="nav-link {% if request.endpoint and 'tutor.attendance' in request.endpoint %}active{% endif %}">
-                        <i class="fas fa-calendar-check"></i>
-                        <span>Attendance</span>
-                    </a>
-                </li>
-                
-                <li class="nav-item">
-                    <a href="{{ url_for('tutor.salary') }}" class="nav-link {% if request.endpoint and 'tutor.salary' in request.endpoint %}active{% endif %}">
-                        <i class="fas fa-money-bill-wave"></i>
-                        <span>Salary</span>
+                    <a href="{{ url_for('profile.view_profile') }}" class="nav-link {% if request.endpoint and 'profile' in request.endpoint %}active{% endif %}">
+                        <i class="fas fa-user-circle"></i>
+                        <span>My Profile</span>
                     </a>
                 </li>
                 {% endif %}
                 
-                <li class="nav-item">
-                    <a href="{{ url_for('admin.system_documents') }}" class="nav-link {% if request.endpoint and 'system_documents' in request.endpoint %}active{% endif %}">
-                        <i class="fas fa-file-alt"></i>
-                        <span>System Documents</span>
-                    </a>
-                </li>
-
-                <!-- Profile -->
-                <li class="nav-item">
-                    <a href="{{ url_for('profile.view_profile') }}" class="nav-link {% if request.endpoint and 'profile' in request.endpoint %}active{% endif %}">
-                        <i class="fas fa-user-circle"></i>
-                        <span>Profile</span>
-                    </a>
-                </li>
-                
-                <!-- Change Password -->
+                <!-- Change Password - Always available -->
                 <li class="nav-item">
                     <a href="{{ url_for('auth.change_password') }}" class="nav-link {% if request.endpoint and 'change_password' in request.endpoint %}active{% endif %}">
                         <i class="fas fa-key"></i>
@@ -1309,7 +1358,7 @@
                     </a>
                 </li>
                 
-                <!-- Logout -->
+                <!-- Logout - Always available -->
                 <li class="nav-item">
                     <a href="{{ url_for('auth.logout') }}" class="nav-link">
                         <i class="fas fa-sign-out-alt"></i>

@@ -743,6 +743,8 @@ function selectExportType(type) {
     document.getElementById('exportForm').scrollIntoView({ behavior: 'smooth' });
 }
 
+// ALSO REPLACE the updateFormatOptions() function in your timetable_export.html:
+
 function updateFormatOptions(type) {
     const formatOptionsDiv = document.getElementById('formatOptions');
     
@@ -767,35 +769,125 @@ function updateFormatOptions(type) {
                     </div>
                     
                     <div class="form-group">
-                        <label class="form-label">📏 Page Size</label>
+                        <label class="form-label">📋 Page Size</label>
                         <select class="form-select" name="page_size">
-                            <option value="A4" selected>A4 (Standard)</option>
-                            <option value="Letter">Letter (US)</option>
-                            <option value="Legal">Legal</option>
+                            <option value="A4" selected>A4</option>
+                            <option value="letter">Letter</option>
+                            <option value="legal">Legal</option>
                         </select>
                     </div>
                 </div>
                 
-                <div class="checkbox-group">
-                    <label class="checkbox-item">
-                        <input type="checkbox" name="include_charts" checked>
-                        <span>📈 Include Charts & Graphs</span>
-                    </label>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">🎨 Template Style</label>
+                        <select class="form-select" name="template">
+                            <option value="standard" selected>Standard</option>
+                            <option value="detailed">Detailed</option>
+                            <option value="summary">Summary</option>
+                        </select>
+                    </div>
+                </div>
+            `;
+            break;
+            
+        case 'csv':
+            optionsHtml += `
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">📋 Field Separator</label>
+                        <select class="form-select" name="delimiter">
+                            <option value="," selected>Comma (,)</option>
+                            <option value=";">Semicolon (;)</option>
+                            <option value="|">Pipe (|)</option>
+                            <option value="tab">Tab</option>
+                        </select>
+                    </div>
                     
-                    <label class="checkbox-item">
-                        <input type="checkbox" name="include_summary" checked>
-                        <span>📋 Include Summary Page</span>
-                    </label>
+                    <div class="form-group">
+                        <label class="form-label">💾 Text Encoding</label>
+                        <select class="form-select" name="encoding">
+                            <option value="utf-8" selected>UTF-8</option>
+                            <option value="utf-16">UTF-16</option>
+                            <option value="ascii">ASCII</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="checkbox-item">
+                            <input type="checkbox" name="include_headers" checked>
+                            <span>📊 Include Column Headers</span>
+                        </label>
+                    </div>
                     
-                    <label class="checkbox-item">
-                        <input type="checkbox" name="watermark">
-                        <span>🏷️ Add Watermark</span>
-                    </label>
+                    <div class="form-group">
+                        <label class="checkbox-item">
+                            <input type="checkbox" name="quote_all">
+                            <span>🔒 Quote All Fields</span>
+                        </label>
+                    </div>
+                </div>
+                
+                <div class="info-box">
+                    <i class="fas fa-info-circle"></i>
+                    <div>
+                        <strong>CSV Format:</strong> Perfect for importing into Excel, Google Sheets, or database systems. 
+                        All class data including dates, times, tutors, students, and notes will be included.
+                    </div>
+                </div>
+            `;
+            break;
+            
+        case 'calendar':
+            optionsHtml += `
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">🕐 Timezone</label>
+                        <select class="form-select" name="timezone">
+                            <option value="Asia/Kolkata" selected>Asia/Kolkata (IST)</option>
+                            <option value="UTC">UTC</option>
+                            <option value="America/New_York">America/New_York (EST)</option>
+                            <option value="Europe/London">Europe/London (GMT)</option>
+                            <option value="Asia/Tokyo">Asia/Tokyo (JST)</option>
+                        </select>
+                    </div>
                     
-                    <label class="checkbox-item">
-                        <input type="checkbox" name="color_coding" checked>
-                        <span>🌈 Color-coded Status</span>
-                    </label>
+                    <div class="form-group">
+                        <label class="form-label">⏰ Reminder Time</label>
+                        <select class="form-select" name="reminder">
+                            <option value="15" selected>15 minutes before</option>
+                            <option value="30">30 minutes before</option>
+                            <option value="60">1 hour before</option>
+                            <option value="1440">1 day before</option>
+                            <option value="none">No reminders</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="checkbox-item">
+                            <input type="checkbox" name="include_meeting_links" checked>
+                            <span>🔗 Include Meeting Links</span>
+                        </label>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="checkbox-item">
+                            <input type="checkbox" name="include_student_details" checked>
+                            <span>👥 Include Student Details</span>
+                        </label>
+                    </div>
+                </div>
+                
+                <div class="info-box">
+                    <i class="fas fa-info-circle"></i>
+                    <div>
+                        <strong>Calendar Format (iCal):</strong> Import directly into Google Calendar, Outlook, Apple Calendar, or any calendar app. 
+                        Each class becomes a calendar event with automatic reminders.
+                    </div>
                 </div>
             `;
             break;
@@ -806,8 +898,8 @@ function updateFormatOptions(type) {
                     <div class="form-group">
                         <label class="form-label">📊 Worksheet Layout</label>
                         <select class="form-select" name="layout">
-                            <option value="single">Single Sheet</option>
-                            <option value="multiple" selected>Multiple Sheets (Recommended)</option>
+                            <option value="single" selected>Single Sheet</option>
+                            <option value="multiple">Multiple Sheets by Date</option>
                             <option value="pivot">Include Pivot Tables</option>
                         </select>
                     </div>
@@ -815,129 +907,31 @@ function updateFormatOptions(type) {
                     <div class="form-group">
                         <label class="form-label">🎨 Formatting</label>
                         <select class="form-select" name="formatting">
-                            <option value="basic">Basic</option>
-                            <option value="enhanced" selected>Enhanced (Recommended)</option>
-                            <option value="custom">Custom</option>
+                            <option value="basic" selected>Basic</option>
+                            <option value="professional">Professional</option>
+                            <option value="colorful">Colorful</option>
                         </select>
                     </div>
                 </div>
                 
-                <div class="checkbox-group">
-                    <label class="checkbox-item">
-                        <input type="checkbox" name="include_formulas" checked>
-                        <span>🧮 Include Formulas</span>
-                    </label>
-                    
-                    <label class="checkbox-item">
-                        <input type="checkbox" name="auto_filter" checked>
-                        <span>🔍 Auto Filter Headers</span>
-                    </label>
-                    
-                    <label class="checkbox-item">
-                        <input type="checkbox" name="freeze_panes" checked>
-                        <span>❄️ Freeze Header Panes</span>
-                    </label>
-                    
-                    <label class="checkbox-item">
-                        <input type="checkbox" name="charts">
-                        <span>📊 Include Charts</span>
-                    </label>
-                </div>
-            `;
-            break;
-            
-        case 'csv':
-            optionsHtml += `
-                <div class="form-row">
-                    <div class="form-group">
-                        <label class="form-label">📝 Delimiter</label>
-                        <select class="form-select" name="delimiter">
-                            <option value="comma" selected>Comma (,)</option>
-                            <option value="semicolon">Semicolon (;)</option>
-                            <option value="tab">Tab</option>
-                            <option value="pipe">Pipe (|)</option>
-                        </select>
+                <div class="info-box">
+                    <i class="fas fa-info-circle"></i>
+                    <div>
+                        <strong>Excel Format:</strong> Coming soon! Full Excel support with formulas, charts, and advanced formatting.
                     </div>
-                    
-                    <div class="form-group">
-                        <label class="form-label">🔤 Text Encoding</label>
-                        <select class="form-select" name="encoding">
-                            <option value="utf-8" selected>UTF-8 (Recommended)</option>
-                            <option value="utf-16">UTF-16</option>
-                            <option value="ascii">ASCII</option>
-                        </select>
-                    </div>
-                </div>
-                
-                <div class="checkbox-group">
-                    <label class="checkbox-item">
-                        <input type="checkbox" name="include_headers" checked>
-                        <span>📋 Include Column Headers</span>
-                    </label>
-                    
-                    <label class="checkbox-item">
-                        <input type="checkbox" name="quote_all">
-                        <span>🔤 Quote All Fields</span>
-                    </label>
-                    
-                    <label class="checkbox-item">
-                        <input type="checkbox" name="normalize_data" checked>
-                        <span>🔧 Normalize Data Format</span>
-                    </label>
-                </div>
-            `;
-            break;
-            
-        case 'calendar':
-            optionsHtml += `
-                <div class="form-row">
-                    <div class="form-group">
-                        <label class="form-label">📅 Calendar Format</label>
-                        <select class="form-select" name="calendar_format">
-                            <option value="ical" selected>iCal (.ics) - Universal</option>
-                            <option value="outlook">Outlook (.msg)</option>
-                            <option value="google">Google Calendar</option>
-                        </select>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label class="form-label">⏰ Time Zone</label>
-                        <select class="form-select" name="timezone">
-                            <option value="UTC">UTC</option>
-                            <option value="local" selected>Local Time</option>
-                            <option value="custom">Custom</option>
-                        </select>
-                    </div>
-                </div>
-                
-                <div class="checkbox-group">
-                    <label class="checkbox-item">
-                        <input type="checkbox" name="include_alarms" checked>
-                        <span>⏰ Include Reminders</span>
-                    </label>
-                    
-                    <label class="checkbox-item">
-                        <input type="checkbox" name="include_location">
-                        <span>📍 Include Locations</span>
-                    </label>
-                    
-                    <label class="checkbox-item">
-                        <input type="checkbox" name="recurring_events">
-                        <span>🔄 Mark Recurring</span>
-                    </label>
-                    
-                    <label class="checkbox-item">
-                        <input type="checkbox" name="attendees" checked>
-                        <span>👥 Include Attendees</span>
-                    </label>
                 </div>
             `;
             break;
     }
     
-    optionsHtml += '</div>';
+    optionsHtml += `
+        </div>
+    `;
+    
     formatOptionsDiv.innerHTML = optionsHtml;
 }
+
+// REPLACE the generatePreview() function in your timetable_export.html with this:
 
 async function generatePreview() {
     try {
@@ -965,6 +959,8 @@ async function generatePreview() {
             }
         }
         
+        console.log('📊 Sending preview request:', exportData);
+        
         const response = await fetch('/admin/api/v1/timetable/export-preview', {
             method: 'POST',
             headers: {
@@ -974,7 +970,35 @@ async function generatePreview() {
             body: JSON.stringify(exportData)
         });
         
+        console.log('📊 Response status:', response.status);
+        console.log('📊 Response headers:', response.headers);
+        
+        // Check if response is OK
+        if (!response.ok) {
+            console.error('❌ HTTP Error:', response.status, response.statusText);
+            
+            // Try to get error text
+            const errorText = await response.text();
+            console.error('❌ Error response body:', errorText);
+            
+            showNotification(`Server error: ${response.status} - ${response.statusText}`, 'error');
+            return;
+        }
+        
+        // Check content type
+        const contentType = response.headers.get('content-type');
+        console.log('📊 Content type:', contentType);
+        
+        if (!contentType || !contentType.includes('application/json')) {
+            console.error('❌ Expected JSON but got:', contentType);
+            const responseText = await response.text();
+            console.error('❌ Response body:', responseText);
+            showNotification('Server returned unexpected content type', 'error');
+            return;
+        }
+        
         const data = await response.json();
+        console.log('📊 Preview data:', data);
         
         if (data.success) {
             exportPreviewData = data;
@@ -1004,6 +1028,7 @@ async function generatePreview() {
             // Scroll to preview
             document.getElementById('previewSection').scrollIntoView({ behavior: 'smooth' });
         } else {
+            console.error('❌ Preview failed:', data.error);
             showNotification(data.error || 'Failed to generate preview', 'error');
         }
         
@@ -1017,42 +1042,210 @@ async function generatePreview() {
     }
 }
 
-// Replace the exportTimetable function in your export page
 async function exportTimetable() {
+    const exportBtn = document.getElementById('exportBtn');
+    
     try {
-        const exportBtn = document.getElementById('exportBtn');
         exportBtn.innerHTML = '<span class="loading-spinner"></span> Exporting...';
         exportBtn.disabled = true;
         
+        console.log('🚀 Starting export for type:', selectedExportType);
+        
+        // Get form data
+        const formData = new FormData(document.getElementById('exportForm'));
+        const date = formData.get('date');
+        const period = formData.get('period');
+        
+        // Validate required fields
+        if (!selectedExportType) {
+            showNotification('Please select an export format first', 'error');
+            return;
+        }
+        
+        if (!date) {
+            showNotification('Please select a date', 'error');
+            return;
+        }
+        
+        console.log('📊 Export parameters:', { type: selectedExportType, period, date });
+        
         if (selectedExportType === 'pdf') {
-            // Use the correct PDF endpoint with proper parameters
-            const formData = new FormData(document.getElementById('exportForm'));
-            const date = formData.get('date');
-            const period = formData.get('period');
+            console.log('📄 Using direct PDF download');
             
-            // Build URL with correct parameters
+            // For PDF, use window.open to force download
             const params = new URLSearchParams({
                 date: date,
                 view: period === 'today' ? 'today' : period === 'week' ? 'week' : 'month'
             });
             
-            // Use direct window.location for file download
-            window.location.href = `/admin/api/v1/timetable/export-pdf?${params}`;
+            const pdfUrl = `/admin/api/v1/timetable/export-pdf?${params}`;
+            console.log('📄 PDF URL:', pdfUrl);
             
-            showNotification('PDF export started!', 'success');
+            // Force download using window.open
+            window.open(pdfUrl, '_blank');
+            
+            showNotification('PDF export started! Check your downloads.', 'success');
+            
         } else {
-            // For other formats, show implementation message
-            showNotification(`${selectedExportType.toUpperCase()} export will be implemented soon. Use PDF export for now.`, 'info');
+            console.log('📊 Using API export for:', selectedExportType);
+            
+            // For all other formats, use fetch with proper download handling
+            const exportData = {
+                export_type: selectedExportType,
+                period: period,
+                date: date
+            };
+            
+            console.log('📤 Sending export request:', exportData);
+            
+            const response = await fetch('/admin/api/v1/timetable/export', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCSRFToken()
+                },
+                body: JSON.stringify(exportData)
+            });
+            
+            console.log('📥 Response status:', response.status);
+            console.log('📥 Response headers:', Object.fromEntries(response.headers.entries()));
+            
+            if (!response.ok) {
+                console.error('❌ HTTP Error:', response.status, response.statusText);
+                
+                let errorMessage = `Export failed (${response.status})`;
+                
+                try {
+                    const contentType = response.headers.get('content-type');
+                    if (contentType && contentType.includes('application/json')) {
+                        const errorData = await response.json();
+                        errorMessage = errorData.error || errorMessage;
+                        console.error('❌ Server error:', errorData);
+                    } else {
+                        const errorText = await response.text();
+                        console.error('❌ Server response:', errorText.substring(0, 500));
+                        
+                        // Check for specific error patterns
+                        if (errorText.includes('MergedCell')) {
+                            errorMessage = 'Excel generation error. Please try again or contact administrator.';
+                        } else if (errorText.includes('ModuleNotFoundError')) {
+                            errorMessage = 'Missing required packages. Please contact administrator.';
+                        } else if (errorText.includes('ImportError')) {
+                            errorMessage = 'Export module not available. Please contact administrator.';
+                        }
+                    }
+                } catch (e) {
+                    console.error('❌ Could not parse error response:', e);
+                }
+                
+                showNotification(errorMessage, 'error');
+                return;
+            }
+            
+            console.log('✅ Response OK, creating download');
+            
+            // Get filename from Content-Disposition header or create default
+            const contentDisposition = response.headers.get('content-disposition');
+            let filename = `timetable_${date}`;
+            
+            if (contentDisposition) {
+                const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+                if (filenameMatch && filenameMatch[1]) {
+                    filename = filenameMatch[1].replace(/['"]/g, '');
+                }
+            } else {
+                // Set default extension based on export type
+                const extensions = {
+                    'csv': 'csv',
+                    'excel': 'xlsx',
+                    'calendar': 'ics'
+                };
+                const extension = extensions[selectedExportType] || 'txt';
+                filename = `${filename}.${extension}`;
+            }
+            
+            console.log('📄 Filename:', filename);
+            
+            // Create blob and download
+            const blob = await response.blob();
+            console.log('📄 Blob size:', blob.size, 'bytes');
+            console.log('📄 Blob type:', blob.type);
+            
+            if (blob.size === 0) {
+                showNotification('Export failed: Empty file received', 'error');
+                return;
+            }
+            
+            // Create download link
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = url;
+            a.download = filename;
+            
+            // Add to DOM and click
+            document.body.appendChild(a);
+            a.click();
+            
+            // Clean up
+            setTimeout(() => {
+                window.URL.revokeObjectURL(url);
+                if (a.parentNode) {
+                    document.body.removeChild(a);
+                }
+            }, 100);
+            
+            console.log('✅ Download triggered:', filename);
+            showNotification(`${selectedExportType.toUpperCase()} export completed! File: ${filename}`, 'success');
         }
         
     } catch (error) {
-        console.error('❌ Error exporting:', error);
-        showNotification('Failed to export: ' + error.message, 'error');
+        console.error('❌ Export error:', error);
+        console.error('❌ Error stack:', error.stack);
+        
+        let errorMessage = 'Export failed: ' + error.message;
+        
+        // Handle specific error types
+        if (error.name === 'TypeError' && error.message.includes('fetch')) {
+            errorMessage = 'Network error. Please check your connection and try again.';
+        } else if (error.message.includes('JSON')) {
+            errorMessage = 'Invalid server response. Please try again.';
+        }
+        
+        showNotification(errorMessage, 'error');
+        
     } finally {
-        const exportBtn = document.getElementById('exportBtn');
+        // Always reset button state
         exportBtn.innerHTML = '<i class="fas fa-download"></i> Export';
         exportBtn.disabled = false;
+        
+        console.log('🔄 Export process completed, button reset');
     }
+}
+
+function showDetailedError(error, context = '') {
+    console.error(`❌ ${context} Error:`, error);
+    
+    let message = 'An error occurred';
+    
+    if (error.message) {
+        message = error.message;
+    } else if (typeof error === 'string') {
+        message = error;
+    }
+    
+    // Make error messages more user-friendly
+    if (message.includes('ModuleNotFoundError')) {
+        message = 'Required export module not installed. Please contact administrator.';
+    } else if (message.includes('ImportError')) {
+        message = 'Export functionality not available. Please contact administrator.';
+    } else if (message.includes('fetch')) {
+        message = 'Network connection error. Please try again.';
+    } else if (message.includes('JSON')) {
+        message = 'Invalid server response. Please try again.';
+    }
+    
+    showNotification(message, 'error');
 }
 
 function resetExportForm() {
@@ -1088,21 +1281,88 @@ function showNotification(message, type = 'info') {
     
     notification.innerHTML = `
         <i class="fas ${iconMap[type] || 'fa-info-circle'}"></i>
-        <span style="margin-left: 0.75rem;">${message}</span>
+        <span style="margin-left: 0.75rem; word-wrap: break-word; max-width: 400px;">${message}</span>
+        <button onclick="this.parentElement.remove()" style="margin-left: auto; background: none; border: none; color: inherit; cursor: pointer; padding: 0; margin-left: 0.5rem;">×</button>
+    `;
+    
+    // Style the notification for better UX
+    notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 10000;
+        padding: 1rem 1.5rem;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        display: flex;
+        align-items: center;
+        max-width: 500px;
+        word-wrap: break-word;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        font-size: 0.875rem;
+        ${type === 'success' ? 'background: #10b981; color: white;' : 
+          type === 'error' ? 'background: #ef4444; color: white;' :
+          type === 'warning' ? 'background: #f59e0b; color: white;' :
+          'background: #3b82f6; color: white;'}
     `;
     
     document.body.appendChild(notification);
     
+    // Auto-remove after 5 seconds (longer for errors)
+    const timeout = type === 'error' ? 8000 : 5000;
     setTimeout(() => {
         if (notification.parentNode) {
             notification.parentNode.removeChild(notification);
         }
-    }, 5000);
+    }, timeout);
 }
 
+console.log('✅ Complete Export System ready! All formats supported: PDF, CSV, Excel, Calendar 📊');
+
+
+// ADD this helper function for better CSRF token handling:
 function getCSRFToken() {
-    return document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+    // Try multiple methods to get CSRF token
+    let token = null;
+    
+    // Method 1: Meta tag
+    const metaTag = document.querySelector('meta[name="csrf-token"]');
+    if (metaTag) {
+        token = metaTag.getAttribute('content');
+    }
+    
+    // Method 2: Check if Flask-WTF generates hidden input
+    if (!token) {
+        const hiddenInput = document.querySelector('input[name="csrf_token"]');
+        if (hiddenInput) {
+            token = hiddenInput.value;
+        }
+    }
+    
+    // Method 3: Try to get from any form
+    if (!token) {
+        const forms = document.querySelectorAll('form');
+        for (let form of forms) {
+            const csrfInput = form.querySelector('input[name="csrf_token"]');
+            if (csrfInput) {
+                token = csrfInput.value;
+                break;
+            }
+        }
+    }
+    
+    console.log('🔒 CSRF Token:', token ? 'Found' : 'Not Found');
+    return token || '';
 }
+
+function testDownload(type) {
+    console.log(`🧪 Testing ${type} download...`);
+    selectedExportType = type;
+    exportTimetable();
+}
+
+console.log('✅ Fixed Export System ready! All formats: PDF, CSV, Excel, Calendar 📊');
+console.log('🧪 To test manually, use: testDownload("csv"), testDownload("excel"), etc.');
 
 console.log('✅ Enhanced Export Management System ready! 📊');
 </script>

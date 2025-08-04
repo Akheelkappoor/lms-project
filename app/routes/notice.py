@@ -13,6 +13,7 @@ from app.routes.admin import admin_required
 from functools import wraps
 import boto3
 from botocore.exceptions import ClientError
+from app.utils.advanced_permissions import require_permission
 
 bp = Blueprint('notice', __name__)
 
@@ -31,7 +32,7 @@ def notice_management_required(f):
 
 @bp.route('/admin/notices')
 @login_required
-@notice_management_required
+@require_permission('notice_management')
 def admin_notices():
     """Admin notice management dashboard"""
     form = NoticeSearchForm()
@@ -89,7 +90,7 @@ def admin_notices():
 
 @bp.route('/admin/notices/create', methods=['GET', 'POST'])
 @login_required
-@notice_management_required
+@require_permission('notice_management')
 def create_notice():
     """Create new notice"""
     form = NoticeForm()
@@ -138,7 +139,7 @@ def create_notice():
 
 @bp.route('/admin/notices/<int:notice_id>')
 @login_required
-@notice_management_required
+@require_permission('notice_management')
 def view_notice(notice_id):
     """View notice details and analytics"""
     notice = Notice.query.get_or_404(notice_id)
@@ -160,7 +161,7 @@ def view_notice(notice_id):
 
 @bp.route('/admin/notices/<int:notice_id>/edit', methods=['GET', 'POST'])
 @login_required
-@notice_management_required
+@require_permission('notice_management')
 def edit_notice(notice_id):
     """Edit notice"""
     notice = Notice.query.get_or_404(notice_id)
@@ -215,7 +216,7 @@ def edit_notice(notice_id):
 
 @bp.route('/admin/notices/<int:notice_id>/publish', methods=['POST'])
 @login_required
-@notice_management_required
+@require_permission('notice_management')
 def publish_notice(notice_id):
     """Publish a notice"""
     notice = Notice.query.get_or_404(notice_id)
@@ -233,7 +234,7 @@ def publish_notice(notice_id):
 
 @bp.route('/admin/notices/<int:notice_id>/delete', methods=['POST'])
 @login_required
-@notice_management_required
+@require_permission('notice_management')
 def delete_notice(notice_id):
     """Delete a notice"""
     notice = Notice.query.get_or_404(notice_id)
@@ -412,7 +413,7 @@ def api_pending_acknowledgments_count():
 
 @bp.route('/api/admin/notices/bulk-action', methods=['POST'])
 @login_required
-@notice_management_required
+@require_permission('notice_management')
 def bulk_notice_action():
     """Handle bulk actions on notices"""
     form = BulkNoticeActionForm()

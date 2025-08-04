@@ -1,0 +1,1615 @@
+{% extends "base.html" %}
+
+{% block title %}Smart Allocation Dashboard - {{ APP_NAME }}{% endblock %}
+
+{% block content %}
+<div class="allocation-dashboard">
+    <!-- Page Header -->
+    <div class="page-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h1 class="page-title">
+                    <i class="fas fa-brain"></i>
+                    Smart Allocation Dashboard
+                </h1>
+                <p class="page-subtitle">Efficiently manage student-tutor assignments with AI-powered matching</p>
+            </div>
+            <div class="header-actions">
+                <button class="btn btn-outline-secondary" onclick="refreshDashboard()">
+                    <i class="fas fa-sync-alt"></i>
+                    Refresh
+                </button>
+                <button class="btn btn-primary" onclick="showBulkAssignModal()">
+                    <i class="fas fa-bolt"></i>
+                    Bulk Assign
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics Overview -->
+    <div class="row g-4 mb-4">
+        <div class="col-lg-3 col-md-6">
+            <div class="stat-card allocated">
+                <div class="stat-icon">
+                    <i class="fas fa-check-circle"></i>
+                </div>
+                <div class="stat-content">
+                    <h3 id="allocated-count">{{ analytics.overview.allocated_students }}</h3>
+                    <p>Allocated Students</p>
+                    <small class="text-success">
+                        {{ analytics.overview.allocation_percentage }}% of total
+                    </small>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-3 col-md-6">
+            <div class="stat-card unallocated">
+                <div class="stat-icon">
+                    <i class="fas fa-user-clock"></i>
+                </div>
+                <div class="stat-content">
+                    <h3 id="unallocated-count">{{ analytics.overview.unallocated_students }}</h3>
+                    <p>Unallocated Students</p>
+                    <small class="text-warning">
+                        Waiting for assignment
+                    </small>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-3 col-md-6">
+            <div class="stat-card tutors">
+                <div class="stat-icon">
+                    <i class="fas fa-chalkboard-teacher"></i>
+                </div>
+                <div class="stat-content">
+                    <h3 id="available-tutors-count">{{ available_tutors|length }}</h3>
+                    <p>Available Tutors</p>
+                    <small class="text-info">
+                        With capacity for more students
+                    </small>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-3 col-md-6">
+            <div class="stat-card urgent">
+                <div class="stat-icon">
+                    <i class="fas fa-exclamation-triangle"></i>
+                </div>
+                <div class="stat-content">
+                    <h3 id="urgent-count">{{ analytics.overview.urgent_cases }}</h3>
+                    <p>Urgent Cases</p>
+                    <small class="text-danger">
+                        Need immediate attention
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content: Two Panel Layout -->
+    <div class="row g-4">
+        <!-- Left Panel: Unallocated Students -->
+        <div class="col-lg-6">
+            <div class="allocation-panel">
+                <div class="panel-header">
+                    <h5>
+                        <i class="fas fa-search"></i>
+                        Unallocated Students
+                    </h5>
+                    <div class="panel-controls">
+                        <button class="btn btn-sm btn-outline-primary" onclick="showStudentFilters()">
+                            <i class="fas fa-filter"></i>
+                            Filters
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Student Filters (Initially Hidden) -->
+                <div class="filter-section" id="student-filters" style="display: none;">
+                    <div class="row g-2">
+                        <div class="col-md-4">
+                            <select class="form-select form-select-sm" id="student-grade-filter">
+                                <option value="">All Grades</option>
+                                {% for grade in filter_options.grades %}
+                                <option value="{{ grade }}">Grade {{ grade }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <select class="form-select form-select-sm" id="student-board-filter">
+                                <option value="">All Boards</option>
+                                {% for board in filter_options.boards %}
+                                <option value="{{ board }}">{{ board }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <select class="form-select form-select-sm" id="student-subject-filter">
+                                <option value="">All Subjects</option>
+                                {% for subject in filter_options.subjects %}
+                                <option value="{{ subject }}">{{ subject }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="panel-body">
+                    <div id="unallocated-students-list">
+                        {% for student in unallocated_students %}
+                        <div class="student-card" data-student-id="{{ student.id }}">
+                            <div class="student-info">
+                                <h6 class="student-name">{{ student.full_name }}</h6>
+                                <div class="student-details">
+                                    <span class="badge badge-grade">Grade {{ student.grade }}</span>
+                                    <span class="badge badge-board">{{ student.board }}</span>
+                                    {% if student.priority == 'urgent' %}
+                                    <span class="badge badge-priority-urgent">URGENT</span>
+                                    {% elif student.priority == 'high' %}
+                                    <span class="badge badge-priority-high">HIGH</span>
+                                    {% endif %}
+                                </div>
+                                <div class="student-subjects">
+                                    <small class="text-muted">Subjects:</small>
+                                    {% for subject in student.subjects_enrolled[:3] %}
+                                    <span class="subject-tag">{{ subject }}</span>
+                                    {% endfor %}
+                                    {% if student.subjects_enrolled|length > 3 %}
+                                    <span class="subject-tag">+{{ student.subjects_enrolled|length - 3 }}</span>
+                                    {% endif %}
+                                </div>
+                                <div class="student-meta">
+                                    <small class="text-muted">
+                                        <i class="fas fa-clock"></i>
+                                        Waiting {{ student.days_since_enrollment }} days
+                                    </small>
+                                </div>
+                            </div>
+                            <div class="student-actions">
+                                <button class="btn btn-sm btn-primary" onclick="findMatches({{ student.id }})">
+                                    <i class="fas fa-search"></i>
+                                    Find Match
+                                </button>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    
+                    <!-- Load More Button -->
+                    <div class="text-center mt-3">
+                        <button class="btn btn-outline-secondary" id="load-more-students" onclick="loadMoreStudents()">
+                            <i class="fas fa-chevron-down"></i>
+                            Load More
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Panel: Available Tutors -->
+        <div class="col-lg-6">
+            <div class="allocation-panel">
+                <div class="panel-header">
+                    <h5>
+                        <i class="fas fa-users"></i>
+                        Available Tutors
+                    </h5>
+                    <div class="panel-controls">
+                        <button class="btn btn-sm btn-outline-primary" onclick="showTutorFilters()">
+                            <i class="fas fa-filter"></i>
+                            Filters
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Tutor Filters (Initially Hidden) -->
+                <div class="filter-section" id="tutor-filters" style="display: none;">
+                    <div class="row g-2">
+                        <div class="col-md-6">
+                            <select class="form-select form-select-sm" id="tutor-subject-filter">
+                                <option value="">All Subjects</option>
+                                {% for subject in filter_options.subjects %}
+                                <option value="{{ subject }}">{{ subject }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <select class="form-select form-select-sm" id="tutor-rating-filter">
+                                <option value="">All Ratings</option>
+                                <option value="4.5">4.5+ Stars</option>
+                                <option value="4.0">4.0+ Stars</option>
+                                <option value="3.5">3.5+ Stars</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="panel-body">
+                    <div id="available-tutors-list">
+                        {% for tutor in available_tutors %}
+                        <div class="tutor-card" data-tutor-id="{{ tutor.id }}">
+                            <div class="tutor-info">
+                                <div class="tutor-header">
+                                    <h6 class="tutor-name">{{ tutor.full_name }}</h6>
+                                    <div class="tutor-rating">
+                                        <span class="rating-stars">
+                                            {% for i in range(5) %}
+                                                {% if i < tutor.rating %}
+                                                <i class="fas fa-star"></i>
+                                                {% else %}
+                                                <i class="far fa-star"></i>
+                                                {% endif %}
+                                            {% endfor %}
+                                        </span>
+                                        <small class="rating-number">{{ "%.1f"|format(tutor.rating) }}</small>
+                                    </div>
+                                </div>
+                                
+                                <div class="tutor-details">
+                                    <div class="detail-row">
+                                        <small class="text-muted">Subjects:</small>
+                                        {% for subject in tutor.subjects[:3] %}
+                                        <span class="subject-tag">{{ subject }}</span>
+                                        {% endfor %}
+                                        {% if tutor.subjects|length > 3 %}
+                                        <span class="subject-tag">+{{ tutor.subjects|length - 3 }}</span>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <div class="detail-row">
+                                        <small class="text-muted">Availability:</small>
+                                        <span class="availability-summary">{{ tutor.availability_summary.summary }}</span>
+                                    </div>
+                                    
+                                    <div class="detail-row">
+                                        <small class="text-muted">Capacity:</small>
+                                        <div class="capacity-bar">
+                                            <div class="capacity-fill" style="width: {{ (tutor.current_students / 8 * 100)|round }}%"></div>
+                                        </div>
+                                        <small>{{ tutor.current_students }}/8 students</small>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="tutor-actions">
+                                <button class="btn btn-sm btn-outline-info" onclick="viewTutorSchedule({{ tutor.id }})">
+                                    <i class="fas fa-calendar"></i>
+                                    Schedule
+                                </button>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Analytics Section -->
+    <div class="row g-4 mt-4">
+        <div class="col-lg-8">
+            <div class="analytics-card">
+                <div class="card-header">
+                    <h5>
+                        <i class="fas fa-chart-pie"></i>
+                        Allocation Analytics
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <canvas id="allocationChart" width="400" height="300"></canvas>
+                        </div>
+                        <div class="col-md-6">
+                            <canvas id="utilizationChart" width="400" height="300"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-4">
+            <div class="priority-card">
+                <div class="card-header">
+                    <h5>
+                        <i class="fas fa-exclamation-triangle"></i>
+                        Priority Actions
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="priority-item urgent">
+                        <div class="priority-count">{{ analytics.priority_metrics.high_priority }}</div>
+                        <div class="priority-text">
+                            <strong>High Priority</strong>
+                            <small>Students waiting 5+ days</small>
+                        </div>
+                        <button class="btn btn-sm btn-danger" onclick="handleUrgentCases()">
+                            <i class="fas fa-bolt"></i>
+                            Resolve
+                        </button>
+                    </div>
+                    
+                    <div class="priority-item medium">
+                        <div class="priority-count">{{ analytics.priority_metrics.medium_priority }}</div>
+                        <div class="priority-text">
+                            <strong>Medium Priority</strong>
+                            <small>Recent enrollments</small>
+                        </div>
+                        <button class="btn btn-sm btn-warning" onclick="handleMediumCases()">
+                            <i class="fas fa-clock"></i>
+                            Review
+                        </button>
+                    </div>
+                    
+                    <div class="priority-item attention">
+                        <div class="priority-count">{{ analytics.priority_metrics.needs_attention }}</div>
+                        <div class="priority-text">
+                            <strong>Special Attention</strong>
+                            <small>Difficult subjects</small>
+                        </div>
+                        <button class="btn btn-sm btn-info" onclick="handleSpecialCases()">
+                            <i class="fas fa-eye"></i>
+                            Review
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Smart Match Modal -->
+<div class="modal fade" id="smartMatchModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-brain"></i>
+                    Smart Tutor Matches
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="match-results">
+                <!-- Dynamic content loaded here -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Bulk Assignment Modal -->
+<div class="modal fade" id="bulkAssignModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-bolt"></i>
+                    Bulk Auto Assignment
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="bulkAssignForm">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Grade Filter</label>
+                            <select class="form-select" name="grade">
+                                <option value="">All Grades</option>
+                                {% for grade in filter_options.grades %}
+                                <option value="{{ grade }}">Grade {{ grade }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Subject Filter</label>
+                            <select class="form-select" name="subject">
+                                <option value="">All Subjects</option>
+                                {% for subject in filter_options.subjects %}
+                                <option value="{{ subject }}">{{ subject }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="dryRun" checked>
+                            <label class="form-check-label" for="dryRun">
+                                Preview Only (Dry Run)
+                            </label>
+                        </div>
+                    </div>
+                </form>
+                
+                <div id="bulk-preview" class="mt-4" style="display: none;">
+                    <!-- Preview results shown here -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="executeBulkAssign()">
+                    <i class="fas fa-play"></i>
+                    Run Assignment
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+/* Allocation Dashboard Styles */
+.allocation-dashboard {
+    padding: 1.5rem;
+}
+
+/* Statistics Cards */
+.stat-card {
+    background: white;
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+    border-left: 4px solid #e9ecef;
+    transition: transform 0.2s ease;
+}
+
+.stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 15px rgba(0, 0, 0, 0.1);
+}
+
+.stat-card.allocated { border-left-color: #28a745; }
+.stat-card.unallocated { border-left-color: #ffc107; }
+.stat-card.tutors { border-left-color: #17a2b8; }
+.stat-card.urgent { border-left-color: #dc3545; }
+
+.stat-card .stat-icon {
+    width: 50px;
+    height: 50px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 1rem;
+    font-size: 1.5rem;
+    color: white;
+}
+
+.stat-card.allocated .stat-icon { background-color: #28a745; }
+.stat-card.unallocated .stat-icon { background-color: #ffc107; }
+.stat-card.tutors .stat-icon { background-color: #17a2b8; }
+.stat-card.urgent .stat-icon { background-color: #dc3545; }
+
+.stat-card h3 {
+    font-size: 2rem;
+    font-weight: 700;
+    margin: 0;
+    color: #2c3e50;
+}
+
+.stat-card p {
+    margin: 0.5rem 0 0 0;
+    color: #6c757d;
+    font-weight: 500;
+}
+
+/* Allocation Panels */
+.allocation-panel {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+    height: 600px;
+    display: flex;
+    flex-direction: column;
+}
+
+.panel-header {
+    padding: 1.5rem;
+    border-bottom: 1px solid #e9ecef;
+    background: #f8f9fa;
+    border-radius: 12px 12px 0 0;
+    display: flex;
+    justify-content: between;
+    align-items: center;
+}
+
+.panel-header h5 {
+    margin: 0;
+    color: #2c3e50;
+}
+
+.panel-body {
+    flex: 1;
+    padding: 1rem;
+    overflow-y: auto;
+}
+
+.filter-section {
+    padding: 1rem 1.5rem;
+    background: #f8f9fa;
+    border-bottom: 1px solid #e9ecef;
+}
+
+/* Student Cards */
+.student-card {
+    background: white;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+    transition: all 0.2s ease;
+}
+
+.student-card:hover {
+    border-color: #007bff;
+    box-shadow: 0 4px 8px rgba(0, 123, 255, 0.1);
+}
+
+.student-name {
+    font-weight: 600;
+    color: #2c3e50;
+    margin: 0 0 0.5rem 0;
+}
+
+.student-details {
+    margin-bottom: 0.75rem;
+}
+
+.badge-grade { background: #17a2b8; color: white; }
+.badge-board { background: #6c757d; color: white; }
+.badge-priority-urgent { background: #dc3545; color: white; }
+.badge-priority-high { background: #ffc107; color: #856404; }
+
+.subject-tag {
+    display: inline-block;
+    background: #e9ecef;
+    color: #495057;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    margin-right: 0.25rem;
+}
+
+.student-meta {
+    margin-top: 0.5rem;
+}
+
+.student-actions {
+    text-align: right;
+    margin-top: 1rem;
+}
+
+/* Tutor Cards */
+.tutor-card {
+    background: white;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+    transition: all 0.2s ease;
+}
+
+.tutor-card:hover {
+    border-color: #28a745;
+    box-shadow: 0 4px 8px rgba(40, 167, 69, 0.1);
+}
+
+.tutor-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 0.75rem;
+}
+
+.tutor-name {
+    font-weight: 600;
+    color: #2c3e50;
+    margin: 0;
+}
+
+.rating-stars {
+    color: #ffc107;
+    font-size: 0.875rem;
+}
+
+.rating-number {
+    margin-left: 0.25rem;
+    color: #6c757d;
+}
+
+.detail-row {
+    margin-bottom: 0.5rem;
+}
+
+.availability-summary {
+    font-size: 0.875rem;
+    color: #28a745;
+    font-weight: 500;
+}
+
+.capacity-bar {
+    width: 60px;
+    height: 6px;
+    background: #e9ecef;
+    border-radius: 3px;
+    display: inline-block;
+    margin: 0 0.5rem;
+    position: relative;
+}
+
+.capacity-fill {
+    height: 100%;
+    background: #28a745;
+    border-radius: 3px;
+    transition: width 0.3s ease;
+}
+
+/* Analytics Cards */
+.analytics-card, .priority-card {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+}
+
+.analytics-card .card-header,
+.priority-card .card-header {
+    background: #f8f9fa;
+    border-bottom: 1px solid #e9ecef;
+    padding: 1.5rem;
+    border-radius: 12px 12px 0 0;
+}
+
+.analytics-card .card-body,
+.priority-card .card-body {
+    padding: 1.5rem;
+}
+
+/* Priority Items */
+.priority-item {
+    display: flex;
+    align-items: center;
+    padding: 1rem;
+    border-radius: 8px;
+    margin-bottom: 1rem;
+    background: #f8f9fa;
+}
+
+.priority-item.urgent { border-left: 4px solid #dc3545; }
+.priority-item.medium { border-left: 4px solid #ffc107; }
+.priority-item.attention { border-left: 4px solid #17a2b8; }
+
+.priority-count {
+    font-size: 1.5rem;
+    font-weight: 700;
+    width: 50px;
+    text-align: center;
+}
+
+.priority-text {
+    flex: 1;
+    margin-left: 1rem;
+}
+
+.priority-text strong {
+    display: block;
+    color: #2c3e50;
+}
+
+.priority-text small {
+    color: #6c757d;
+}
+
+/* Modal Styles */
+.modal-content {
+    border-radius: 12px;
+    border: none;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+}
+
+.modal-header {
+    background: #f8f9fa;
+    border-bottom: 1px solid #e9ecef;
+    border-radius: 12px 12px 0 0;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .allocation-dashboard {
+        padding: 1rem;
+    }
+    
+    .allocation-panel {
+        height: 400px;
+        margin-bottom: 2rem;
+    }
+    
+    .stat-card {
+        text-align: center;
+        margin-bottom: 1rem;
+    }
+    
+    .student-card, .tutor-card {
+        padding: 0.75rem;
+    }
+}
+
+.student-info-header {
+    background: #f8f9fa;
+    padding: 1rem;
+    border-radius: 8px;
+    margin-bottom: 1.5rem;
+    border-left: 4px solid #007bff;
+}
+
+.student-info-header h6 {
+    margin: 0 0 0.5rem 0;
+    color: #2c3e50;
+    font-weight: 600;
+}
+
+/* Match Cards */
+.matches-container {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.match-card {
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    margin-bottom: 1rem;
+    background: white;
+    transition: all 0.2s ease;
+}
+
+.match-card:hover {
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.match-card.best-match {
+    border-color: #28a745;
+    box-shadow: 0 2px 8px rgba(40, 167, 69, 0.2);
+}
+
+.match-header {
+    background: #f8f9fa;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid #e9ecef;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-radius: 8px 8px 0 0;
+}
+
+.match-card.best-match .match-header {
+    background: linear-gradient(135deg, #28a745, #20c997);
+    color: white;
+}
+
+.match-rank {
+    font-weight: 600;
+    font-size: 0.875rem;
+}
+
+.match-score {
+    background: white;
+    color: #28a745;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-weight: 600;
+    font-size: 0.875rem;
+}
+
+.match-card.best-match .match-score {
+    background: rgba(255, 255, 255, 0.9);
+}
+
+.match-content {
+    padding: 1rem;
+}
+
+.match-content h6 {
+    margin: 0 0 1rem 0;
+    color: #2c3e50;
+    font-weight: 600;
+}
+
+.match-details {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+}
+
+.detail-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+    color: #6c757d;
+}
+
+.detail-item i {
+    width: 16px;
+}
+
+.match-reasons {
+    margin-bottom: 1rem;
+}
+
+.reason-tag {
+    display: inline-block;
+    background: #e8f5e8;
+    color: #28a745;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    margin-right: 0.5rem;
+    margin-bottom: 0.25rem;
+    font-weight: 500;
+}
+
+.match-actions {
+    padding: 0 1rem 1rem 1rem;
+}
+
+/* Bulk Assignment Results */
+.bulk-results {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.assignment-list, .conflict-list {
+    max-height: 200px;
+    overflow-y: auto;
+    margin-bottom: 1rem;
+}
+
+.assignment-item, .conflict-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem;
+    border-bottom: 1px solid #f8f9fa;
+}
+
+.assignment-item:last-child, .conflict-item:last-child {
+    border-bottom: none;
+}
+
+.assignment-item i.fa-check-circle {
+    color: #28a745;
+}
+
+.conflict-item i.fa-exclamation-triangle {
+    color: #ffc107;
+}
+
+/* Loading States */
+.loading-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255, 255, 255, 0.9);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+}
+
+.loading-spinner {
+    text-align: center;
+}
+
+.loading-spinner i {
+    font-size: 2rem;
+    color: #007bff;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+/* Enhanced Badge Styles */
+.badge {
+    font-size: 0.75rem;
+    padding: 0.35rem 0.65rem;
+    border-radius: 6px;
+    font-weight: 500;
+}
+
+.badge-grade {
+    background: linear-gradient(135deg, #17a2b8, #20c997);
+    color: white;
+}
+
+.badge-board {
+    background: linear-gradient(135deg, #6c757d, #5a6268);
+    color: white;
+}
+
+.badge-priority-urgent {
+    background: linear-gradient(135deg, #dc3545, #c82333);
+    color: white;
+    animation: pulse 2s infinite;
+}
+
+.badge-priority-high {
+    background: linear-gradient(135deg, #ffc107, #e0a800);
+    color: #856404;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+}
+
+/* Empty States */
+.empty-state {
+    text-align: center;
+    padding: 3rem 1rem;
+    color: #6c757d;
+}
+
+.empty-state i {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+    opacity: 0.5;
+}
+
+.empty-state h5 {
+    margin-bottom: 0.5rem;
+}
+
+.empty-state p {
+    margin-bottom: 1.5rem;
+}
+
+/* Responsive Enhancements */
+@media (max-width: 768px) {
+    .match-details {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    
+    .match-header {
+        flex-direction: column;
+        gap: 0.5rem;
+        text-align: center;
+    }
+    
+    .priority-item {
+        flex-direction: column;
+        text-align: center;
+        gap: 0.5rem;
+    }
+    
+    .priority-count {
+        width: auto;
+    }
+    
+    .student-details, .tutor-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
+}
+
+/* Accessibility Improvements */
+.allocation-panel:focus-within {
+    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.25);
+}
+
+.student-card:focus, .tutor-card:focus {
+    outline: 2px solid #007bff;
+    outline-offset: 2px;
+}
+
+.btn:focus {
+    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.25);
+}
+
+/* Print Styles */
+@media print {
+    .allocation-dashboard {
+        padding: 0;
+    }
+    
+    .panel-body {
+        overflow: visible;
+        height: auto;
+    }
+    
+    .student-actions, .tutor-actions, .header-actions {
+        display: none;
+    }
+    
+    .stat-card {
+        break-inside: avoid;
+    }
+}
+
+</style>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+<script>
+// Global variables
+let currentStudentPage = 1;
+let studentFilters = {};
+let tutorFilters = {};
+
+// Initialize dashboard
+document.addEventListener('DOMContentLoaded', function() {
+    initializeCharts();
+    setupFilterHandlers();
+});
+
+// Chart initialization
+function initializeCharts() {
+    // Allocation Pie Chart
+    const allocationCtx = document.getElementById('allocationChart').getContext('2d');
+    new Chart(allocationCtx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Allocated', 'Unallocated'],
+            datasets: [{
+                data: [{{ analytics.overview.allocated_students }}, {{ analytics.overview.unallocated_students }}],
+                backgroundColor: ['#28a745', '#ffc107'],
+                borderWidth: 0
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+
+    // Tutor Utilization Chart
+    const utilizationCtx = document.getElementById('utilizationChart').getContext('2d');
+    const utilizationData = {{ analytics.tutor_utilization | tojson }};
+    
+    new Chart(utilizationCtx, {
+        type: 'bar',
+        data: {
+            labels: utilizationData.slice(0, 5).map(t => t.tutor_name.split(' ')[0]),
+            datasets: [{
+                label: 'Utilization %',
+                data: utilizationData.slice(0, 5).map(t => t.utilization_rate),
+                backgroundColor: '#17a2b8',
+                borderRadius: 4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 100
+                }
+            }
+        }
+    });
+}
+
+// Filter functions
+function showStudentFilters() {
+    const filters = document.getElementById('student-filters');
+    filters.style.display = filters.style.display === 'none' ? 'block' : 'none';
+}
+
+function showTutorFilters() {
+    const filters = document.getElementById('tutor-filters');
+    filters.style.display = filters.style.display === 'none' ? 'block' : 'none';
+}
+
+function setupFilterHandlers() {
+    // Student filters
+    ['student-grade-filter', 'student-board-filter', 'student-subject-filter'].forEach(id => {
+        document.getElementById(id).addEventListener('change', function() {
+            applyStudentFilters();
+        });
+    });
+
+    // Tutor filters
+    ['tutor-subject-filter', 'tutor-rating-filter'].forEach(id => {
+        document.getElementById(id).addEventListener('change', function() {
+            applyTutorFilters();
+        });
+    });
+}
+
+function applyStudentFilters() {
+    const grade = document.getElementById('student-grade-filter').value;
+    const board = document.getElementById('student-board-filter').value;
+    const subject = document.getElementById('student-subject-filter').value;
+
+    studentFilters = { grade, board, subject };
+    currentStudentPage = 1;
+    loadUnallocatedStudents();
+}
+
+function applyTutorFilters() {
+    const subject = document.getElementById('tutor-subject-filter').value;
+    const minRating = document.getElementById('tutor-rating-filter').value;
+
+    tutorFilters = { subject, min_rating: minRating };
+    loadAvailableTutors();
+}
+
+// Data loading functions
+function loadUnallocatedStudents(append = false) {
+    const params = new URLSearchParams({
+        page: currentStudentPage,
+        per_page: 20,
+        ...studentFilters
+    });
+
+    fetch(`/admin/api/allocation/unallocated-students?${params}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                updateStudentsList(data.students, append);
+                updateLoadMoreButton(data.pagination);
+            }
+        })
+        .catch(error => {
+            console.error('Error loading students:', error);
+            showAlert('Failed to load students', 'error');
+        });
+}
+
+function loadAvailableTutors() {
+    const params = new URLSearchParams(tutorFilters);
+
+    fetch(`/admin/api/allocation/available-tutors?${params}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                updateTutorsList(data.tutors);
+            }
+        })
+        .catch(error => {
+            console.error('Error loading tutors:', error);
+            showAlert('Failed to load tutors', 'error');
+        });
+}
+
+function loadMoreStudents() {
+    currentStudentPage++;
+    loadUnallocatedStudents(true);
+}
+
+// UI update functions
+function updateStudentsList(students, append = false) {
+    const container = document.getElementById('unallocated-students-list');
+    
+    if (!append) {
+        container.innerHTML = '';
+    }
+
+    students.forEach(student => {
+        const studentCard = createStudentCard(student);
+        container.appendChild(studentCard);
+    });
+}
+
+function updateTutorsList(tutors) {
+    const container = document.getElementById('available-tutors-list');
+    container.innerHTML = '';
+
+    tutors.forEach(tutor => {
+        const tutorCard = createTutorCard(tutor);
+        container.appendChild(tutorCard);
+    });
+}
+
+function createStudentCard(student) {
+    const card = document.createElement('div');
+    card.className = 'student-card';
+    card.dataset.studentId = student.id;
+
+    const priorityBadge = student.priority === 'urgent' ? 
+        '<span class="badge badge-priority-urgent">URGENT</span>' :
+        student.priority === 'high' ? 
+        '<span class="badge badge-priority-high">HIGH</span>' : '';
+
+    const subjectTags = student.subjects_enrolled.slice(0, 3).map(s => 
+        `<span class="subject-tag">${s}</span>`
+    ).join('');
+
+    const extraSubjects = student.subjects_enrolled.length > 3 ? 
+        `<span class="subject-tag">+${student.subjects_enrolled.length - 3}</span>` : '';
+
+    card.innerHTML = `
+        <div class="student-info">
+            <h6 class="student-name">${student.full_name}</h6>
+            <div class="student-details">
+                <span class="badge badge-grade">Grade ${student.grade}</span>
+                <span class="badge badge-board">${student.board}</span>
+                ${priorityBadge}
+            </div>
+            <div class="student-subjects">
+                <small class="text-muted">Subjects:</small>
+                ${subjectTags}
+                ${extraSubjects}
+            </div>
+            <div class="student-meta">
+                <small class="text-muted">
+                    <i class="fas fa-clock"></i>
+                    Waiting ${student.days_since_enrollment} days
+                </small>
+            </div>
+        </div>
+        <div class="student-actions">
+            <button class="btn btn-sm btn-primary" onclick="findMatches(${student.id})">
+                <i class="fas fa-search"></i>
+                Find Match
+            </button>
+        </div>
+    `;
+
+    return card;
+}
+
+function createTutorCard(tutor) {
+    const card = document.createElement('div');
+    card.className = 'tutor-card';
+    card.dataset.tutorId = tutor.id;
+
+    const stars = Array.from({length: 5}, (_, i) => 
+        i < Math.floor(tutor.rating) ? 
+        '<i class="fas fa-star"></i>' : 
+        '<i class="far fa-star"></i>'
+    ).join('');
+
+    const subjectTags = tutor.subjects.slice(0, 3).map(s => 
+        `<span class="subject-tag">${s}</span>`
+    ).join('');
+
+    const extraSubjects = tutor.subjects.length > 3 ? 
+        `<span class="subject-tag">+${tutor.subjects.length - 3}</span>` : '';
+
+    const utilizationPercentage = Math.round((tutor.current_students / 8) * 100);
+
+    card.innerHTML = `
+        <div class="tutor-info">
+            <div class="tutor-header">
+                <h6 class="tutor-name">${tutor.full_name}</h6>
+                <div class="tutor-rating">
+                    <span class="rating-stars">${stars}</span>
+                    <small class="rating-number">${tutor.rating.toFixed(1)}</small>
+                </div>
+            </div>
+            
+            <div class="tutor-details">
+                <div class="detail-row">
+                    <small class="text-muted">Subjects:</small>
+                    ${subjectTags}
+                    ${extraSubjects}
+                </div>
+                
+                <div class="detail-row">
+                    <small class="text-muted">Availability:</small>
+                    <span class="availability-summary">${tutor.availability_summary.summary}</span>
+                </div>
+                
+                <div class="detail-row">
+                    <small class="text-muted">Capacity:</small>
+                    <div class="capacity-bar">
+                        <div class="capacity-fill" style="width: ${utilizationPercentage}%"></div>
+                    </div>
+                    <small>${tutor.current_students}/8 students</small>
+                </div>
+            </div>
+        </div>
+        
+        <div class="tutor-actions">
+            <button class="btn btn-sm btn-outline-info" onclick="viewTutorSchedule(${tutor.id})">
+                <i class="fas fa-calendar"></i>
+                Schedule
+            </button>
+        </div>
+    `;
+
+    return card;
+}
+
+function updateLoadMoreButton(pagination) {
+    const button = document.getElementById('load-more-students');
+    if (pagination.has_next) {
+        button.style.display = 'block';
+    } else {
+        button.style.display = 'none';
+    }
+}
+
+// Action functions
+function findMatches(studentId) {
+    // Show loading state
+    const modal = new bootstrap.Modal(document.getElementById('smartMatchModal'));
+    const modalBody = document.getElementById('match-results');
+    modalBody.innerHTML = '<div class="text-center"><i class="fas fa-spinner fa-spin fa-2x"></i><p class="mt-2">Finding best matches...</p></div>';
+    modal.show();
+
+    fetch(`/admin/api/allocation/smart-match/${studentId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                displayMatchResults(data);
+            } else {
+                modalBody.innerHTML = `<div class="alert alert-danger">${data.error}</div>`;
+            }
+        })
+        .catch(error => {
+            console.error('Error finding matches:', error);
+            modalBody.innerHTML = '<div class="alert alert-danger">Failed to find matches</div>';
+        });
+}
+
+function displayMatchResults(data) {
+    const modalBody = document.getElementById('match-results');
+    const student = data.student;
+    const matches = data.matches;
+
+    if (matches.length === 0) {
+        modalBody.innerHTML = `
+            <div class="alert alert-warning">
+                <h6>No Compatible Tutors Found</h6>
+                <p>No tutors were found that match ${student.full_name}'s requirements (Grade ${student.grade}, ${student.board}).</p>
+            </div>
+        `;
+        return;
+    }
+
+    let html = `
+        <div class="student-info-header">
+            <h6>${student.full_name} - Grade ${student.grade} (${student.board})</h6>
+            <p class="text-muted">Subjects: ${student.subjects_enrolled.join(', ')}</p>
+        </div>
+        <div class="matches-container">
+    `;
+
+    matches.forEach((match, index) => {
+        const rankIcon = index === 0 ? '🥇' : index === 1 ? '🥈' : '🥉';
+        const rankText = index === 0 ? 'BEST MATCH' : index === 1 ? 'GOOD MATCH' : 'ALTERNATIVE';
+        
+        html += `
+            <div class="match-card ${index === 0 ? 'best-match' : ''}">
+                <div class="match-header">
+                    <span class="match-rank">${rankIcon} ${rankText}</span>
+                    <span class="match-score">${match.score_data.total_score}% compatibility</span>
+                </div>
+                <div class="match-content">
+                    <h6>${match.tutor_name}</h6>
+                    <div class="match-details">
+                        <div class="detail-item">
+                            <i class="fas fa-star text-warning"></i>
+                            ${match.tutor_info.rating}/5.0 rating
+                        </div>
+                        <div class="detail-item">
+                            <i class="fas fa-award text-info"></i>
+                            Test Score: ${match.tutor_info.test_score}/100
+                        </div>
+                        <div class="detail-item">
+                            <i class="fas fa-chalkboard text-success"></i>
+                            ${match.tutor_info.total_classes} classes taught
+                        </div>
+                    </div>
+                    <div class="match-reasons">
+                        ${match.score_data.match_reasons.map(reason => 
+                            `<span class="reason-tag">✓ ${reason}</span>`
+                        ).join('')}
+                    </div>
+                </div>
+                <div class="match-actions">
+                    <button class="btn btn-success btn-sm" onclick="quickAssign(${student.id}, ${match.tutor_id}, '${student.subjects_enrolled[0] || 'General'}')">
+                        <i class="fas fa-check"></i>
+                        Assign Now
+                    </button>
+                </div>
+            </div>
+        `;
+    });
+
+    html += '</div>';
+    modalBody.innerHTML = html;
+}
+
+function quickAssign(studentId, tutorId, subject) {
+    const data = {
+        student_id: studentId,
+        tutor_id: tutorId,
+        subject: subject
+    };
+
+    fetch('/admin/api/allocation/quick-assign', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token() }}'
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert(data.message, 'success');
+            // Close modal and refresh dashboard
+            bootstrap.Modal.getInstance(document.getElementById('smartMatchModal')).hide();
+            refreshDashboard();
+        } else {
+            showAlert(data.error, 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Assignment error:', error);
+        showAlert('Assignment failed', 'error');
+    });
+}
+
+function showBulkAssignModal() {
+    const modal = new bootstrap.Modal(document.getElementById('bulkAssignModal'));
+    modal.show();
+}
+
+function executeBulkAssign() {
+    const form = document.getElementById('bulkAssignForm');
+    const formData = new FormData(form);
+    const dryRun = document.getElementById('dryRun').checked;
+
+    const filters = {};
+    if (formData.get('grade')) filters.grade = formData.get('grade');
+    if (formData.get('subject')) filters.subject = formData.get('subject');
+
+    const data = {
+        filters: filters,
+        dry_run: dryRun
+    };
+
+    fetch('/admin/api/allocation/bulk-auto-assign', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token() }}'
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            displayBulkResults(data);
+        } else {
+            showAlert(data.error, 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Bulk assign error:', error);
+        showAlert('Bulk assignment failed', 'error');
+    });
+}
+
+function displayBulkResults(data) {
+    const preview = document.getElementById('bulk-preview');
+    const { assignments, conflicts, summary } = data;
+
+    let html = `
+        <div class="bulk-results">
+            <div class="alert alert-info">
+                <h6>Assignment Results</h6>
+                <ul class="mb-0">
+                    <li>Students Processed: ${summary.students_processed}</li>
+                    <li>Successful Assignments: ${summary.successful_assignments}</li>
+                    <li>Conflicts: ${summary.conflicts}</li>
+                    <li>Success Rate: ${summary.success_rate}%</li>
+                </ul>
+            </div>
+    `;
+
+    if (assignments.length > 0) {
+        html += '<h6>Successful Assignments:</h6><div class="assignment-list">';
+        assignments.forEach(assignment => {
+            html += `
+                <div class="assignment-item">
+                    <i class="fas fa-check-circle text-success"></i>
+                    ${assignment.student_name} → ${assignment.tutor_name}
+                    <small class="text-muted">(${assignment.match_score}% match)</small>
+                </div>
+            `;
+        });
+        html += '</div>';
+    }
+
+    if (conflicts.length > 0) {
+        html += '<h6>Conflicts:</h6><div class="conflict-list">';
+        conflicts.forEach(conflict => {
+            html += `
+                <div class="conflict-item">
+                    <i class="fas fa-exclamation-triangle text-warning"></i>
+                    ${conflict.student_name}: ${conflict.reason}
+                </div>
+            `;
+        });
+        html += '</div>';
+    }
+
+    html += '</div>';
+    preview.innerHTML = html;
+    preview.style.display = 'block';
+
+    if (!data.dry_run) {
+        // If it was a real execution, refresh the dashboard
+        setTimeout(() => {
+            bootstrap.Modal.getInstance(document.getElementById('bulkAssignModal')).hide();
+            refreshDashboard();
+        }, 3000);
+    }
+}
+
+// Utility functions
+function refreshDashboard() {
+    location.reload();
+}
+
+function viewTutorSchedule(tutorId) {
+    // Redirect to tutor schedule or open in modal
+    window.open(`/admin/tutors/${tutorId}`, '_blank');
+}
+
+function handleUrgentCases() {
+    // Apply filter for urgent cases
+    document.getElementById('student-grade-filter').value = '';
+    document.getElementById('student-board-filter').value = '';
+    document.getElementById('student-subject-filter').value = '';
+    
+    studentFilters = { days_unallocated: 5 };
+    currentStudentPage = 1;
+    loadUnallocatedStudents();
+    
+    showAlert('Showing students waiting 5+ days', 'info');
+}
+
+function handleMediumCases() {
+    studentFilters = { days_unallocated: 2 };
+    currentStudentPage = 1;
+    loadUnallocatedStudents();
+    
+    showAlert('Showing students waiting 2+ days', 'info');
+}
+
+function handleSpecialCases() {
+    // This would need to be enhanced based on your specific requirements
+    showAlert('Special attention cases - feature coming soon', 'info');
+}
+
+function showAlert(message, type) {
+    // Create toast notification
+    const toast = document.createElement('div');
+    toast.className = `alert alert-${type === 'error' ? 'danger' : type} alert-dismissible fade show position-fixed`;
+    toast.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    toast.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    document.body.appendChild(toast);
+    
+    // Auto remove after 5 seconds
+    setTimeout(() => {
+        if (toast.parentNode) {
+            toast.parentNode.removeChild(toast);
+        }
+    }, 5000);
+}
+</script>
+{% endblock %}

@@ -1,0 +1,501 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Class - {{ class_obj.subject }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Page Header -->
+    <div class="page-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h1 class="page-title">
+                    <i class="fas fa-edit"></i>
+                    Edit Class: {{ class_obj.subject }}
+                </h1>
+                <p class="page-subtitle">Modify class details and settings</p>
+            </div>
+            <div class="header-actions">
+                <a href="{{ url_for('admin.class_details', class_id=class_obj.id) }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-eye"></i>
+                    View Details
+                </a>
+                <a href="{{ url_for('admin.classes') }}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left"></i>
+                    Back to Classes
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Class Info Alert -->
+    <div class="alert alert-info">
+        <div class="d-flex align-items-center">
+            <i class="fas fa-info-circle me-2"></i>
+            <div>
+                <strong>Editing Class:</strong> {{ class_obj.subject }} 
+                <span class="badge bg-{{ 'success' if class_obj.status == 'scheduled' else 'warning' }} ms-2">
+                    {{ class_obj.status.title() }}
+                </span>
+                <br>
+                <small>
+                    Currently scheduled for {{ class_obj.scheduled_date.strftime('%d %b %Y') }} 
+                    at {{ class_obj.scheduled_time.strftime('%I:%M %p') }}
+                    {% if class_obj.tutor %}
+                    • Tutor: {{ class_obj.tutor.user.full_name }}
+                    {% endif %}
+                </small>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Form -->
+    <div class="row justify-content-center">
+        <div class="col-xl-10 col-lg-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-form"></i>
+                        Class Information
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST" id="editClassForm">
+                        {{ form.hidden_tag() }}
+                        
+                        <!-- Basic Information Section -->
+                        <div class="form-section">
+                            <h6 class="form-section-title">
+                                <i class="fas fa-info-circle"></i>
+                                Basic Information
+                            </h6>
+                            
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        {{ form.subject.label(class="form-label") }}
+                                        {{ form.subject(class="form-control") }}
+                                        {% if form.subject.errors %}
+                                            <div class="text-danger small mt-1">
+                                                {% for error in form.subject.errors %}
+                                                    <div>{{ error }}</div>
+                                                {% endfor %}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        {{ form.class_type.label(class="form-label") }}
+                                        {{ form.class_type(class="form-select", onchange="toggleStudentFields()") }}
+                                        {% if form.class_type.errors %}
+                                            <div class="text-danger small mt-1">
+                                                {% for error in form.class_type.errors %}
+                                                    <div>{{ error }}</div>
+                                                {% endfor %}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        {{ form.grade.label(class="form-label") }}
+                                        {{ form.grade(class="form-control") }}
+                                        {% if form.grade.errors %}
+                                            <div class="text-danger small mt-1">
+                                                {% for error in form.grade.errors %}
+                                                    <div>{{ error }}</div>
+                                                {% endfor %}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        {{ form.board.label(class="form-label") }}
+                                        {{ form.board(class="form-control") }}
+                                        {% if form.board.errors %}
+                                            <div class="text-danger small mt-1">
+                                                {% for error in form.board.errors %}
+                                                    <div>{{ error }}</div>
+                                                {% endfor %}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Scheduling Section -->
+                        <div class="form-section">
+                            <h6 class="form-section-title">
+                                <i class="fas fa-calendar"></i>
+                                Schedule
+                            </h6>
+                            
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        {{ form.scheduled_date.label(class="form-label") }}
+                                        {{ form.scheduled_date(class="form-control") }}
+                                        {% if form.scheduled_date.errors %}
+                                            <div class="text-danger small mt-1">
+                                                {% for error in form.scheduled_date.errors %}
+                                                    <div>{{ error }}</div>
+                                                {% endfor %}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        {{ form.scheduled_time.label(class="form-label") }}
+                                        {{ form.scheduled_time(class="form-control") }}
+                                        {% if form.scheduled_time.errors %}
+                                            <div class="text-danger small mt-1">
+                                                {% for error in form.scheduled_time.errors %}
+                                                    <div>{{ error }}</div>
+                                                {% endfor %}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        {{ form.duration.label(class="form-label") }}
+                                        <div class="input-group">
+                                            {{ form.duration(class="form-control") }}
+                                            <span class="input-group-text">minutes</span>
+                                        </div>
+                                        {% if form.duration.errors %}
+                                            <div class="text-danger small mt-1">
+                                                {% for error in form.duration.errors %}
+                                                    <div>{{ error }}</div>
+                                                {% endfor %}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Assignments Section -->
+                        <div class="form-section">
+                            <h6 class="form-section-title">
+                                <i class="fas fa-users"></i>
+                                Assignments
+                            </h6>
+                            
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        {{ form.tutor_id.label(class="form-label") }}
+                                        {{ form.tutor_id(class="form-select") }}
+                                        {% if form.tutor_id.errors %}
+                                            <div class="text-danger small mt-1">
+                                                {% for error in form.tutor_id.errors %}
+                                                    <div>{{ error }}</div>
+                                                {% endfor %}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3" id="primaryStudentField">
+                                        {{ form.primary_student_id.label(class="form-label") }}
+                                        {{ form.primary_student_id(class="form-select") }}
+                                        {% if form.primary_student_id.errors %}
+                                            <div class="text-danger small mt-1">
+                                                {% for error in form.primary_student_id.errors %}
+                                                    <div>{{ error }}</div>
+                                                {% endfor %}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Group Students Field - FIXED: Added null check -->
+                            <div id="groupStudentsField" style="display: none;">
+                                <div class="mb-3">
+                                    {{ form.students.label(class="form-label") }}
+                                    <div class="students-grid">
+                                        {% for choice in form.students.choices %}
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" 
+                                                       name="students" value="{{ choice[0] }}" 
+                                                       id="student_{{ choice[0] }}"
+                                                       {% if form.students.data and choice[0] in form.students.data %}checked{% endif %}>
+                                                <label class="form-check-label" for="student_{{ choice[0] }}">
+                                                    {{ choice[1] }}
+                                                </label>
+                                            </div>
+                                        {% endfor %}
+                                    </div>
+                                    {% if form.students.errors %}
+                                        <div class="text-danger small mt-1">
+                                            {% for error in form.students.errors %}
+                                                <div>{{ error }}</div>
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Platform Section -->
+                        <div class="form-section">
+                            <h6 class="form-section-title">
+                                <i class="fas fa-video"></i>
+                                Platform & Meeting Details
+                            </h6>
+                            
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        {{ form.platform.label(class="form-label") }}
+                                        {{ form.platform(class="form-select") }}
+                                        {% if form.platform.errors %}
+                                            <div class="text-danger small mt-1">
+                                                {% for error in form.platform.errors %}
+                                                    <div>{{ error }}</div>
+                                                {% endfor %}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        {{ form.meeting_link.label(class="form-label") }}
+                                        {{ form.meeting_link(class="form-control") }}
+                                        {% if form.meeting_link.errors %}
+                                            <div class="text-danger small mt-1">
+                                                {% for error in form.meeting_link.errors %}
+                                                    <div>{{ error }}</div>
+                                                {% endfor %}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        {{ form.meeting_id.label(class="form-label") }}
+                                        {{ form.meeting_id(class="form-control") }}
+                                        {% if form.meeting_id.errors %}
+                                            <div class="text-danger small mt-1">
+                                                {% for error in form.meeting_id.errors %}
+                                                    <div>{{ error }}</div>
+                                                {% endfor %}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        {{ form.meeting_password.label(class="form-label") }}
+                                        {{ form.meeting_password(class="form-control") }}
+                                        {% if form.meeting_password.errors %}
+                                            <div class="text-danger small mt-1">
+                                                {% for error in form.meeting_password.errors %}
+                                                    <div>{{ error }}</div>
+                                                {% endfor %}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Notes Section -->
+                        <div class="form-section">
+                            <h6 class="form-section-title">
+                                <i class="fas fa-sticky-note"></i>
+                                Additional Information
+                            </h6>
+                            
+                            <div class="mb-3">
+                                {{ form.class_notes.label(class="form-label") }}
+                                {{ form.class_notes(class="form-control") }}
+                                {% if form.class_notes.errors %}
+                                    <div class="text-danger small mt-1">
+                                        {% for error in form.class_notes.errors %}
+                                            <div>{{ error }}</div>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Form Actions -->
+                        <div class="form-actions">
+                            <div class="d-flex gap-3">
+                                {{ form.submit(class="btn btn-primary", id="updateBtn") }}
+                                <a href="{{ url_for('admin.class_details', class_id=class_obj.id) }}" class="btn btn-secondary">Cancel</a>
+                                <a href="{{ url_for('admin.duplicate_class', class_id=class_obj.id) }}" class="btn btn-outline-info">
+                                    <i class="fas fa-copy"></i>
+                                    Duplicate Class
+                                </a>
+                                {% if class_obj.is_deletable() %}
+                                <button type="button" class="btn btn-outline-danger" onclick="deleteClass({{ class_obj.id }})">
+                                    <i class="fas fa-trash"></i>
+                                    Delete Class
+                                </button>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.form-section {
+    margin-bottom: 2rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.form-section:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+}
+
+.form-section-title {
+    color: #495057;
+    font-weight: 600;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid #f8f9fa;
+}
+
+.students-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 0.5rem;
+    max-height: 200px;
+    overflow-y: auto;
+    border: 1px solid #dee2e6;
+    border-radius: 0.375rem;
+    padding: 1rem;
+    background-color: #f8f9fa;
+}
+
+.form-actions {
+    margin-top: 2rem;
+    padding-top: 1.5rem;
+    border-top: 2px solid #f8f9fa;
+}
+
+.alert {
+    border-radius: 0.5rem;
+}
+
+.page-header {
+    margin-bottom: 1.5rem;
+}
+
+.page-title {
+    color: #495057;
+    font-weight: 600;
+}
+
+.page-subtitle {
+    color: #6c757d;
+    margin-bottom: 0;
+}
+
+.header-actions .btn {
+    margin-left: 0.5rem;
+}
+
+@media (max-width: 768px) {
+    .students-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .header-actions {
+        margin-top: 1rem;
+    }
+    
+    .header-actions .btn {
+        margin-left: 0;
+        margin-right: 0.5rem;
+        margin-bottom: 0.5rem;
+    }
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize form based on current class type
+    toggleStudentFields();
+    
+    // Add form validation
+    const form = document.getElementById('editClassForm');
+    const updateBtn = document.getElementById('updateBtn');
+    
+    form.addEventListener('submit', function(e) {
+        updateBtn.disabled = true;
+        updateBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Updating...';
+    });
+});
+
+function toggleStudentFields() {
+    const classType = document.querySelector('select[name="class_type"]').value;
+    const primaryStudentField = document.getElementById('primaryStudentField');
+    const groupStudentsField = document.getElementById('groupStudentsField');
+    
+    if (classType === 'group') {
+        primaryStudentField.style.display = 'block';
+        groupStudentsField.style.display = 'block';
+        
+        // Make primary student optional for group classes
+        const primarySelect = document.querySelector('select[name="primary_student_id"]');
+        primarySelect.removeAttribute('required');
+    } else {
+        primaryStudentField.style.display = 'block';
+        groupStudentsField.style.display = 'none';
+        
+        // Make primary student required for one-on-one and demo
+        const primarySelect = document.querySelector('select[name="primary_student_id"]');
+        if (classType === 'one_on_one' || classType === 'demo') {
+            primarySelect.setAttribute('required', 'required');
+        }
+    }
+}
+
+function deleteClass(classId) {
+    if (!confirm('Are you sure you want to delete this class? This action cannot be undone.')) {
+        return;
+    }
+    
+    fetch(`/admin/classes/${classId}/delete`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('meta[name=csrf-token]').getAttribute('content')
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('Class deleted successfully!');
+            window.location.href = '{{ url_for("admin.classes") }}';
+        } else {
+            alert('Error: ' + (data.error || 'Failed to delete class'));
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error deleting class');
+    });
+}
+</script>
+{% endblock %}

@@ -22,6 +22,17 @@ from sqlalchemy import text
 from app.utils.enhanced_email_subjects import create_better_email_subject, get_enhanced_subject_options
 import urllib.parse
 from flask import make_response
+from app.utils.allocation_helper import allocation_helper
+from sqlalchemy import or_, and_, func, text
+
+from app.utils.advanced_permissions import (
+    require_permission, 
+    require_any_permission, 
+    require_all_permissions,
+    require_role,
+    PermissionRegistry,
+    PermissionUtils
+)
 
 bp = Blueprint('admin', __name__)
 
@@ -53,7 +64,7 @@ def save_uploaded_file(file, subfolder):
 
 @bp.route('/users')
 @login_required
-@admin_required
+@require_permission('user_management')
 def users():
     """User management page"""
     page = request.args.get('page', 1, type=int)
@@ -89,7 +100,7 @@ def users():
 
 @bp.route('/users/create', methods=['GET', 'POST'])
 @login_required
-@admin_required
+@require_permission('user_management')
 def create_user():
     """Create new user - DEBUG VERSION WITH ONBOARDING EMAIL"""
     form = CreateUserForm()
@@ -201,7 +212,7 @@ def create_user():
 
 @bp.route('/users/<int:user_id>/edit', methods=['GET', 'POST'])
 @login_required
-@admin_required
+@require_permission('user_management')
 def edit_user(user_id):
     """Edit user"""
     user = User.query.get_or_404(user_id)
@@ -237,7 +248,7 @@ def edit_user(user_id):
 
 @bp.route('/users/<int:user_id>/toggle-status', methods=['POST'])
 @login_required
-@admin_required
+@require_permission('user_management')
 def toggle_user_status(user_id):
     """Toggle user active status"""
     user = User.query.get_or_404(user_id)
@@ -260,7 +271,7 @@ def toggle_user_status(user_id):
 
 @bp.route('/users/<int:user_id>/delete', methods=['POST'])
 @login_required
-@admin_required
+@require_permission('user_management')
 def delete_user(user_id):
     """Delete user (superadmin only)"""
     if current_user.role != 'superadmin':
@@ -291,7 +302,7 @@ def delete_user(user_id):
 
 @bp.route('/departments')
 @login_required
-@admin_required
+@require_role('superadmin', 'admin')
 def departments():
     """Department management page"""
     departments = Department.query.order_by(Department.created_at.desc()).all()
@@ -299,7 +310,7 @@ def departments():
 
 @bp.route('/departments/create', methods=['POST'])
 @login_required
-@admin_required
+@require_role('superadmin', 'admin')
 def create_department():
     """Create new department"""
     if current_user.role not in ['superadmin', 'admin']:
@@ -326,7 +337,7 @@ def create_department():
 
 @bp.route('/departments/<int:dept_id>/permissions', methods=['GET', 'POST'])
 @login_required
-@admin_required
+@require_role('superadmin', 'admin')
 def department_permissions(dept_id):
     """Manage department permissions"""
     if current_user.role not in ['superadmin', 'admin']:
@@ -354,7 +365,7 @@ def department_permissions(dept_id):
 
 @bp.route('/departments/<int:dept_id>/data')
 @login_required
-@admin_required
+@require_role('superadmin', 'admin')
 def get_department_data(dept_id):
     """Get department data for editing"""
     department = Department.query.get_or_404(dept_id)
@@ -370,7 +381,7 @@ def get_department_data(dept_id):
 
 @bp.route('/departments/<int:dept_id>/update', methods=['POST'])
 @login_required
-@admin_required
+@require_role('superadmin', 'admin')
 def update_department(dept_id):
     """Update department"""
     department = Department.query.get_or_404(dept_id)
@@ -389,7 +400,7 @@ def update_department(dept_id):
 
 @bp.route('/departments/<int:dept_id>/toggle-status', methods=['POST'])
 @login_required
-@admin_required
+@require_role('superadmin', 'admin')
 def toggle_department_status(dept_id):
     """Toggle department active status"""
     department = Department.query.get_or_404(dept_id)
@@ -408,7 +419,7 @@ def toggle_department_status(dept_id):
 
 @bp.route('/tutors')
 @login_required
-@admin_required
+@require_permission('tutor_management')
 def tutors():
     """Tutor management page"""
     page = request.args.get('page', 1, type=int)
@@ -441,7 +452,7 @@ def tutors():
 
 @bp.route('/tutors/register', methods=['GET', 'POST'])
 @login_required
-@admin_required
+@require_permission('tutor_management')
 def register_tutor():
     """Register new tutor with test score"""
     form = TutorRegistrationForm()
@@ -578,7 +589,7 @@ def has_file_content(file_field):
 
 @bp.route('/tutors/<int:tutor_id>')
 @login_required
-@admin_required
+@require_permission('tutor_management')
 def tutor_details(tutor_id):
     """View tutor details"""
     tutor = Tutor.query.get_or_404(tutor_id)
@@ -595,7 +606,7 @@ def tutor_details(tutor_id):
 
 @bp.route('/tutors/<int:tutor_id>/verify', methods=['POST'])
 @login_required
-@admin_required
+@require_permission('tutor_management')
 def verify_tutor(tutor_id):
     """Verify tutor profile"""
     tutor = Tutor.query.get_or_404(tutor_id)
@@ -660,7 +671,7 @@ def verify_tutor(tutor_id):
 
 @bp.route('/tutors/<int:tutor_id>/toggle-status', methods=['POST'])
 @login_required
-@admin_required
+@require_permission('tutor_management')
 def toggle_tutor_status(tutor_id):
     """Toggle tutor active/inactive status"""
     tutor = Tutor.query.get_or_404(tutor_id)
@@ -717,7 +728,7 @@ def toggle_tutor_status(tutor_id):
 
 @bp.route('/students')
 @login_required
-@admin_required
+@require_permission('student_management')
 def students():
     """Student management page"""
     from sqlalchemy import or_
@@ -788,7 +799,7 @@ def students():
 
 @bp.route('/students/register', methods=['GET', 'POST'])
 @login_required
-@admin_required
+@require_permission('student_management')
 def register_student():
     """Register new student"""
     from app.forms.user import StudentRegistrationForm
@@ -916,7 +927,7 @@ def register_student():
 
 @bp.route('/students/<int:student_id>')
 @login_required
-@admin_required
+@require_permission('student_management')
 def student_details(student_id):
     """View student details"""
     student = Student.query.get_or_404(student_id)
@@ -960,7 +971,7 @@ def student_details(student_id):
 
 @bp.route('/students/<int:student_id>/edit', methods=['GET', 'POST'])
 @login_required
-@admin_required
+@require_permission('student_management')
 def edit_student(student_id):
     """Edit student information"""
     from datetime import datetime
@@ -1110,7 +1121,7 @@ def edit_student(student_id):
 
 @bp.route('/students/<int:student_id>/deactivate', methods=['POST'])
 @login_required
-@admin_required
+@require_permission('student_management')
 def deactivate_student(student_id):
     """Deactivate a student"""
     student = Student.query.get_or_404(student_id)
@@ -1133,7 +1144,7 @@ def deactivate_student(student_id):
 
 @bp.route('/students/<int:student_id>/activate', methods=['POST'])
 @login_required
-@admin_required
+@require_permission('student_management')
 def activate_student(student_id):
     """Activate a student"""
     student = Student.query.get_or_404(student_id)
@@ -1157,7 +1168,7 @@ def activate_student(student_id):
 
 @bp.route('/students/<int:student_id>/toggle-status', methods=['POST'])
 @login_required
-@admin_required
+@require_permission('student_management')
 def toggle_student_status(student_id):
     """Toggle student active status"""
     student = Student.query.get_or_404(student_id)
@@ -1194,7 +1205,7 @@ def toggle_student_status(student_id):
 
 @bp.route('/students/<int:student_id>/delete', methods=['DELETE'])
 @login_required
-@admin_required
+@require_permission('student_management')
 def delete_student(student_id):
     """Delete student (superadmin only)"""
     if current_user.role != 'superadmin':
@@ -1229,7 +1240,7 @@ def delete_student(student_id):
 
 @bp.route('/classes')
 @login_required
-@admin_required
+@require_permission('class_management')
 def classes():
     """Class management page"""
     page = request.args.get('page', 1, type=int)
@@ -1346,7 +1357,7 @@ def classes():
 
 @bp.route('/classes/create', methods=['POST'])
 @login_required
-@admin_required
+@require_permission('class_management')
 def create_class():
     """Create a new class with availability validation"""
     try:
@@ -1433,7 +1444,7 @@ def create_class():
 
 @bp.route('/classes/bulk-create', methods=['POST'])
 @login_required
-@admin_required
+@require_permission('class_management')
 def bulk_create_classes():
     """Create multiple classes in bulk with availability validation"""
     try:
@@ -1591,7 +1602,7 @@ def bulk_create_classes():
 
 @bp.route('/api/v1/tutor/<int:tutor_id>/availability')
 @login_required
-@admin_required
+@require_permission('class_management')
 def api_tutor_availability(tutor_id):
     """Get tutor availability for AJAX requests"""
     try:
@@ -1619,7 +1630,7 @@ def api_tutor_availability(tutor_id):
 
 @bp.route('/tutors/<int:tutor_id>/edit', methods=['GET', 'POST'])
 @login_required
-@admin_required
+@require_permission('tutor_management')
 def edit_tutor(tutor_id):
     """Edit tutor profile (admin route)"""
     tutor = Tutor.query.get_or_404(tutor_id)
@@ -1637,7 +1648,7 @@ def edit_tutor(tutor_id):
 
 @bp.route('/tutors/<int:tutor_id>/documents/upload', methods=['POST'])
 @login_required
-@admin_required
+@require_permission('tutor_management')
 def upload_tutor_document(tutor_id):
     """Upload document for a tutor (admin only)"""
     try:
@@ -1692,7 +1703,7 @@ def upload_tutor_document(tutor_id):
 
 @bp.route('/tutors/<int:tutor_id>/videos/upload', methods=['POST'])
 @login_required
-@admin_required
+@require_permission('tutor_management')
 def upload_tutor_video(tutor_id):
     """Upload video for a tutor (admin only)"""
     try:
@@ -1746,7 +1757,7 @@ def upload_tutor_video(tutor_id):
 
 @bp.route('/tutors/<int:tutor_id>/documents/<document_type>/delete', methods=['POST'])
 @login_required
-@admin_required
+@require_permission('tutor_management')
 def delete_tutor_document(tutor_id, document_type):
     """Delete document for a tutor (admin only)"""
     try:
@@ -1787,7 +1798,7 @@ def delete_tutor_document(tutor_id, document_type):
 
 @bp.route('/tutors/<int:tutor_id>/videos/<video_type>/delete', methods=['POST'])
 @login_required
-@admin_required
+@require_permission('tutor_management')
 def delete_tutor_video(tutor_id, video_type):
     """Delete video for a tutor (admin only)"""
     try:
@@ -1834,7 +1845,7 @@ def has_file_content(file_field):
 
 @bp.route('/classes/<int:class_id>')
 @login_required
-@admin_required
+@require_permission('class_management')
 def class_details(class_id):
     """View class details"""
     class_obj = Class.query.get_or_404(class_id)
@@ -1911,7 +1922,7 @@ def api_compatible_tutors():
         }), 500
 @bp.route('/api/v1/student/<int:student_id>/details')
 @login_required
-@admin_required
+@require_permission('student_management')
 def api_student_details(student_id):
     """Get student details for tutor matching"""
     try:
@@ -1941,7 +1952,7 @@ def api_student_details(student_id):
 
 @bp.route('/timetable')
 @login_required
-@admin_required
+@require_permission('class_management')
 def timetable():
     """Timetable management page"""
     try:
@@ -2782,6 +2793,17 @@ def api_create_quick_class():
     
 
 # ============ EXPORT FUNCTIONALITY ============
+import csv
+import io
+from datetime import timedelta
+try:
+    from icalendar import Calendar, Event
+    from pytz import timezone
+    ICALENDAR_AVAILABLE = True
+except ImportError:
+    ICALENDAR_AVAILABLE = False
+    print("⚠️ icalendar not available - calendar export will use simple format")
+
 
 @bp.route('/timetable/export')
 @login_required
@@ -2796,13 +2818,115 @@ def timetable_export():
                          departments=departments)
 
 
+# REPLACE the generate_timetable_excel() function in admin.py with this FIXED version:
+
+def generate_timetable_excel(classes, period_name):
+    """Generate Excel export for timetable - FIXED VERSION"""
+    try:
+        import openpyxl
+        from openpyxl.styles import Font, PatternFill, Alignment
+        from io import BytesIO
+        
+        # Create workbook and worksheet
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = "Timetable"
+        
+        # Title
+        ws['A1'] = f"Class Timetable - {period_name}"
+        ws['A1'].font = Font(size=16, bold=True)
+        ws.merge_cells('A1:H1')  # Changed to H1 to match 8 columns
+        
+        # Headers (row 3 to leave space after title)
+        headers = ['Date', 'Time', 'End Time', 'Subject', 'Tutor', 'Students', 'Duration', 'Status']
+        for col, header in enumerate(headers, 1):
+            cell = ws.cell(row=3, column=col, value=header)
+            cell.font = Font(bold=True)
+            cell.fill = PatternFill(start_color="CCCCCC", end_color="CCCCCC", fill_type="solid")
+            cell.alignment = Alignment(horizontal='center')
+        
+        # Data rows (starting from row 4)
+        for row, cls in enumerate(classes, 4):
+            tutor_name = cls.tutor.user.full_name if cls.tutor and cls.tutor.user else 'No Tutor'
+            
+            # Get student names
+            students = 'No Students'
+            if cls.class_type == 'demo':
+                students = 'Demo Student'
+            else:
+                try:
+                    student_objects = cls.get_student_objects()
+                    if student_objects:
+                        students = ', '.join([s.full_name for s in student_objects])
+                except:
+                    students = 'No Students'
+            
+            # Calculate end time
+            end_time = ''
+            if cls.scheduled_time and cls.duration:
+                try:
+                    start_datetime = datetime.combine(datetime.today(), cls.scheduled_time)
+                    end_datetime = start_datetime + timedelta(minutes=cls.duration)
+                    end_time = end_datetime.time().strftime('%H:%M')
+                except:
+                    end_time = 'N/A'
+            
+            data = [
+                cls.scheduled_date.strftime('%Y-%m-%d') if cls.scheduled_date else '',
+                cls.scheduled_time.strftime('%H:%M') if cls.scheduled_time else '',
+                end_time,
+                cls.subject or '',
+                tutor_name,
+                students,
+                f"{cls.duration} min" if cls.duration else '',
+                cls.status.title() if cls.status else ''
+            ]
+            
+            for col, value in enumerate(data, 1):
+                cell = ws.cell(row=row, column=col, value=value)
+                # Add border and alignment for better readability
+                cell.alignment = Alignment(horizontal='left', vertical='center')
+        
+        # FIXED: Auto-adjust column widths (avoiding MergedCell error)
+        column_letters = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']
+        default_widths = [12, 8, 8, 30, 20, 25, 10, 12]  # Default widths for each column
+        
+        for i, col_letter in enumerate(column_letters):
+            max_length = default_widths[i]
+            
+            # Check data rows only (skip merged cells)
+            for row in range(3, ws.max_row + 1):
+                cell = ws[f'{col_letter}{row}']
+                if cell.value:
+                    cell_length = len(str(cell.value))
+                    if cell_length > max_length:
+                        max_length = min(cell_length + 2, 50)  # Cap at 50
+            
+            ws.column_dimensions[col_letter].width = max_length
+        
+        # Save to buffer
+        buffer = BytesIO()
+        wb.save(buffer)
+        buffer.seek(0)
+        
+        return buffer.getvalue()
+        
+    except ImportError:
+        raise Exception("openpyxl not installed. Please install: pip install openpyxl")
+    except Exception as e:
+        print(f"Excel generation error: {str(e)}")
+        raise e
+
 @bp.route('/api/v1/timetable/export-preview', methods=['POST'])
 @login_required
 @admin_required
 def api_export_preview():
-    """Generate detailed export preview with real data"""
+    """Generate detailed export preview with real data - FIXED VERSION"""
     try:
         data = request.get_json()
+        if not data:
+            return jsonify({'success': False, 'error': 'No data received'}), 400
+        
         export_type = data.get('export_type', 'pdf')
         period = data.get('period', 'today')
         date_param = data.get('date', datetime.now().strftime('%Y-%m-%d'))
@@ -2811,8 +2935,13 @@ def api_export_preview():
         department_id = data.get('department_id')
         subject_filter = data.get('subject_filter', '')
         
+        print(f"📊 Preview request: {export_type}, {period}, {date_param}")
+        
         # Parse date
-        target_date = datetime.strptime(date_param, '%Y-%m-%d').date()
+        try:
+            target_date = datetime.strptime(date_param, '%Y-%m-%d').date()
+        except ValueError as e:
+            return jsonify({'success': False, 'error': f'Invalid date format: {date_param}'}), 400
         
         # Build query based on period
         if period == 'today':
@@ -2839,174 +2968,182 @@ def api_export_preview():
             period_name = target_date.strftime('%B %Y')
         elif period == 'quarter':
             quarter = (target_date.month - 1) // 3 + 1
-            quarter_start = target_date.replace(month=(quarter-1)*3+1, day=1)
+            quarter_start = target_date.replace(month=(quarter-1)*3 + 1, day=1)
             if quarter == 4:
-                quarter_end = target_date.replace(year=target_date.year+1, month=1, day=1) - timedelta(days=1)
+                quarter_end = target_date.replace(year=target_date.year + 1, month=1, day=1) - timedelta(days=1)
             else:
-                quarter_end = target_date.replace(month=quarter*3+1, day=1) - timedelta(days=1)
+                quarter_end = target_date.replace(month=quarter*3 + 1, day=1) - timedelta(days=1)
             query = Class.query.filter(
                 Class.scheduled_date >= quarter_start,
                 Class.scheduled_date <= quarter_end
             )
             period_name = f"Q{quarter} {target_date.year}"
-        else:  # year
-            start_date = target_date.replace(month=1, day=1)
-            end_date = target_date.replace(month=12, day=31)
+        elif period == 'year':
+            year_start = target_date.replace(month=1, day=1)
+            year_end = target_date.replace(month=12, day=31)
             query = Class.query.filter(
-                Class.scheduled_date >= start_date,
-                Class.scheduled_date <= end_date
+                Class.scheduled_date >= year_start,
+                Class.scheduled_date <= year_end
             )
-            period_name = f"Year {target_date.year}"
+            period_name = str(target_date.year)
+        else:
+            query = Class.query.filter(Class.scheduled_date == target_date)
+            period_name = target_date.strftime('%B %d, %Y')
         
         # Apply filters
-        if scope == 'scheduled':
-            query = query.filter(Class.status == 'scheduled')
-        elif scope == 'completed':
-            query = query.filter(Class.status == 'completed')
-        elif scope == 'cancelled':
-            query = query.filter(Class.status == 'cancelled')
+        if scope != 'all':
+            query = query.filter(Class.status == scope)
         
         if tutor_id:
             query = query.filter(Class.tutor_id == tutor_id)
-            
+        
         if department_id:
-            query = query.join(Tutor, Class.tutor_id == Tutor.id)\
-                         .join(User, Tutor.user_id == User.id)\
-                         .filter(User.department_id == department_id)
+            # Join with tutor and user to filter by department
+            query = query.join(Tutor).join(User).filter(User.department_id == department_id)
         
         if subject_filter:
-            query = query.filter(Class.subject.ilike(f'%{subject_filter}%'))
+            query = query.filter(Class.subject.contains(subject_filter))
+        
+        # Department access check for coordinators
+        if current_user.role == 'coordinator':
+            query = query.join(Tutor).join(User).filter(User.department_id == current_user.department_id)
         
         # Get classes
         classes = query.order_by(Class.scheduled_date, Class.scheduled_time).all()
         
+        print(f"📊 Found {len(classes)} classes")
+        
         # Calculate statistics
         total_records = len(classes)
-        total_hours = sum(cls.duration for cls in classes) / 60  # Convert to hours
-        unique_tutors = len(set(cls.tutor_id for cls in classes if cls.tutor_id))
-        unique_students = len(set(cls.primary_student_id for cls in classes if cls.primary_student_id))
+        total_hours = sum([cls.duration / 60 for cls in classes if cls.duration]) if classes else 0
+        
+        # Get unique tutors and students
+        unique_tutors = len(set([cls.tutor_id for cls in classes if cls.tutor_id]))
+        
+        unique_students = set()
+        for cls in classes:
+            if cls.primary_student_id:
+                unique_students.add(cls.primary_student_id)
+            if cls.students:
+                try:
+                    import json
+                    student_ids = json.loads(cls.students) if isinstance(cls.students, str) else cls.students
+                    if isinstance(student_ids, list):
+                        unique_students.update(student_ids)
+                except:
+                    pass
+        unique_students = len(unique_students)
         
         # Status breakdown
         status_counts = {}
         for cls in classes:
-            status_counts[cls.status] = status_counts.get(cls.status, 0) + 1
+            status = cls.status or 'unknown'
+            status_counts[status] = status_counts.get(status, 0) + 1
         
         # Estimate file size and pages
         if export_type == 'pdf':
-            estimated_pages = max(1, (total_records // 25) + 1)  # ~25 records per page
-            estimated_size = f"{estimated_pages * 150}KB"  # ~150KB per page
-        elif export_type == 'excel':
-            estimated_pages = max(1, (total_records // 1000) + 1)  # Worksheets
-            estimated_size = f"{total_records * 0.5}KB"  # ~0.5KB per record
+            estimated_pages = max(1, (total_records // 20) + 1)
+            estimated_size = f"{estimated_pages * 50}KB"
         elif export_type == 'csv':
-            estimated_pages = 1
-            estimated_size = f"{total_records * 0.2}KB"  # ~0.2KB per record
-        else:  # calendar
-            estimated_pages = 1
-            estimated_size = f"{total_records * 0.3}KB"  # ~0.3KB per event
+            estimated_size = f"{max(1, total_records * 0.5):.1f}KB"
+        elif export_type == 'calendar':
+            estimated_size = f"{max(1, total_records * 1.2):.1f}KB"
+        else:
+            estimated_size = "Unknown"
         
-        # Generation time estimate
-        generation_time = max(1, total_records // 100)  # ~100 records per second
-        
-        # Generate detailed preview HTML
+        # Generate preview HTML
         preview_html = f"""
-        <div style="font-family: Arial, sans-serif; max-width: 100%; overflow-x: auto;">
-            <div style="background: linear-gradient(135deg, #F1A150, #C86706); color: white; padding: 1.5rem; border-radius: 8px; margin-bottom: 1.5rem;">
-                <h3 style="margin: 0 0 0.5rem 0;">{export_type.upper()} Export Preview</h3>
-                <p style="margin: 0; opacity: 0.9;">{period_name} • {total_records} Records</p>
+        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 1.5rem; border-radius: 8px; margin-bottom: 1.5rem;">
+                <h3 style="margin: 0 0 0.5rem 0; font-size: 1.25rem;">📊 {export_type.upper()} Export Preview</h3>
+                <p style="margin: 0; opacity: 0.9;">Period: {period_name} | {total_records} classes found</p>
             </div>
-            
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
-                <div style="text-align: center; background: #f8f9fa; padding: 1rem; border-radius: 6px;">
-                    <div style="font-size: 1.5rem; font-weight: bold; color: #F1A150;">{total_records}</div>
-                    <div style="font-size: 0.8rem; color: #666;">Total Classes</div>
-                </div>
-                <div style="text-align: center; background: #f8f9fa; padding: 1rem; border-radius: 6px;">
-                    <div style="font-size: 1.5rem; font-weight: bold; color: #10b981;">{total_hours:.1f}h</div>
-                    <div style="font-size: 0.8rem; color: #666;">Total Hours</div>
-                </div>
-                <div style="text-align: center; background: #f8f9fa; padding: 1rem; border-radius: 6px;">
-                    <div style="font-size: 1.5rem; font-weight: bold; color: #3b82f6;">{unique_tutors}</div>
-                    <div style="font-size: 0.8rem; color: #666;">Tutors</div>
-                </div>
-                <div style="text-align: center; background: #f8f9fa; padding: 1rem; border-radius: 6px;">
-                    <div style="font-size: 1.5rem; font-weight: bold; color: #8b5cf6;">{unique_students}</div>
-                    <div style="font-size: 0.8rem; color: #666;">Students</div>
-                </div>
-            </div>
-            
+        """
+        
+        if classes:
+            preview_html += """
             <div style="background: white; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden; margin-bottom: 1.5rem;">
-                <div style="background: #f8f9fa; padding: 1rem; border-bottom: 1px solid #e5e7eb;">
-                    <h4 style="margin: 0;">Sample Data Preview (First 5 Records)</h4>
-                </div>
                 <table style="width: 100%; border-collapse: collapse;">
-                    <thead style="background: #F1A150; color: white;">
-                        <tr>
-                            <th style="padding: 0.75rem; text-align: left; border-bottom: 1px solid #ddd;">Date</th>
-                            <th style="padding: 0.75rem; text-align: left; border-bottom: 1px solid #ddd;">Time</th>
-                            <th style="padding: 0.75rem; text-align: left; border-bottom: 1px solid #ddd;">Subject</th>
-                            <th style="padding: 0.75rem; text-align: left; border-bottom: 1px solid #ddd;">Tutor</th>
-                            <th style="padding: 0.75rem; text-align: left; border-bottom: 1px solid #ddd;">Duration</th>
-                            <th style="padding: 0.75rem; text-align: left; border-bottom: 1px solid #ddd;">Status</th>
+                    <thead>
+                        <tr style="background: #f9fafb;">
+                            <th style="padding: 0.75rem; text-align: left; border-bottom: 1px solid #e5e7eb; font-weight: 600;">Date</th>
+                            <th style="padding: 0.75rem; text-align: left; border-bottom: 1px solid #e5e7eb; font-weight: 600;">Time</th>
+                            <th style="padding: 0.75rem; text-align: left; border-bottom: 1px solid #e5e7eb; font-weight: 600;">Subject</th>
+                            <th style="padding: 0.75rem; text-align: left; border-bottom: 1px solid #e5e7eb; font-weight: 600;">Tutor</th>
+                            <th style="padding: 0.75rem; text-align: left; border-bottom: 1px solid #e5e7eb; font-weight: 600;">Status</th>
                         </tr>
                     </thead>
                     <tbody>
-        """
-        
-        # Add sample rows (first 5 classes)
-        for i, cls in enumerate(classes[:5]):
-            tutor_name = cls.tutor.user.full_name if cls.tutor and cls.tutor.user else 'No Tutor'
-            bg_color = '#f8f9fa' if i % 2 == 0 else 'white'
-            preview_html += f"""
-                        <tr style="background: {bg_color};">
-                            <td style="padding: 0.75rem; border-bottom: 1px solid #eee;">{cls.scheduled_date.strftime('%m/%d/%Y')}</td>
-                            <td style="padding: 0.75rem; border-bottom: 1px solid #eee;">{cls.scheduled_time.strftime('%H:%M') if cls.scheduled_time else '00:00'}</td>
-                            <td style="padding: 0.75rem; border-bottom: 1px solid #eee;">{cls.subject}</td>
-                            <td style="padding: 0.75rem; border-bottom: 1px solid #eee;">{tutor_name}</td>
-                            <td style="padding: 0.75rem; border-bottom: 1px solid #eee;">{cls.duration} min</td>
-                            <td style="padding: 0.75rem; border-bottom: 1px solid #eee;">
-                                <span style="background: {'#10b981' if cls.status == 'completed' else '#3b82f6' if cls.status == 'scheduled' else '#ef4444'}; color: white; padding: 0.25rem 0.5rem; border-radius: 12px; font-size: 0.75rem;">
-                                    {cls.status.title()}
+            """
+            
+            # Show first 10 classes in preview
+            for i, cls in enumerate(classes[:10]):
+                tutor_name = cls.tutor.user.full_name if cls.tutor and cls.tutor.user else 'No Tutor'
+                status_color = '#10b981' if cls.status == 'completed' else '#3b82f6' if cls.status == 'scheduled' else '#ef4444'
+                
+                preview_html += f"""
+                        <tr style="{'background: #f9fafb;' if i % 2 == 0 else ''}">
+                            <td style="padding: 0.75rem; border-bottom: 1px solid #f3f4f6;">{cls.scheduled_date.strftime('%Y-%m-%d') if cls.scheduled_date else 'N/A'}</td>
+                            <td style="padding: 0.75rem; border-bottom: 1px solid #f3f4f6;">{cls.scheduled_time.strftime('%H:%M') if cls.scheduled_time else 'N/A'}</td>
+                            <td style="padding: 0.75rem; border-bottom: 1px solid #f3f4f6;">{cls.subject or 'N/A'}</td>
+                            <td style="padding: 0.75rem; border-bottom: 1px solid #f3f4f6;">{tutor_name}</td>
+                            <td style="padding: 0.75rem; border-bottom: 1px solid #f3f4f6;">
+                                <span style="background: {status_color}; color: white; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.75rem; font-weight: 500;">
+                                    {(cls.status or 'unknown').title()}
                                 </span>
                             </td>
                         </tr>
-            """
-        
-        if total_records > 5:
-            preview_html += f"""
+                """
+            
+            if len(classes) > 10:
+                preview_html += f"""
                         <tr>
-                            <td colspan="6" style="padding: 1rem; text-align: center; color: #666; font-style: italic;">
-                                ... and {total_records - 5} more records
+                            <td colspan="5" style="padding: 0.75rem; text-align: center; color: #6b7280; font-style: italic;">
+                                ... and {len(classes) - 10} more classes
                             </td>
                         </tr>
-            """
+                """
         
-        preview_html += """
+            preview_html += """
                     </tbody>
                 </table>
             </div>
+            """
             
+            # Status breakdown
+            preview_html += """
             <div style="background: #f8f9fa; padding: 1rem; border-radius: 6px;">
                 <h4 style="margin: 0 0 1rem 0;">Status Breakdown</h4>
-        """
-        
-        for status, count in status_counts.items():
-            percentage = (count / total_records * 100) if total_records > 0 else 0
-            color = '#10b981' if status == 'completed' else '#3b82f6' if status == 'scheduled' else '#ef4444'
-            preview_html += f"""
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-                    <span style="text-transform: capitalize;">{status}</span>
-                    <div style="display: flex; align-items: center; gap: 0.5rem;">
-                        <div style="width: 100px; height: 8px; background: #e5e7eb; border-radius: 4px; overflow: hidden;">
-                            <div style="width: {percentage}%; height: 100%; background: {color};"></div>
+            """
+            
+            for status, count in status_counts.items():
+                percentage = (count / total_records * 100) if total_records > 0 else 0
+                color = '#10b981' if status == 'completed' else '#3b82f6' if status == 'scheduled' else '#ef4444'
+                preview_html += f"""
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                        <span style="text-transform: capitalize;">{status}</span>
+                        <div style="display: flex; align-items: center; gap: 0.5rem;">
+                            <div style="width: 100px; height: 8px; background: #e5e7eb; border-radius: 4px; overflow: hidden;">
+                                <div style="width: {percentage}%; height: 100%; background: {color};"></div>
+                            </div>
+                            <span style="font-weight: bold; min-width: 60px;">{count} ({percentage:.1f}%)</span>
                         </div>
-                        <span style="font-weight: bold; min-width: 60px;">{count} ({percentage:.1f}%)</span>
                     </div>
-                </div>
+                """
+            
+            preview_html += """
+            </div>
+            """
+        else:
+            preview_html += """
+            <div style="text-align: center; padding: 3rem; color: #6b7280;">
+                <div style="font-size: 3rem; margin-bottom: 1rem;">📅</div>
+                <h3 style="margin: 0 0 0.5rem 0;">No Classes Found</h3>
+                <p style="margin: 0;">No classes match your selected criteria for this period.</p>
+            </div>
             """
         
         preview_html += """
-            </div>
         </div>
         """
         
@@ -3014,8 +3151,8 @@ def api_export_preview():
             'success': True,
             'total_records': total_records,
             'estimated_size': estimated_size,
-            'page_count': estimated_pages,
-            'generation_time': f"{generation_time}s",
+            'page_count': estimated_pages if export_type == 'pdf' else 1,
+            'generation_time': "0.1",
             'preview_html': preview_html,
             'statistics': {
                 'total_classes': total_records,
@@ -3028,8 +3165,12 @@ def api_export_preview():
         })
         
     except Exception as e:
-        print(f"Export preview error: {str(e)}")
+        print(f"📊 Export preview error: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 500
+    
+    
     
 @bp.route('/api/v1/timetable/export-pdf')
 @login_required
@@ -3079,38 +3220,95 @@ def api_export_timetable_pdf():
 @login_required
 @admin_required
 def api_timetable_export():
-    """Enhanced export with multiple formats"""
+    """Complete export system for all formats"""
     try:
+        print("🚀 Export request received")
+        
         data = request.get_json()
+        if not data:
+            return jsonify({'success': False, 'error': 'No data received'}), 400
+        
         export_type = data.get('export_type', 'pdf')
         period = data.get('period', 'today')
         date_param = data.get('date', datetime.now().strftime('%Y-%m-%d'))
         
-        # For now, redirect to existing PDF export for PDF type
-        if export_type == 'pdf':
-            # Build query parameters for existing PDF export
-            params = {
-                'date': date_param,
-                'view': period if period in ['today', 'week', 'month'] else 'today'
-            }
-            
-            # Add filters if provided
-            if data.get('tutor_id'):
-                params['tutor_id'] = data.get('tutor_id')
-            if data.get('student_id'):
-                params['student_id'] = data.get('student_id')
-            
-            # Redirect to existing PDF export endpoint
-            from flask import redirect, url_for
-            return redirect(url_for('admin.api_export_timetable_pdf', **params))
+        print(f"📊 Export: {export_type}, Period: {period}, Date: {date_param}")
         
-        # For other formats, return placeholder response
-        return jsonify({
-            'success': False, 
-            'error': f'{export_type.upper()} export will be implemented soon. Use PDF export for now.'
-        }), 400
+        # Parse date
+        try:
+            target_date = datetime.strptime(date_param, '%Y-%m-%d').date()
+        except ValueError:
+            return jsonify({'success': False, 'error': f'Invalid date: {date_param}'}), 400
+        
+        # Get classes based on period
+        if period == 'today':
+            classes = Class.query.filter(Class.scheduled_date == target_date).all()
+            period_name = target_date.strftime('%B %d, %Y')
+        elif period == 'week':
+            start_of_week = target_date - timedelta(days=target_date.weekday())
+            end_of_week = start_of_week + timedelta(days=6)
+            classes = Class.query.filter(
+                Class.scheduled_date >= start_of_week,
+                Class.scheduled_date <= end_of_week
+            ).all()
+            period_name = f"Week of {start_of_week.strftime('%B %d, %Y')}"
+        elif period == 'month':
+            first_day = target_date.replace(day=1)
+            if target_date.month == 12:
+                last_day = target_date.replace(year=target_date.year + 1, month=1, day=1) - timedelta(days=1)
+            else:
+                last_day = target_date.replace(month=target_date.month + 1, day=1) - timedelta(days=1)
+            classes = Class.query.filter(
+                Class.scheduled_date >= first_day,
+                Class.scheduled_date <= last_day
+            ).all()
+            period_name = target_date.strftime('%B %Y')
+        else:
+            classes = Class.query.filter(Class.scheduled_date == target_date).all()
+            period_name = target_date.strftime('%B %d, %Y')
+        
+        print(f"📊 Found {len(classes)} classes")
+        
+        # Generate export based on type
+        if export_type == 'pdf':
+            print("📄 Generating PDF")
+            pdf_data = generate_timetable_pdf(classes, period_name, period)
+            response = make_response(pdf_data)
+            response.headers['Content-Type'] = 'application/pdf'
+            response.headers['Content-Disposition'] = f'attachment; filename=timetable_{date_param}.pdf'
+            return response
+            
+        elif export_type == 'csv':
+            print("📊 Generating CSV")
+            csv_data = generate_timetable_csv(classes, period_name)
+            response = make_response(csv_data)
+            response.headers['Content-Type'] = 'text/csv; charset=utf-8'
+            response.headers['Content-Disposition'] = f'attachment; filename=timetable_{date_param}.csv'
+            return response
+            
+        elif export_type == 'excel':
+            print("📊 Generating Excel")
+            excel_data = generate_timetable_excel(classes, period_name)
+            response = make_response(excel_data)
+            response.headers['Content-Type'] = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            response.headers['Content-Disposition'] = f'attachment; filename=timetable_{date_param}.xlsx'
+            return response
+            
+        elif export_type == 'calendar':
+            print("📅 Generating Calendar")
+            calendar_data = generate_timetable_calendar(classes, period_name)
+            response = make_response(calendar_data)
+            response.headers['Content-Type'] = 'text/calendar; charset=utf-8'
+            response.headers['Content-Disposition'] = f'attachment; filename=timetable_{date_param}.ics'
+            return response
+            
+        else:
+            return jsonify({'success': False, 'error': f'Unsupported export type: {export_type}'}), 400
         
     except Exception as e:
+        print(f"❌ Export error: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 500
     
 def generate_timetable_pdf(classes, period_name, view_type):
@@ -3197,6 +3395,260 @@ def generate_timetable_pdf(classes, period_name, view_type):
         print(f"PDF generation error: {str(e)}")
         raise e
     
+def generate_timetable_csv(classes, period_name):
+    """Generate CSV export for timetable"""
+    try:
+        output = io.StringIO()
+        writer = csv.writer(output)
+        
+        # Write header
+        writer.writerow([
+            'Date', 'Time', 'End Time', 'Subject', 'Tutor', 'Students', 
+            'Duration (mins)', 'Status', 'Class Type', 'Grade', 'Board',
+            'Platform', 'Meeting Link', 'Notes'
+        ])
+        
+        # Write data rows
+        for cls in classes:
+            tutor_name = cls.tutor.user.full_name if cls.tutor and cls.tutor.user else 'No Tutor'
+            
+            # Get student names
+            students = 'No Students'
+            if cls.class_type == 'demo':
+                students = 'Demo Student'
+            else:
+                student_objects = cls.get_student_objects()
+                if student_objects:
+                    students = ', '.join([s.full_name for s in student_objects])
+            
+            # Calculate end time
+            end_time = ''
+            if cls.scheduled_time and cls.duration:
+                start_datetime = datetime.combine(datetime.today(), cls.scheduled_time)
+                end_datetime = start_datetime + timedelta(minutes=cls.duration)
+                end_time = end_datetime.time().strftime('%H:%M')
+            
+            writer.writerow([
+                cls.scheduled_date.strftime('%Y-%m-%d') if cls.scheduled_date else '',
+                cls.scheduled_time.strftime('%H:%M') if cls.scheduled_time else '',
+                end_time,
+                cls.subject or '',
+                tutor_name,
+                students,
+                cls.duration or '',
+                cls.status.title() if cls.status else '',
+                cls.class_type.replace('_', ' ').title() if cls.class_type else '',
+                cls.grade or '',
+                cls.board or '',
+                cls.platform or '',
+                cls.meeting_link or '',
+                cls.class_notes or ''
+            ])
+        
+        output.seek(0)
+        return output.getvalue()
+        
+    except Exception as e:
+        print(f"CSV generation error: {str(e)}")
+        raise e
+    
+def generate_timetable_calendar(classes, period_name):
+    """Generate Calendar export for timetable"""
+    try:
+        if ICALENDAR_AVAILABLE:
+            # Use advanced icalendar library
+            cal = Calendar()
+            cal.add('prodid', '-//I2Global LMS//Timetable Export//EN')
+            cal.add('version', '2.0')
+            cal.add('calscale', 'GREGORIAN')
+            cal.add('method', 'PUBLISH')
+            cal.add('x-wr-calname', f'I2Global LMS - {period_name}')
+            
+            tz = timezone('Asia/Kolkata')
+            
+            for cls in classes:
+                if not cls.scheduled_date or not cls.scheduled_time:
+                    continue
+                    
+                event = Event()
+                tutor_name = cls.tutor.user.full_name if cls.tutor and cls.tutor.user else 'No Tutor'
+                
+                # Event details
+                event.add('summary', f'{cls.subject} - {cls.class_type.replace("_", " ").title()}')
+                
+                description = f"""Subject: {cls.subject}
+Tutor: {tutor_name}
+Type: {cls.class_type.replace('_', ' ').title()}
+Duration: {cls.duration} minutes
+Status: {cls.status.title() if cls.status else 'N/A'}"""
+                
+                if cls.meeting_link:
+                    description += f"\nMeeting Link: {cls.meeting_link}"
+                    
+                event.add('description', description)
+                
+                # Timing
+                start_datetime = datetime.combine(cls.scheduled_date, cls.scheduled_time)
+                start_datetime = tz.localize(start_datetime)
+                event.add('dtstart', start_datetime)
+                
+                end_datetime = start_datetime + timedelta(minutes=cls.duration or 60)
+                event.add('dtend', end_datetime)
+                
+                # Location
+                event.add('location', cls.platform or 'Online Class')
+                event.add('uid', f'class-{cls.id}@i2global-lms.com')
+                event.add('dtstamp', datetime.now(tz))
+                
+                cal.add_component(event)
+            
+            return cal.to_ical().decode('utf-8')
+        
+        else:
+            # Use simple iCal format
+            ical_lines = [
+                "BEGIN:VCALENDAR",
+                "VERSION:2.0",
+                "PRODID:-//I2Global LMS//Timetable Export//EN",
+                "CALSCALE:GREGORIAN",
+                f"X-WR-CALNAME:I2Global LMS - {period_name}"
+            ]
+            
+            for cls in classes:
+                if not cls.scheduled_date or not cls.scheduled_time:
+                    continue
+                    
+                tutor_name = cls.tutor.user.full_name if cls.tutor and cls.tutor.user else 'No Tutor'
+                start_datetime = datetime.combine(cls.scheduled_date, cls.scheduled_time)
+                end_datetime = start_datetime + timedelta(minutes=cls.duration or 60)
+                
+                ical_lines.extend([
+                    "BEGIN:VEVENT",
+                    f"UID:class-{cls.id}@i2global-lms.com",
+                    f"DTSTART:{start_datetime.strftime('%Y%m%dT%H%M%S')}",
+                    f"DTEND:{end_datetime.strftime('%Y%m%dT%H%M%S')}",
+                    f"SUMMARY:{cls.subject} - {cls.class_type}",
+                    f"DESCRIPTION:Tutor: {tutor_name}\\nDuration: {cls.duration} min",
+                    "LOCATION:Online Class",
+                    "END:VEVENT"
+                ])
+            
+            ical_lines.append("END:VCALENDAR")
+            return '\n'.join(ical_lines)
+        
+    except Exception as e:
+        print(f"Calendar generation error: {str(e)}")
+        raise e
+    
+def generate_timetable_ical(classes, period_name):
+    """Generate iCal export for timetable"""
+    try:
+        # Create calendar
+        cal = Calendar()
+        cal.add('prodid', '-//I2Global LMS//Timetable Export//EN')
+        cal.add('version', '2.0')
+        cal.add('calscale', 'GREGORIAN')
+        cal.add('method', 'PUBLISH')
+        cal.add('x-wr-calname', f'I2Global LMS - {period_name}')
+        cal.add('x-wr-caldesc', f'Class schedule for {period_name}')
+        
+        # Set timezone (adjust as needed)
+        tz = timezone('Asia/Kolkata')  # Change to your timezone
+        
+        # Add events
+        for cls in classes:
+            if not cls.scheduled_date or not cls.scheduled_time:
+                continue
+                
+            event = Event()
+            
+            # Event details
+            tutor_name = cls.tutor.user.full_name if cls.tutor and cls.tutor.user else 'No Tutor'
+            
+            # Get student names
+            if cls.class_type == 'demo':
+                students = 'Demo Student'
+            else:
+                student_objects = cls.get_student_objects()
+                students = ', '.join([s.full_name for s in student_objects]) if student_objects else 'No Students'
+            
+            # Event title
+            event.add('summary', f'{cls.subject} - {cls.class_type.replace("_", " ").title()}')
+            
+            # Event description
+            description = f"""
+Class Details:
+Subject: {cls.subject}
+Tutor: {tutor_name}
+Students: {students}
+Type: {cls.class_type.replace('_', ' ').title()}
+Grade: {cls.grade or 'N/A'}
+Board: {cls.board or 'N/A'}
+Duration: {cls.duration} minutes
+Status: {cls.status.title() if cls.status else 'N/A'}
+Platform: {cls.platform or 'N/A'}
+Meeting Link: {cls.meeting_link or 'N/A'}
+Notes: {cls.class_notes or 'N/A'}
+            """.strip()
+            
+            event.add('description', description)
+            
+            # Event timing
+            start_datetime = datetime.combine(cls.scheduled_date, cls.scheduled_time)
+            start_datetime = tz.localize(start_datetime)
+            event.add('dtstart', start_datetime)
+            
+            # End time
+            if cls.duration:
+                end_datetime = start_datetime + timedelta(minutes=cls.duration)
+                event.add('dtend', end_datetime)
+            else:
+                # Default 1 hour if no duration
+                end_datetime = start_datetime + timedelta(hours=1)
+                event.add('dtend', end_datetime)
+            
+            # Event location
+            if cls.platform and cls.meeting_link:
+                event.add('location', f'{cls.platform}: {cls.meeting_link}')
+            elif cls.platform:
+                event.add('location', cls.platform)
+            else:
+                event.add('location', 'Online Class')
+            
+            # Event categories
+            event.add('categories', [cls.subject, cls.class_type, 'I2Global LMS'])
+            
+            # Event status based on class status
+            if cls.status == 'completed':
+                event.add('status', 'CONFIRMED')
+            elif cls.status == 'cancelled':
+                event.add('status', 'CANCELLED')
+            else:
+                event.add('status', 'TENTATIVE')
+            
+            # Unique ID
+            event.add('uid', f'class-{cls.id}@i2global-lms.com')
+            
+            # Created timestamp
+            event.add('dtstamp', datetime.now(tz))
+            
+            # Add alarm/reminder (15 minutes before)
+            from icalendar import Alarm
+            alarm = Alarm()
+            alarm.add('action', 'DISPLAY')
+            alarm.add('description', f'Reminder: {cls.subject} class starting in 15 minutes')
+            alarm.add('trigger', timedelta(minutes=-15))
+            event.add_component(alarm)
+            
+            cal.add_component(event)
+        
+        return cal.to_ical().decode('utf-8')
+        
+    except Exception as e:
+        print(f"iCal generation error: {str(e)}")
+        raise e    
+    
+    
 @bp.route('/api/v1/timetable/enhanced-email-preview', methods=['POST'])
 @login_required
 @admin_required
@@ -3237,7 +3689,7 @@ def api_enhanced_email_preview():
 
 @bp.route('/timetable/email')
 @login_required
-@admin_required
+@require_permission('class_management')
 def timetable_email():
     """Timetable email management page"""
     tutors = Tutor.query.all()
@@ -3582,7 +4034,7 @@ def admin_dashboard():
 
 @bp.route('/finance')
 @login_required
-@admin_required
+@require_permission('finance_management')
 def finance_dashboard():
     """Finance dashboard"""
     from datetime import datetime, date
@@ -3664,7 +4116,7 @@ def finance_dashboard():
     
 @bp.route('/salary-generation')
 @login_required
-@admin_required
+@require_permission('finance_management')
 def salary_generation():
     """Salary generation page"""
     from datetime import datetime
@@ -3736,7 +4188,7 @@ def tutor_salary_details(tutor_id):
 
 @bp.route('/fee-collection')
 @login_required
-@admin_required
+@require_permission('finance_management')
 def fee_collection():
     """Fee collection page"""
     # Get students with outstanding fees
@@ -3795,7 +4247,7 @@ def finance_dashboard_api():
 
 @bp.route('/system-documents')
 @login_required
-@admin_required
+@require_permission('system_documents')
 def system_documents():
     """Manage system documents"""
     from app.models.system_document import SystemDocument
@@ -4946,6 +5398,8 @@ def api_tutor_matching_analytics():
         
 
 
+# FIXED VERSION - Replace your existing course batch routes with this
+
 @bp.route('/course-batches')
 @login_required
 @admin_required
@@ -4988,18 +5442,23 @@ def course_batches():
 
     classes = query.all()
 
+    # Get all students efficiently
     student_ids = set()
     for cls in classes:
         try:
             ids = cls.get_students() or []
             student_ids.update(ids)
-        except Exception:
+        except Exception as e:
+            print(f"Error getting students for class {cls.id}: {str(e)}")
             continue
 
     students_by_id = {}
     if student_ids:
-        students = Student.query.filter(Student.id.in_(student_ids)).all()
-        students_by_id = {s.id: s for s in students}
+        try:
+            students = Student.query.filter(Student.id.in_(student_ids)).all()
+            students_by_id = {s.id: s for s in students}
+        except Exception as e:
+            print(f"Error fetching students: {str(e)}")
 
     # Group by tutor first, then create individual batches within tutor
     tutors_data = defaultdict(lambda: {
@@ -5013,12 +5472,14 @@ def course_batches():
             'total_classes': 0,
             'completed_classes': 0,
             'scheduled_classes': 0,
+            'cancelled_classes': 0,
             'active_students': set(),
             'completed_students': set()
         }),
         'total_classes': 0,
         'completed_classes': 0,
         'scheduled_classes': 0,
+        'cancelled_classes': 0,
         'all_students': set(),
         'active_students': set(),
         'completed_students': set(),
@@ -5030,10 +5491,13 @@ def course_batches():
         if not cls.tutor or not cls.scheduled_date:
             continue
         
-        # Use URL encoding to handle all special characters properly
-        subject_encoded = urllib.parse.quote(cls.subject, safe='')
-        # CHANGED: Remove month_year_key from batch_key
-        batch_key = f"{subject_encoded}_{cls.tutor_id}"
+        # FIXED: Better subject encoding for batch key
+        try:
+            # Create a safe batch key
+            safe_subject = cls.subject.replace(' ', '_').replace('/', '_').replace('&', 'and')
+            batch_key = f"{safe_subject}_{cls.tutor_id}"
+        except Exception:
+            batch_key = f"Unknown_Subject_{cls.tutor_id}"
         
         tutor_data = tutors_data[cls.tutor_id]
         tutor_data['tutor'] = cls.tutor
@@ -5045,10 +5509,13 @@ def course_batches():
         dr['start'] = min(dr['start'], cls.scheduled_date) if dr['start'] else cls.scheduled_date
         dr['end'] = max(dr['end'], cls.scheduled_date) if dr['end'] else cls.scheduled_date
 
+        # Count by status
         if cls.status == 'completed':
             tutor_data['completed_classes'] += 1
         elif cls.status == 'scheduled':
             tutor_data['scheduled_classes'] += 1
+        elif cls.status == 'cancelled':
+            tutor_data['cancelled_classes'] += 1
 
         # Individual batch data
         batch = tutor_data['batches'][batch_key]
@@ -5061,27 +5528,41 @@ def course_batches():
             batch['completed_classes'] += 1
         elif cls.status == 'scheduled':
             batch['scheduled_classes'] += 1
+        elif cls.status == 'cancelled':
+            batch['cancelled_classes'] += 1
 
         batch_dr = batch['date_range']
         batch_dr['start'] = min(batch_dr['start'], cls.scheduled_date) if batch_dr['start'] else cls.scheduled_date
         batch_dr['end'] = max(batch_dr['end'], cls.scheduled_date) if batch_dr['end'] else cls.scheduled_date
 
+        # FIXED: Better student handling
         try:
             ids = cls.get_students() or []
             for sid in ids:
+                if not isinstance(sid, int):
+                    continue
+                    
                 tutor_data['all_students'].add(sid)
                 batch['students'].add(sid)
                 
                 st = students_by_id.get(sid)
                 if st:
-                    if hasattr(st, "is_course_active") and st.is_course_active(cls.scheduled_date):
-                        tutor_data['active_students'].add(sid)
-                        batch['active_students'].add(sid)
-                    elif st.enrollment_status == 'completed':
-                        tutor_data['completed_students'].add(sid)
-                        batch['completed_students'].add(sid)
-        except Exception:
-            pass
+                    try:
+                        if hasattr(st, "is_course_active") and callable(st.is_course_active):
+                            if st.is_course_active(cls.scheduled_date):
+                                tutor_data['active_students'].add(sid)
+                                batch['active_students'].add(sid)
+                        elif getattr(st, 'enrollment_status', None) == 'active':
+                            tutor_data['active_students'].add(sid)
+                            batch['active_students'].add(sid)
+                            
+                        if getattr(st, 'enrollment_status', None) == 'completed':
+                            tutor_data['completed_students'].add(sid)
+                            batch['completed_students'].add(sid)
+                    except Exception as e:
+                        print(f"Error checking student {sid} status: {str(e)}")
+        except Exception as e:
+            print(f"Error processing students for class {cls.id}: {str(e)}")
 
     # Convert to list for tutors
     tutor_list = []
@@ -5093,15 +5574,23 @@ def course_batches():
             b['student_count'] = len(b['students'])
             b['active_student_count'] = len(b['active_students'])
             b['completed_student_count'] = len(b['completed_students'])
-            b['progress_percentage'] = round(
-                (b['completed_classes'] / b['total_classes']) * 100, 1
-            ) if b['total_classes'] else 0
+            
+            # FIXED: Safe progress calculation
+            if b['total_classes'] > 0:
+                b['progress_percentage'] = round((b['completed_classes'] / b['total_classes']) * 100, 1)
+            else:
+                b['progress_percentage'] = 0
 
+            # Get sample student objects
             ids_slice = list(b['students'])[:5]
-            b['student_objects'] = [students_by_id[i] for i in ids_slice if i in students_by_id]
+            b['student_objects'] = []
+            for sid in ids_slice:
+                if sid in students_by_id:
+                    b['student_objects'].append(students_by_id[sid])
+            
             batch_list.append(b)
         
-        # Sort batches by date
+        # Sort batches by date (most recent first)
         batch_list.sort(key=lambda x: x['date_range']['start'] or date.min, reverse=True)
         
         # Tutor summary
@@ -5112,27 +5601,36 @@ def course_batches():
             'total_classes': tutor_data['total_classes'],
             'completed_classes': tutor_data['completed_classes'],
             'scheduled_classes': tutor_data['scheduled_classes'],
+            'cancelled_classes': tutor_data['cancelled_classes'],
             'total_students': len(tutor_data['all_students']),
             'active_students': len(tutor_data['active_students']),
             'completed_students': len(tutor_data['completed_students']),
             'subjects': list(tutor_data['subjects']),
             'date_range': tutor_data['date_range'],
-            'batches': batch_list,
-            'progress_percentage': round(
-                (tutor_data['completed_classes'] / tutor_data['total_classes']) * 100, 1
-            ) if tutor_data['total_classes'] else 0
+            'batches': batch_list
         }
+        
+        # FIXED: Safe progress calculation
+        if tutor_summary['total_classes'] > 0:
+            tutor_summary['progress_percentage'] = round(
+                (tutor_summary['completed_classes'] / tutor_summary['total_classes']) * 100, 1
+            )
+        else:
+            tutor_summary['progress_percentage'] = 0
         
         # Get student objects for preview
         ids_slice = list(tutor_data['active_students'])[:5]
-        tutor_summary['student_objects'] = [students_by_id[i] for i in ids_slice if i in students_by_id]
+        tutor_summary['student_objects'] = []
+        for sid in ids_slice:
+            if sid in students_by_id:
+                tutor_summary['student_objects'].append(students_by_id[sid])
         
         tutor_list.append(tutor_summary)
 
     # Sort tutors by name
     tutor_list.sort(key=lambda x: x['tutor'].user.full_name if x['tutor'] and x['tutor'].user else 'ZZZ')
 
-    # Apply filters
+    # Apply activity filter
     activate_param = request.args.get('activate')  
     if activate_param in ('0', '1'):
         want_active = (activate_param == '1')
@@ -5143,12 +5641,14 @@ def course_batches():
                 filtered.append(tutor)
         tutor_list = filtered
 
+    # Get filter options
     months = sorted(
         {cls.scheduled_date.strftime('%Y-%m') for cls in classes if cls.scheduled_date},
         reverse=True
     )
     tutors = Tutor.query.filter_by(status='active').all()
     
+    # Simple pagination
     from math import ceil
 
     class SimplePagination:
@@ -5156,7 +5656,7 @@ def course_batches():
             self.page = page
             self.per_page = per_page
             self.total = total
-            self.pages = ceil(total / per_page) if per_page else 0
+            self.pages = ceil(total / per_page) if per_page > 0 else 0
             self.has_prev = page > 1
             self.has_next = page < self.pages
             self.prev_num = page - 1 if self.has_prev else None
@@ -5183,6 +5683,8 @@ def course_batches():
 
     pagination = SimplePagination(page, per_page, total)
 
+    print(f"Course batches loaded in {time.perf_counter() - t0:.3f}s")
+
     return render_template(
         'admin/course_batches.html',
         tutors_data=page_items,
@@ -5193,8 +5695,6 @@ def course_batches():
         total_tutors=total
     )
 
-# Add these routes to your existing app/routes/admin.py
-import urllib.parse
 
 @bp.route('/course-batches/<batch_id>')
 @login_required
@@ -5204,20 +5704,21 @@ def course_batch_details(batch_id):
     from datetime import datetime, date
     from sqlalchemy.orm import selectinload
     import traceback
-    import urllib.parse
 
     try:
-        # Parse batch_id - UPDATED for new format
+        # FIXED: Better batch_id parsing
         parts = batch_id.split('_')
         if len(parts) < 2:
             raise ValueError(f"Invalid batch_id format: {batch_id}")
 
-        raw_tutor_id = parts[-1]
-        raw_subject = '_'.join(parts[:-1])
+        # Last part is tutor_id, everything else is subject
+        tutor_id = int(parts[-1])
+        subject_parts = parts[:-1]
         
-        # URL decode the subject to get the original subject name
-        subject = urllib.parse.unquote(raw_subject)
-        tutor_id = int(raw_tutor_id)
+        # Reconstruct subject name (reverse the encoding)
+        subject = '_'.join(subject_parts).replace('_', ' ').replace('and', '&')
+
+        print(f"Parsed batch_id '{batch_id}' -> subject: '{subject}', tutor_id: {tutor_id}")
 
     except Exception as e:
         print(f"Error parsing batch_id '{batch_id}': {str(e)}")
@@ -5225,7 +5726,7 @@ def course_batch_details(batch_id):
         flash('Invalid batch ID format', 'error')
         return redirect(url_for('admin.course_batches'))
 
-    # Query classes with exact subject matching - REMOVED date filtering
+    # FIXED: Query classes with better subject matching
     classes = (
         Class.query
         .options(selectinload(Class.tutor))
@@ -5237,10 +5738,10 @@ def course_batch_details(batch_id):
         .all()
     )
 
-    print(f"Found {len(classes)} classes for batch")
+    print(f"Found {len(classes)} classes for subject '{subject}' and tutor {tutor_id}")
 
     if not classes:
-        # Try to find any classes for this tutor for debugging
+        # Debug: Try to find similar subjects
         debug_classes = (
             Class.query
             .filter(Class.tutor_id == tutor_id)
@@ -5248,31 +5749,35 @@ def course_batch_details(batch_id):
         )
         
         if debug_classes:
-            subjects_found = [cls.subject for cls in debug_classes]
-            print(f"Looking for subject: '{subject}'")
+            subjects_found = list(set(cls.subject for cls in debug_classes))
             print(f"Available subjects for tutor {tutor_id}: {subjects_found}")
-            flash(f'No classes found for subject "{subject}". Available subjects: {", ".join(set(subjects_found))}', 'warning')
+            flash(f'No classes found for subject "{subject}". Available: {", ".join(subjects_found)}', 'warning')
         else:
             print(f"No classes found for tutor {tutor_id}")
             flash(f'No classes found for this tutor', 'error')
         
         return redirect(url_for('admin.course_batches'))
 
-    # Get all student IDs
+    # FIXED: Better student collection
     all_student_ids = set()
     for c in classes:
         try:
             ids = c.get_students() or []
-            all_student_ids.update(ids)
+            # Ensure all IDs are integers
+            valid_ids = [int(sid) for sid in ids if isinstance(sid, (int, str)) and str(sid).isdigit()]
+            all_student_ids.update(valid_ids)
         except Exception as e:
             print(f"Error getting students for class {c.id}: {str(e)}")
-            traceback.print_exc()
 
     students_by_id = {}
     students = []
     if all_student_ids:
-        students = Student.query.filter(Student.id.in_(all_student_ids)).all()
-        students_by_id = {s.id: s for s in students}
+        try:
+            students = Student.query.filter(Student.id.in_(all_student_ids)).all()
+            students_by_id = {s.id: s for s in students}
+            print(f"Found {len(students)} students for batch")
+        except Exception as e:
+            print(f"Error fetching students: {str(e)}")
 
     # Calculate statistics
     total_classes = len(classes)
@@ -5281,8 +5786,8 @@ def course_batch_details(batch_id):
     cancelled_classes = sum(1 for c in classes if c.status == 'cancelled')
 
     total_students = len(students)
-    active_students = sum(1 for s in students if s.enrollment_status == 'active')
-    completed_students = sum(1 for s in students if s.enrollment_status == 'completed')
+    active_students = sum(1 for s in students if getattr(s, 'enrollment_status', '') == 'active')
+    completed_students = sum(1 for s in students if getattr(s, 'enrollment_status', '') == 'completed')
 
     stats = {
         'total_classes': total_classes,
@@ -5291,14 +5796,18 @@ def course_batch_details(batch_id):
         'cancelled_classes': cancelled_classes,
         'total_students': total_students,
         'active_students': active_students,
-        'completed_students': completed_students
+        'completed_students': completed_students,
+        'progress_percentage': round((completed_classes / total_classes) * 100, 1) if total_classes > 0 else 0
     }
 
+    # Get tutor info
     tutor = classes[0].tutor if classes else Tutor.query.get(tutor_id)
     
-    # Get all available tutors for change tutor functionality
+    # Get available tutors for change functionality
     available_tutors = Tutor.query.filter_by(status='active').all()
-    available_tutors = [t for t in available_tutors if t.get_availability()]
+    available_tutors = [t for t in available_tutors if hasattr(t, 'get_availability') and t.get_availability()]
+
+    print(f"Batch details loaded successfully")
 
     return render_template(
         'admin/course_batch_details.html',
@@ -5311,6 +5820,7 @@ def course_batch_details(batch_id):
         stats=stats
     )
 
+    
 # ============ BATCH MANAGEMENT API ROUTES ============
 
 @bp.route('/api/batch/<batch_id>/change-tutor', methods=['POST'])
@@ -5669,7 +6179,7 @@ def api_cancel_class(class_id):
 # ADD THIS ROUTE for dashboard statistics
 @bp.route('/api/v1/dashboard/reschedule-stats')
 @login_required
-@admin_required
+@require_permission('schedule_management')
 def api_reschedule_stats():
     """Get reschedule request statistics for dashboard"""
     try:
@@ -5709,3 +6219,722 @@ def api_reschedule_stats():
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
     
+    
+# ADD THESE ROUTES TO app/routes/admin.py
+
+@bp.route('/api/v1/tutors/active')
+@login_required
+@admin_required
+def api_get_active_tutors():
+    """Get active tutors for bulk edit and other operations"""
+    try:
+        tutors = Tutor.query.join(Tutor.user).filter(
+            Tutor.status == 'active',
+            Tutor.user.has(is_active=True)
+        ).all()
+        
+        tutor_data = []
+        for tutor in tutors:
+            tutor_data.append({
+                'id': tutor.id,
+                'name': tutor.user.full_name,
+                'subjects': tutor.get_subjects(),
+                'grades': tutor.get_grades(),
+                'status': tutor.status,
+                'department': tutor.user.department.name if tutor.user.department else None
+            })
+        
+        return jsonify({
+            'success': True,
+            'tutors': tutor_data
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@bp.route('/classes/<int:class_id>/edit', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def edit_class(class_id):
+    """Edit single class"""
+    from app.forms.class_forms import EditClassForm
+    import json
+    
+    class_obj = Class.query.get_or_404(class_id)
+    
+    # Check if class can be edited
+    if not class_obj.is_editable():
+        flash('This class cannot be edited. Classes that are completed, ongoing, or start within 1 hour cannot be modified.', 'error')
+        return redirect(url_for('admin.class_details', class_id=class_id))
+    
+    # Check department access for coordinators
+    if current_user.role == 'coordinator':
+        if class_obj.tutor and class_obj.tutor.user.department_id != current_user.department_id:
+            flash('Access denied. You can only edit classes from your department.', 'error')
+            return redirect(url_for('admin.classes'))
+    
+    form = EditClassForm(class_obj=class_obj, department_id=current_user.department_id if current_user.role == 'coordinator' else None)
+    
+    if form.validate_on_submit():
+        try:
+            # Store original values for change tracking
+            original_tutor_id = class_obj.tutor_id
+            original_date = class_obj.scheduled_date
+            original_time = class_obj.scheduled_time
+            
+            # Update basic information
+            class_obj.subject = form.subject.data
+            class_obj.class_type = form.class_type.data
+            class_obj.grade = form.grade.data
+            class_obj.board = form.board.data
+            
+            # Update scheduling
+            class_obj.scheduled_date = form.scheduled_date.data
+            class_obj.scheduled_time = form.scheduled_time.data
+            class_obj.duration = form.duration.data
+            
+            # Calculate end time
+            from datetime import datetime, timedelta
+            start_datetime = datetime.combine(class_obj.scheduled_date, class_obj.scheduled_time)
+            end_datetime = start_datetime + timedelta(minutes=class_obj.duration)
+            class_obj.end_time = end_datetime.time()
+            
+            # Update tutor assignment
+            class_obj.tutor_id = form.tutor_id.data
+            
+            # Update student assignments
+            if form.class_type.data == 'one_on_one':
+                class_obj.primary_student_id = form.primary_student_id.data
+                class_obj.students = None  # Clear group students
+            elif form.class_type.data == 'group':
+                if form.students.data:
+                    class_obj.students = json.dumps(form.students.data)
+                if form.primary_student_id.data and form.primary_student_id.data != 0:
+                    class_obj.primary_student_id = form.primary_student_id.data
+                else:
+                    class_obj.primary_student_id = None
+            else:  # demo
+                class_obj.primary_student_id = form.primary_student_id.data
+                class_obj.students = None
+            
+            # Update platform and links
+            class_obj.platform = form.platform.data
+            class_obj.meeting_link = form.meeting_link.data
+            class_obj.meeting_id = form.meeting_id.data
+            class_obj.meeting_password = form.meeting_password.data
+            
+            # Update notes
+            class_obj.class_notes = form.class_notes.data
+            
+            # Update timestamp
+            class_obj.updated_at = datetime.utcnow()
+            
+            db.session.commit()
+            
+            # Create change notification message
+            changes = []
+            if original_tutor_id != class_obj.tutor_id:
+                old_tutor = Tutor.query.get(original_tutor_id).user.full_name if original_tutor_id else 'None'
+                new_tutor = Tutor.query.get(class_obj.tutor_id).user.full_name
+                changes.append(f"Tutor: {old_tutor} → {new_tutor}")
+            
+            if original_date != class_obj.scheduled_date or original_time != class_obj.scheduled_time:
+                old_schedule = f"{original_date} at {original_time}"
+                new_schedule = f"{class_obj.scheduled_date} at {class_obj.scheduled_time}"
+                changes.append(f"Schedule: {old_schedule} → {new_schedule}")
+            
+            if changes:
+                flash(f'Class updated successfully! Changes: {", ".join(changes)}', 'success')
+            else:
+                flash('Class updated successfully!', 'success')
+            
+            return redirect(url_for('admin.class_details', class_id=class_id))
+            
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Error updating class: {str(e)}', 'error')
+    
+    return render_template('admin/edit_class.html', form=form, class_obj=class_obj)
+
+
+@bp.route('/classes/bulk-edit', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def bulk_edit_classes():
+    """Bulk edit multiple classes"""
+    from app.forms.class_forms import BulkEditClassForm
+    import json
+    from datetime import datetime, timedelta
+    
+    form = BulkEditClassForm(department_id=current_user.department_id if current_user.role == 'coordinator' else None)
+    
+    if form.validate_on_submit():
+        try:
+            # Parse selected classes
+            class_ids = json.loads(form.selected_classes.data)
+            classes = Class.query.filter(Class.id.in_(class_ids)).all()
+            
+            # Filter editable classes
+            editable_classes = [cls for cls in classes if cls.is_editable()]
+            skipped_count = len(classes) - len(editable_classes)
+            
+            if not editable_classes:
+                flash('No classes could be edited. All selected classes are either completed, ongoing, or start within 1 hour.', 'warning')
+                return redirect(url_for('admin.classes'))
+            
+            updated_count = 0
+            error_count = 0
+            
+            for class_obj in editable_classes:
+                try:
+                    changes_made = False
+                    
+                    # Update tutor if specified
+                    if form.tutor_id.data and form.tutor_id.data != 0:
+                        # Check for conflicts before updating
+                        conflict_exists, _ = Class.check_time_conflict(
+                            form.tutor_id.data,
+                            class_obj.scheduled_date,
+                            class_obj.scheduled_time,
+                            class_obj.duration,
+                            class_obj.id
+                        )
+                        
+                        if not conflict_exists:
+                            class_obj.tutor_id = form.tutor_id.data
+                            changes_made = True
+                    
+                    # Update platform if specified
+                    if form.platform.data:
+                        class_obj.platform = form.platform.data
+                        changes_made = True
+                    
+                    # Apply time adjustments
+                    if form.time_adjustment.data:
+                        adjustment_map = {
+                            'add_15': 15,
+                            'subtract_15': -15,
+                            'add_30': 30,
+                            'subtract_30': -30
+                        }
+                        
+                        if form.time_adjustment.data in adjustment_map:
+                            minutes_delta = adjustment_map[form.time_adjustment.data]
+                            current_datetime = datetime.combine(class_obj.scheduled_date, class_obj.scheduled_time)
+                            new_datetime = current_datetime + timedelta(minutes=minutes_delta)
+                            
+                            # Ensure new time is not in the past
+                            if new_datetime.date() >= datetime.now().date():
+                                class_obj.scheduled_time = new_datetime.time()
+                                # Update end time
+                                end_datetime = new_datetime + timedelta(minutes=class_obj.duration)
+                                class_obj.end_time = end_datetime.time()
+                                changes_made = True
+                    
+                    # Update duration if specified
+                    if form.new_duration.data:
+                        class_obj.duration = form.new_duration.data
+                        # Recalculate end time
+                        start_datetime = datetime.combine(class_obj.scheduled_date, class_obj.scheduled_time)
+                        end_datetime = start_datetime + timedelta(minutes=class_obj.duration)
+                        class_obj.end_time = end_datetime.time()
+                        changes_made = True
+                    
+                    # Update meeting link if specified
+                    if form.meeting_link.data:
+                        class_obj.meeting_link = form.meeting_link.data
+                        changes_made = True
+                    
+                    # Append bulk notes if specified
+                    if form.bulk_notes.data:
+                        if class_obj.class_notes:
+                            class_obj.class_notes += f"\n\n{form.bulk_notes.data}"
+                        else:
+                            class_obj.class_notes = form.bulk_notes.data
+                        changes_made = True
+                    
+                    if changes_made:
+                        class_obj.updated_at = datetime.utcnow()
+                        updated_count += 1
+                
+                except Exception as e:
+                    error_count += 1
+                    print(f"Error updating class {class_obj.id}: {str(e)}")
+                    continue
+            
+            db.session.commit()
+            
+            # Create success message
+            message = f'Bulk edit completed! Updated {updated_count} classes.'
+            if skipped_count > 0:
+                message += f' {skipped_count} classes were skipped (not editable).'
+            if error_count > 0:
+                message += f' {error_count} classes had errors.'
+            
+            flash(message, 'success' if error_count == 0 else 'warning')
+            
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Error during bulk edit: {str(e)}', 'error')
+    
+    return redirect(url_for('admin.classes'))
+
+
+@bp.route('/api/v1/classes/<int:class_id>/editable')
+@login_required
+@admin_required
+def api_check_class_editable(class_id):
+    """Check if a class can be edited via API"""
+    try:
+        class_obj = Class.query.get_or_404(class_id)
+        
+        return jsonify({
+            'success': True,
+            'editable': class_obj.is_editable(),
+            'reason': None if class_obj.is_editable() else 'Class is completed, ongoing, or starts within 1 hour'
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@bp.route('/api/v1/classes/<int:class_id>/quick-edit', methods=['POST'])
+@login_required
+@admin_required
+def api_quick_edit_class(class_id):
+    """Quick edit class via API (for simple changes)"""
+    try:
+        class_obj = Class.query.get_or_404(class_id)
+        
+        if not class_obj.is_editable():
+            return jsonify({
+                'success': False,
+                'error': 'Class cannot be edited'
+            }), 400
+        
+        data = request.get_json()
+        
+        # Handle quick edits
+        if 'tutor_id' in data:
+            # Check for conflicts
+            conflict_exists, conflicting_class = Class.check_time_conflict(
+                data['tutor_id'],
+                class_obj.scheduled_date,
+                class_obj.scheduled_time,
+                class_obj.duration,
+                class_obj.id
+            )
+            
+            if conflict_exists:
+                return jsonify({
+                    'success': False,
+                    'error': f'Tutor has a conflicting class: {conflicting_class.subject}'
+                }), 400
+            
+            class_obj.tutor_id = data['tutor_id']
+        
+        if 'platform' in data:
+            class_obj.platform = data['platform']
+        
+        if 'meeting_link' in data:
+            class_obj.meeting_link = data['meeting_link']
+        
+        if 'class_notes' in data:
+            class_obj.class_notes = data['class_notes']
+        
+        class_obj.updated_at = datetime.utcnow()
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Class updated successfully'
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@bp.route('/classes/<int:class_id>/duplicate')
+@login_required
+@admin_required
+def duplicate_class(class_id):
+    """Create a duplicate of an existing class"""
+    try:
+        original_class = Class.query.get_or_404(class_id)
+        
+        # Create new class with same data
+        new_class = Class(
+            subject=original_class.subject,
+            class_type=original_class.class_type,
+            grade=original_class.grade,
+            board=original_class.board,
+            scheduled_date=original_class.scheduled_date,
+            scheduled_time=original_class.scheduled_time,
+            duration=original_class.duration,
+            tutor_id=original_class.tutor_id,
+            primary_student_id=original_class.primary_student_id,
+            students=original_class.students,
+            platform=original_class.platform,
+            meeting_link=original_class.meeting_link,
+            meeting_id=original_class.meeting_id,
+            meeting_password=original_class.meeting_password,
+            class_notes=f"Duplicated from class #{original_class.id}",
+            status='scheduled',
+            created_by=current_user.id
+        )
+        
+        # Calculate end time
+        from datetime import datetime, timedelta
+        start_datetime = datetime.combine(new_class.scheduled_date, new_class.scheduled_time)
+        end_datetime = start_datetime + timedelta(minutes=new_class.duration)
+        new_class.end_time = end_datetime.time()
+        
+        db.session.add(new_class)
+        db.session.commit()
+        
+        flash(f'Class duplicated successfully! New class ID: {new_class.id}', 'success')
+        return redirect(url_for('admin.edit_class', class_id=new_class.id))
+        
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error duplicating class: {str(e)}', 'error')
+        return redirect(url_for('admin.class_details', class_id=class_id))
+
+
+@bp.route('/classes/<int:class_id>/delete', methods=['POST'])
+@login_required
+@admin_required
+def delete_class(class_id):
+    """Delete a class"""
+    try:
+        class_obj = Class.query.get_or_404(class_id)
+        
+        if not class_obj.is_deletable():
+            return jsonify({
+                'success': False,
+                'error': 'Class cannot be deleted. Completed classes or classes that have started cannot be removed.'
+            }), 400
+        
+        # Check permissions
+        if current_user.role == 'coordinator':
+            if class_obj.tutor and class_obj.tutor.user.department_id != current_user.department_id:
+                return jsonify({
+                    'success': False,
+                    'error': 'Access denied'
+                }), 403
+        
+        # Delete related attendance records first
+        Attendance.query.filter_by(class_id=class_id).delete()
+        
+        # Delete the class
+        db.session.delete(class_obj)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Class deleted successfully'
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+        
+        
+### ADDITIONAL ROUTES FOR ALLOCATION HELPERS
+
+@bp.route('/allocation-dashboard')
+@login_required
+@require_permission('tutor_management')
+def allocation_dashboard():
+    """Smart Allocation Dashboard - Main View"""
+    
+    # Get analytics for overview
+    analytics = allocation_helper.get_allocation_analytics()
+    
+    # Get recent unallocated students (last 20)
+    unallocated_students = allocation_helper.get_unallocated_students()[:20]
+    
+    # Get available tutors (top 15 by rating)
+    available_tutors = allocation_helper.get_available_tutors()[:15]
+    
+    # Get departments for filtering
+    departments = Department.query.filter_by(is_active=True).all()
+    
+    # Get unique subjects and grades for filters
+    all_subjects = set()
+    all_grades = set()
+    all_boards = set()
+    
+    students = Student.query.filter_by(is_active=True).all()
+    for student in students:
+        try:
+            subjects = student.get_subjects_enrolled()
+            all_subjects.update(subjects)
+            all_grades.add(student.grade)
+            all_boards.add(student.board)
+        except:
+            continue
+    
+    filter_options = {
+        'subjects': sorted(list(all_subjects)),
+        'grades': sorted(list(all_grades), key=lambda x: int(x) if x.isdigit() else 999),
+        'boards': sorted(list(all_boards))
+    }
+    
+    return render_template('admin/allocation_dashboard.html',
+                         analytics=analytics,
+                         unallocated_students=unallocated_students,
+                         available_tutors=available_tutors,
+                         departments=departments,
+                         filter_options=filter_options)
+
+
+@bp.route('/api/allocation/unallocated-students')
+@login_required
+@admin_required
+def api_unallocated_students():
+    """API: Get unallocated students with filters"""
+    try:
+        # Get filters from request
+        filters = {}
+        if request.args.get('grade'):
+            filters['grade'] = request.args.get('grade')
+        if request.args.get('board'):
+            filters['board'] = request.args.get('board')
+        if request.args.get('subject'):
+            filters['subject'] = request.args.get('subject')
+        if request.args.get('department_id'):
+            filters['department_id'] = int(request.args.get('department_id'))
+        if request.args.get('days_unallocated'):
+            filters['days_unallocated'] = int(request.args.get('days_unallocated'))
+        
+        # Get pagination parameters
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 20, type=int)
+        
+        # Get unallocated students
+        all_unallocated = allocation_helper.get_unallocated_students(filters)
+        
+        # Apply pagination
+        start_idx = (page - 1) * per_page
+        end_idx = start_idx + per_page
+        paginated_students = all_unallocated[start_idx:end_idx]
+        
+        return jsonify({
+            'success': True,
+            'students': paginated_students,
+            'pagination': {
+                'page': page,
+                'per_page': per_page,
+                'total': len(all_unallocated),
+                'pages': (len(all_unallocated) + per_page - 1) // per_page,
+                'has_next': end_idx < len(all_unallocated),
+                'has_prev': page > 1
+            }
+        })
+        
+    except Exception as e:
+        current_app.logger.error(f"Unallocated students API error: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': 'Failed to fetch unallocated students'
+        }), 500
+
+
+@bp.route('/api/allocation/available-tutors')
+@login_required
+@admin_required
+def api_available_tutors():
+    """API: Get available tutors with filters"""
+    try:
+        # Get filters from request
+        filters = {}
+        if request.args.get('subject'):
+            filters['subject'] = request.args.get('subject')
+        if request.args.get('grade'):
+            filters['grade'] = request.args.get('grade')
+        if request.args.get('board'):
+            filters['board'] = request.args.get('board')
+        if request.args.get('min_rating'):
+            filters['min_rating'] = float(request.args.get('min_rating'))
+        if request.args.get('min_test_score'):
+            filters['min_test_score'] = float(request.args.get('min_test_score'))
+        
+        available_tutors = allocation_helper.get_available_tutors(filters)
+        
+        return jsonify({
+            'success': True,
+            'tutors': available_tutors
+        })
+        
+    except Exception as e:
+        current_app.logger.error(f"Available tutors API error: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': 'Failed to fetch available tutors'
+        }), 500
+
+
+@bp.route('/api/allocation/smart-match/<int:student_id>')
+@login_required
+@admin_required
+def api_smart_match(student_id):
+    """API: Get smart tutor matches for specific student"""
+    try:
+        limit = request.args.get('limit', 3, type=int)
+        matches = allocation_helper.get_smart_matches(student_id, limit)
+        
+        # Get student info
+        student = Student.query.get_or_404(student_id)
+        student_info = {
+            'id': student.id,
+            'full_name': student.full_name,
+            'grade': student.grade,
+            'board': student.board,
+            'subjects_enrolled': student.get_subjects_enrolled()
+        }
+        
+        return jsonify({
+            'success': True,
+            'student': student_info,
+            'matches': matches
+        })
+        
+    except Exception as e:
+        current_app.logger.error(f"Smart match API error: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': 'Failed to generate matches'
+        }), 500
+
+
+@bp.route('/api/allocation/quick-assign', methods=['POST'])
+@login_required
+@admin_required
+def api_quick_assign():
+    """API: Quick assign student to tutor"""
+    try:
+        data = request.get_json()
+        student_id = data.get('student_id')
+        tutor_id = data.get('tutor_id')
+        subject = data.get('subject', 'General')
+        
+        if not all([student_id, tutor_id]):
+            return jsonify({
+                'success': False,
+                'error': 'Student ID and Tutor ID are required'
+            }), 400
+        
+        # Verify student and tutor exist
+        student = Student.query.get_or_404(student_id)
+        tutor = Tutor.query.get_or_404(tutor_id)
+        
+        # Check if tutor has availability
+        if not tutor.get_availability():
+            return jsonify({
+                'success': False,
+                'error': 'Selected tutor has not set their availability'
+            }), 400
+        
+        # Check if student is already allocated
+        existing_class = Class.query.filter(
+            or_(
+                Class.primary_student_id == student_id,
+                Class.students.like(f'%{student_id}%')
+            ),
+            Class.status.in_(['scheduled', 'ongoing'])
+        ).first()
+        
+        if existing_class:
+            return jsonify({
+                'success': False,
+                'error': 'Student is already allocated to a class'
+            }), 400
+        
+        # Create new class assignment
+        # Note: You'll need to set scheduled_date and scheduled_time based on availability
+        # This is a simplified version - you may want to enhance this
+        new_class = Class(
+            subject=subject,
+            class_type='one_on_one',
+            tutor_id=tutor_id,
+            primary_student_id=student_id,
+            grade=student.grade,
+            board=student.board,
+            status='scheduled',
+            duration=60,  # Default 60 minutes
+            created_by=current_user.id,
+            created_at=datetime.utcnow()
+        )
+        
+        db.session.add(new_class)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': f'{student.full_name} assigned to {tutor.user.full_name}',
+            'class_id': new_class.id
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Quick assign error: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': 'Failed to assign student'
+        }), 500
+
+
+@bp.route('/api/allocation/bulk-auto-assign', methods=['POST'])
+@login_required
+@admin_required
+def api_bulk_auto_assign():
+    """API: Bulk auto-assign students to tutors"""
+    try:
+        data = request.get_json()
+        filters = data.get('filters', {})
+        dry_run = data.get('dry_run', True)
+        
+        result = allocation_helper.bulk_auto_assign(filters, dry_run)
+        
+        return jsonify(result)
+        
+    except Exception as e:
+        current_app.logger.error(f"Bulk auto assign error: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': 'Bulk assignment failed'
+        }), 500
+
+
+@bp.route('/api/allocation/analytics')
+@login_required
+@admin_required
+def api_allocation_analytics():
+    """API: Get allocation analytics data"""
+    try:
+        analytics = allocation_helper.get_allocation_analytics()
+        return jsonify({
+            'success': True,
+            'analytics': analytics
+        })
+        
+    except Exception as e:
+        current_app.logger.error(f"Analytics API error: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': 'Failed to fetch analytics'
+        }), 500

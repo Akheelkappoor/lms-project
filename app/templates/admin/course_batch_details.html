@@ -16,6 +16,12 @@
             </p>
         </div>
         <div class="header-actions">
+            <!-- Smart Bulk Edit Prominent Button -->
+            <button class="btn btn-success" onclick="openSmartBulkEdit()" id="smartBulkEditBtn">
+                <i class="fas fa-magic"></i>
+                Smart Bulk Edit
+            </button>
+            
             <a href="{{ url_for('admin.course_batches') }}" class="btn btn-outline-secondary">
                 <i class="fas fa-arrow-left"></i>
                 Back to Batches
@@ -89,7 +95,26 @@
         </div>
         <div class="card-body">
             <div class="row g-3">
-                <div class="col-md-6">
+                <!-- Smart Bulk Edit Card -->
+                <div class="col-md-4">
+                    <div class="management-card">
+                        <div class="d-flex align-items-center mb-3">
+                            <div class="management-icon smart">
+                                <i class="fas fa-magic"></i>
+                            </div>
+                            <div>
+                                <h6 class="mb-0">Smart Bulk Edit</h6>
+                                <small class="text-muted">Edit everything with one touch</small>
+                            </div>
+                        </div>
+                        <button class="btn btn-outline-success btn-sm" onclick="openSmartBulkEdit()">
+                            <i class="fas fa-wand-magic"></i>
+                            Smart Edit All Classes
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="col-md-4">
                     <div class="management-card">
                         <div class="d-flex align-items-center mb-3">
                             <div class="management-icon primary">
@@ -106,7 +131,7 @@
                         </button>
                     </div>
                 </div>
-                <div class="col-md-6">
+                <div class="col-md-4">
                     <div class="management-card">
                         <div class="d-flex align-items-center mb-3">
                             <div class="management-icon danger">
@@ -260,6 +285,490 @@
     </div>
 </div>
 
+<!-- Smart Bulk Edit Modal -->
+<div class="modal fade" id="smartBulkEditModal" tabindex="-1" aria-labelledby="smartBulkEditLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="smartBulkEditLabel">
+                    <i class="fas fa-magic"></i>
+                    Smart Bulk Edit - {{ subject }} Classes
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <!-- Selection Summary -->
+                <div class="alert alert-info">
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <div>
+                            <strong>Bulk Edit Target:</strong> <span id="editTargetCount">0</span> classes selected
+                            <br>
+                            <small>Changes will be applied to all selected classes at once</small>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Class Selection Options -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h6><i class="fas fa-target"></i> Select Classes to Edit</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="selectionType" id="selectAll" value="all" checked>
+                                    <label class="form-check-label" for="selectAll">
+                                        <strong>All Classes</strong> ({{ classes|length }} classes)
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="selectionType" id="selectScheduled" value="scheduled">
+                                    <label class="form-check-label" for="selectScheduled">
+                                        <strong>Scheduled Only</strong> ({{ stats.scheduled_classes }} classes)
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="selectionType" id="selectCustom" value="custom">
+                                    <label class="form-check-label" for="selectCustom">
+                                        <strong>Custom Selection</strong>
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="selectionType" id="selectDateRange" value="daterange">
+                                    <label class="form-check-label" for="selectDateRange">
+                                        <strong>Date Range</strong>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Date Range Selection -->
+                        <div id="dateRangeSection" class="mt-3" style="display: none;">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <label class="form-label">From Date:</label>
+                                    <input type="date" class="form-control" id="editFromDate">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">To Date:</label>
+                                    <input type="date" class="form-control" id="editToDate">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Edit Options Tabs -->
+                <div class="card">
+                    <div class="card-header">
+                        <ul class="nav nav-tabs card-header-tabs" id="editTabs" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active" id="basic-tab" data-bs-toggle="tab" data-bs-target="#basic" type="button" role="tab">
+                                    <i class="fas fa-info-circle"></i> Basic Info
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="schedule-tab" data-bs-toggle="tab" data-bs-target="#schedule" type="button" role="tab">
+                                    <i class="fas fa-calendar"></i> Scheduling
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="assignments-tab" data-bs-toggle="tab" data-bs-target="#assignments" type="button" role="tab">
+                                    <i class="fas fa-users"></i> Assignments
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="platform-tab" data-bs-toggle="tab" data-bs-target="#platform" type="button" role="tab">
+                                    <i class="fas fa-video"></i> Platform
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="content-tab" data-bs-toggle="tab" data-bs-target="#content" type="button" role="tab">
+                                    <i class="fas fa-book"></i> Content
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="status-tab" data-bs-toggle="tab" data-bs-target="#status" type="button" role="tab">
+                                    <i class="fas fa-flag"></i> Status
+                                </button>
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="card-body">
+                        <div class="tab-content" id="editTabsContent">
+                            
+                            <!-- Basic Info Tab -->
+                            <div class="tab-pane fade show active" id="basic" role="tabpanel">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="form-check mb-3">
+                                            <input class="form-check-input" type="checkbox" id="editSubject">
+                                            <label class="form-check-label" for="editSubject">
+                                                <strong>Change Subject</strong>
+                                            </label>
+                                        </div>
+                                        <input type="text" class="form-control" id="newSubject" placeholder="New subject name" disabled>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-check mb-3">
+                                            <input class="form-check-input" type="checkbox" id="editGrade">
+                                            <label class="form-check-label" for="editGrade">
+                                                <strong>Change Grade</strong>
+                                            </label>
+                                        </div>
+                                        <input type="text" class="form-control" id="newGrade" placeholder="Grade (e.g., Grade 10)" disabled>
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="form-check mb-3">
+                                            <input class="form-check-input" type="checkbox" id="editBoard">
+                                            <label class="form-check-label" for="editBoard">
+                                                <strong>Change Board</strong>
+                                            </label>
+                                        </div>
+                                        <select class="form-select" id="newBoard" disabled>
+                                            <option value="">Select Board</option>
+                                            <option value="CBSE">CBSE</option>
+                                            <option value="ICSE">ICSE</option>
+                                            <option value="State Board">State Board</option>
+                                            <option value="IGCSE">IGCSE</option>
+                                            <option value="IB">IB</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-check mb-3">
+                                            <input class="form-check-input" type="checkbox" id="editClassType">
+                                            <label class="form-check-label" for="editClassType">
+                                                <strong>Change Class Type</strong>
+                                            </label>
+                                        </div>
+                                        <select class="form-select" id="newClassType" disabled>
+                                            <option value="">Select Type</option>
+                                            <option value="one_on_one">One-on-One</option>
+                                            <option value="group">Group Class</option>
+                                            <option value="demo">Demo Class</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Scheduling Tab -->
+                            <div class="tab-pane fade" id="schedule" role="tabpanel">
+                                <div class="row">
+                                    <div class="col-md-12">
+                                        <h6 class="text-primary mb-3"><i class="fas fa-clock"></i> Time Operations</h6>
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <div class="form-check mb-3">
+                                            <input class="form-check-input" type="checkbox" id="shiftTime">
+                                            <label class="form-check-label" for="shiftTime">
+                                                <strong>Shift All Times</strong>
+                                            </label>
+                                        </div>
+                                        <div class="input-group">
+                                            <select class="form-select" id="timeShiftDirection" disabled>
+                                                <option value="add">Add</option>
+                                                <option value="subtract">Subtract</option>
+                                            </select>
+                                            <input type="number" class="form-control" id="timeShiftAmount" placeholder="30" disabled>
+                                            <span class="input-group-text">minutes</span>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="form-check mb-3">
+                                            <input class="form-check-input" type="checkbox" id="changeDuration">
+                                            <label class="form-check-label" for="changeDuration">
+                                                <strong>Change Duration</strong>
+                                            </label>
+                                        </div>
+                                        <div class="input-group">
+                                            <input type="number" class="form-control" id="newDuration" placeholder="60" disabled>
+                                            <span class="input-group-text">minutes</span>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="form-check mb-3">
+                                            <input class="form-check-input" type="checkbox" id="setSpecificTime">
+                                            <label class="form-check-label" for="setSpecificTime">
+                                                <strong>Set Specific Time</strong>
+                                            </label>
+                                        </div>
+                                        <input type="time" class="form-control" id="specificTime" disabled>
+                                    </div>
+                                </div>
+                                
+                                <hr>
+                                
+                                <div class="row">
+                                    <div class="col-md-12">
+                                        <h6 class="text-primary mb-3"><i class="fas fa-calendar"></i> Date Operations</h6>
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="form-check mb-3">
+                                            <input class="form-check-input" type="checkbox" id="shiftDates">
+                                            <label class="form-check-label" for="shiftDates">
+                                                <strong>Shift All Dates</strong>
+                                            </label>
+                                        </div>
+                                        <div class="input-group">
+                                            <select class="form-select" id="dateShiftDirection" disabled>
+                                                <option value="add">Move Forward</option>
+                                                <option value="subtract">Move Backward</option>
+                                            </select>
+                                            <input type="number" class="form-control" id="dateShiftAmount" placeholder="7" disabled>
+                                            <span class="input-group-text">days</span>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-check mb-3">
+                                            <input class="form-check-input" type="checkbox" id="changeDayOfWeek">
+                                            <label class="form-check-label" for="changeDayOfWeek">
+                                                <strong>Change Day of Week</strong>
+                                            </label>
+                                        </div>
+                                        <select class="form-select" id="newDayOfWeek" disabled>
+                                            <option value="">Select Day</option>
+                                            <option value="monday">Monday</option>
+                                            <option value="tuesday">Tuesday</option>
+                                            <option value="wednesday">Wednesday</option>
+                                            <option value="thursday">Thursday</option>
+                                            <option value="friday">Friday</option>
+                                            <option value="saturday">Saturday</option>
+                                            <option value="sunday">Sunday</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Assignments Tab -->
+                            <div class="tab-pane fade" id="assignments" role="tabpanel">
+                                <div class="row">
+                                    <div class="col-md-12">
+                                        <div class="form-check mb-3">
+                                            <input class="form-check-input" type="checkbox" id="changeTutor">
+                                            <label class="form-check-label" for="changeTutor">
+                                                <strong>Change Tutor for All Classes</strong>
+                                            </label>
+                                        </div>
+                                        <select class="form-select" id="newTutor" disabled>
+                                            <option value="">Select New Tutor</option>
+                                            {% for available_tutor in available_tutors %}
+                                            <option value="{{ available_tutor.id }}">{{ available_tutor.user.full_name }}</option>
+                                            {% endfor %}
+                                        </select>
+                                        <small class="form-text text-muted">System will check availability conflicts</small>
+                                    </div>
+                                </div>
+                                
+                                <hr>
+                                
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="form-check mb-3">
+                                            <input class="form-check-input" type="checkbox" id="addStudents">
+                                            <label class="form-check-label" for="addStudents">
+                                                <strong>Add Students to Group Classes</strong>
+                                            </label>
+                                        </div>
+                                        <select class="form-select" id="studentsToAdd" multiple disabled>
+                                            {% for student in students %}
+                                            <option value="{{ student.id }}">{{ student.full_name }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-check mb-3">
+                                            <input class="form-check-input" type="checkbox" id="removeStudents">
+                                            <label class="form-check-label" for="removeStudents">
+                                                <strong>Remove Students</strong>
+                                            </label>
+                                        </div>
+                                        <select class="form-select" id="studentsToRemove" multiple disabled>
+                                            {% for student in students %}
+                                            <option value="{{ student.id }}">{{ student.full_name }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Platform Tab -->
+                            <div class="tab-pane fade" id="platform" role="tabpanel">
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <div class="form-check mb-3">
+                                            <input class="form-check-input" type="checkbox" id="changePlatform">
+                                            <label class="form-check-label" for="changePlatform">
+                                                <strong>Change Platform</strong>
+                                            </label>
+                                        </div>
+                                        <select class="form-select" id="newPlatform" disabled>
+                                            <option value="">Select Platform</option>
+                                            <option value="zoom">Zoom</option>
+                                            <option value="google_meet">Google Meet</option>
+                                            <option value="teams">Microsoft Teams</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="form-check mb-3">
+                                            <input class="form-check-input" type="checkbox" id="updateMeetingLink">
+                                            <label class="form-check-label" for="updateMeetingLink">
+                                                <strong>Update Meeting Link</strong>
+                                            </label>
+                                        </div>
+                                        <input type="url" class="form-control" id="newMeetingLink" placeholder="https://..." disabled>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="form-check mb-3">
+                                            <input class="form-check-input" type="checkbox" id="updateMeetingId">
+                                            <label class="form-check-label" for="updateMeetingId">
+                                                <strong>Update Meeting ID</strong>
+                                            </label>
+                                        </div>
+                                        <input type="text" class="form-control" id="newMeetingId" placeholder="Meeting ID" disabled>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Content Tab -->
+                            <div class="tab-pane fade" id="content" role="tabpanel">
+                                <div class="row">
+                                    <div class="col-md-12">
+                                        <div class="form-check mb-3">
+                                            <input class="form-check-input" type="checkbox" id="updateNotes">
+                                            <label class="form-check-label" for="updateNotes">
+                                                <strong>Update Class Notes</strong>
+                                            </label>
+                                        </div>
+                                        <div class="row">
+                                            <div class="col-md-3">
+                                                <select class="form-select" id="notesAction" disabled>
+                                                    <option value="replace">Replace All</option>
+                                                    <option value="append">Append To Existing</option>
+                                                    <option value="prepend">Add At Beginning</option>
+                                                </select>
+                                            </div>
+                                            <div class="col-md-9">
+                                                <textarea class="form-control" id="newNotes" rows="3" placeholder="Enter notes..." disabled></textarea>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <hr>
+                                
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="form-check mb-3">
+                                            <input class="form-check-input" type="checkbox" id="updateTopics">
+                                            <label class="form-check-label" for="updateTopics">
+                                                <strong>Topics Covered</strong>
+                                            </label>
+                                        </div>
+                                        <textarea class="form-control" id="newTopics" rows="2" placeholder="Topics covered..." disabled></textarea>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-check mb-3">
+                                            <input class="form-check-input" type="checkbox" id="updateHomework">
+                                            <label class="form-check-label" for="updateHomework">
+                                                <strong>Homework Assigned</strong>
+                                            </label>
+                                        </div>
+                                        <textarea class="form-control" id="newHomework" rows="2" placeholder="Homework assignments..." disabled></textarea>
+                                    </div>
+                                </div>
+                                
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="form-check mb-3">
+                                            <input class="form-check-input" type="checkbox" id="updateVideoLink">
+                                            <label class="form-check-label" for="updateVideoLink">
+                                                <strong>Video Link</strong>
+                                            </label>
+                                        </div>
+                                        <input type="url" class="form-control" id="newVideoLink" placeholder="https://youtube.com/..." disabled>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-check mb-3">
+                                            <input class="form-check-input" type="checkbox" id="updateMaterials">
+                                            <label class="form-check-label" for="updateMaterials">
+                                                <strong>Materials</strong>
+                                            </label>
+                                        </div>
+                                        <textarea class="form-control" id="newMaterials" rows="2" placeholder="Study materials, links..." disabled></textarea>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Status Tab -->
+                            <div class="tab-pane fade" id="status" role="tabpanel">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="form-check mb-3">
+                                            <input class="form-check-input" type="checkbox" id="changeStatus">
+                                            <label class="form-check-label" for="changeStatus">
+                                                <strong>Change Status</strong>
+                                            </label>
+                                        </div>
+                                        <select class="form-select" id="newStatus" disabled>
+                                            <option value="">Select Status</option>
+                                            <option value="scheduled">Scheduled</option>
+                                            <option value="completed">Completed</option>
+                                            <option value="cancelled">Cancelled</option>
+                                            <option value="rescheduled">Rescheduled</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-check mb-3">
+                                            <input class="form-check-input" type="checkbox" id="setCompletionStatus">
+                                            <label class="form-check-label" for="setCompletionStatus">
+                                                <strong>Completion Status</strong>
+                                            </label>
+                                        </div>
+                                        <select class="form-select" id="newCompletionStatus" disabled>
+                                            <option value="">Select Completion</option>
+                                            <option value="completed">Completed</option>
+                                            <option value="incomplete">Incomplete</option>
+                                            <option value="no_show">No Show</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Conflict Preview -->
+                <div id="conflictPreview" class="alert alert-warning" style="display: none;">
+                    <h6><i class="fas fa-exclamation-triangle"></i> Potential Conflicts Detected:</h6>
+                    <div id="conflictsList"></div>
+                </div>
+
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-warning" onclick="previewChanges()">
+                    <i class="fas fa-eye"></i>
+                    Preview Changes
+                </button>
+                <button type="button" class="btn btn-success" onclick="applyBulkChanges()" id="applyChangesBtn">
+                    <i class="fas fa-magic"></i>
+                    Apply All Changes
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Change Tutor Modal -->
 <div class="modal fade" id="changeTutorModal" tabindex="-1">
     <div class="modal-dialog modal-lg">
@@ -339,7 +848,7 @@
 </div>
 
 <style>
-/* Batch Management Styles */
+/* Enhanced Batch Management Styles */
 .management-card {
     border: 1px solid #e9ecef;
     border-radius: 8px;
@@ -351,6 +860,7 @@
 .management-card:hover {
     border-color: var(--primary-color);
     box-shadow: 0 2px 8px rgba(241, 161, 80, 0.1);
+    transform: translateY(-2px);
 }
 
 .management-icon {
@@ -363,6 +873,7 @@
     margin-right: 1rem;
     color: white;
     font-size: 1.1rem;
+    transition: all 0.3s ease;
 }
 
 .management-icon.primary {
@@ -371,6 +882,40 @@
 
 .management-icon.danger {
     background: var(--danger-color);
+}
+
+.management-icon.smart {
+    background: linear-gradient(135deg, #28a745, #20c997);
+    position: relative;
+    overflow: hidden;
+}
+
+.management-icon.smart::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: linear-gradient(45deg, transparent, rgba(255,255,255,0.3), transparent);
+    transform: rotate(45deg);
+    transition: all 0.6s;
+    opacity: 0;
+}
+
+.management-card:hover .management-icon {
+    transform: scale(1.1);
+}
+
+.management-card:hover .management-icon.smart::before {
+    animation: shimmer 1.5s ease-in-out infinite;
+    opacity: 1;
+}
+
+@keyframes shimmer {
+    0% { transform: translateX(-100%) translateY(-100%) rotate(45deg); }
+    50% { transform: translateX(0%) translateY(0%) rotate(45deg); }
+    100% { transform: translateX(100%) translateY(100%) rotate(45deg); }
 }
 
 .bulk-actions-bar {
@@ -497,6 +1042,112 @@
     font-size: 0.875rem;
 }
 
+/* Smart Bulk Edit Modal Styles */
+.modal-xl {
+    max-width: 1200px;
+}
+
+.form-check-label strong {
+    color: #495057;
+}
+
+.nav-tabs .nav-link {
+    color: #6c757d;
+    border: 1px solid transparent;
+}
+
+.nav-tabs .nav-link.active {
+    background: linear-gradient(135deg, #28a745, #20c997);
+    border-color: #28a745;
+    color: white;
+    position: relative;
+}
+
+.nav-tabs .nav-link:hover {
+    border-color: #28a745;
+    color: #28a745;
+}
+
+.tab-content {
+    min-height: 300px;
+    padding: 1.5rem 0;
+}
+
+.form-check-input:checked {
+    background: linear-gradient(135deg, #28a745, #20c997);
+    border-color: #28a745;
+}
+
+#conflictPreview {
+    border-left: 4px solid #ffc107;
+}
+
+.input-group-text {
+    background-color: #f8f9fa;
+    border-color: #ced4da;
+}
+
+hr {
+    margin: 2rem 0;
+    border-color: #e9ecef;
+}
+
+.text-primary {
+    color: #28a745 !important;
+}
+
+/* Enhanced Header Actions */
+.header-actions .btn-success {
+    background: linear-gradient(135deg, #28a745, #20c997);
+    border: none;
+    box-shadow: 0 2px 8px rgba(40, 167, 69, 0.3);
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s ease;
+}
+
+.header-actions .btn-success:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 16px rgba(40, 167, 69, 0.4);
+}
+
+.header-actions .btn-success:active {
+    transform: translateY(0);
+}
+
+/* Loading States */
+.btn.loading {
+    pointer-events: none;
+    opacity: 0.8;
+}
+
+.btn.loading .fas {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Error States */
+.form-error {
+    border-color: #dc3545 !important;
+    box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25) !important;
+}
+
+.error-message {
+    color: #dc3545;
+    font-size: 0.875rem;
+    margin-top: 0.25rem;
+}
+
+/* Success States */
+.form-success {
+    border-color: #28a745 !important;
+    box-shadow: 0 0 0 0.2rem rgba(40, 167, 69, 0.25) !important;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
     .management-card {
@@ -516,14 +1167,925 @@
     .stat-content h3 {
         font-size: 1.5rem;
     }
+    
+    .header-actions {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    
+    .header-actions .btn {
+        width: 100%;
+    }
 }
 </style>
 
 <script>
+// ========================================
+// ENHANCED SMART BULK EDIT SYSTEM - COMPLETE VERSION
+// ========================================
+
+// Global variables for better state management
+let smartBulkEditInitialized = false;
+let modalEventListenersAdded = false;
+let formFieldsInitialized = false;
+let selectedClassIds = [];
+let conflictsDetected = [];
 let bulkDeleteMode = false;
 let selectedClasses = new Set();
 
-// Change Tutor Functionality
+// Enhanced error handling and logging
+const SmartBulkEditLogger = {
+    log: function(message, type = 'info') {
+        const timestamp = new Date().toLocaleTimeString();
+        const prefix = type === 'error' ? '❌' : type === 'warn' ? '⚠️' : type === 'success' ? '✅' : 'ℹ️';
+        console.log(`${prefix} [${timestamp}] Smart Bulk Edit: ${message}`);
+    },
+    
+    error: function(message, error = null) {
+        this.log(message, 'error');
+        if (error) console.error(error);
+    },
+    
+    warn: function(message) {
+        this.log(message, 'warn');
+    },
+    
+    success: function(message) {
+        this.log(message, 'success');
+    }
+};
+
+// Enhanced DOM ready detection
+function ensureReady(callback) {
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', callback);
+    } else {
+        callback();
+    }
+}
+
+// Safe element getter with error handling
+function safeGetElement(selector, context = document) {
+    try {
+        const element = context.querySelector(selector);
+        if (!element) {
+            SmartBulkEditLogger.warn(`Element not found: ${selector}`);
+        }
+        return element;
+    } catch (error) {
+        SmartBulkEditLogger.error(`Error getting element ${selector}`, error);
+        return null;
+    }
+}
+
+// Enhanced Smart Bulk Edit initialization
+function initializeSmartBulkEditSystem() {
+    if (smartBulkEditInitialized) {
+        SmartBulkEditLogger.warn('Smart Bulk Edit already initialized');
+        return;
+    }
+    
+    SmartBulkEditLogger.log('Initializing Smart Bulk Edit System...');
+    
+    try {
+        // Initialize all components
+        initializeFormFieldToggles();
+        initializeSelectionHandlers();
+        initializeModalEvents();
+        initializeClassData();
+        
+        smartBulkEditInitialized = true;
+        SmartBulkEditLogger.success('Smart Bulk Edit System Initialized Successfully');
+        
+    } catch (error) {
+        SmartBulkEditLogger.error('Failed to initialize Smart Bulk Edit System', error);
+    }
+}
+
+// Enhanced form field toggle initialization
+function initializeFormFieldToggles() {
+    if (formFieldsInitialized) return;
+    
+    SmartBulkEditLogger.log('Setting up form field toggles...');
+    
+    const toggleMappings = [
+        // Basic Info
+        ['editSubject', 'newSubject'],
+        ['editGrade', 'newGrade'],
+        ['editBoard', 'newBoard'],
+        ['editClassType', 'newClassType'],
+        // Scheduling
+        ['shiftTime', ['timeShiftDirection', 'timeShiftAmount']],
+        ['changeDuration', 'newDuration'],
+        ['setSpecificTime', 'specificTime'],
+        ['shiftDates', ['dateShiftDirection', 'dateShiftAmount']],
+        ['changeDayOfWeek', 'newDayOfWeek'],
+        // Assignments
+        ['changeTutor', 'newTutor'],
+        ['addStudents', 'studentsToAdd'],
+        ['removeStudents', 'studentsToRemove'],
+        // Platform
+        ['changePlatform', 'newPlatform'],
+        ['updateMeetingLink', 'newMeetingLink'],
+        ['updateMeetingId', 'newMeetingId'],
+        // Content
+        ['updateNotes', ['notesAction', 'newNotes']],
+        ['updateTopics', 'newTopics'],
+        ['updateHomework', 'newHomework'],
+        ['updateVideoLink', 'newVideoLink'],
+        ['updateMaterials', 'newMaterials'],
+        // Status
+        ['changeStatus', 'newStatus'],
+        ['setCompletionStatus', 'newCompletionStatus']
+    ];
+    
+    toggleMappings.forEach(([checkboxId, targetIds]) => {
+        const checkbox = safeGetElement(`#${checkboxId}`);
+        if (!checkbox) return;
+        
+        const targetElements = Array.isArray(targetIds) ? targetIds : [targetIds];
+        
+        checkbox.addEventListener('change', function() {
+            targetElements.forEach(targetId => {
+                const target = safeGetElement(`#${targetId}`);
+                if (target) {
+                    target.disabled = !this.checked;
+                    if (this.checked) {
+                        target.classList.remove('form-error');
+                    }
+                }
+            });
+        });
+    });
+    
+    formFieldsInitialized = true;
+    SmartBulkEditLogger.success('Form field toggles initialized');
+}
+
+// Enhanced selection handlers
+function initializeSelectionHandlers() {
+    SmartBulkEditLogger.log('Setting up selection handlers...');
+    
+    // Selection type handlers
+    const selectionRadios = document.querySelectorAll('input[name="selectionType"]');
+    selectionRadios.forEach(radio => {
+        radio.addEventListener('change', function() {
+            handleSelectionTypeChange(this.value);
+        });
+    });
+    
+    // Date range handlers
+    const fromDate = safeGetElement('#editFromDate');
+    const toDate = safeGetElement('#editToDate');
+    
+    if (fromDate) fromDate.addEventListener('change', updateClassSelection);
+    if (toDate) toDate.addEventListener('change', updateClassSelection);
+}
+
+// Enhanced modal event handling
+function initializeModalEvents() {
+    if (modalEventListenersAdded) return;
+    
+    SmartBulkEditLogger.log('Setting up modal events...');
+    
+    const modal = safeGetElement('#smartBulkEditModal');
+    if (!modal) {
+        SmartBulkEditLogger.error('Smart Bulk Edit modal not found');
+        return;
+    }
+    
+    // Modal show event
+    modal.addEventListener('show.bs.modal', function() {
+        SmartBulkEditLogger.log('Modal opening...');
+        resetBulkEditForm();
+        updateClassSelection();
+    });
+    
+    // Modal shown event
+    modal.addEventListener('shown.bs.modal', function() {
+        SmartBulkEditLogger.log('Modal opened successfully');
+        // Focus first tab
+        const firstTab = safeGetElement('#basic-tab');
+        if (firstTab) firstTab.click();
+    });
+    
+    // Modal hidden event
+    modal.addEventListener('hidden.bs.modal', function() {
+        SmartBulkEditLogger.log('Modal closed');
+        hideConflictPreview();
+    });
+    
+    modalEventListenersAdded = true;
+}
+
+// Enhanced class data initialization
+function initializeClassData() {
+    if (typeof window.classesData === 'undefined') {
+        window.classesData = [
+            {% for class in classes %}
+            {
+                id: {{ class.id }},
+                subject: '{{ class.subject|replace("'", "\\'") }}',
+                status: '{{ class.status }}',
+                scheduled_date: '{{ class.scheduled_date.isoformat() }}',
+                scheduled_time: '{{ class.scheduled_time.strftime("%H:%M") }}',
+                tutor_id: {{ class.tutor_id or 'null' }}
+            }{{ ',' if not loop.last else '' }}
+            {% endfor %}
+        ];
+        SmartBulkEditLogger.success(`Loaded ${window.classesData.length} classes`);
+    }
+}
+
+// Enhanced Open Smart Bulk Edit function
+function openSmartBulkEdit() {
+    SmartBulkEditLogger.log('Opening Smart Bulk Edit Modal...');
+    
+    try {
+        // Ensure system is initialized
+        if (!smartBulkEditInitialized) {
+            initializeSmartBulkEditSystem();
+        }
+        
+        // Get modal
+        const modal = safeGetElement('#smartBulkEditModal');
+        if (!modal) {
+            SmartBulkEditLogger.error('Modal element not found');
+            showAlert('Error: Smart Bulk Edit modal not found. Please refresh the page.', 'error');
+            return;
+        }
+        
+        // Show modal
+        const bootstrapModal = new bootstrap.Modal(modal);
+        bootstrapModal.show();
+        
+        SmartBulkEditLogger.success('Modal opened successfully');
+        
+    } catch (error) {
+        SmartBulkEditLogger.error('Failed to open modal', error);
+        showAlert('Error opening Smart Bulk Edit. Please refresh the page and try again.', 'error');
+    }
+}
+
+// Enhanced selection type handling
+function handleSelectionTypeChange(selectionType) {
+    SmartBulkEditLogger.log(`Selection type changed to: ${selectionType}`);
+    
+    const dateRangeSection = safeGetElement('#dateRangeSection');
+    
+    if (selectionType === 'daterange') {
+        if (dateRangeSection) dateRangeSection.style.display = 'block';
+    } else {
+        if (dateRangeSection) dateRangeSection.style.display = 'none';
+    }
+    
+    updateClassSelection();
+}
+
+// Enhanced class selection update
+function updateClassSelection() {
+    try {
+        const selectionTypeRadio = document.querySelector('input[name="selectionType"]:checked');
+        if (!selectionTypeRadio) {
+            SmartBulkEditLogger.warn('No selection type checked');
+            return;
+        }
+        
+        const selectionType = selectionTypeRadio.value;
+        const allClasses = window.classesData || [];
+        
+        selectedClassIds = [];
+        
+        switch (selectionType) {
+            case 'all':
+                selectedClassIds = allClasses.map(c => c.id);
+                break;
+                
+            case 'scheduled':
+                selectedClassIds = allClasses
+                    .filter(c => c.status === 'scheduled')
+                    .map(c => c.id);
+                break;
+                
+            case 'daterange':
+                const fromDate = safeGetElement('#editFromDate');
+                const toDate = safeGetElement('#editToDate');
+                
+                if (fromDate && toDate && fromDate.value && toDate.value) {
+                    selectedClassIds = allClasses
+                        .filter(c => c.scheduled_date >= fromDate.value && c.scheduled_date <= toDate.value)
+                        .map(c => c.id);
+                }
+                break;
+                
+            case 'custom':
+                selectedClassIds = getCustomSelectedClasses();
+                break;
+        }
+        
+        updateSelectedCount();
+        SmartBulkEditLogger.log(`Selected ${selectedClassIds.length} classes`);
+        
+    } catch (error) {
+        SmartBulkEditLogger.error('Error updating class selection', error);
+    }
+}
+
+// Enhanced selected count update
+function updateSelectedCount() {
+    const countElement = safeGetElement('#editTargetCount');
+    if (countElement) {
+        countElement.textContent = selectedClassIds.length;
+    }
+}
+
+// Enhanced form reset
+function resetBulkEditForm() {
+    SmartBulkEditLogger.log('Resetting bulk edit form...');
+    
+    try {
+        // Reset checkboxes
+        const checkboxes = document.querySelectorAll('#smartBulkEditModal input[type="checkbox"]');
+        checkboxes.forEach(cb => {
+            cb.checked = false;
+            cb.dispatchEvent(new Event('change'));
+        });
+        
+        // Reset form fields
+        const fields = document.querySelectorAll('#smartBulkEditModal input:not([type="checkbox"]):not([type="radio"]), #smartBulkEditModal select, #smartBulkEditModal textarea');
+        fields.forEach(field => {
+            field.value = '';
+            field.classList.remove('form-error', 'form-success');
+        });
+        
+        // Set default selection
+        const selectAllRadio = safeGetElement('#selectAll');
+        if (selectAllRadio) selectAllRadio.checked = true;
+        
+        hideConflictPreview();
+        
+        SmartBulkEditLogger.success('Form reset complete');
+        
+    } catch (error) {
+        SmartBulkEditLogger.error('Error resetting form', error);
+    }
+}
+
+// Enhanced conflict preview
+function hideConflictPreview() {
+    const conflictDiv = safeGetElement('#conflictPreview');
+    if (conflictDiv) {
+        conflictDiv.style.display = 'none';
+    }
+    conflictsDetected = [];
+}
+
+// Enhanced button management
+function setButtonLoading(buttonSelector, isLoading = true) {
+    const button = safeGetElement(buttonSelector);
+    if (!button) return;
+    
+    if (isLoading) {
+        button.classList.add('loading');
+        button.disabled = true;
+        const icon = button.querySelector('i');
+        if (icon) {
+            icon.className = 'fas fa-spinner fa-spin';
+        }
+    } else {
+        button.classList.remove('loading');
+        button.disabled = false;
+        const icon = button.querySelector('i');
+        if (icon) {
+            icon.className = 'fas fa-magic';
+        }
+    }
+}
+
+// Enhanced error display
+function showFieldError(fieldId, message) {
+    const field = safeGetElement(`#${fieldId}`);
+    if (!field) return;
+    
+    field.classList.add('form-error');
+    
+    // Remove existing error message
+    const existingError = field.parentNode.querySelector('.error-message');
+    if (existingError) existingError.remove();
+    
+    // Add new error message
+    const errorDiv = document.createElement('div');
+    errorDiv.className = 'error-message';
+    errorDiv.textContent = message;
+    field.parentNode.appendChild(errorDiv);
+}
+
+// Enhanced success display
+function showFieldSuccess(fieldId) {
+    const field = safeGetElement(`#${fieldId}`);
+    if (!field) return;
+    
+    field.classList.remove('form-error');
+    field.classList.add('form-success');
+    
+    // Remove error message
+    const errorMessage = field.parentNode.querySelector('.error-message');
+    if (errorMessage) errorMessage.remove();
+}
+
+// Enhanced form data collection with validation
+function collectFormChanges() {
+    SmartBulkEditLogger.log('Collecting form changes...');
+    
+    const changes = {};
+    let hasChanges = false;
+    
+    try {
+        // Basic Info
+        if (safeGetElement('#editSubject')?.checked) {
+            const value = safeGetElement('#newSubject')?.value?.trim();
+            if (value) {
+                changes.subject = value;
+                hasChanges = true;
+                showFieldSuccess('newSubject');
+            } else {
+                showFieldError('newSubject', 'Subject cannot be empty');
+            }
+        }
+        
+        if (safeGetElement('#editGrade')?.checked) {
+            const value = safeGetElement('#newGrade')?.value?.trim();
+            if (value) {
+                changes.grade = value;
+                hasChanges = true;
+                showFieldSuccess('newGrade');
+            } else {
+                showFieldError('newGrade', 'Grade cannot be empty');
+            }
+        }
+        
+        if (safeGetElement('#editBoard')?.checked) {
+            const value = safeGetElement('#newBoard')?.value;
+            if (value) {
+                changes.board = value;
+                hasChanges = true;
+                showFieldSuccess('newBoard');
+            } else {
+                showFieldError('newBoard', 'Please select a board');
+            }
+        }
+        
+        if (safeGetElement('#editClassType')?.checked) {
+            const value = safeGetElement('#newClassType')?.value;
+            if (value) {
+                changes.class_type = value;
+                hasChanges = true;
+                showFieldSuccess('newClassType');
+            } else {
+                showFieldError('newClassType', 'Please select a class type');
+            }
+        }
+        
+        // Scheduling Changes
+        if (safeGetElement('#shiftTime')?.checked) {
+            const direction = safeGetElement('#timeShiftDirection')?.value;
+            const amount = parseInt(safeGetElement('#timeShiftAmount')?.value);
+            
+            if (direction && amount && amount > 0) {
+                changes.time_shift = { direction, amount };
+                hasChanges = true;
+                showFieldSuccess('timeShiftAmount');
+            } else {
+                showFieldError('timeShiftAmount', 'Enter a valid time shift amount');
+            }
+        }
+        
+        if (safeGetElement('#changeDuration')?.checked) {
+            const duration = parseInt(safeGetElement('#newDuration')?.value);
+            if (duration && duration > 0) {
+                changes.duration = duration;
+                hasChanges = true;
+                showFieldSuccess('newDuration');
+            } else {
+                showFieldError('newDuration', 'Enter a valid duration in minutes');
+            }
+        }
+        
+        if (safeGetElement('#setSpecificTime')?.checked) {
+            const time = safeGetElement('#specificTime')?.value;
+            if (time) {
+                changes.specific_time = time;
+                hasChanges = true;
+                showFieldSuccess('specificTime');
+            } else {
+                showFieldError('specificTime', 'Please select a time');
+            }
+        }
+        
+        if (safeGetElement('#shiftDates')?.checked) {
+            const direction = safeGetElement('#dateShiftDirection')?.value;
+            const amount = parseInt(safeGetElement('#dateShiftAmount')?.value);
+            
+            if (direction && amount && amount > 0) {
+                changes.date_shift = { direction, amount };
+                hasChanges = true;
+                showFieldSuccess('dateShiftAmount');
+            } else {
+                showFieldError('dateShiftAmount', 'Enter a valid date shift amount');
+            }
+        }
+        
+        if (safeGetElement('#changeDayOfWeek')?.checked) {
+            const day = safeGetElement('#newDayOfWeek')?.value;
+            if (day) {
+                changes.day_of_week = day;
+                hasChanges = true;
+                showFieldSuccess('newDayOfWeek');
+            } else {
+                showFieldError('newDayOfWeek', 'Please select a day');
+            }
+        }
+        
+        // Assignment Changes
+        if (safeGetElement('#changeTutor')?.checked) {
+            const tutorId = parseInt(safeGetElement('#newTutor')?.value);
+            if (tutorId) {
+                changes.tutor_id = tutorId;
+                hasChanges = true;
+                showFieldSuccess('newTutor');
+            } else {
+                showFieldError('newTutor', 'Please select a tutor');
+            }
+        }
+        
+        if (safeGetElement('#addStudents')?.checked) {
+            const select = safeGetElement('#studentsToAdd');
+            const selected = Array.from(select?.selectedOptions || []);
+            if (selected.length > 0) {
+                changes.add_students = selected.map(option => parseInt(option.value));
+                hasChanges = true;
+                showFieldSuccess('studentsToAdd');
+            } else {
+                showFieldError('studentsToAdd', 'Please select students to add');
+            }
+        }
+        
+        if (safeGetElement('#removeStudents')?.checked) {
+            const select = safeGetElement('#studentsToRemove');
+            const selected = Array.from(select?.selectedOptions || []);
+            if (selected.length > 0) {
+                changes.remove_students = selected.map(option => parseInt(option.value));
+                hasChanges = true;
+                showFieldSuccess('studentsToRemove');
+            } else {
+                showFieldError('studentsToRemove', 'Please select students to remove');
+            }
+        }
+        
+        // Platform Changes
+        if (safeGetElement('#changePlatform')?.checked) {
+            const platform = safeGetElement('#newPlatform')?.value;
+            if (platform) {
+                changes.platform = platform;
+                hasChanges = true;
+                showFieldSuccess('newPlatform');
+            } else {
+                showFieldError('newPlatform', 'Please select a platform');
+            }
+        }
+        
+        if (safeGetElement('#updateMeetingLink')?.checked) {
+            const link = safeGetElement('#newMeetingLink')?.value?.trim();
+            if (link && isValidURL(link)) {
+                changes.meeting_link = link;
+                hasChanges = true;
+                showFieldSuccess('newMeetingLink');
+            } else {
+                showFieldError('newMeetingLink', 'Please enter a valid meeting link');
+            }
+        }
+        
+        if (safeGetElement('#updateMeetingId')?.checked) {
+            const meetingId = safeGetElement('#newMeetingId')?.value?.trim();
+            if (meetingId) {
+                changes.meeting_id = meetingId;
+                hasChanges = true;
+                showFieldSuccess('newMeetingId');
+            } else {
+                showFieldError('newMeetingId', 'Please enter a meeting ID');
+            }
+        }
+        
+        // Content Changes
+        if (safeGetElement('#updateNotes')?.checked) {
+            const action = safeGetElement('#notesAction')?.value;
+            const content = safeGetElement('#newNotes')?.value?.trim();
+            
+            if (action && content) {
+                changes.class_notes = { action, content };
+                hasChanges = true;
+                showFieldSuccess('newNotes');
+            } else {
+                showFieldError('newNotes', 'Please enter notes content');
+            }
+        }
+        
+        if (safeGetElement('#updateTopics')?.checked) {
+            const topics = safeGetElement('#newTopics')?.value?.trim();
+            if (topics) {
+                changes.topics_covered = topics;
+                hasChanges = true;
+                showFieldSuccess('newTopics');
+            } else {
+                showFieldError('newTopics', 'Please enter topics');
+            }
+        }
+        
+        if (safeGetElement('#updateHomework')?.checked) {
+            const homework = safeGetElement('#newHomework')?.value?.trim();
+            if (homework) {
+                changes.homework_assigned = homework;
+                hasChanges = true;
+                showFieldSuccess('newHomework');
+            } else {
+                showFieldError('newHomework', 'Please enter homework details');
+            }
+        }
+        
+        if (safeGetElement('#updateVideoLink')?.checked) {
+            const link = safeGetElement('#newVideoLink')?.value?.trim();
+            if (link && isValidURL(link)) {
+                changes.video_link = link;
+                hasChanges = true;
+                showFieldSuccess('newVideoLink');
+            } else {
+                showFieldError('newVideoLink', 'Please enter a valid video link');
+            }
+        }
+        
+        if (safeGetElement('#updateMaterials')?.checked) {
+            const materials = safeGetElement('#newMaterials')?.value?.trim();
+            if (materials) {
+                changes.materials = materials;
+                hasChanges = true;
+                showFieldSuccess('newMaterials');
+            } else {
+                showFieldError('newMaterials', 'Please enter materials');
+            }
+        }
+        
+        // Status Changes
+        if (safeGetElement('#changeStatus')?.checked) {
+            const status = safeGetElement('#newStatus')?.value;
+            if (status) {
+                changes.status = status;
+                hasChanges = true;
+                showFieldSuccess('newStatus');
+            } else {
+                showFieldError('newStatus', 'Please select a status');
+            }
+        }
+        
+        if (safeGetElement('#setCompletionStatus')?.checked) {
+            const completionStatus = safeGetElement('#newCompletionStatus')?.value;
+            if (completionStatus) {
+                changes.completion_status = completionStatus;
+                hasChanges = true;
+                showFieldSuccess('newCompletionStatus');
+            } else {
+                showFieldError('newCompletionStatus', 'Please select completion status');
+            }
+        }
+        
+        if (!hasChanges) {
+            SmartBulkEditLogger.warn('No valid changes collected');
+        } else {
+            SmartBulkEditLogger.success(`Collected ${Object.keys(changes).length} changes`);
+        }
+        
+        return changes;
+        
+    } catch (error) {
+        SmartBulkEditLogger.error('Error collecting form changes', error);
+        return {};
+    }
+}
+
+// Enhanced preview changes function
+function previewChanges() {
+    SmartBulkEditLogger.log('Previewing changes...');
+    
+    try {
+        if (selectedClassIds.length === 0) {
+            showAlert('Please select classes to edit first.', 'warning');
+            return;
+        }
+        
+        const changes = collectFormChanges();
+        
+        if (Object.keys(changes).length === 0) {
+            showAlert('Please select at least one field to change and fill in the required values.', 'warning');
+            return;
+        }
+        
+        let previewText = `📋 Smart Bulk Edit Preview\n\n`;
+        previewText += `🎯 Target: ${selectedClassIds.length} classes\n\n`;
+        previewText += `📝 Changes to apply:\n`;
+        
+        Object.keys(changes).forEach(key => {
+            const change = changes[key];
+            previewText += `• ${formatFieldName(key)}: ${formatChangeValue(key, change)}\n`;
+        });
+        
+        if (conflictsDetected.length > 0) {
+            previewText += `\n⚠️ Warning: ${conflictsDetected.length} potential conflicts detected.`;
+            previewText += `\nSome classes may not be updated due to scheduling conflicts.`;
+        }
+        
+        previewText += `\n\n⚡ This action will update all selected classes at once.`;
+        previewText += `\n✅ You can review individual results after applying.`;
+        
+        if (confirm(previewText + '\n\nProceed with applying these changes?')) {
+            applyBulkChanges();
+        }
+        
+    } catch (error) {
+        SmartBulkEditLogger.error('Error previewing changes', error);
+        showAlert('Error previewing changes. Please try again.', 'error');
+    }
+}
+
+// Enhanced apply bulk changes function
+async function applyBulkChanges() {
+    SmartBulkEditLogger.log('Applying bulk changes...');
+    
+    try {
+        if (selectedClassIds.length === 0) {
+            showAlert('Please select classes to edit first.', 'warning');
+            return;
+        }
+        
+        const changes = collectFormChanges();
+        
+        if (Object.keys(changes).length === 0) {
+            showAlert('Please select at least one field to change and fill in the required values.', 'warning');
+            return;
+        }
+        
+        // Set loading state
+        setButtonLoading('#applyChangesBtn', true);
+        
+        const response = await fetch('/admin/api/classes/smart-bulk-edit', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCSRFToken()
+            },
+            body: JSON.stringify({
+                class_ids: selectedClassIds,
+                changes: changes,
+                batch_id: '{{ batch_id }}'
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            SmartBulkEditLogger.success(`Successfully updated ${result.updated_count} classes`);
+            
+            let message = `✅ Success! ${result.updated_count} out of ${selectedClassIds.length} classes updated successfully.`;
+            
+            if (result.conflicts && result.conflicts.length > 0) {
+                message += `\n\n⚠️ ${result.conflicts.length} classes had conflicts and were not updated.`;
+            }
+            
+            showAlert(message, 'success');
+            
+            // Close modal and refresh
+            const modal = bootstrap.Modal.getInstance(safeGetElement('#smartBulkEditModal'));
+            if (modal) modal.hide();
+            
+            setTimeout(() => location.reload(), 1500);
+            
+        } else {
+            SmartBulkEditLogger.error('Bulk edit failed', result);
+            showAlert(`❌ Error: ${result.error || 'Failed to apply changes'}`, 'error');
+        }
+        
+    } catch (error) {
+        SmartBulkEditLogger.error('Error applying bulk changes', error);
+        showAlert('❌ Error applying changes. Please check your connection and try again.', 'error');
+    } finally {
+        setButtonLoading('#applyChangesBtn', false);
+    }
+}
+
+// Utility functions
+function isValidURL(string) {
+    try {
+        new URL(string);
+        return true;
+    } catch (_) {
+        return false;
+    }
+}
+
+function formatFieldName(key) {
+    const fieldNames = {
+        'subject': 'Subject',
+        'grade': 'Grade', 
+        'board': 'Board',
+        'class_type': 'Class Type',
+        'time_shift': 'Time Shift',
+        'duration': 'Duration',
+        'specific_time': 'Start Time',
+        'date_shift': 'Date Shift',
+        'day_of_week': 'Day of Week',
+        'tutor_id': 'Tutor',
+        'add_students': 'Add Students',
+        'remove_students': 'Remove Students',
+        'platform': 'Platform',
+        'meeting_link': 'Meeting Link',
+        'meeting_id': 'Meeting ID',
+        'class_notes': 'Class Notes',
+        'topics_covered': 'Topics Covered',
+        'homework_assigned': 'Homework',
+        'video_link': 'Video Link',
+        'materials': 'Materials',
+        'status': 'Status',
+        'completion_status': 'Completion Status'
+    };
+    
+    return fieldNames[key] || key.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase());
+}
+
+function formatChangeValue(key, value) {
+    if (typeof value === 'object') {
+        if (key === 'time_shift') {
+            return `${value.direction === 'add' ? 'Add' : 'Subtract'} ${value.amount} minutes`;
+        } else if (key === 'date_shift') {
+            return `${value.direction === 'add' ? 'Move forward' : 'Move backward'} ${value.amount} days`;
+        } else if (key === 'class_notes') {
+            return `${value.action}: "${value.content.substring(0, 50)}${value.content.length > 50 ? '...' : ''}"`;
+        }
+        return JSON.stringify(value);
+    }
+    return String(value);
+}
+
+function getCustomSelectedClasses() {
+    // Implement custom selection logic if needed
+    return [];
+}
+
+function getCSRFToken() {
+    return document.querySelector('meta[name="csrf-token"]')?.content || 
+           document.querySelector('[name="csrf_token"]')?.value || 
+           '{{ csrf_token() }}' || '';
+}
+
+function showAlert(message, type = 'info') {
+    // Enhanced alert system
+    const alertTypes = {
+        'success': { icon: 'check-circle', class: 'alert-success' },
+        'error': { icon: 'exclamation-triangle', class: 'alert-danger' },
+        'warning': { icon: 'exclamation-circle', class: 'alert-warning' },
+        'info': { icon: 'info-circle', class: 'alert-info' }
+    };
+    
+    const alertConfig = alertTypes[type] || alertTypes.info;
+    
+    // Create alert element
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert ${alertConfig.class} alert-dismissible fade show position-fixed`;
+    alertDiv.style.cssText = `
+        top: 20px;
+        right: 20px;
+        z-index: 9999;
+        min-width: 300px;
+        max-width: 500px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    `;
+    
+    alertDiv.innerHTML = `
+        <i class="fas fa-${alertConfig.icon} me-2"></i>
+        ${message.replace(/\n/g, '<br>')}
+        <button type="button" class="btn-close" onclick="this.parentElement.remove()"></button>
+    `;
+    
+    document.body.appendChild(alertDiv);
+    
+    // Auto-remove after delay
+    const delay = type === 'error' ? 8000 : 5000;
+    setTimeout(() => {
+        if (alertDiv.parentElement) {
+            alertDiv.remove();
+        }
+    }, delay);
+}
+
+// EXISTING FUNCTIONALITY - Change Tutor, Bulk Delete, etc.
+
 function showChangeTutorModal() {
     const modal = new bootstrap.Modal(document.getElementById('changeTutorModal'));
     modal.show();
@@ -540,7 +2102,6 @@ function checkTutorAvailability() {
         return;
     }
     
-    // Get all scheduled class IDs
     const scheduledClasses = Array.from(document.querySelectorAll('.class-row'))
         .filter(row => row.querySelector('.status-scheduled'))
         .map(row => row.dataset.classId);
@@ -552,7 +2113,6 @@ function checkTutorAvailability() {
         return;
     }
     
-    // Check availability
     fetch(`/admin/api/tutor/${tutorId}/batch-availability?${scheduledClasses.map(id => `class_ids=${id}`).join('&')}`)
         .then(response => response.json())
         .then(data => {
@@ -661,18 +2221,15 @@ function confirmChangeTutor() {
     });
 }
 
-// Bulk Delete Functionality
 function enableBulkDelete() {
     bulkDeleteMode = true;
     document.getElementById('bulkDeleteBar').style.display = 'block';
     
-    // Show checkboxes and hide row numbers
     document.querySelectorAll('.class-selector').forEach(cb => cb.style.display = 'block');
     document.querySelectorAll('.row-number').forEach(num => num.style.display = 'none');
     document.getElementById('selectAllClasses').style.display = 'block';
     document.getElementById('bulkSelectHeader').textContent = '';
     
-    // Add select all functionality
     document.getElementById('selectAllClasses').onchange = function() {
         document.querySelectorAll('.class-selector').forEach(cb => {
             cb.checked = this.checked;
@@ -680,7 +2237,6 @@ function enableBulkDelete() {
         });
     };
     
-    // Add individual checkbox handlers
     document.querySelectorAll('.class-selector').forEach(cb => {
         cb.onchange = function() {
             updateSelection(this);
@@ -709,7 +2265,6 @@ function cancelBulkDelete() {
     
     document.getElementById('bulkDeleteBar').style.display = 'none';
     
-    // Hide checkboxes and show row numbers
     document.querySelectorAll('.class-selector').forEach(cb => {
         cb.style.display = 'none';
         cb.checked = false;
@@ -758,33 +2313,45 @@ function confirmBulkDelete() {
         alert('Error deleting classes');
     });
     
-    // Hide modal
     bootstrap.Modal.getInstance(document.getElementById('deleteConfirmModal')).hide();
 }
 
-// Individual Class Actions
 function cancelClass(classId) {
     if (confirm('Are you sure you want to cancel this class?')) {
-        // Individual cancel functionality - you can implement this
         alert('Individual cancel functionality - implement as needed');
     }
 }
 
-
 function rescheduleClass(classId) {
-    // Check user role and redirect accordingly
     const userRole = '{{ current_user.role }}';
     
     if (userRole === 'tutor') {
-        // Redirect tutor to request reschedule form
         window.location.href = `/reschedule/tutor/request-reschedule/${classId}`;
     } else if (['admin', 'coordinator', 'superadmin'].includes(userRole)) {
-        // Redirect admin to quick reschedule form
         window.location.href = `/reschedule/admin/class/${classId}/quick-reschedule`;
     } else {
-        LMS.showAlert('You do not have permission to reschedule classes', 'error');
+        alert('You do not have permission to reschedule classes');
     }
 }
 
+// Initialize when DOM is ready
+ensureReady(function() {
+    SmartBulkEditLogger.log('DOM Ready - Initializing Smart Bulk Edit System');
+    
+    // Small delay to ensure all elements are rendered
+    setTimeout(() => {
+        initializeSmartBulkEditSystem();
+    }, 100);
+});
+
+// Backup initialization for late-loading content
+setTimeout(() => {
+    if (!smartBulkEditInitialized) {
+        SmartBulkEditLogger.warn('Backup initialization triggered');
+        initializeSmartBulkEditSystem();
+    }
+}, 2000);
+
+SmartBulkEditLogger.success('Enhanced Smart Bulk Edit System Loaded!');
 </script>
 {% endblock %}

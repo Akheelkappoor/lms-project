@@ -104,7 +104,7 @@
                                     <div class="profile-picture-upload">
                                         <div class="current-picture">
                                             {% if current_user.profile_picture %}
-                                                <img src="{{ url_for('static', filename='uploads/profiles/' + current_user.profile_picture) }}" 
+                                                <img src="{{ current_user.profile_picture }}" 
                                                      alt="Current Profile Picture" id="current-avatar">
                                             {% else %}
                                                 <div class="avatar-placeholder" id="current-avatar">

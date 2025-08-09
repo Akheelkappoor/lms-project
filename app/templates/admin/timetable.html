@@ -1695,9 +1695,255 @@ async function createQuickClass() {
 }
 
 // ============ CLASS DETAILS PLACEHOLDER ============
+// ============ CLASS DETAILS MODAL - USING EXISTING API ============
 async function openClassDetails(classId) {
-    // Placeholder - will be implemented with full class details modal
-    alert(`Class Details for ID: ${classId}\n\nThis will open the full class details modal.`);
+    try {
+        showLoading(true);
+        console.log('📡 Loading class details for ID:', classId);
+        
+        // Use your existing API endpoint
+        const response = await fetch(`/admin/api/v1/timetable/class/${classId}`, {
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCSRFToken()
+            }
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            createClassDetailsModal(data.class);
+        } else {
+            throw new Error(data.error || 'Failed to load class details');
+        }
+        
+    } catch (error) {
+        console.error('❌ Error loading class details:', error);
+        showNotification('Failed to load class details: ' + error.message, 'error');
+    } finally {
+        showLoading(false);
+    }
+}
+
+function createClassDetailsModal(classData) {
+    // Remove any existing modal
+    const existingModal = document.getElementById('classDetailsModal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+    
+    // Format students list - using your patterns
+    const studentsHtml = classData.students && classData.students.length > 0 ? 
+        classData.students.map(student => `
+            <div class="student-item">
+                <i class="fas fa-user"></i>
+                <span>${student.name}</span>
+                <small class="text-muted">(${student.type})</small>
+            </div>
+        `).join('') : 
+        '<div class="text-muted">No students assigned</div>';
+    
+    // Format status badge - using your color scheme
+    const statusMap = {
+        'scheduled': { class: 'info', icon: 'clock' },
+        'ongoing': { class: 'warning', icon: 'play' },
+        'completed': { class: 'success', icon: 'check' },
+        'cancelled': { class: 'danger', icon: 'times' }
+    };
+    const status = statusMap[classData.status] || { class: 'secondary', icon: 'question' };
+    
+    // Create modal HTML - following your modal structure
+    const modalHtml = `
+        <div class="modal show" id="classDetailsModal">
+            <div class="modal-content" style="max-width: 800px;">
+                <div class="modal-header">
+                    <h4 class="modal-title">
+                        <i class="fas fa-chalkboard-teacher"></i>
+                        ${classData.subject} - Class Details
+                    </h4>
+                    <button class="modal-close" onclick="closeModal('classDetailsModal')">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <!-- Status Badge -->
+                    <div style="text-align: center; margin-bottom: 2rem;">
+                        <span style="background: var(--${status.class}); color: white; padding: 0.5rem 1rem; border-radius: 20px; font-weight: 600;">
+                            <i class="fas fa-${status.icon}"></i> ${classData.status.toUpperCase()}
+                        </span>
+                    </div>
+                    
+                    <!-- Main Info Grid -->
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Subject</label>
+                            <div class="detail-value">${classData.subject}</div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Class Type</label>
+                            <div class="detail-value">${classData.class_type}</div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Grade</label>
+                            <div class="detail-value">${classData.grade || 'Not specified'}</div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Board</label>
+                            <div class="detail-value">${classData.board || 'Not specified'}</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Schedule Info -->
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">📅 Date & Time</label>
+                            <div class="detail-value">
+                                ${new Date(classData.scheduled_date).toLocaleDateString('en-US', { 
+                                    weekday: 'long', 
+                                    year: 'numeric', 
+                                    month: 'long', 
+                                    day: 'numeric' 
+                                })} at ${classData.scheduled_time}
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">⏱️ Duration</label>
+                            <div class="detail-value">${classData.duration} minutes</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Tutor Info -->
+                    <div style="background: var(--gray-50); padding: 1rem; border-radius: 8px; margin: 1rem 0;">
+                        <div class="form-group">
+                            <label class="form-label">👨‍🏫 Tutor</label>
+                            <div class="tutor-info">
+                                <div style="font-weight: 600; color: var(--gray-800);">${classData.tutor.name}</div>
+                                <small style="color: var(--gray-600);">${classData.tutor.email}</small>
+                                ${classData.tutor.phone ? `<br><small style="color: var(--gray-600);">${classData.tutor.phone}</small>` : ''}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Students Info -->
+                    <div style="background: var(--gray-50); padding: 1rem; border-radius: 8px; margin: 1rem 0;">
+                        <div class="form-group">
+                            <label class="form-label">👥 Students (${classData.students.length})</label>
+                            <div class="students-list">
+                                ${studentsHtml}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Meeting Info -->
+                    ${classData.meeting_link ? `
+                    <div class="form-group">
+                        <label class="form-label">🔗 Meeting Link</label>
+                        <div style="display: flex; gap: 0.5rem;">
+                            <input type="text" value="${classData.meeting_link}" readonly class="form-control" style="flex: 1;">
+                            <button class="btn btn-primary" onclick="copyToClipboard('${classData.meeting_link}')" style="padding: 0.75rem;">
+                                <i class="fas fa-copy"></i>
+                            </button>
+                        </div>
+                    </div>
+                    ` : ''}
+                    
+                    <!-- Platform Info -->
+                    ${classData.platform ? `
+                    <div class="form-group">
+                        <label class="form-label">Platform</label>
+                        <div class="detail-value">${classData.platform}</div>
+                    </div>
+                    ` : ''}
+                    
+                    <!-- Class Notes -->
+                    ${classData.class_notes ? `
+                    <div class="form-group">
+                        <label class="form-label">📝 Class Notes</label>
+                        <div style="background: var(--gray-50); padding: 1rem; border-radius: 8px; border-left: 4px solid var(--primary);">
+                            ${classData.class_notes}
+                        </div>
+                    </div>
+                    ` : ''}
+                    
+                    <!-- Additional Info -->
+                    ${classData.topics_covered ? `
+                    <div class="form-group">
+                        <label class="form-label">Topics Covered</label>
+                        <div class="detail-value">${classData.topics_covered}</div>
+                    </div>
+                    ` : ''}
+                    
+                    ${classData.homework_assigned ? `
+                    <div class="form-group">
+                        <label class="form-label">Homework Assigned</label>
+                        <div class="detail-value">${classData.homework_assigned}</div>
+                    </div>
+                    ` : ''}
+                    
+                    <!-- Timestamps -->
+                    <div style="border-top: 1px solid var(--gray-200); padding-top: 1rem; margin-top: 2rem;">
+                        <small style="color: var(--gray-500);">
+                            Created: ${classData.created_at || 'Unknown'}
+                            ${classData.actual_start_time ? `<br>Started: ${classData.actual_start_time}` : ''}
+                            ${classData.actual_end_time ? `<br>Ended: ${classData.actual_end_time}` : ''}
+                        </small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-outline" onclick="closeModal('classDetailsModal')">
+                        Close
+                    </button>
+                    <button class="btn btn-primary" onclick="window.location.href='/admin/classes/${classData.id}'">
+                        <i class="fas fa-external-link-alt"></i>
+                        Full Page View
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <style>
+        .detail-value {
+            color: var(--gray-800);
+            font-weight: 500;
+            margin-top: 0.25rem;
+        }
+        .student-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 0.5rem;
+            padding: 0.5rem;
+            background: var(--white);
+            border-radius: 6px;
+            border: 1px solid var(--gray-200);
+        }
+        .student-item i {
+            color: var(--primary);
+        }
+        #classDetailsModal .modal-content {
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        </style>
+    `;
+    
+    // Add modal to page
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    
+    console.log('✅ Class details modal created successfully');
+}
+
+function copyToClipboard(text) {
+    navigator.clipboard.writeText(text).then(() => {
+        showNotification('Meeting link copied to clipboard!', 'success');
+    }).catch(() => {
+        showNotification('Failed to copy link', 'error');
+    });
 }
 
 // ============ SEARCH & FILTERS ============
@@ -1777,8 +2023,21 @@ function showNotification(message, type = 'info') {
     }, 5000);
 }
 
+// Enhanced closeModal function - REPLACE THE EXISTING ONE
 function closeModal(modalId) {
-    document.getElementById(modalId).classList.remove('show');
+    const modal = document.getElementById(modalId);
+    if (modal) {
+        modal.classList.remove('show');
+        
+        // Remove dynamic modals completely
+        if (modalId === 'classDetailsModal') {
+            setTimeout(() => {
+                if (modal.parentNode) {
+                    modal.remove();
+                }
+            }, 300);
+        }
+    }
 }
 
 function getCSRFToken() {

@@ -415,6 +415,102 @@ def toggle_department_status(dept_id):
         db.session.rollback()
         return jsonify({'error': 'Error updating department status'}), 500
 
+
+@bp.route('/permission-management')
+@bp.route('/permission-management/<int:dept_id>')
+@login_required
+@require_role('superadmin', 'admin')
+def permission_management(dept_id=None):
+    """Advanced permission management interface with department selector"""
+    departments = Department.query.order_by(Department.name).all()
+    
+    # Handle case where no departments exist
+    if not departments:
+        flash('No departments found. Please create a department first.', 'warning')
+        return redirect(url_for('admin.departments'))
+    
+    # Select department - either from URL or first available
+    if dept_id:
+        department = Department.query.get_or_404(dept_id)
+    else:
+        department = departments[0]
+    
+    # Simple permission categories
+    permission_categories = {
+        'Administration': [
+            {'key': 'user_management', 'name': 'User Management', 'description': 'Manage user accounts', 'level': 'high', 'routes_count': 5},
+            {'key': 'system_documents', 'name': 'System Documents', 'description': 'Manage documents', 'level': 'low', 'routes_count': 3}
+        ],
+        'Academic': [
+            {'key': 'student_management', 'name': 'Student Management', 'description': 'Manage students', 'level': 'high', 'routes_count': 8},
+            {'key': 'tutor_management', 'name': 'Tutor Management', 'description': 'Manage tutors', 'level': 'high', 'routes_count': 7},
+            {'key': 'class_management', 'name': 'Class Management', 'description': 'Manage classes', 'level': 'medium', 'routes_count': 6},
+            {'key': 'attendance_management', 'name': 'Attendance Management', 'description': 'Track attendance', 'level': 'medium', 'routes_count': 5}
+        ],
+        'Communication': [
+            {'key': 'notice_management', 'name': 'Notice Management', 'description': 'Manage notices', 'level': 'medium', 'routes_count': 4},
+            {'key': 'communication', 'name': 'Communication', 'description': 'Send messages', 'level': 'low', 'routes_count': 3}
+        ],
+        'Reports': [
+            {'key': 'report_generation', 'name': 'Report Generation', 'description': 'Generate reports', 'level': 'medium', 'routes_count': 6},
+            {'key': 'finance_management', 'name': 'Finance Management', 'description': 'Manage finances', 'level': 'high', 'routes_count': 8}
+        ]
+    }
+    
+    # SAFETY CHECKS - ensure no None values
+    if not hasattr(department, 'permission_level') or department.permission_level is None:
+        department.permission_level = 'medium'
+    
+    try:
+        current_permissions = department.get_permissions()
+    except:
+        current_permissions = []
+    
+    return render_template('admin/permission_management.html',
+                         departments=departments,
+                         department=department,
+                         permission_categories=permission_categories,
+                         current_permissions=current_permissions)
+    
+    
+@bp.route('/fix-departments')
+@login_required
+@require_role('superadmin', 'admin')
+def fix_departments():
+    """Fix department data - temporary route"""
+    try:
+        departments = Department.query.all()
+        fixed_count = 0
+        
+        for dept in departments:
+            changed = False
+            
+            # Fix permission_level if None
+            if dept.permission_level is None:
+                dept.permission_level = 'medium'
+                changed = True
+            
+            # Fix name if None
+            if dept.name is None:
+                dept.name = f'Department {dept.id}'
+                changed = True
+                
+            # Fix code if None
+            if dept.code is None:
+                dept.code = f'DEPT{dept.id}'
+                changed = True
+            
+            if changed:
+                fixed_count += 1
+        
+        if fixed_count > 0:
+            db.session.commit()
+            return f"Fixed {fixed_count} departments. Now try permission-management again."
+        else:
+            return f"Found {len(departments)} departments, all look good."
+            
+    except Exception as e:
+        return f"Error: {str(e)}"
 # ============ TUTOR MANAGEMENT ROUTES ============
 
 @bp.route('/tutors')
@@ -1986,42 +2082,36 @@ def timetable():
 @login_required
 @admin_required
 def api_timetable_today():
-    """Get today's timetable data with WORKING FILTERS"""
+    """FIXED: Get today's timetable data with precise filtering"""
     try:
         # Get date parameter
         date_param = request.args.get('date', datetime.now().strftime('%Y-%m-%d'))
         target_date = datetime.strptime(date_param, '%Y-%m-%d').date()
         
-        # Get search filters - FIXED VERSION
+        # Get search filters
         search = request.args.get('search', '').strip()
         tutor_id = request.args.get('tutor_id', type=int)
         student_id = request.args.get('student_id', type=int)
         department_id = request.args.get('department_id', type=int)
         
+        print(f"📅 Timetable Today - Date: {target_date}, Student: {student_id}, Tutor: {tutor_id}")
+        
         # Base query for the specific date
         query = Class.query.filter(Class.scheduled_date == target_date)
         
-        # Apply tutor filter - WORKING VERSION
+        # Apply tutor filter first
         if tutor_id:
             query = query.filter(Class.tutor_id == tutor_id)
+            print(f"✅ Applied tutor filter: {tutor_id}")
         
-        # Apply student filter - FIXED VERSION
-        if student_id:
-            query = query.filter(
-                db.or_(
-                    Class.primary_student_id == student_id,
-                    Class.demo_student_id == student_id,
-                    Class.students.like(f'%{student_id}%')
-                )
-            )
-        
-        # Apply department filter - WORKING VERSION
+        # Apply department filter
         if department_id:
             query = query.join(Tutor, Class.tutor_id == Tutor.id)\
                          .join(User, Tutor.user_id == User.id)\
                          .filter(User.department_id == department_id)
+            print(f"✅ Applied department filter: {department_id}")
         
-        # Apply search filter - FIXED VERSION
+        # Apply search filter
         if search:
             query = query.join(Tutor, Class.tutor_id == Tutor.id, isouter=True)\
                          .join(User, Tutor.user_id == User.id, isouter=True)\
@@ -2033,11 +2123,77 @@ def api_timetable_today():
                     Class.board.ilike(f'%{search}%')
                 )
             )
+            print(f"✅ Applied search filter: {search}")
         
-        # Get all classes for the day
+        # PRECISE STUDENT FILTERING (same as export fix)
+        if student_id:
+            print(f"🎯 Applying PRECISE student filter for ID: {student_id}")
+            
+            # Get student info
+            try:
+                student = Student.query.get(student_id)
+                student_name = student.full_name if student else f"Student-{student_id}"
+                print(f"👤 Filtering for student: {student_name}")
+            except:
+                student_name = f"Student-{student_id}"
+            
+            # Get all classes in the date range first (after other filters)
+            all_classes_in_range = query.all()
+            print(f"📅 Total classes on {target_date} before student filter: {len(all_classes_in_range)}")
+            
+            # Manually filter for this specific student
+            valid_class_ids = []
+            
+            for cls in all_classes_in_range:
+                student_is_in_class = False
+                
+                # Check if student is primary student
+                if cls.primary_student_id == student_id:
+                    student_is_in_class = True
+                    print(f"✅ {student_name} is PRIMARY in: {cls.subject}")
+                
+                # Check if student is demo student
+                elif cls.demo_student_id == student_id:
+                    student_is_in_class = True
+                    print(f"✅ {student_name} is DEMO in: {cls.subject}")
+                
+                # Check if student is in group class
+                elif cls.students:
+                    try:
+                        import json
+                        student_ids_in_class = json.loads(cls.students)
+                        if student_id in student_ids_in_class:
+                            student_is_in_class = True
+                            print(f"✅ {student_name} is in GROUP class: {cls.subject}")
+                    except (json.JSONDecodeError, TypeError):
+                        # Fallback: more precise string search
+                        students_str = str(cls.students)
+                        if f'"{student_id}"' in students_str or f'[{student_id}]' in students_str:
+                            student_is_in_class = True
+                            print(f"✅ {student_name} found in GROUP (fallback): {cls.subject}")
+                
+                if student_is_in_class:
+                    valid_class_ids.append(cls.id)
+            
+            print(f"🎯 Found {len(valid_class_ids)} classes for {student_name}")
+            
+            # Apply the precise filter
+            if valid_class_ids:
+                query = Class.query.filter(
+                    Class.id.in_(valid_class_ids),
+                    Class.scheduled_date == target_date
+                )
+            else:
+                # No classes found for this student
+                query = Class.query.filter(Class.id == -1)
+                print(f"⚠️ No classes found for student {student_name}")
+        
+        # Get FINAL filtered classes
         classes = query.order_by(Class.scheduled_time).all()
         
-        # Build response data
+        print(f"📊 FINAL: Found {len(classes)} classes for today after filtering")
+        
+        # Build response data (same as original)
         classes_data = []
         for cls in classes:
             try:
@@ -2051,7 +2207,7 @@ def api_timetable_today():
                     if cls.tutor.user.department:
                         department_name = cls.tutor.user.department.name
                 
-                # Get student details - ENHANCED VERSION
+                # Get student details
                 student_count = 0
                 student_names = []
                 student_emails = []
@@ -2079,52 +2235,50 @@ def api_timetable_today():
                         student_emails = [s.email or '' for s in students]
                     except (json.JSONDecodeError, TypeError):
                         student_count = 0
-                        student_names = []
-                        student_emails = []
+                        student_names = ['Group Students']
+                        student_emails = ['']
                 
-                class_data = {
+                # Format time
+                start_time = cls.scheduled_time.strftime('%H:%M') if cls.scheduled_time else '00:00'
+                end_time = ''
+                if cls.scheduled_time and cls.duration:
+                    start_datetime = datetime.combine(datetime.today(), cls.scheduled_time)
+                    end_datetime = start_datetime + timedelta(minutes=cls.duration)
+                    end_time = end_datetime.time().strftime('%H:%M')
+                
+                classes_data.append({
                     'id': cls.id,
-                    'subject': cls.subject or 'No Subject',
-                    'class_type': cls.class_type or 'regular',
-                    'scheduled_date': cls.scheduled_date.strftime('%Y-%m-%d'),
-                    'scheduled_time': cls.scheduled_time.strftime('%H:%M') if cls.scheduled_time else '00:00',
-                    'duration': cls.duration or 60,
-                    'status': cls.status or 'scheduled',
+                    'subject': cls.subject,
+                    'class_type': cls.class_type,
+                    'grade': cls.grade or '',
+                    'board': cls.board or '',
+                    'start_time': start_time,
+                    'end_time': end_time,
+                    'duration': cls.duration,
                     'tutor_name': tutor_name,
                     'tutor_email': tutor_email,
-                    'tutor_id': cls.tutor_id,
                     'department_name': department_name,
                     'student_count': student_count,
                     'student_names': student_names,
                     'student_emails': student_emails,
-                    'grade': cls.grade or '',
-                    'board': cls.board or '',
-                    'meeting_link': cls.meeting_link or '',
+                    'status': cls.status,
                     'platform': cls.platform or '',
-                    'class_notes': cls.class_notes or '',
-                    'can_reschedule': cls.can_be_rescheduled() if hasattr(cls, 'can_be_rescheduled') else True,
-                    'can_cancel': cls.can_be_cancelled() if hasattr(cls, 'can_be_cancelled') else True
-                }
-                classes_data.append(class_data)
+                    'meeting_link': cls.meeting_link or '',
+                    'class_notes': cls.class_notes or ''
+                })
                 
             except Exception as e:
-                print(f"Error processing class {cls.id}: {str(e)}")
+                print(f"❌ Error processing class {cls.id}: {str(e)}")
                 continue
         
-        # Calculate statistics
-        total_classes = len(classes_data)
-        scheduled_count = len([c for c in classes_data if c['status'] == 'scheduled'])
-        ongoing_count = len([c for c in classes_data if c['status'] == 'ongoing'])
-        completed_count = len([c for c in classes_data if c['status'] == 'completed'])
-        cancelled_count = len([c for c in classes_data if c['status'] == 'cancelled'])
-        
+        # Calculate stats
         stats = {
-            'total_classes': total_classes,
+            'total_classes': len(classes),
             'today': {
-                'scheduled': scheduled_count,
-                'ongoing': ongoing_count,
-                'completed': completed_count,
-                'cancelled': cancelled_count
+                'scheduled': len([c for c in classes if c.status == 'scheduled']),
+                'ongoing': len([c for c in classes if c.status == 'ongoing']),
+                'completed': len([c for c in classes if c.status == 'completed']),
+                'cancelled': len([c for c in classes if c.status == 'cancelled'])
             }
         }
         
@@ -2142,7 +2296,9 @@ def api_timetable_today():
         })
         
     except Exception as e:
-        print(f"Error in api_timetable_today: {str(e)}")
+        print(f"❌ Error in api_timetable_today: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return jsonify({
             'success': False,
             'error': str(e),
@@ -2150,11 +2306,12 @@ def api_timetable_today():
             'stats': {'total_classes': 0, 'today': {'scheduled': 0, 'ongoing': 0, 'completed': 0, 'cancelled': 0}}
         }), 500
 
+
 @bp.route('/api/v1/timetable/week')
 @login_required
 @admin_required
 def api_timetable_week():
-    """Get weekly timetable data with working filters"""
+    """FIXED: Get weekly timetable data with precise filtering"""
     try:
         date_param = request.args.get('date', datetime.now().strftime('%Y-%m-%d'))
         target_date = datetime.strptime(date_param, '%Y-%m-%d').date()
@@ -2163,29 +2320,23 @@ def api_timetable_week():
         start_of_week = target_date - timedelta(days=target_date.weekday())
         end_of_week = start_of_week + timedelta(days=6)
         
-        # Apply same filters as daily view
+        # Get filters
         search = request.args.get('search', '').strip()
         tutor_id = request.args.get('tutor_id', type=int)
         student_id = request.args.get('student_id', type=int)
         department_id = request.args.get('department_id', type=int)
         
+        print(f"📅 Timetable Week - {start_of_week} to {end_of_week}, Student: {student_id}")
+        
+        # Base query for the week
         query = Class.query.filter(
             Class.scheduled_date >= start_of_week,
             Class.scheduled_date <= end_of_week
         )
         
-        # Apply filters (same logic as daily)
+        # Apply non-student filters first
         if tutor_id:
             query = query.filter(Class.tutor_id == tutor_id)
-        
-        if student_id:
-            query = query.filter(
-                db.or_(
-                    Class.primary_student_id == student_id,
-                    Class.demo_student_id == student_id,
-                    Class.students.like(f'%{student_id}%')
-                )
-            )
         
         if department_id:
             query = query.join(Tutor, Class.tutor_id == Tutor.id)\
@@ -2203,47 +2354,86 @@ def api_timetable_week():
                 )
             )
         
+        # PRECISE STUDENT FILTERING
+        if student_id:
+            print(f"🎯 Applying PRECISE student filter for weekly view")
+            
+            # Get all classes in the week first
+            all_classes_in_range = query.all()
+            print(f"📅 Total classes in week before student filter: {len(all_classes_in_range)}")
+            
+            # Manually filter for this specific student
+            valid_class_ids = []
+            
+            for cls in all_classes_in_range:
+                student_is_in_class = False
+                
+                if cls.primary_student_id == student_id:
+                    student_is_in_class = True
+                elif cls.demo_student_id == student_id:
+                    student_is_in_class = True
+                elif cls.students:
+                    try:
+                        import json
+                        student_ids_in_class = json.loads(cls.students)
+                        if student_id in student_ids_in_class:
+                            student_is_in_class = True
+                    except:
+                        students_str = str(cls.students)
+                        if f'"{student_id}"' in students_str or f'[{student_id}]' in students_str:
+                            student_is_in_class = True
+                
+                if student_is_in_class:
+                    valid_class_ids.append(cls.id)
+            
+            print(f"🎯 Found {len(valid_class_ids)} classes for student in week")
+            
+            # Apply the precise filter
+            if valid_class_ids:
+                query = Class.query.filter(
+                    Class.id.in_(valid_class_ids),
+                    Class.scheduled_date >= start_of_week,
+                    Class.scheduled_date <= end_of_week
+                )
+            else:
+                query = Class.query.filter(Class.id == -1)
+        
+        # Get filtered classes
         classes = query.order_by(Class.scheduled_date, Class.scheduled_time).all()
         
-        # Group classes by date
-        classes_by_date = {}
+        print(f"📊 FINAL: Found {len(classes)} classes for week after filtering")
+        
+        # Group by date for week view
+        week_data = {}
+        for i in range(7):
+            current_date = start_of_week + timedelta(days=i)
+            date_str = current_date.strftime('%Y-%m-%d')
+            week_data[date_str] = []
+        
         for cls in classes:
             date_str = cls.scheduled_date.strftime('%Y-%m-%d')
-            if date_str not in classes_by_date:
-                classes_by_date[date_str] = []
-            
-            # Build class data
-            tutor_name = cls.tutor.user.full_name if cls.tutor and cls.tutor.user else 'No Tutor'
-            student_count = 0
-            if cls.primary_student_id:
-                student_count = 1
-            elif cls.students:
-                try:
-                    import json
-                    student_ids = json.loads(cls.students)
-                    student_count = len(student_ids)
-                except:
-                    pass
-            
-            classes_by_date[date_str].append({
-                'id': cls.id,
-                'subject': cls.subject,
-                'time': cls.scheduled_time.strftime('%H:%M') if cls.scheduled_time else '00:00',
-                'tutor_name': tutor_name,
-                'student_count': student_count,
-                'status': cls.status,
-                'duration': cls.duration
-            })
+            if date_str in week_data:
+                tutor_name = cls.tutor.user.full_name if cls.tutor and cls.tutor.user else 'No Tutor'
+                
+                week_data[date_str].append({
+                    'id': cls.id,
+                    'subject': cls.subject,
+                    'time': cls.scheduled_time.strftime('%H:%M') if cls.scheduled_time else '00:00',
+                    'tutor_name': tutor_name,
+                    'status': cls.status,
+                    'duration': cls.duration
+                })
         
         return jsonify({
             'success': True,
-            'classes_by_date': classes_by_date,
-            'week_start': start_of_week.strftime('%Y-%m-%d'),
-            'week_end': end_of_week.strftime('%Y-%m-%d'),
+            'week_data': week_data,
+            'start_date': start_of_week.strftime('%Y-%m-%d'),
+            'end_date': end_of_week.strftime('%Y-%m-%d'),
             'total_classes': len(classes)
         })
         
     except Exception as e:
+        print(f"❌ Error in api_timetable_week: {str(e)}")
         return jsonify({
             'success': False,
             'error': str(e)
@@ -2253,51 +2443,74 @@ def api_timetable_week():
 @bp.route('/api/v1/timetable/monthly-stats')
 @login_required
 @admin_required
-def api_monthly_stats():
-    """Get monthly statistics with filters"""
+def api_timetable_monthly_stats():
+    """FIXED: Get monthly statistics with precise filtering"""
     try:
         year = request.args.get('year', datetime.now().year, type=int)
-        
-        # Apply filters for monthly stats too
+        search = request.args.get('search', '').strip()
         tutor_id = request.args.get('tutor_id', type=int)
         student_id = request.args.get('student_id', type=int)
         department_id = request.args.get('department_id', type=int)
         
         monthly_stats = {}
         
-        # Get data for each month
         for month in range(1, 13):
+            # Get date range for month
             start_date = date(year, month, 1)
             if month == 12:
                 end_date = date(year + 1, 1, 1) - timedelta(days=1)
             else:
                 end_date = date(year, month + 1, 1) - timedelta(days=1)
             
-            # Count classes for this month with filters
+            # Base query for the month
             query = Class.query.filter(
                 Class.scheduled_date >= start_date,
                 Class.scheduled_date <= end_date
             )
             
-            # Apply same filters
+            # Apply non-student filters first
             if tutor_id:
                 query = query.filter(Class.tutor_id == tutor_id)
-            
-            if student_id:
-                query = query.filter(
-                    db.or_(
-                        Class.primary_student_id == student_id,
-                        Class.demo_student_id == student_id,
-                        Class.students.like(f'%{student_id}%')
-                    )
-                )
             
             if department_id:
                 query = query.join(Tutor, Class.tutor_id == Tutor.id)\
                              .join(User, Tutor.user_id == User.id)\
                              .filter(User.department_id == department_id)
             
-            month_classes = query.count()
+            # PRECISE STUDENT FILTERING
+            if student_id:
+                # Get all classes in the month first
+                all_classes_in_month = query.all()
+                
+                # Manually filter for this specific student
+                valid_class_ids = []
+                
+                for cls in all_classes_in_month:
+                    student_is_in_class = False
+                    
+                    if cls.primary_student_id == student_id:
+                        student_is_in_class = True
+                    elif cls.demo_student_id == student_id:
+                        student_is_in_class = True
+                    elif cls.students:
+                        try:
+                            import json
+                            student_ids_in_class = json.loads(cls.students)
+                            if student_id in student_ids_in_class:
+                                student_is_in_class = True
+                        except:
+                            students_str = str(cls.students)
+                            if f'"{student_id}"' in students_str or f'[{student_id}]' in students_str:
+                                student_is_in_class = True
+                    
+                    if student_is_in_class:
+                        valid_class_ids.append(cls.id)
+                
+                # Count valid classes
+                month_classes = len(valid_class_ids)
+            else:
+                # No student filter - count all classes
+                month_classes = query.count()
             
             month_names = ['jan', 'feb', 'mar', 'apr', 'may', 'jun',
                           'jul', 'aug', 'sep', 'oct', 'nov', 'dec']
@@ -2311,6 +2524,7 @@ def api_monthly_stats():
         })
         
     except Exception as e:
+        print(f"❌ Error in monthly stats: {str(e)}")
         return jsonify({
             'success': False,
             'error': str(e)
@@ -2425,20 +2639,91 @@ def api_get_class_details(class_id):
 @login_required
 @admin_required
 def api_month_details(month):
-    """Get detailed classes for a specific month"""
+    """FIXED: Get detailed classes for a specific month with precise filtering"""
     try:
         year = request.args.get('year', datetime.now().year, type=int)
+        search = request.args.get('search', '').strip()
+        tutor_id = request.args.get('tutor_id', type=int)
+        student_id = request.args.get('student_id', type=int)
+        department_id = request.args.get('department_id', type=int)
         
+        # Get date range for month
         start_date = date(year, month, 1)
         if month == 12:
             end_date = date(year + 1, 1, 1) - timedelta(days=1)
         else:
             end_date = date(year, month + 1, 1) - timedelta(days=1)
         
-        classes = Class.query.filter(
+        # Base query
+        query = Class.query.filter(
             Class.scheduled_date >= start_date,
             Class.scheduled_date <= end_date
-        ).order_by(Class.scheduled_date, Class.scheduled_time).all()
+        )
+        
+        # Apply non-student filters
+        if tutor_id:
+            query = query.filter(Class.tutor_id == tutor_id)
+        
+        if department_id:
+            query = query.join(Tutor, Class.tutor_id == Tutor.id)\
+                         .join(User, Tutor.user_id == User.id)\
+                         .filter(User.department_id == department_id)
+        
+        if search:
+            query = query.join(Tutor, Class.tutor_id == Tutor.id, isouter=True)\
+                         .join(User, Tutor.user_id == User.id, isouter=True)\
+                         .filter(
+                db.or_(
+                    Class.subject.ilike(f'%{search}%'),
+                    User.full_name.ilike(f'%{search}%'),
+                    Class.grade.ilike(f'%{search}%')
+                )
+            )
+        
+        # PRECISE STUDENT FILTERING
+        if student_id:
+            print(f"🎯 Applying precise student filter for month {month}")
+            
+            # Get all classes in the month first
+            all_classes_in_month = query.all()
+            print(f"📅 Total classes in month before student filter: {len(all_classes_in_month)}")
+            
+            # Manually filter for this specific student
+            valid_class_ids = []
+            
+            for cls in all_classes_in_month:
+                student_is_in_class = False
+                
+                if cls.primary_student_id == student_id:
+                    student_is_in_class = True
+                elif cls.demo_student_id == student_id:
+                    student_is_in_class = True
+                elif cls.students:
+                    try:
+                        import json
+                        student_ids_in_class = json.loads(cls.students)
+                        if student_id in student_ids_in_class:
+                            student_is_in_class = True
+                    except:
+                        students_str = str(cls.students)
+                        if f'"{student_id}"' in students_str or f'[{student_id}]' in students_str:
+                            student_is_in_class = True
+                
+                if student_is_in_class:
+                    valid_class_ids.append(cls.id)
+            
+            print(f"🎯 Found {len(valid_class_ids)} classes for student in month")
+            
+            # Apply the precise filter
+            if valid_class_ids:
+                classes = Class.query.filter(Class.id.in_(valid_class_ids)).order_by(Class.scheduled_date, Class.scheduled_time).all()
+            else:
+                classes = []
+        else:
+            # No student filter
+            classes = query.order_by(Class.scheduled_date, Class.scheduled_time).all()
+        
+        print(f"📊 FINAL: Found {len(classes)} classes for month {month}")
         
         # Group classes by date
         classes_by_date = {}
@@ -2468,6 +2753,7 @@ def api_month_details(month):
         })
         
     except Exception as e:
+        print(f"❌ Error in month details: {str(e)}")
         return jsonify({
             'success': False,
             'error': str(e)
@@ -2504,7 +2790,7 @@ def api_timetable_year():
                 db.or_(
                     Class.primary_student_id == student_id,
                     Class.demo_student_id == student_id,
-                    Class.students.like(f'%{student_id}%')
+                    json.loads(cls.students)
                 )
             )
         
@@ -2792,7 +3078,6 @@ def api_create_quick_class():
         return jsonify({'success': False, 'error': str(e)}), 500
     
 
-# ============ EXPORT FUNCTIONALITY ============
 import csv
 import io
 from datetime import timedelta
@@ -2805,20 +3090,34 @@ except ImportError:
     print("⚠️ icalendar not available - calendar export will use simple format")
 
 
+
 @bp.route('/timetable/export')
 @login_required
 @admin_required
 def timetable_export():
-    """Timetable export management page"""
-    tutors = Tutor.query.all()
-    departments = Department.query.filter_by(is_active=True).all()
+    """Timetable export management page with all required data"""
+    try:
+        # Get tutors
+        tutors = Tutor.query.join(Tutor.user).filter(Tutor.status == 'active').all()
+        
+        # Get departments
+        departments = Department.query.filter_by(is_active=True).all()
+        
+        # Get students - THIS WAS MISSING
+        students = Student.query.filter_by(is_active=True).order_by(Student.full_name).all()
+        
+        print(f"📊 Export page: {len(tutors)} tutors, {len(students)} students, {len(departments)} departments")
+        
+        return render_template('admin/timetable_export.html', 
+                             tutors=tutors, 
+                             students=students,  # ADD this line
+                             departments=departments)
     
-    return render_template('admin/timetable_export.html', 
-                         tutors=tutors, 
-                         departments=departments)
+    except Exception as e:
+        print(f"❌ Error loading export page: {str(e)}")
+        flash('Error loading export page', 'error')
+        return redirect(url_for('admin.timetable'))
 
-
-# REPLACE the generate_timetable_excel() function in admin.py with this FIXED version:
 
 def generate_timetable_excel(classes, period_name):
     """Generate Excel export for timetable - FIXED VERSION"""
@@ -2917,322 +3216,32 @@ def generate_timetable_excel(classes, period_name):
         print(f"Excel generation error: {str(e)}")
         raise e
 
+
+# COMPLETELY REPLACE the api_timetable_export_preview function with this FIXED version:
+
 @bp.route('/api/v1/timetable/export-preview', methods=['POST'])
 @login_required
 @admin_required
-def api_export_preview():
-    """Generate detailed export preview with real data - FIXED VERSION"""
+def api_timetable_export_preview():
+    """COMPLETELY FIXED: Generate export preview with precise filtering"""
     try:
-        data = request.get_json()
-        if not data:
-            return jsonify({'success': False, 'error': 'No data received'}), 400
-        
-        export_type = data.get('export_type', 'pdf')
-        period = data.get('period', 'today')
-        date_param = data.get('date', datetime.now().strftime('%Y-%m-%d'))
-        scope = data.get('scope', 'all')
-        tutor_id = data.get('tutor_id')
-        department_id = data.get('department_id')
-        subject_filter = data.get('subject_filter', '')
-        
-        print(f"📊 Preview request: {export_type}, {period}, {date_param}")
-        
-        # Parse date
-        try:
-            target_date = datetime.strptime(date_param, '%Y-%m-%d').date()
-        except ValueError as e:
-            return jsonify({'success': False, 'error': f'Invalid date format: {date_param}'}), 400
-        
-        # Build query based on period
-        if period == 'today':
-            query = Class.query.filter(Class.scheduled_date == target_date)
-            period_name = target_date.strftime('%B %d, %Y')
-        elif period == 'week':
-            start_of_week = target_date - timedelta(days=target_date.weekday())
-            end_of_week = start_of_week + timedelta(days=6)
-            query = Class.query.filter(
-                Class.scheduled_date >= start_of_week,
-                Class.scheduled_date <= end_of_week
-            )
-            period_name = f"Week of {start_of_week.strftime('%B %d, %Y')}"
-        elif period == 'month':
-            first_day = target_date.replace(day=1)
-            if target_date.month == 12:
-                last_day = target_date.replace(year=target_date.year + 1, month=1, day=1) - timedelta(days=1)
-            else:
-                last_day = target_date.replace(month=target_date.month + 1, day=1) - timedelta(days=1)
-            query = Class.query.filter(
-                Class.scheduled_date >= first_day,
-                Class.scheduled_date <= last_day
-            )
-            period_name = target_date.strftime('%B %Y')
-        elif period == 'quarter':
-            quarter = (target_date.month - 1) // 3 + 1
-            quarter_start = target_date.replace(month=(quarter-1)*3 + 1, day=1)
-            if quarter == 4:
-                quarter_end = target_date.replace(year=target_date.year + 1, month=1, day=1) - timedelta(days=1)
-            else:
-                quarter_end = target_date.replace(month=quarter*3 + 1, day=1) - timedelta(days=1)
-            query = Class.query.filter(
-                Class.scheduled_date >= quarter_start,
-                Class.scheduled_date <= quarter_end
-            )
-            period_name = f"Q{quarter} {target_date.year}"
-        elif period == 'year':
-            year_start = target_date.replace(month=1, day=1)
-            year_end = target_date.replace(month=12, day=31)
-            query = Class.query.filter(
-                Class.scheduled_date >= year_start,
-                Class.scheduled_date <= year_end
-            )
-            period_name = str(target_date.year)
-        else:
-            query = Class.query.filter(Class.scheduled_date == target_date)
-            period_name = target_date.strftime('%B %d, %Y')
-        
-        # Apply filters
-        if scope != 'all':
-            query = query.filter(Class.status == scope)
-        
-        if tutor_id:
-            query = query.filter(Class.tutor_id == tutor_id)
-        
-        if department_id:
-            # Join with tutor and user to filter by department
-            query = query.join(Tutor).join(User).filter(User.department_id == department_id)
-        
-        if subject_filter:
-            query = query.filter(Class.subject.contains(subject_filter))
-        
-        # Department access check for coordinators
-        if current_user.role == 'coordinator':
-            query = query.join(Tutor).join(User).filter(User.department_id == current_user.department_id)
-        
-        # Get classes
-        classes = query.order_by(Class.scheduled_date, Class.scheduled_time).all()
-        
-        print(f"📊 Found {len(classes)} classes")
-        
-        # Calculate statistics
-        total_records = len(classes)
-        total_hours = sum([cls.duration / 60 for cls in classes if cls.duration]) if classes else 0
-        
-        # Get unique tutors and students
-        unique_tutors = len(set([cls.tutor_id for cls in classes if cls.tutor_id]))
-        
-        unique_students = set()
-        for cls in classes:
-            if cls.primary_student_id:
-                unique_students.add(cls.primary_student_id)
-            if cls.students:
-                try:
-                    import json
-                    student_ids = json.loads(cls.students) if isinstance(cls.students, str) else cls.students
-                    if isinstance(student_ids, list):
-                        unique_students.update(student_ids)
-                except:
-                    pass
-        unique_students = len(unique_students)
-        
-        # Status breakdown
-        status_counts = {}
-        for cls in classes:
-            status = cls.status or 'unknown'
-            status_counts[status] = status_counts.get(status, 0) + 1
-        
-        # Estimate file size and pages
-        if export_type == 'pdf':
-            estimated_pages = max(1, (total_records // 20) + 1)
-            estimated_size = f"{estimated_pages * 50}KB"
-        elif export_type == 'csv':
-            estimated_size = f"{max(1, total_records * 0.5):.1f}KB"
-        elif export_type == 'calendar':
-            estimated_size = f"{max(1, total_records * 1.2):.1f}KB"
-        else:
-            estimated_size = "Unknown"
-        
-        # Generate preview HTML
-        preview_html = f"""
-        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
-            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 1.5rem; border-radius: 8px; margin-bottom: 1.5rem;">
-                <h3 style="margin: 0 0 0.5rem 0; font-size: 1.25rem;">📊 {export_type.upper()} Export Preview</h3>
-                <p style="margin: 0; opacity: 0.9;">Period: {period_name} | {total_records} classes found</p>
-            </div>
-        """
-        
-        if classes:
-            preview_html += """
-            <div style="background: white; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden; margin-bottom: 1.5rem;">
-                <table style="width: 100%; border-collapse: collapse;">
-                    <thead>
-                        <tr style="background: #f9fafb;">
-                            <th style="padding: 0.75rem; text-align: left; border-bottom: 1px solid #e5e7eb; font-weight: 600;">Date</th>
-                            <th style="padding: 0.75rem; text-align: left; border-bottom: 1px solid #e5e7eb; font-weight: 600;">Time</th>
-                            <th style="padding: 0.75rem; text-align: left; border-bottom: 1px solid #e5e7eb; font-weight: 600;">Subject</th>
-                            <th style="padding: 0.75rem; text-align: left; border-bottom: 1px solid #e5e7eb; font-weight: 600;">Tutor</th>
-                            <th style="padding: 0.75rem; text-align: left; border-bottom: 1px solid #e5e7eb; font-weight: 600;">Status</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-            """
-            
-            # Show first 10 classes in preview
-            for i, cls in enumerate(classes[:10]):
-                tutor_name = cls.tutor.user.full_name if cls.tutor and cls.tutor.user else 'No Tutor'
-                status_color = '#10b981' if cls.status == 'completed' else '#3b82f6' if cls.status == 'scheduled' else '#ef4444'
-                
-                preview_html += f"""
-                        <tr style="{'background: #f9fafb;' if i % 2 == 0 else ''}">
-                            <td style="padding: 0.75rem; border-bottom: 1px solid #f3f4f6;">{cls.scheduled_date.strftime('%Y-%m-%d') if cls.scheduled_date else 'N/A'}</td>
-                            <td style="padding: 0.75rem; border-bottom: 1px solid #f3f4f6;">{cls.scheduled_time.strftime('%H:%M') if cls.scheduled_time else 'N/A'}</td>
-                            <td style="padding: 0.75rem; border-bottom: 1px solid #f3f4f6;">{cls.subject or 'N/A'}</td>
-                            <td style="padding: 0.75rem; border-bottom: 1px solid #f3f4f6;">{tutor_name}</td>
-                            <td style="padding: 0.75rem; border-bottom: 1px solid #f3f4f6;">
-                                <span style="background: {status_color}; color: white; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.75rem; font-weight: 500;">
-                                    {(cls.status or 'unknown').title()}
-                                </span>
-                            </td>
-                        </tr>
-                """
-            
-            if len(classes) > 10:
-                preview_html += f"""
-                        <tr>
-                            <td colspan="5" style="padding: 0.75rem; text-align: center; color: #6b7280; font-style: italic;">
-                                ... and {len(classes) - 10} more classes
-                            </td>
-                        </tr>
-                """
-        
-            preview_html += """
-                    </tbody>
-                </table>
-            </div>
-            """
-            
-            # Status breakdown
-            preview_html += """
-            <div style="background: #f8f9fa; padding: 1rem; border-radius: 6px;">
-                <h4 style="margin: 0 0 1rem 0;">Status Breakdown</h4>
-            """
-            
-            for status, count in status_counts.items():
-                percentage = (count / total_records * 100) if total_records > 0 else 0
-                color = '#10b981' if status == 'completed' else '#3b82f6' if status == 'scheduled' else '#ef4444'
-                preview_html += f"""
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-                        <span style="text-transform: capitalize;">{status}</span>
-                        <div style="display: flex; align-items: center; gap: 0.5rem;">
-                            <div style="width: 100px; height: 8px; background: #e5e7eb; border-radius: 4px; overflow: hidden;">
-                                <div style="width: {percentage}%; height: 100%; background: {color};"></div>
-                            </div>
-                            <span style="font-weight: bold; min-width: 60px;">{count} ({percentage:.1f}%)</span>
-                        </div>
-                    </div>
-                """
-            
-            preview_html += """
-            </div>
-            """
-        else:
-            preview_html += """
-            <div style="text-align: center; padding: 3rem; color: #6b7280;">
-                <div style="font-size: 3rem; margin-bottom: 1rem;">📅</div>
-                <h3 style="margin: 0 0 0.5rem 0;">No Classes Found</h3>
-                <p style="margin: 0;">No classes match your selected criteria for this period.</p>
-            </div>
-            """
-        
-        preview_html += """
-        </div>
-        """
-        
-        return jsonify({
-            'success': True,
-            'total_records': total_records,
-            'estimated_size': estimated_size,
-            'page_count': estimated_pages if export_type == 'pdf' else 1,
-            'generation_time': "0.1",
-            'preview_html': preview_html,
-            'statistics': {
-                'total_classes': total_records,
-                'total_hours': round(total_hours, 1),
-                'unique_tutors': unique_tutors,
-                'unique_students': unique_students,
-                'status_breakdown': status_counts,
-                'period_name': period_name
-            }
-        })
-        
-    except Exception as e:
-        print(f"📊 Export preview error: {str(e)}")
-        import traceback
-        traceback.print_exc()
-        return jsonify({'success': False, 'error': str(e)}), 500
-    
-    
-    
-@bp.route('/api/v1/timetable/export-pdf')
-@login_required
-@admin_required
-def api_export_timetable_pdf():
-    """Fixed PDF export endpoint"""
-    try:
-        date_param = request.args.get('date', datetime.now().strftime('%Y-%m-%d'))
-        view = request.args.get('view', 'today')
-        
-        # Use your existing PDF generation logic
-        target_date = datetime.strptime(date_param, '%Y-%m-%d').date()
-        
-        if view == 'today':
-            classes = Class.query.filter(Class.scheduled_date == target_date).all()
-        elif view == 'week':
-            start_of_week = target_date - timedelta(days=target_date.weekday())
-            end_of_week = start_of_week + timedelta(days=6)
-            classes = Class.query.filter(
-                Class.scheduled_date >= start_of_week,
-                Class.scheduled_date <= end_of_week
-            ).all()
-        else:  # month
-            first_day = target_date.replace(day=1)
-            if target_date.month == 12:
-                last_day = target_date.replace(year=target_date.year + 1, month=1, day=1) - timedelta(days=1)
-            else:
-                last_day = target_date.replace(month=target_date.month + 1, day=1) - timedelta(days=1)
-            classes = Class.query.filter(
-                Class.scheduled_date >= first_day,
-                Class.scheduled_date <= last_day
-            ).all()
-        
-        # Generate PDF using your existing function
-        pdf_data = generate_timetable_pdf(classes, f"{view.title()} View", view)
-        
-        response = make_response(pdf_data)
-        response.headers['Content-Type'] = 'application/pdf'
-        response.headers['Content-Disposition'] = f'attachment; filename=timetable_{date_param}.pdf'
-        
-        return response
-        
-    except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
-    
-@bp.route('/api/v1/timetable/export', methods=['POST'])
-@login_required
-@admin_required
-def api_timetable_export():
-    """Complete export system for all formats"""
-    try:
-        print("🚀 Export request received")
+        print("📊 Export preview request received")
         
         data = request.get_json()
         if not data:
             return jsonify({'success': False, 'error': 'No data received'}), 400
         
+        # Get filter parameters
         export_type = data.get('export_type', 'pdf')
         period = data.get('period', 'today')
         date_param = data.get('date', datetime.now().strftime('%Y-%m-%d'))
+        tutor_filter = data.get('tutor_id')
+        student_filter = data.get('student_id')
+        department_filter = data.get('department_id')
+        subject_filter = data.get('subject_filter', '').strip()
+        scope_filter = data.get('scope', 'all')
         
-        print(f"📊 Export: {export_type}, Period: {period}, Date: {date_param}")
+        print(f"📊 Preview Filters - Tutor: {tutor_filter}, Student: {student_filter}, Dept: {department_filter}")
         
         # Parse date
         try:
@@ -3240,17 +3249,20 @@ def api_timetable_export():
         except ValueError:
             return jsonify({'success': False, 'error': f'Invalid date: {date_param}'}), 400
         
-        # Get classes based on period
+        # Start with base date query
+        query = Class.query
+        
+        # Apply date filters first
         if period == 'today':
-            classes = Class.query.filter(Class.scheduled_date == target_date).all()
+            query = query.filter(Class.scheduled_date == target_date)
             period_name = target_date.strftime('%B %d, %Y')
         elif period == 'week':
             start_of_week = target_date - timedelta(days=target_date.weekday())
             end_of_week = start_of_week + timedelta(days=6)
-            classes = Class.query.filter(
+            query = query.filter(
                 Class.scheduled_date >= start_of_week,
                 Class.scheduled_date <= end_of_week
-            ).all()
+            )
             period_name = f"Week of {start_of_week.strftime('%B %d, %Y')}"
         elif period == 'month':
             first_day = target_date.replace(day=1)
@@ -3258,48 +3270,617 @@ def api_timetable_export():
                 last_day = target_date.replace(year=target_date.year + 1, month=1, day=1) - timedelta(days=1)
             else:
                 last_day = target_date.replace(month=target_date.month + 1, day=1) - timedelta(days=1)
-            classes = Class.query.filter(
+            query = query.filter(
                 Class.scheduled_date >= first_day,
                 Class.scheduled_date <= last_day
-            ).all()
+            )
             period_name = target_date.strftime('%B %Y')
-        else:
-            classes = Class.query.filter(Class.scheduled_date == target_date).all()
-            period_name = target_date.strftime('%B %d, %Y')
         
-        print(f"📊 Found {len(classes)} classes")
+        # Apply other filters BEFORE student filter
+        if tutor_filter and tutor_filter != '' and tutor_filter != '0':
+            query = query.filter(Class.tutor_id == int(tutor_filter))
+            print(f"✅ Preview applied tutor filter: {tutor_filter}")
+        
+        if department_filter and department_filter != '' and department_filter != '0':
+            query = query.join(Tutor, Class.tutor_id == Tutor.id)\
+                         .join(User, Tutor.user_id == User.id)\
+                         .filter(User.department_id == int(department_filter))
+            print(f"✅ Preview applied department filter: {department_filter}")
+        
+        if subject_filter:
+            query = query.filter(Class.subject.ilike(f'%{subject_filter}%'))
+            print(f"✅ Preview applied subject filter: {subject_filter}")
+        
+        if scope_filter != 'all':
+            query = query.filter(Class.status == scope_filter)
+            print(f"✅ Preview applied scope filter: {scope_filter}")
+        
+        # CRITICAL: Apply student filter LAST with precise logic
+        if student_filter and student_filter != '' and student_filter != '0':
+            student_id = int(student_filter)
+            print(f"🎯 Applying PRECISE student filter for ID: {student_id}")
+            
+            # Get student info
+            try:
+                student = Student.query.get(student_id)
+                student_name = student.full_name if student else f"Student-{student_id}"
+                print(f"👤 Filtering for student: {student_name}")
+            except:
+                student_name = f"Student-{student_id}"
+            
+            # Get all classes in the date range first
+            all_classes_in_range = query.all()
+            print(f"📅 Total classes in date range: {len(all_classes_in_range)}")
+            
+            # Now manually filter for this specific student
+            valid_class_ids = []
+            
+            for class_item in all_classes_in_range:  # FIXED: Use class_item instead of cls
+                student_is_in_class = False
+                
+                # Check if student is primary student
+                if class_item.primary_student_id == student_id:
+                    student_is_in_class = True
+                    print(f"✅ {student_name} is PRIMARY in: {class_item.subject}")
+                
+                # Check if student is demo student
+                elif class_item.demo_student_id == student_id:
+                    student_is_in_class = True
+                    print(f"✅ {student_name} is DEMO in: {class_item.subject}")
+                
+                # Check if student is in group class
+                elif class_item.students:
+                    try:
+                        import json
+                        student_ids_in_class = json.loads(class_item.students)
+                        if student_id in student_ids_in_class:
+                            student_is_in_class = True
+                            print(f"✅ {student_name} is in GROUP class: {class_item.subject}")
+                    except (json.JSONDecodeError, TypeError):
+                        # Fallback: check if student ID appears in the string
+                        students_str = str(class_item.students)
+                        if f'"{student_id}"' in students_str or f'{student_id}' in students_str:
+                            student_is_in_class = True
+                            print(f"✅ {student_name} found in GROUP (fallback): {class_item.subject}")
+                
+                if student_is_in_class:
+                    valid_class_ids.append(class_item.id)
+            
+            print(f"🎯 Found {len(valid_class_ids)} classes for {student_name}")
+            
+            # Apply the precise filter
+            if valid_class_ids:
+                query = Class.query.filter(Class.id.in_(valid_class_ids))
+                # Re-apply date filter
+                if period == 'today':
+                    query = query.filter(Class.scheduled_date == target_date)
+                elif period == 'week':
+                    query = query.filter(
+                        Class.scheduled_date >= start_of_week,
+                        Class.scheduled_date <= end_of_week
+                    )
+                elif period == 'month':
+                    query = query.filter(
+                        Class.scheduled_date >= first_day,
+                        Class.scheduled_date <= last_day
+                    )
+            else:
+                # No classes found for this student
+                query = Class.query.filter(Class.id == -1)
+                print(f"⚠️ No classes found for student {student_name}")
+        
+        # Get FINAL filtered classes
+        classes = query.order_by(Class.scheduled_date, Class.scheduled_time).all()
+        
+        print(f"📊 FINAL: Preview found {len(classes)} classes after precise filtering")
+        
+        # Debug: Show first few classes
+        for i, class_item in enumerate(classes[:5]):  # FIXED: Use class_item instead of cls
+            tutor_name = class_item.tutor.user.full_name if class_item.tutor and class_item.tutor.user else 'No Tutor'
+            print(f"  {i+1}. {class_item.subject} - {tutor_name} - Primary: {class_item.primary_student_id}, Demo: {class_item.demo_student_id}")
+        
+        # Calculate statistics
+        total_hours = sum([class_item.duration for class_item in classes if class_item.duration]) / 60
+        unique_tutors = len(set([class_item.tutor_id for class_item in classes if class_item.tutor_id]))
+        
+        # Count unique students
+        unique_students = set()
+        for class_item in classes:  # FIXED: Use class_item instead of cls
+            if class_item.primary_student_id:
+                unique_students.add(class_item.primary_student_id)
+            if class_item.demo_student_id:
+                unique_students.add(class_item.demo_student_id)
+            if class_item.students:
+                try:
+                    import json
+                    student_ids = json.loads(class_item.students)
+                    unique_students.update(student_ids)
+                except:
+                    pass
+        
+        # Generate preview HTML
+        preview_html = generate_preview_html(classes, export_type)
+        
+        # Calculate file size
+        estimated_size = estimate_file_size(classes, export_type)
+        
+        return jsonify({
+            'success': True,
+            'total_records': len(classes),
+            'estimated_size': estimated_size,
+            'page_count': max(1, (len(classes) // 20) + 1),
+            'statistics': {
+                'total_hours': round(total_hours, 1),
+                'unique_tutors': unique_tutors,
+                'unique_students': len(unique_students)
+            },
+            'preview_html': preview_html,
+            'period_name': period_name,
+            'filters_applied': {
+                'tutor_id': tutor_filter,
+                'student_id': student_filter,
+                'department_id': department_filter,
+                'subject_filter': subject_filter,
+                'scope': scope_filter
+            }
+        })
+        
+    except Exception as e:
+        print(f"❌ Preview error: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+def generate_preview_html(classes, export_type):
+    """Generate enhanced preview HTML for the export"""
+    if not classes:
+        return '<div class="alert alert-info"><i class="fas fa-info-circle"></i> No classes found matching your criteria.</div>'
+    
+    html = '<div class="table-responsive">'
+    html += '<table class="table table-striped table-sm">'
+    html += '<thead class="table-dark">'
+    html += '<tr><th>📅 Date</th><th>🕐 Time</th><th>📚 Subject</th><th>👨‍🏫 Tutor</th><th>👨‍🎓 Students</th><th>⏱️ Duration</th><th>📊 Status</th></tr>'
+    html += '</thead><tbody>'
+    
+    for class_item in classes[:15]:  # FIXED: Use class_item instead of cls
+        # Get tutor name
+        tutor_name = 'No Tutor'
+        if class_item.tutor and class_item.tutor.user:
+            tutor_name = class_item.tutor.user.full_name
+        
+        # Get students
+        students = 'No Students'
+        if class_item.class_type == 'demo' and class_item.demo_student_id:
+            try:
+                from app.models.demo_student import DemoStudent
+                demo_student = DemoStudent.query.get(class_item.demo_student_id)
+                students = f"🎯 {demo_student.full_name}" if demo_student else 'Demo Student'
+            except:
+                students = '🎯 Demo Student'
+        elif class_item.primary_student_id:
+            student = Student.query.get(class_item.primary_student_id)
+            students = f"👤 {student.full_name}" if student else 'Unknown Student'
+        elif class_item.students:
+            try:
+                import json
+                student_ids = json.loads(class_item.students)
+                student_objects = Student.query.filter(Student.id.in_(student_ids)).all()
+                if student_objects:
+                    if len(student_objects) == 1:
+                        students = f"👤 {student_objects[0].full_name}"
+                    else:
+                        students = f"👥 Group ({len(student_objects)}: {', '.join([s.full_name for s in student_objects[:2]])}{'...' if len(student_objects) > 2 else ''})"
+                else:
+                    students = f"👥 Group ({len(student_ids)})"
+            except:
+                students = '👥 Group Students'
+        
+        # Status with emoji
+        status_emojis = {
+            'scheduled': '📅',
+            'completed': '✅',
+            'ongoing': '🔄',
+            'cancelled': '❌',
+            'rescheduled': '🔄'
+        }
+        status_emoji = status_emojis.get(class_item.status, '📅')
+        status_display = f"{status_emoji} {class_item.status.title()}"
+        
+        html += f'''
+        <tr>
+            <td>{class_item.scheduled_date.strftime('%m/%d') if class_item.scheduled_date else ''}</td>
+            <td>{class_item.scheduled_time.strftime('%H:%M') if class_item.scheduled_time else ''}</td>
+            <td><strong>{class_item.subject or ''}</strong></td>
+            <td>{tutor_name}</td>
+            <td>{students}</td>
+            <td>{class_item.duration}min</td>
+            <td>{status_display}</td>
+        </tr>
+        '''
+    
+    html += '</tbody></table>'
+    
+    if len(classes) > 15:
+        html += f'<div class="alert alert-info mt-2"><i class="fas fa-info-circle"></i> <em>Showing first 15 of {len(classes)} total filtered classes</em></div>'
+    
+    html += '</div>'
+    return html
+    
+    
+@bp.route('/api/v1/timetable/export-pdf')
+@login_required
+@admin_required
+def api_timetable_export_pdf():
+    """FIXED: PDF export with proper filtering"""
+    try:
+        date_param = request.args.get('date', datetime.now().strftime('%Y-%m-%d'))
+        view = request.args.get('view', 'today')
+        
+        # GET FILTER PARAMETERS
+        tutor_filter = request.args.get('tutor')
+        student_filter = request.args.get('student')
+        department_filter = request.args.get('department')
+        
+        print(f"📄 PDF Export - Date: {date_param}, View: {view}")
+        print(f"🎯 Filters - Tutor: {tutor_filter}, Student: {student_filter}, Dept: {department_filter}")
+        
+        target_date = datetime.strptime(date_param, '%Y-%m-%d').date()
+        
+        # Build filtered query
+        query = Class.query
+        
+        # Apply date filters
+        if view == 'today':
+            query = query.filter(Class.scheduled_date == target_date)
+            period_name = target_date.strftime('%B %d, %Y')
+        elif view == 'week':
+            start_of_week = target_date - timedelta(days=target_date.weekday())
+            end_of_week = start_of_week + timedelta(days=6)
+            query = query.filter(
+                Class.scheduled_date >= start_of_week,
+                Class.scheduled_date <= end_of_week
+            )
+            period_name = f"Week of {start_of_week.strftime('%B %d, %Y')}"
+        elif view == 'month':
+            first_day = target_date.replace(day=1)
+            if target_date.month == 12:
+                last_day = target_date.replace(year=target_date.year + 1, month=1, day=1) - timedelta(days=1)
+            else:
+                last_day = target_date.replace(month=target_date.month + 1, day=1) - timedelta(days=1)
+            query = query.filter(
+                Class.scheduled_date >= first_day,
+                Class.scheduled_date <= last_day
+            )
+            period_name = target_date.strftime('%B %Y')
+        
+        # Apply filters
+        if tutor_filter and tutor_filter != '0' and tutor_filter != '':
+            query = query.filter(Class.tutor_id == int(tutor_filter))
+            print(f"✅ Applied tutor filter: {tutor_filter}")
+        
+        if department_filter and department_filter != '0' and department_filter != '':
+            query = query.join(Tutor, Class.tutor_id == Tutor.id)\
+                         .join(User, Tutor.user_id == User.id)\
+                         .filter(User.department_id == int(department_filter))
+            print(f"✅ Applied department filter: {department_filter}")
+        
+        # PRECISE STUDENT FILTERING
+        if student_filter and student_filter != '0' and student_filter != '':
+            student_id = int(student_filter)
+            print(f"🎯 Applying PRECISE student filter for PDF")
+            
+            # Get all classes in the date range first
+            all_classes_in_range = query.all()
+            print(f"📅 Total classes in range before student filter: {len(all_classes_in_range)}")
+            
+            # Now manually filter for this specific student
+            valid_class_ids = []
+            
+            for class_item in all_classes_in_range:  # FIXED: Use class_item instead of cls
+                student_is_in_class = False
+                
+                # Check if student is primary student
+                if class_item.primary_student_id == student_id:
+                    student_is_in_class = True
+                
+                # Check if student is demo student
+                elif class_item.demo_student_id == student_id:
+                    student_is_in_class = True
+                
+                # Check if student is in group class
+                elif class_item.students:
+                    try:
+                        import json
+                        student_ids_in_class = json.loads(class_item.students)
+                        if student_id in student_ids_in_class:
+                            student_is_in_class = True
+                    except (json.JSONDecodeError, TypeError):
+                        students_str = str(class_item.students)
+                        if f'"{student_id}"' in students_str or f'{student_id}' in students_str:
+                            student_is_in_class = True
+                
+                if student_is_in_class:
+                    valid_class_ids.append(class_item.id)
+            
+            print(f"🎯 Found {len(valid_class_ids)} classes for student")
+            
+            # Apply the precise filter
+            if valid_class_ids:
+                query = Class.query.filter(Class.id.in_(valid_class_ids))
+                # Re-apply date filter
+                if view == 'today':
+                    query = query.filter(Class.scheduled_date == target_date)
+                elif view == 'week':
+                    query = query.filter(
+                        Class.scheduled_date >= start_of_week,
+                        Class.scheduled_date <= end_of_week
+                    )
+                elif view == 'month':
+                    query = query.filter(
+                        Class.scheduled_date >= first_day,
+                        Class.scheduled_date <= last_day
+                    )
+            else:
+                query = Class.query.filter(Class.id == -1)
+        
+        # Get FILTERED classes
+        classes = query.order_by(Class.scheduled_date, Class.scheduled_time).all()
+        
+        print(f"📊 Found {len(classes)} classes after applying all filters")
+        
+        # Generate personalized filename
+        filename_parts = ["timetable"]
+        
+        if tutor_filter and tutor_filter != '0' and tutor_filter != '':
+            try:
+                tutor = Tutor.query.get(int(tutor_filter))
+                if tutor and tutor.user:
+                    clean_name = tutor.user.full_name.replace(' ', '_').lower()
+                    filename_parts.append(f"tutor_{clean_name}")
+            except:
+                pass
+        elif student_filter and student_filter != '0' and student_filter != '':
+            try:
+                student = Student.query.get(int(student_filter))
+                if student:
+                    clean_name = student.full_name.replace(' ', '_').lower()
+                    filename_parts.append(f"student_{clean_name}")
+            except:
+                pass
+        
+        filename_parts.extend([date_param, view])
+        base_filename = "_".join(filename_parts)
+        
+        # Generate FILTERED PDF
+        pdf_data = generate_timetable_pdf(classes, period_name, view, tutor_filter, student_filter)
+        
+        response = make_response(pdf_data)
+        response.headers['Content-Type'] = 'application/pdf'
+        response.headers['Content-Disposition'] = f'attachment; filename={base_filename}.pdf'
+        
+        return response
+        
+    except Exception as e:
+        print(f"❌ PDF export error: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+    
+    
+    
+@bp.route('/api/v1/timetable/export', methods=['POST'])
+@login_required
+@admin_required
+def api_timetable_export():
+    """COMPLETELY FIXED: Export with precise filtering"""
+    try:
+        print("🚀 Export request received")
+        
+        data = request.get_json()
+        if not data:
+            return jsonify({'success': False, 'error': 'No data received'}), 400
+        
+        # Get ALL parameters including filters
+        export_type = data.get('export_type', 'pdf')
+        period = data.get('period', 'today')
+        date_param = data.get('date', datetime.now().strftime('%Y-%m-%d'))
+        
+        # GET FILTER PARAMETERS
+        tutor_filter = data.get('tutor_id')
+        student_filter = data.get('student_id') 
+        department_filter = data.get('department_id')
+        subject_filter = data.get('subject_filter', '').strip()
+        scope_filter = data.get('scope', 'all')
+        
+        print(f"📊 Export: {export_type}, Period: {period}, Date: {date_param}")
+        print(f"🎯 Filters - Tutor: {tutor_filter}, Student: {student_filter}, Dept: {department_filter}")
+        
+        # Parse date
+        try:
+            target_date = datetime.strptime(date_param, '%Y-%m-%d').date()
+        except ValueError:
+            return jsonify({'success': False, 'error': f'Invalid date: {date_param}'}), 400
+        
+        # Build filtered query
+        query = Class.query
+        
+        # Apply date filters based on period
+        if period == 'today':
+            query = query.filter(Class.scheduled_date == target_date)
+            period_name = target_date.strftime('%B %d, %Y')
+        elif period == 'week':
+            start_of_week = target_date - timedelta(days=target_date.weekday())
+            end_of_week = start_of_week + timedelta(days=6)
+            query = query.filter(
+                Class.scheduled_date >= start_of_week,
+                Class.scheduled_date <= end_of_week
+            )
+            period_name = f"Week of {start_of_week.strftime('%B %d, %Y')}"
+        elif period == 'month':
+            first_day = target_date.replace(day=1)
+            if target_date.month == 12:
+                last_day = target_date.replace(year=target_date.year + 1, month=1, day=1) - timedelta(days=1)
+            else:
+                last_day = target_date.replace(month=target_date.month + 1, day=1) - timedelta(days=1)
+            query = query.filter(
+                Class.scheduled_date >= first_day,
+                Class.scheduled_date <= last_day
+            )
+            period_name = target_date.strftime('%B %Y')
+        
+        # Apply non-student filters first
+        if tutor_filter and tutor_filter != '' and tutor_filter != '0':
+            query = query.filter(Class.tutor_id == int(tutor_filter))
+            print(f"✅ Applied tutor filter: {tutor_filter}")
+        
+        if department_filter and department_filter != '' and department_filter != '0':
+            query = query.join(Tutor, Class.tutor_id == Tutor.id)\
+                         .join(User, Tutor.user_id == User.id)\
+                         .filter(User.department_id == int(department_filter))
+            print(f"✅ Applied department filter: {department_filter}")
+        
+        if subject_filter:
+            query = query.filter(Class.subject.ilike(f'%{subject_filter}%'))
+            print(f"✅ Applied subject filter: {subject_filter}")
+        
+        if scope_filter != 'all':
+            query = query.filter(Class.status == scope_filter)
+            print(f"✅ Applied scope filter: {scope_filter}")
+        
+        # PRECISE STUDENT FILTERING
+        if student_filter and student_filter != '' and student_filter != '0':
+            student_id = int(student_filter)
+            print(f"🎯 Applying PRECISE student filter for ID: {student_id}")
+            
+            # Get student info
+            try:
+                student = Student.query.get(student_id)
+                student_name = student.full_name if student else f"Student-{student_id}"
+                print(f"👤 Filtering for student: {student_name}")
+            except:
+                student_name = f"Student-{student_id}"
+            
+            # Get all classes in the date range first
+            all_classes_in_range = query.all()
+            print(f"📅 Total classes in date range before student filter: {len(all_classes_in_range)}")
+            
+            # Now manually filter for this specific student
+            valid_class_ids = []
+            
+            for class_item in all_classes_in_range:  # FIXED: Use class_item instead of cls
+                student_is_in_class = False
+                
+                # Check if student is primary student
+                if class_item.primary_student_id == student_id:
+                    student_is_in_class = True
+                    print(f"✅ {student_name} is PRIMARY in: {class_item.subject}")
+                
+                # Check if student is demo student
+                elif class_item.demo_student_id == student_id:
+                    student_is_in_class = True
+                    print(f"✅ {student_name} is DEMO in: {class_item.subject}")
+                
+                # Check if student is in group class
+                elif class_item.students:
+                    try:
+                        import json
+                        student_ids_in_class = json.loads(class_item.students)
+                        if student_id in student_ids_in_class:
+                            student_is_in_class = True
+                            print(f"✅ {student_name} is in GROUP class: {class_item.subject}")
+                    except (json.JSONDecodeError, TypeError):
+                        # Fallback: check if student ID appears in the string
+                        students_str = str(class_item.students)
+                        if f'"{student_id}"' in students_str or f'{student_id}' in students_str:
+                            student_is_in_class = True
+                            print(f"✅ {student_name} found in GROUP (fallback): {class_item.subject}")
+                
+                if student_is_in_class:
+                    valid_class_ids.append(class_item.id)
+            
+            print(f"🎯 Found {len(valid_class_ids)} classes for {student_name}")
+            
+            # Apply the precise filter
+            if valid_class_ids:
+                query = Class.query.filter(Class.id.in_(valid_class_ids))
+                # Re-apply date filter
+                if period == 'today':
+                    query = query.filter(Class.scheduled_date == target_date)
+                elif period == 'week':
+                    query = query.filter(
+                        Class.scheduled_date >= start_of_week,
+                        Class.scheduled_date <= end_of_week
+                    )
+                elif period == 'month':
+                    query = query.filter(
+                        Class.scheduled_date >= first_day,
+                        Class.scheduled_date <= last_day
+                    )
+            else:
+                # No classes found for this student
+                query = Class.query.filter(Class.id == -1)
+                print(f"⚠️ No classes found for student {student_name}")
+        
+        # Get FILTERED classes
+        classes = query.order_by(Class.scheduled_date, Class.scheduled_time).all()
+        
+        print(f"📊 Found {len(classes)} classes after applying all filters")
+        
+        # Generate personalized filename
+        filename_parts = ["timetable"]
+        
+        if tutor_filter and tutor_filter != '' and tutor_filter != '0':
+            try:
+                tutor = Tutor.query.get(int(tutor_filter))
+                if tutor and tutor.user:
+                    clean_name = tutor.user.full_name.replace(' ', '_').lower()
+                    filename_parts.append(f"tutor_{clean_name}")
+            except:
+                pass
+        elif student_filter and student_filter != '' and student_filter != '0':
+            try:
+                student = Student.query.get(int(student_filter))
+                if student:
+                    clean_name = student.full_name.replace(' ', '_').lower()
+                    filename_parts.append(f"student_{clean_name}")
+            except:
+                pass
+        
+        filename_parts.extend([date_param, period])
+        base_filename = "_".join(filename_parts)
         
         # Generate export based on type
         if export_type == 'pdf':
-            print("📄 Generating PDF")
-            pdf_data = generate_timetable_pdf(classes, period_name, period)
+            print("📄 Generating FILTERED PDF")
+            pdf_data = generate_timetable_pdf(classes, period_name, period, tutor_filter, student_filter)
             response = make_response(pdf_data)
             response.headers['Content-Type'] = 'application/pdf'
-            response.headers['Content-Disposition'] = f'attachment; filename=timetable_{date_param}.pdf'
+            response.headers['Content-Disposition'] = f'attachment; filename={base_filename}.pdf'
             return response
             
         elif export_type == 'csv':
-            print("📊 Generating CSV")
+            print("📊 Generating FILTERED CSV")
             csv_data = generate_timetable_csv(classes, period_name)
             response = make_response(csv_data)
             response.headers['Content-Type'] = 'text/csv; charset=utf-8'
-            response.headers['Content-Disposition'] = f'attachment; filename=timetable_{date_param}.csv'
+            response.headers['Content-Disposition'] = f'attachment; filename={base_filename}.csv'
             return response
             
         elif export_type == 'excel':
-            print("📊 Generating Excel")
+            print("📊 Generating FILTERED Excel")
             excel_data = generate_timetable_excel(classes, period_name)
             response = make_response(excel_data)
             response.headers['Content-Type'] = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-            response.headers['Content-Disposition'] = f'attachment; filename=timetable_{date_param}.xlsx'
+            response.headers['Content-Disposition'] = f'attachment; filename={base_filename}.xlsx'
             return response
             
         elif export_type == 'calendar':
-            print("📅 Generating Calendar")
+            print("📅 Generating FILTERED Calendar")
             calendar_data = generate_timetable_calendar(classes, period_name)
             response = make_response(calendar_data)
             response.headers['Content-Type'] = 'text/calendar; charset=utf-8'
-            response.headers['Content-Disposition'] = f'attachment; filename=timetable_{date_param}.ics'
+            response.headers['Content-Disposition'] = f'attachment; filename={base_filename}.ics'
             return response
             
         else:
@@ -3311,89 +3892,333 @@ def api_timetable_export():
         traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 500
     
-def generate_timetable_pdf(classes, period_name, view_type):
-    """Generate PDF content for timetable - FIXED VERSION"""
+# REPLACE the generate_timetable_pdf function with this FIXED VERSION:
+
+def generate_timetable_pdf(classes, period_name, view_type, tutor_filter=None, student_filter=None):
+    """Generate MODERN ATTRACTIVE PDF with enhanced styling and details"""
     try:
-        from reportlab.lib.pagesizes import letter, A4
-        from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+        from reportlab.lib.pagesizes import letter, A4, landscape
+        from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image
         from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
         from reportlab.lib import colors
         from reportlab.lib.units import inch
-        from flask import make_response
-        import io
+        from reportlab.platypus.flowables import KeepTogether
+        from reportlab.graphics.shapes import Drawing, Rect
+        from reportlab.platypus import PageBreak
+        import os
+        from io import BytesIO
+        from datetime import datetime, timedelta
         
-        # Create PDF buffer
-        buffer = io.BytesIO()
-        doc = SimpleDocTemplate(buffer, pagesize=A4, margin=0.5*inch)
+        print(f"🎨 Generating MODERN ATTRACTIVE timetable PDF for {len(classes)} classes")
         
-        # Get styles
-        styles = getSampleStyleSheet()
-        title_style = ParagraphStyle(
-            'CustomTitle',
-            parent=styles['Heading1'],
-            fontSize=20,
-            textColor=colors.HexColor('#F1A150'),
-            alignment=1,  # Center
-            spaceAfter=20
+        # Create buffer
+        buffer = BytesIO()
+        
+        # Use landscape orientation
+        doc = SimpleDocTemplate(
+            buffer, 
+            pagesize=landscape(A4),
+            rightMargin=0.4*inch,
+            leftMargin=0.4*inch,
+            topMargin=0.6*inch,
+            bottomMargin=0.4*inch
         )
         
-        # Build content
         content = []
+        styles = getSampleStyleSheet()
         
-        # Title
-        content.append(Paragraph(f"Class Timetable - {period_name}", title_style))
+        # MODERN COLOR SCHEME
+        primary_color = colors.Color(0.2, 0.4, 0.8)  # Modern blue
+        accent_color = colors.Color(0.9, 0.5, 0.1)   # Orange accent
+        light_blue = colors.Color(0.85, 0.92, 1.0)   # Light blue background
+        dark_gray = colors.Color(0.3, 0.3, 0.3)      # Dark gray text
+        
+        # Get person details for title and filename
+        person_name = ""
+        person_email = ""
+        person_type = ""
+        
+        if tutor_filter:
+            try:
+                tutor = Tutor.query.get(int(tutor_filter))
+                if tutor and tutor.user:
+                    person_name = tutor.user.full_name
+                    person_email = tutor.user.email or ""
+                    person_type = "TUTOR"
+            except:
+                pass
+        elif student_filter:
+            try:
+                student = Student.query.get(int(student_filter))
+                if student:
+                    person_name = student.full_name
+                    person_email = student.email or ""
+                    person_type = "STUDENT"
+            except:
+                pass
+        
+        # MODERN HEADER SECTION
+        header_style = ParagraphStyle(
+            'ModernHeader',
+            parent=styles['Title'],
+            fontSize=20,
+            fontName='Helvetica-Bold',
+            alignment=1,
+            spaceAfter=5,
+            textColor=primary_color
+        )
+        
+        subtitle_style = ParagraphStyle(
+            'Subtitle',
+            parent=styles['Normal'],
+            fontSize=12,
+            fontName='Helvetica',
+            alignment=1,
+            spaceAfter=15,
+            textColor=dark_gray
+        )
+        
+        # Add modern logo if available
+        try:
+            logo_path = os.path.join(current_app.root_path, 'static', 'favicon.ico')
+            if os.path.exists(logo_path):
+                logo_img = Image(logo_path, width=1.2*inch, height=1.2*inch)
+                logo_img.hAlign = 'CENTER'
+                content.append(logo_img)
+                content.append(Spacer(1, 15))
+        except Exception as e:
+            print(f"⚠️ Could not add logo: {e}")
+        
+        # Modern title with person info
+        if person_name:
+            title_text = f"📚 CLASS TIMETABLE"
+            subtitle_text = f"{person_type}: {person_name.upper()} | {period_name.upper()}"
+        else:
+            title_text = f"📚 CLASS TIMETABLE - {period_name.upper()}"
+            subtitle_text = "Complete Schedule Overview"
+        
+        title = Paragraph(title_text, header_style)
+        subtitle = Paragraph(subtitle_text, subtitle_style)
+        content.append(title)
+        content.append(subtitle)
         content.append(Spacer(1, 20))
         
-        if classes:
-            # Create table data
-            table_data = [['Date', 'Time', 'Subject', 'Tutor', 'Duration', 'Status']]
-            
-            for cls in classes:
-                tutor_name = cls.tutor.user.full_name if cls.tutor and cls.tutor.user else 'No Tutor'
+        # ENHANCED time slots with better formatting
+        time_slots = [
+            "6:00 - 7:00 AM", "7:00 - 8:00 AM", "8:00 - 9:00 AM", "9:00 - 10:00 AM", 
+            "10:00 - 11:00 AM", "11:00 - 12:00 PM", "12:00 - 1:00 PM", "1:00 - 2:00 PM", 
+            "2:00 - 3:00 PM", "3:00 - 4:00 PM", "4:00 - 5:00 PM", "5:00 - 6:00 PM", 
+            "6:00 - 7:00 PM", "7:00 - 8:00 PM", "8:00 - 9:00 PM", "9:00 - 10:00 PM"
+        ]
+        
+        # Time mapping
+        time_slot_mapping = {
+            6: 0, 7: 1, 8: 2, 9: 3, 10: 4, 11: 5, 12: 6, 13: 7, 14: 8, 
+            15: 9, 16: 10, 17: 11, 18: 12, 19: 13, 20: 14, 21: 15
+        }
+        
+        # Enhanced days with emojis
+        days = ["📅 MON", "📅 TUE", "📅 WED", "📅 THU", "📅 FRI", "📅 SAT"]
+        
+        # Create enhanced grid data
+        grid_data = [["⏰ TIME SLOT"] + days]
+        
+        # Initialize grid with enhanced styling
+        for time_slot in time_slots:
+            row = [time_slot] + [""] * 6
+            grid_data.append(row)
+        
+        # Fill grid with ENHANCED class details
+        classes_placed = 0
+        for cls in classes:
+            try:
+                day_of_week = cls.scheduled_date.weekday()
+                if day_of_week > 5:
+                    continue
                 
-                table_data.append([
-                    cls.scheduled_date.strftime('%m/%d/%Y'),
-                    cls.scheduled_time.strftime('%H:%M') if cls.scheduled_time else '00:00',
-                    cls.subject[:30] + '...' if len(cls.subject) > 30 else cls.subject,
-                    tutor_name[:20] + '...' if len(tutor_name) > 20 else tutor_name,
-                    f"{cls.duration} min",
-                    cls.status.title()
-                ])
+                class_hour = cls.scheduled_time.hour
+                
+                if class_hour in time_slot_mapping:
+                    time_slot_index = time_slot_mapping[class_hour] + 1
+                    
+                    # Enhanced class information
+                    tutor_name = "No Tutor"
+                    if cls.tutor and cls.tutor.user:
+                        tutor_name = cls.tutor.user.full_name.split()[0]
+                    
+                    # Get student info
+                    student_info = ""
+                    if cls.class_type == 'demo':
+                        student_info = "🎯 Demo"
+                    elif cls.primary_student_id:
+                        student = Student.query.get(cls.primary_student_id)
+                        if student:
+                            student_info = f"👤 {student.full_name.split()[0]}"
+                    elif cls.students:
+                        try:
+                            import json
+                            student_ids = json.loads(cls.students)
+                            if len(student_ids) == 1:
+                                student = Student.query.get(student_ids[0])
+                                student_info = f"👤 {student.full_name.split()[0]}" if student else "👤 Student"
+                            else:
+                                student_info = f"👥 Group ({len(student_ids)})"
+                        except:
+                            student_info = "👥 Group"
+                    
+                    # ENHANCED cell content with details
+                    cell_lines = []
+                    cell_lines.append(f"📚 {cls.subject}")
+                    cell_lines.append(f"👨‍🏫 {tutor_name}")
+                    
+                    if student_info and not person_name:  # Only show if not filtered
+                        cell_lines.append(student_info)
+                    
+                    # Add duration and status
+                    cell_lines.append(f"⏱️ {cls.duration}min")
+                    
+                    # Add status with emoji
+                    status_emojis = {
+                        'scheduled': '📅',
+                        'completed': '✅',
+                        'ongoing': '🔄',
+                        'cancelled': '❌',
+                        'rescheduled': '🔄'
+                    }
+                    status_emoji = status_emojis.get(cls.status, '📅')
+                    cell_lines.append(f"{status_emoji} {cls.status.title()}")
+                    
+                    cell_content = "\n".join(cell_lines)
+                    
+                    # Add to grid
+                    grid_data[time_slot_index][day_of_week + 1] = cell_content
+                    classes_placed += 1
+                    
+            except Exception as e:
+                print(f"❌ Error placing class: {e}")
+                continue
+        
+        # MODERN TABLE with enhanced styling
+        table = Table(grid_data, colWidths=[1.3*inch] + [1.35*inch]*6)
+        
+        # BEAUTIFUL TABLE STYLING
+        table.setStyle(TableStyle([
+            # HEADER ROW - Modern gradient-like effect
+            ('BACKGROUND', (0, 0), (-1, 0), primary_color),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 11),
+            ('VALIGN', (0, 0), (-1, 0), 'MIDDLE'),
             
-            # Create table
-            table = Table(table_data, colWidths=[1*inch, 0.8*inch, 2*inch, 1.5*inch, 0.8*inch, 0.8*inch])
-            table.setStyle(TableStyle([
-                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#F1A150')),
-                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                ('FONTSIZE', (0, 0), (-1, 0), 10),
-                ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-                ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
-                ('GRID', (0, 0), (-1, -1), 1, colors.black),
-                ('FONTSIZE', (0, 1), (-1, -1), 9),
-                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            ]))
+            # TIME COLUMN - Accent color
+            ('BACKGROUND', (0, 1), (0, -1), accent_color),
+            ('TEXTCOLOR', (0, 1), (0, -1), colors.white),
+            ('ALIGN', (0, 1), (0, -1), 'CENTER'),
+            ('FONTNAME', (0, 1), (0, -1), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 1), (0, -1), 9),
+            ('VALIGN', (0, 1), (0, -1), 'MIDDLE'),
             
-            content.append(table)
+            # DATA CELLS - Modern styling
+            ('BACKGROUND', (1, 1), (-1, -1), colors.white),
+            ('TEXTCOLOR', (1, 1), (-1, -1), dark_gray),
+            ('ALIGN', (1, 1), (-1, -1), 'CENTER'),
+            ('FONTNAME', (1, 1), (-1, -1), 'Helvetica'),
+            ('FONTSIZE', (1, 1), (-1, -1), 7),
+            ('VALIGN', (1, 1), (-1, -1), 'MIDDLE'),
             
-            # Add summary
-            content.append(Spacer(1, 30))
-            content.append(Paragraph(f"<b>Total Classes:</b> {len(classes)}", styles['Normal']))
-            content.append(Paragraph(f"<b>Generated:</b> {datetime.now().strftime('%B %d, %Y at %I:%M %p')}", styles['Normal']))
+            # BORDERS - Modern clean lines
+            ('GRID', (0, 0), (-1, -1), 1.5, primary_color),
+            ('LINEBELOW', (0, 0), (-1, 0), 3, primary_color),
+            ('LINEAFTER', (0, 0), (0, -1), 3, accent_color),
             
-        else:
-            content.append(Paragraph("No classes scheduled for this period", styles['Normal']))
+            # ALTERNATING ROW COLORS for better readability
+            ('ROWBACKGROUNDS', (1, 1), (-1, -1), [colors.white, light_blue]),
+            
+            # PADDING for better spacing
+            ('LEFTPADDING', (0, 0), (-1, -1), 6),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 6),
+            ('TOPPADDING', (0, 0), (-1, -1), 8),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+        ]))
+        
+        # Set enhanced row heights
+        for i in range(len(time_slots)):
+            table._argH[i + 1] = 0.65*inch
+        
+        content.append(table)
+        content.append(Spacer(1, 25))
+        
+        # MODERN FOOTER with statistics
+        stats_style = ParagraphStyle(
+            'StatsStyle',
+            parent=styles['Normal'],
+            fontSize=10,
+            fontName='Helvetica-Bold',
+            alignment=1,
+            textColor=primary_color,
+            spaceAfter=10
+        )
+        
+        footer_style = ParagraphStyle(
+            'ModernFooter',
+            parent=styles['Normal'],
+            fontSize=8,
+            alignment=1,
+            textColor=dark_gray
+        )
+        
+        # Statistics summary
+        total_hours = sum([cls.duration for cls in classes if cls.duration]) / 60
+        unique_tutors = len(set([cls.tutor_id for cls in classes if cls.tutor_id]))
+        
+        stats_text = f"📊 SUMMARY: {len(classes)} Classes | {total_hours:.1f} Hours | {unique_tutors} Tutors | {classes_placed} Scheduled"
+        stats = Paragraph(stats_text, stats_style)
+        content.append(stats)
+        
+        # Enhanced footer
+        footer_text = f"📅 Generated: {datetime.now().strftime('%B %d, %Y at %I:%M %p')} | 🏢 i2Global Learning Management System | 📧 Contact: support@i2global.com"
+        footer = Paragraph(footer_text, footer_style)
+        content.append(footer)
         
         # Build PDF
         doc.build(content)
         buffer.seek(0)
         
+        print(f"🎨 MODERN timetable PDF generated - {classes_placed}/{len(classes)} classes placed")
         return buffer.read()
         
     except Exception as e:
-        print(f"PDF generation error: {str(e)}")
+        print(f"❌ PDF generation error: {str(e)}")
+        import traceback
+        traceback.print_exc()
         raise e
+    
+ 
+def estimate_file_size(classes, export_type):
+    """Estimate file size for export"""
+    record_count = len(classes)
+    
+    if export_type == 'csv':
+        # Roughly 200 bytes per record for CSV
+        size_bytes = record_count * 200
+    elif export_type == 'pdf':
+        # Roughly 2KB per record for PDF
+        size_bytes = record_count * 2000
+    elif export_type == 'excel':
+        # Roughly 500 bytes per record for Excel
+        size_bytes = record_count * 500
+    else:
+        size_bytes = record_count * 300
+    
+    if size_bytes < 1024:
+        return f"{size_bytes}B"
+    elif size_bytes < 1024 * 1024:
+        return f"{round(size_bytes / 1024, 1)}KB"
+    else:
+        return f"{round(size_bytes / (1024 * 1024), 1)}MB"
+   
+
     
 def generate_timetable_csv(classes, period_name):
     """Generate CSV export for timetable"""
@@ -5395,14 +6220,10 @@ def api_tutor_matching_analytics():
             'error': 'Analytics generation failed'
         }), 500
         
-        
-
-
-# FIXED VERSION - Replace your existing course batch routes with this
 
 @bp.route('/course-batches')
 @login_required
-@admin_required
+@require_any_permission('student_management', 'tutor_management')
 def course_batches():
     """Course batch management page - groups classes by tutor with expandable batches"""
     from collections import defaultdict
@@ -5697,7 +6518,7 @@ def course_batches():
 
 
 @bp.route('/course-batches/<batch_id>')
-@login_required
+@require_any_permission('student_management', 'tutor_management')
 @admin_required
 def course_batch_details(batch_id):
     """View detailed information about a specific course batch."""
@@ -5820,12 +6641,303 @@ def course_batch_details(batch_id):
         stats=stats
     )
 
+
+@bp.route('/api/classes/smart-bulk-edit', methods=['POST'])
+@login_required
+@require_any_permission('student_management', 'tutor_management')
+def smart_bulk_edit():
+    """Smart bulk edit API - handles all types of class modifications"""
+    try:
+        data = request.get_json()
+        class_ids = data.get('class_ids', [])
+        changes = data.get('changes', {})
+        batch_id = data.get('batch_id', '')
+        
+        if not class_ids:
+            return jsonify({'error': 'No classes selected'}), 400
+            
+        if not changes:
+            return jsonify({'error': 'No changes specified'}), 400
+        
+        # Get all classes to update
+        classes = Class.query.filter(Class.id.in_(class_ids)).all()
+        
+        if not classes:
+            return jsonify({'error': 'No valid classes found'}), 404
+        
+        # Track successful updates and conflicts
+        updated_count = 0
+        conflicts = []
+        
+        # Process each class
+        for cls in classes:
+            try:
+                # Check for conflicts before applying changes
+                conflict = check_class_conflicts(cls, changes)
+                if conflict:
+                    conflicts.append({
+                        'class_id': cls.id,
+                        'reason': conflict,
+                        'class_info': f"{cls.subject} - {cls.scheduled_date}"
+                    })
+                    continue
+                
+                # Apply changes to this class
+                apply_changes_to_class(cls, changes)
+                updated_count += 1
+                
+            except Exception as e:
+                conflicts.append({
+                    'class_id': cls.id,
+                    'reason': f"Error: {str(e)}",
+                    'class_info': f"{cls.subject} - {cls.scheduled_date}"
+                })
+                continue
+        
+        # Commit all changes
+        db.session.commit()
+        
+        # Prepare response
+        response = {
+            'success': True,
+            'updated_count': updated_count,
+            'total_selected': len(class_ids),
+            'conflicts': conflicts
+        }
+        
+        if conflicts:
+            response['message'] = f"{updated_count} classes updated successfully. {len(conflicts)} conflicts detected."
+        else:
+            response['message'] = f"All {updated_count} classes updated successfully!"
+        
+        return jsonify(response)
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'Bulk edit failed: {str(e)}'}), 500
+
+
+def check_class_conflicts(cls, changes):
+    """Check for potential conflicts before applying changes"""
+    
+    # Check tutor availability if tutor is being changed
+    if 'tutor_id' in changes:
+        new_tutor = Tutor.query.get(changes['tutor_id'])
+        if not new_tutor:
+            return "New tutor not found"
+        
+        # Calculate new time if time changes are also being made
+        check_date = cls.scheduled_date
+        check_time = cls.scheduled_time
+        
+        # Apply time changes for conflict checking
+        if 'time_shift' in changes:
+            from datetime import datetime, timedelta
+            dt = datetime.combine(check_date, check_time)
+            shift_minutes = changes['time_shift']['amount']
+            if changes['time_shift']['direction'] == 'subtract':
+                shift_minutes = -shift_minutes
+            dt += timedelta(minutes=shift_minutes)
+            check_time = dt.time()
+            
+        elif 'specific_time' in changes:
+            from datetime import datetime
+            check_time = datetime.strptime(changes['specific_time'], '%H:%M').time()
+        
+        # Apply date changes for conflict checking
+        if 'date_shift' in changes:
+            from datetime import timedelta
+            shift_days = changes['date_shift']['amount']
+            if changes['date_shift']['direction'] == 'subtract':
+                shift_days = -shift_days
+            check_date += timedelta(days=shift_days)
+            
+        elif 'day_of_week' in changes:
+            # Calculate new date based on day of week change
+            current_weekday = check_date.weekday()
+            target_weekday = get_weekday_number(changes['day_of_week'])
+            days_diff = target_weekday - current_weekday
+            check_date += timedelta(days=days_diff)
+        
+        # Check tutor availability
+        day_of_week = check_date.strftime('%A').lower()
+        time_str = check_time.strftime('%H:%M')
+        
+        if not new_tutor.is_available_at(day_of_week, time_str):
+            return f"Tutor {new_tutor.user.full_name} not available on {day_of_week.title()} at {time_str}"
+        
+        # Check for existing class conflicts
+        existing_class = Class.query.filter(
+            Class.tutor_id == changes['tutor_id'],
+            Class.scheduled_date == check_date,
+            Class.scheduled_time == check_time,
+            Class.id != cls.id,
+            Class.status == 'scheduled'
+        ).first()
+        
+        if existing_class:
+            return f"Tutor already has a class at {check_time} on {check_date}"
+    
+    return None
+
+
+def apply_changes_to_class(cls, changes):
+    """Apply all changes to a single class"""
+    from datetime import datetime, timedelta
+    
+    # Basic Information Changes
+    if 'subject' in changes and changes['subject']:
+        cls.subject = changes['subject']
+    
+    if 'grade' in changes and changes['grade']:
+        cls.grade = changes['grade']
+    
+    if 'board' in changes and changes['board']:
+        cls.board = changes['board']
+    
+    if 'class_type' in changes and changes['class_type']:
+        cls.class_type = changes['class_type']
+    
+    # Scheduling Changes
+    if 'time_shift' in changes:
+        dt = datetime.combine(cls.scheduled_date, cls.scheduled_time)
+        shift_minutes = changes['time_shift']['amount']
+        if changes['time_shift']['direction'] == 'subtract':
+            shift_minutes = -shift_minutes
+        dt += timedelta(minutes=shift_minutes)
+        cls.scheduled_time = dt.time()
+        cls.calculate_end_time()
+    
+    if 'specific_time' in changes and changes['specific_time']:
+        cls.scheduled_time = datetime.strptime(changes['specific_time'], '%H:%M').time()
+        cls.calculate_end_time()
+    
+    if 'duration' in changes and changes['duration']:
+        cls.duration = changes['duration']
+        cls.calculate_end_time()
+    
+    if 'date_shift' in changes:
+        shift_days = changes['date_shift']['amount']
+        if changes['date_shift']['direction'] == 'subtract':
+            shift_days = -shift_days
+        cls.scheduled_date += timedelta(days=shift_days)
+    
+    if 'day_of_week' in changes and changes['day_of_week']:
+        current_weekday = cls.scheduled_date.weekday()
+        target_weekday = get_weekday_number(changes['day_of_week'])
+        days_diff = target_weekday - current_weekday
+        cls.scheduled_date += timedelta(days=days_diff)
+    
+    # Assignment Changes
+    if 'tutor_id' in changes and changes['tutor_id']:
+        cls.tutor_id = changes['tutor_id']
+    
+    if 'add_students' in changes and changes['add_students']:
+        current_students = cls.get_students()
+        new_students = list(set(current_students + changes['add_students']))
+        cls.set_students(new_students)
+    
+    if 'remove_students' in changes and changes['remove_students']:
+        current_students = cls.get_students()
+        new_students = [s for s in current_students if s not in changes['remove_students']]
+        cls.set_students(new_students)
+    
+    # Platform Changes
+    if 'platform' in changes and changes['platform']:
+        cls.platform = changes['platform']
+    
+    if 'meeting_link' in changes and changes['meeting_link']:
+        cls.meeting_link = changes['meeting_link']
+    
+    if 'meeting_id' in changes and changes['meeting_id']:
+        cls.meeting_id = changes['meeting_id']
+    
+    # Content Changes
+    if 'class_notes' in changes and changes['class_notes']:
+        note_change = changes['class_notes']
+        if note_change['action'] == 'replace':
+            cls.class_notes = note_change['content']
+        elif note_change['action'] == 'append':
+            current_notes = cls.class_notes or ''
+            cls.class_notes = f"{current_notes}\n{note_change['content']}" if current_notes else note_change['content']
+        elif note_change['action'] == 'prepend':
+            current_notes = cls.class_notes or ''
+            cls.class_notes = f"{note_change['content']}\n{current_notes}" if current_notes else note_change['content']
+    
+    if 'topics_covered' in changes and changes['topics_covered']:
+        cls.topics_covered = changes['topics_covered']
+    
+    if 'homework_assigned' in changes and changes['homework_assigned']:
+        cls.homework_assigned = changes['homework_assigned']
+    
+    if 'video_link' in changes and changes['video_link']:
+        cls.video_link = changes['video_link']
+    
+    if 'materials' in changes and changes['materials']:
+        cls.materials = changes['materials']
+    
+    # Status Changes
+    if 'status' in changes and changes['status']:
+        cls.status = changes['status']
+    
+    if 'completion_status' in changes and changes['completion_status']:
+        cls.completion_status = changes['completion_status']
+    
+    # Update timestamp
+    cls.updated_at = datetime.utcnow()
+
+
+def get_weekday_number(day_name):
+    """Convert day name to weekday number (Monday = 0)"""
+    days = {
+        'monday': 0,
+        'tuesday': 1,
+        'wednesday': 2,
+        'thursday': 3,
+        'friday': 4,
+        'saturday': 5,
+        'sunday': 6
+    }
+    return days.get(day_name.lower(), 0)
+
+
+@bp.route('/api/bulk-edit/check-conflicts', methods=['POST'])
+@login_required
+@require_any_permission('student_management', 'tutor_management')
+def check_bulk_edit_conflicts():
+    """Check for conflicts before applying bulk changes"""
+    try:
+        data = request.get_json()
+        class_ids = data.get('class_ids', [])
+        changes = data.get('changes', {})
+        
+        classes = Class.query.filter(Class.id.in_(class_ids)).all()
+        conflicts = []
+        
+        for cls in classes:
+            conflict = check_class_conflicts(cls, changes)
+            if conflict:
+                conflicts.append({
+                    'class_id': cls.id,
+                    'reason': conflict,
+                    'class_info': f"{cls.subject} - {cls.scheduled_date}"
+                })
+        
+        return jsonify({
+            'conflicts': conflicts,
+            'has_conflicts': len(conflicts) > 0
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
     
 # ============ BATCH MANAGEMENT API ROUTES ============
 
 @bp.route('/api/batch/<batch_id>/change-tutor', methods=['POST'])
 @login_required
-@admin_required
+@require_any_permission('student_management', 'tutor_management')
 def api_batch_change_tutor(batch_id):
     """Change tutor for all classes in a batch"""
     try:
@@ -5915,7 +7027,7 @@ def api_batch_change_tutor(batch_id):
 
 @bp.route('/api/batch/<batch_id>/delete-classes', methods=['POST'])
 @login_required
-@admin_required
+@require_any_permission('student_management', 'tutor_management')
 def api_batch_delete_classes(batch_id):
     """Delete selected classes from a batch"""
     try:
@@ -5953,7 +7065,7 @@ def api_batch_delete_classes(batch_id):
 
 @bp.route('/api/tutor/<int:tutor_id>/batch-availability', methods=['GET'])
 @login_required
-@admin_required
+@require_any_permission('student_management', 'tutor_management')
 def api_tutor_batch_availability(tutor_id):
     """Check tutor availability for a batch of classes"""
     try:
@@ -6018,7 +7130,7 @@ def api_tutor_batch_availability(tutor_id):
     
 @bp.route('/api/v1/check-class-conflict')
 @login_required
-@admin_required
+@require_any_permission('student_management', 'tutor_management')
 def api_check_class_conflict():
     """Enhanced conflict checking that includes reschedule exclusions"""
     try:
@@ -6084,7 +7196,7 @@ def api_check_class_conflict():
 
 @bp.route('/api/v1/classes/<int:class_id>/reschedule', methods=['POST'])
 @login_required
-@admin_required
+@require_any_permission('student_management', 'tutor_management')
 def api_reschedule_class(class_id):
     """API endpoint for rescheduling classes"""
     try:
@@ -6150,7 +7262,7 @@ def api_reschedule_class(class_id):
 
 @bp.route('/api/v1/classes/<int:class_id>/cancel', methods=['POST'])
 @login_required
-@admin_required
+@require_any_permission('student_management', 'tutor_management')
 def api_cancel_class(class_id):
     """API endpoint for cancelling classes"""
     try:
@@ -6224,7 +7336,7 @@ def api_reschedule_stats():
 
 @bp.route('/api/v1/tutors/active')
 @login_required
-@admin_required
+@require_any_permission('student_management', 'tutor_management')
 def api_get_active_tutors():
     """Get active tutors for bulk edit and other operations"""
     try:
@@ -6257,7 +7369,7 @@ def api_get_active_tutors():
 
 @bp.route('/classes/<int:class_id>/edit', methods=['GET', 'POST'])
 @login_required
-@admin_required
+@require_any_permission('student_management', 'tutor_management')
 def edit_class(class_id):
     """Edit single class"""
     from app.forms.class_forms import EditClassForm
@@ -6362,7 +7474,7 @@ def edit_class(class_id):
 
 @bp.route('/classes/bulk-edit', methods=['GET', 'POST'])
 @login_required
-@admin_required
+@require_any_permission('student_management', 'tutor_management')
 def bulk_edit_classes():
     """Bulk edit multiple classes"""
     from app.forms.class_forms import BulkEditClassForm
@@ -6485,7 +7597,7 @@ def bulk_edit_classes():
 
 @bp.route('/api/v1/classes/<int:class_id>/editable')
 @login_required
-@admin_required
+@require_any_permission('student_management', 'tutor_management')
 def api_check_class_editable(class_id):
     """Check if a class can be edited via API"""
     try:
@@ -6506,7 +7618,7 @@ def api_check_class_editable(class_id):
 
 @bp.route('/api/v1/classes/<int:class_id>/quick-edit', methods=['POST'])
 @login_required
-@admin_required
+@require_any_permission('student_management', 'tutor_management')
 def api_quick_edit_class(class_id):
     """Quick edit class via API (for simple changes)"""
     try:
@@ -6566,7 +7678,7 @@ def api_quick_edit_class(class_id):
 
 @bp.route('/classes/<int:class_id>/duplicate')
 @login_required
-@admin_required
+@require_any_permission('student_management', 'tutor_management')
 def duplicate_class(class_id):
     """Create a duplicate of an existing class"""
     try:
@@ -6613,7 +7725,7 @@ def duplicate_class(class_id):
 
 @bp.route('/classes/<int:class_id>/delete', methods=['POST'])
 @login_required
-@admin_required
+@require_any_permission('student_management', 'tutor_management')
 def delete_class(class_id):
     """Delete a class"""
     try:
@@ -6655,51 +7767,69 @@ def delete_class(class_id):
         
 ### ADDITIONAL ROUTES FOR ALLOCATION HELPERS
 
+# Replace your allocation_dashboard route in admin.py with this debugging version:
+
 @bp.route('/allocation-dashboard')
 @login_required
 @require_permission('tutor_management')
 def allocation_dashboard():
     """Smart Allocation Dashboard - Main View"""
-    
-    # Get analytics for overview
-    analytics = allocation_helper.get_allocation_analytics()
-    
-    # Get recent unallocated students (last 20)
-    unallocated_students = allocation_helper.get_unallocated_students()[:20]
-    
-    # Get available tutors (top 15 by rating)
-    available_tutors = allocation_helper.get_available_tutors()[:15]
-    
-    # Get departments for filtering
-    departments = Department.query.filter_by(is_active=True).all()
-    
-    # Get unique subjects and grades for filters
-    all_subjects = set()
-    all_grades = set()
-    all_boards = set()
-    
-    students = Student.query.filter_by(is_active=True).all()
-    for student in students:
-        try:
-            subjects = student.get_subjects_enrolled()
-            all_subjects.update(subjects)
-            all_grades.add(student.grade)
-            all_boards.add(student.board)
-        except:
-            continue
-    
-    filter_options = {
-        'subjects': sorted(list(all_subjects)),
-        'grades': sorted(list(all_grades), key=lambda x: int(x) if x.isdigit() else 999),
-        'boards': sorted(list(all_boards))
-    }
-    
-    return render_template('admin/allocation_dashboard.html',
-                         analytics=analytics,
-                         unallocated_students=unallocated_students,
-                         available_tutors=available_tutors,
-                         departments=departments,
-                         filter_options=filter_options)
+    try:
+        # Get analytics for overview
+        analytics = allocation_helper.get_allocation_analytics()
+        print(f"Analytics: {analytics}")  # Debug print
+        
+        # Get recent unallocated students (last 20)
+        unallocated_students = allocation_helper.get_unallocated_students()[:20]
+        print(f"Unallocated students count: {len(unallocated_students)}")  # Debug print
+        
+        # Get available tutors (top 15 by rating)
+        available_tutors = allocation_helper.get_available_tutors()[:15]
+        print(f"Available tutors count: {len(available_tutors)}")  # Debug print
+        
+        # Get departments for filtering
+        departments = Department.query.filter_by(is_active=True).all()
+        
+        # Get unique subjects and grades for filters
+        all_subjects = set()
+        all_grades = set()
+        all_boards = set()
+        
+        students = Student.query.filter_by(is_active=True).all()
+        for student in students:
+            try:
+                subjects = student.get_subjects_enrolled()
+                all_subjects.update(subjects)
+                all_grades.add(student.grade)
+                all_boards.add(student.board)
+            except Exception as e:
+                print(f"Error processing student {student.id}: {e}")
+                continue
+        
+        filter_options = {
+            'subjects': sorted(list(all_subjects)),
+            'grades': sorted(list(all_grades), key=lambda x: int(x) if x.isdigit() else 999),
+            'boards': sorted(list(all_boards))
+        }
+        
+        print(f"Filter options: {filter_options}")  # Debug print
+        
+        return render_template('admin/allocation_dashboard.html',
+                             analytics=analytics,
+                             unallocated_students=unallocated_students,
+                             available_tutors=available_tutors,
+                             departments=departments,
+                             filter_options=filter_options)
+                             
+    except Exception as e:
+        print(f"Error in allocation dashboard: {e}")
+        # Return basic version if there's an error
+        return render_template('admin/allocation_dashboard.html',
+                             analytics={'overview': {'allocated_students': 0, 'unallocated_students': 0, 'allocation_percentage': 0, 'urgent_cases': 0}},
+                             unallocated_students=[],
+                             available_tutors=[],
+                             departments=[],
+                             filter_options={'subjects': [], 'grades': [], 'boards': []})
 
 
 @bp.route('/api/allocation/unallocated-students')
@@ -6756,7 +7886,7 @@ def api_unallocated_students():
 
 @bp.route('/api/allocation/available-tutors')
 @login_required
-@admin_required
+@require_any_permission('student_management', 'tutor_management')
 def api_available_tutors():
     """API: Get available tutors with filters"""
     try:
@@ -6790,7 +7920,7 @@ def api_available_tutors():
 
 @bp.route('/api/allocation/smart-match/<int:student_id>')
 @login_required
-@admin_required
+@require_any_permission('student_management', 'tutor_management')
 def api_smart_match(student_id):
     """API: Get smart tutor matches for specific student"""
     try:
@@ -6823,7 +7953,7 @@ def api_smart_match(student_id):
 
 @bp.route('/api/allocation/quick-assign', methods=['POST'])
 @login_required
-@admin_required
+@require_any_permission('student_management', 'tutor_management')
 def api_quick_assign():
     """API: Quick assign student to tutor"""
     try:
@@ -6853,7 +7983,7 @@ def api_quick_assign():
         existing_class = Class.query.filter(
             or_(
                 Class.primary_student_id == student_id,
-                Class.students.like(f'%{student_id}%')
+                json.loads(cls.students)
             ),
             Class.status.in_(['scheduled', 'ongoing'])
         ).first()
@@ -6900,7 +8030,7 @@ def api_quick_assign():
 
 @bp.route('/api/allocation/bulk-auto-assign', methods=['POST'])
 @login_required
-@admin_required
+@require_any_permission('student_management', 'tutor_management')
 def api_bulk_auto_assign():
     """API: Bulk auto-assign students to tutors"""
     try:

@@ -63,32 +63,42 @@
             overflow-x: hidden;
         }
 
-        /* 🔥 NEW: Global Page Loader */
-        .global-loader {
+        /* 🔥 ENHANCED: Smart Global Loading System */
+        .smart-global-loader {
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background: linear-gradient(135deg, var(--bg-light) 0%, #e2e8f0 100%);
+            background: linear-gradient(135deg, rgba(248, 249, 250, 0.95) 0%, rgba(226, 232, 240, 0.95) 100%);
+            backdrop-filter: blur(12px);
             display: flex;
             align-items: center;
             justify-content: center;
             z-index: 9999;
-            transition: opacity 0.5s ease, visibility 0.5s ease;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.4s ease, visibility 0.4s ease;
         }
 
-        .global-loader.hidden {
+        .smart-global-loader.show {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .smart-global-loader.hide {
             opacity: 0;
             visibility: hidden;
         }
 
-        .loader-content {
+        .smart-loader-content {
             text-align: center;
-            animation: loaderPulse 2s ease-in-out infinite;
+            animation: smartLoaderPulse 2s ease-in-out infinite;
+            max-width: 400px;
+            padding: 2rem;
         }
 
-        .logo-loader {
+        .smart-logo-loader {
             width: 100px;
             height: 100px;
             background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
@@ -102,57 +112,193 @@
             box-shadow: 0 15px 35px rgba(241, 161, 80, 0.3);
             position: relative;
             overflow: hidden;
+            transform: translateY(0);
+            animation: smartLogoFloat 3s ease-in-out infinite;
         }
 
-        .logo-loader::before {
+        .smart-logo-loader::before {
             content: '';
             position: absolute;
             top: 0;
             left: -100%;
             width: 100%;
             height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
-            animation: logoShine 2s ease-in-out infinite;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+            animation: smartLogoShine 2.5s ease-in-out infinite;
         }
 
-        .loading-spinner {
-            width: 50px;
-            height: 50px;
-            border: 4px solid rgba(241, 161, 80, 0.2);
-            border-top: 4px solid var(--primary-color);
+        .smart-logo-loader::after {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: conic-gradient(from 0deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+            animation: smartLogoRotate 4s linear infinite;
+            opacity: 0.7;
+        }
+
+        /* 🔥 NEW: Dynamic Loading States */
+        .smart-loading-spinner {
+            width: 60px;
+            height: 60px;
+            margin: 0 auto 1.5rem;
+            position: relative;
+        }
+
+        .smart-spinner-ring {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border: 3px solid transparent;
             border-radius: 50%;
-            animation: spin 1.2s linear infinite;
-            margin: 0 auto 1rem;
+            animation: smartSpinnerRotate 1.5s linear infinite;
         }
 
-        .loader-text {
-            font-size: 1.1rem;
-            font-weight: 500;
-            color: var(--text-secondary);
+        .smart-spinner-ring:nth-child(1) {
+            border-top: 3px solid var(--primary-color);
+            animation-delay: 0s;
+        }
+
+        .smart-spinner-ring:nth-child(2) {
+            border-right: 3px solid var(--primary-light);
+            animation-delay: 0.3s;
+            animation-duration: 2s;
+        }
+
+        .smart-spinner-ring:nth-child(3) {
+            border-bottom: 3px solid var(--primary-dark);
+            animation-delay: 0.6s;
+            animation-duration: 2.5s;
+        }
+
+        /* Smart Loading Messages */
+        .smart-loader-text {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--text-primary);
             margin-bottom: 0.5rem;
+            animation: smartTextPulse 2s ease-in-out infinite;
         }
 
-        .loader-subtext {
-            font-size: 0.875rem;
+        .smart-loader-subtext {
+            font-size: 0.95rem;
+            color: var(--text-secondary);
+            margin-bottom: 1rem;
+            opacity: 0.8;
+        }
+
+        /* 🔥 NEW: Progress Bar for File Uploads */
+        .smart-progress-container {
+            width: 100%;
+            max-width: 300px;
+            margin: 1rem auto;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .smart-progress-container.show {
+            opacity: 1;
+        }
+
+        .smart-progress-bar {
+            width: 100%;
+            height: 8px;
+            background: rgba(241, 161, 80, 0.2);
+            border-radius: 20px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .smart-progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary-color), var(--primary-light), var(--primary-color));
+            border-radius: 20px;
+            width: 0%;
+            transition: width 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .smart-progress-fill::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+            animation: smartProgressShine 2s ease-in-out infinite;
+        }
+
+        .smart-progress-text {
+            font-size: 0.8rem;
             color: var(--text-muted);
+            text-align: center;
+            margin-top: 0.5rem;
         }
 
-        @keyframes loaderPulse {
+        /* 🔥 NEW: Error State Animations */
+        .smart-error-state {
+            transform: scale(0.95);
+            opacity: 0.7;
+            animation: smartErrorShake 0.5s ease-in-out;
+        }
+
+        .smart-error-state .smart-logo-loader {
+            background: linear-gradient(135deg, var(--danger-color), #bd2130);
+            animation: smartErrorPulse 1s ease-in-out infinite;
+        }
+
+        /* Smart Animation Keyframes */
+        @keyframes smartLoaderPulse {
             0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.05); }
+            50% { transform: scale(1.02); }
         }
 
-        @keyframes logoShine {
+        @keyframes smartLogoFloat {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+
+        @keyframes smartLogoShine {
             0% { left: -100%; }
             100% { left: 100%; }
         }
 
-        @keyframes spin {
+        @keyframes smartLogoRotate {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
-        /* END: Global Page Loader */
 
+        @keyframes smartSpinnerRotate {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @keyframes smartTextPulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        @keyframes smartProgressShine {
+            0% { left: -100%; }
+            100% { left: 100%; }
+        }
+
+        @keyframes smartErrorShake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+
+        @keyframes smartErrorPulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+
+        /* Original styles preserved... */
         .app-container {
             display: flex;
             min-height: 100vh;
@@ -1015,18 +1161,30 @@
     </style>
 </head>
 <body>
-    <!-- 🔥 NEW: Global Page Loader -->
-    <div id="globalLoader" class="global-loader">
-        <div class="loader-content">
-            <div class="logo-loader">
+    <!-- 🔥 ENHANCED: Smart Global Loading System -->
+    <div id="smartGlobalLoader" class="smart-global-loader">
+        <div class="smart-loader-content">
+            <div class="smart-logo-loader">
                 <i class="fas fa-graduation-cap"></i>
             </div>
-            <div class="loading-spinner"></div>
-            <div class="loader-text">{{ APP_NAME or 'I2Global LMS' }}</div>
-            <div class="loader-subtext">Loading your dashboard...</div>
+            <div class="smart-loading-spinner">
+                <div class="smart-spinner-ring"></div>
+                <div class="smart-spinner-ring"></div>
+                <div class="smart-spinner-ring"></div>
+            </div>
+            <div class="smart-loader-text" id="smartLoaderText">{{ APP_NAME or 'I2Global LMS' }}</div>
+            <div class="smart-loader-subtext" id="smartLoaderSubtext">Loading your dashboard...</div>
+            
+            <!-- Progress Bar for File Uploads -->
+            <div class="smart-progress-container" id="smartProgressContainer">
+                <div class="smart-progress-bar">
+                    <div class="smart-progress-fill" id="smartProgressFill"></div>
+                </div>
+                <div class="smart-progress-text" id="smartProgressText">0%</div>
+            </div>
         </div>
     </div>
-    <!-- END: Global Page Loader -->
+    <!-- END: Smart Global Loading System -->
 
     <div class="app-container">
         {% if current_user.is_authenticated %}
@@ -1045,7 +1203,7 @@
             <div class="user-profile">
                 <div class="user-avatar">
                     {% if current_user.profile_picture %}
-                        <img src="{{ url_for('static', filename='uploads/profiles/' + current_user.profile_picture) }}" alt="Profile">
+                        <img src="{{ current_user.profile_picture }}" alt="Profile">
                     {% else %}
                         <i class="fas fa-user"></i>
                     {% endif %}
@@ -1396,74 +1554,281 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     
     <script>
-        // 🔥 NEW: Global Page Loader JavaScript
-        function showGlobalLoader() {
-            const loader = document.getElementById('globalLoader');
-            if (loader) {
-                loader.classList.remove('hidden');
+        // 🔥 ENHANCED: Smart Global Loading System JavaScript
+        class SmartLoadingSystem {
+            constructor() {
+                this.loader = document.getElementById('smartGlobalLoader');
+                this.loaderText = document.getElementById('smartLoaderText');
+                this.loaderSubtext = document.getElementById('smartLoaderSubtext');
+                this.progressContainer = document.getElementById('smartProgressContainer');
+                this.progressFill = document.getElementById('smartProgressFill');
+                this.progressText = document.getElementById('smartProgressText');
+                
+                this.isVisible = false;
+                this.loadingTimeout = null;
+                this.maxLoadingTime = 30000; // 30 seconds max
+                this.currentFormType = null;
+                this.validationPassed = true;
+                
+                this.init();
             }
-        }
-
-
-        function hideGlobalLoader() {
-            const loader = document.getElementById('globalLoader');
-            if (loader) {
-                loader.classList.add('hidden');
+            
+            init() {
+                this.bindEvents();
+                this.hideLoader(); // Ensure loader starts hidden
             }
-        }
-
-        // Show loader on page navigation
-        window.addEventListener('beforeunload', function() {
-            showGlobalLoader();
-        });
-
-        // Hide loader when page is fully loaded
-        window.addEventListener('load', function() {
-            // Small delay to ensure smooth transition
-            setTimeout(hideGlobalLoader, 500);
-        });
-
-        window.addEventListener('pageshow', function(event) {
-            // Hide loader when page is shown (including browser back)
-            hideGlobalLoader();
-        });
-        
-
-        window.addEventListener('popstate', function(event) {
-            hideGlobalLoader();
-        });
-
-        // Hide loader when DOM is ready (faster for some pages)
-        document.addEventListener('DOMContentLoaded', function() {
-            // Hide loader after short delay to show it briefly
-            setTimeout(hideGlobalLoader, 300);
-        });
-
-        // Show loader for form submissions and link clicks
-        document.addEventListener('click', function(e) {
-            const target = e.target.closest('a');
-            if (target) {
-                if (target.href && 
-                    !target.href.includes('#') && 
-                    !target.hasAttribute('data-bs-toggle') &&
-                    !target.href.includes('javascript:') &&
-                    target.target !== '_blank') {
-                    showGlobalLoader();
+            
+            bindEvents() {
+                // Smart form submission handling
+                document.addEventListener('submit', this.handleFormSubmission.bind(this));
+                
+                // Smart link navigation
+                document.addEventListener('click', this.handleLinkClick.bind(this));
+                
+                // Page navigation events
+                window.addEventListener('beforeunload', this.handlePageUnload.bind(this));
+                window.addEventListener('load', this.handlePageLoad.bind(this));
+                window.addEventListener('pageshow', this.handlePageShow.bind(this));
+                window.addEventListener('popstate', this.handlePopState.bind(this));
+                
+                // Form validation events
+                document.addEventListener('invalid', this.handleValidationError.bind(this), true);
+                document.addEventListener('input', this.handleInputChange.bind(this));
+            }
+            
+            handleFormSubmission(e) {
+                const form = e.target.closest('form');
+                if (!form) return;
+                
+                console.log('🔄 Smart form submission detected');
+                
+                // Reset validation state
+                this.validationPassed = true;
+                this.currentFormType = this.detectFormType(form);
+                
+                // Check for client-side validation errors
+                const invalidFields = form.querySelectorAll('.is-invalid, :invalid');
+                if (invalidFields.length > 0) {
+                    console.log('❌ Client-side validation failed, not showing loader');
+                    this.validationPassed = false;
+                    return;
+                }
+                
+                // Check if form has file uploads
+                const fileInputs = form.querySelectorAll('input[type="file"]');
+                const hasFiles = Array.from(fileInputs).some(input => input.files && input.files.length > 0);
+                
+                if (hasFiles) {
+                    this.showLoaderWithProgress();
+                } else {
+                    this.showLoader();
                 }
             }
-        });
-
-        document.addEventListener('submit', function(e) {
-            const target = e.target.closest('form');
-            if (target) {
-                showGlobalLoader();
+            
+            handleLinkClick(e) {
+                const link = e.target.closest('a');
+                if (!link) return;
+                
+                // Skip certain link types
+                if (link.href && 
+                    !link.href.includes('#') && 
+                    !link.hasAttribute('data-bs-toggle') &&
+                    !link.href.includes('javascript:') &&
+                    link.target !== '_blank' &&
+                    !link.hasAttribute('download')) {
+                    
+                    console.log('🔗 Navigation link detected');
+                    this.showLoader('Navigating...', 'Please wait while we load the page');
+                }
             }
-        });
+            
+            handlePageUnload() {
+                if (!this.isVisible) {
+                    this.showLoader('Loading...', 'Please wait');
+                }
+            }
+            
+            handlePageLoad() {
+                setTimeout(() => this.hideLoader(), 500);
+            }
+            
+            handlePageShow() {
+                this.hideLoader();
+            }
+            
+            handlePopState() {
+                this.hideLoader();
+            }
+            
+            handleValidationError(e) {
+                console.log('❌ Validation error detected, hiding loader');
+                this.validationPassed = false;
+                this.hideLoader();
+            }
+            
+            handleInputChange(e) {
+                // If user is actively fixing validation errors, hide loader
+                if (!this.validationPassed && this.isVisible) {
+                    this.hideLoader();
+                }
+            }
+            
+            detectFormType(form) {
+                const formClasses = form.className.toLowerCase();
+                const formAction = form.action.toLowerCase();
+                
+                if (formClasses.includes('student') || formAction.includes('student')) {
+                    return 'student';
+                } else if (formClasses.includes('tutor') || formAction.includes('tutor')) {
+                    return 'tutor';
+                } else if (formClasses.includes('demo') || formAction.includes('demo')) {
+                    return 'demo';
+                } else if (formClasses.includes('login') || formAction.includes('login')) {
+                    return 'login';
+                } else if (formClasses.includes('reschedule') || formAction.includes('reschedule')) {
+                    return 'reschedule';
+                } else if (formClasses.includes('notice') || formAction.includes('notice')) {
+                    return 'notice';
+                }
+                return 'general';
+            }
+            
+            getContextualMessages(formType) {
+                const messages = {
+                    student: {
+                        title: 'Registering Student',
+                        subtitle: 'Processing student information and documents...'
+                    },
+                    tutor: {
+                        title: 'Registering Tutor',
+                        subtitle: 'Setting up tutor profile and verifying credentials...'
+                    },
+                    demo: {
+                        title: 'Scheduling Demo',
+                        subtitle: 'Creating demo class and sending notifications...'
+                    },
+                    login: {
+                        title: 'Signing In',
+                        subtitle: 'Verifying your credentials...'
+                    },
+                    reschedule: {
+                        title: 'Processing Request',
+                        subtitle: 'Updating class schedule and notifying participants...'
+                    },
+                    notice: {
+                        title: 'Publishing Notice',
+                        subtitle: 'Broadcasting notice to recipients...'
+                    },
+                    general: {
+                        title: 'Processing',
+                        subtitle: 'Please wait while we process your request...'
+                    }
+                };
+                
+                return messages[formType] || messages.general;
+            }
+            
+            showLoader(title = null, subtitle = null) {
+                if (this.isVisible) return;
+                
+                console.log('✨ Showing smart loader');
+                
+                const messages = title && subtitle ? 
+                    { title, subtitle } : 
+                    this.getContextualMessages(this.currentFormType || 'general');
+                
+                this.loaderText.textContent = messages.title;
+                this.loaderSubtext.textContent = messages.subtitle;
+                
+                this.loader.classList.remove('hide');
+                this.loader.classList.add('show');
+                this.isVisible = true;
+                
+                // Safety timeout to prevent infinite loading
+                this.loadingTimeout = setTimeout(() => {
+                    console.log('⚠️ Loading timeout reached, hiding loader');
+                    this.hideLoader();
+                }, this.maxLoadingTime);
+            }
+            
+            showLoaderWithProgress() {
+                this.showLoader();
+                this.progressContainer.classList.add('show');
+                this.simulateProgress();
+            }
+            
+            simulateProgress() {
+                let progress = 0;
+                const increment = Math.random() * 15 + 10; // 10-25% increments
+                const interval = setInterval(() => {
+                    progress += increment;
+                    
+                    if (progress > 90) {
+                        progress = 90; // Stop at 90%, let server complete
+                        clearInterval(interval);
+                    }
+                    
+                    this.updateProgress(progress);
+                }, 500);
+            }
+            
+            updateProgress(percentage) {
+                this.progressFill.style.width = `${percentage}%`;
+                this.progressText.textContent = `${Math.round(percentage)}%`;
+            }
+            
+            completeProgress() {
+                this.updateProgress(100);
+                setTimeout(() => {
+                    this.hideLoader();
+                }, 800);
+            }
+            
+            hideLoader() {
+                if (!this.isVisible) return;
+                
+                console.log('🔒 Hiding smart loader');
+                
+                this.loader.classList.remove('show');
+                this.loader.classList.add('hide');
+                this.progressContainer.classList.remove('show');
+                this.isVisible = false;
+                
+                if (this.loadingTimeout) {
+                    clearTimeout(this.loadingTimeout);
+                    this.loadingTimeout = null;
+                }
+                
+                // Reset progress
+                this.updateProgress(0);
+            }
+            
+            showError(message = 'An error occurred') {
+                this.loaderText.textContent = 'Error';
+                this.loaderSubtext.textContent = message;
+                
+                const content = this.loader.querySelector('.smart-loader-content');
+                content.classList.add('smart-error-state');
+                
+                setTimeout(() => {
+                    this.hideLoader();
+                    content.classList.remove('smart-error-state');
+                }, 2000);
+            }
+        }
         
-        setTimeout(function() {
-            hideGlobalLoader();
-        }, 5000);
-
+        // Initialize Smart Loading System
+        const smartLoader = new SmartLoadingSystem();
+        
+        // Legacy support functions for existing code
+        function showGlobalLoader() {
+            smartLoader.showLoader();
+        }
+        
+        function hideGlobalLoader() {
+            smartLoader.hideLoader();
+        }
+        
         // Enhanced JavaScript functionality
         document.addEventListener('DOMContentLoaded', function() {
             initSidebar();
@@ -1471,9 +1836,59 @@
             initAnimations();
             initTooltips();
             initDemoNavigation();
-            initNoticeUpdates(); // NEW: Notice system integration
-            initRescheduleUpdates(); // 🔥 NEW: Reschedule system integration 🔥
+            initNoticeUpdates();
+            initRescheduleUpdates();
+            initSmartValidation(); // 🔥 NEW: Smart validation integration
         });
+        
+        // 🔥 NEW: Smart validation integration
+        function initSmartValidation() {
+            // Enhanced form validation with smart loader integration
+            document.querySelectorAll('form').forEach(form => {
+                form.addEventListener('submit', function(e) {
+                    // Check for HTML5 validation
+                    if (!form.checkValidity()) {
+                        console.log('❌ HTML5 validation failed');
+                        smartLoader.hideLoader();
+                        return;
+                    }
+                    
+                    // Check for custom validation classes
+                    const invalidFields = form.querySelectorAll('.is-invalid');
+                    if (invalidFields.length > 0) {
+                        console.log('❌ Custom validation failed');
+                        smartLoader.hideLoader();
+                        return;
+                    }
+                });
+            });
+            
+            // Monitor validation state changes
+            document.addEventListener('invalid', function(e) {
+                console.log('❌ Field validation failed:', e.target.name);
+                smartLoader.hideLoader();
+            }, true);
+            
+            // Monitor flash messages for errors
+            const flashMessages = document.querySelector('.flash-messages');
+            if (flashMessages) {
+                const observer = new MutationObserver(function(mutations) {
+                    mutations.forEach(function(mutation) {
+                        mutation.addedNodes.forEach(function(node) {
+                            if (node.nodeType === 1 && node.classList.contains('alert-danger')) {
+                                console.log('❌ Error flash message detected');
+                                smartLoader.hideLoader();
+                            }
+                        });
+                    });
+                });
+                
+                observer.observe(flashMessages, {
+                    childList: true,
+                    subtree: true
+                });
+            }
+        }
 
         function initSidebar() {
             const sidebar = document.getElementById('sidebar');
@@ -1570,7 +1985,7 @@
             }
         }
 
-        // NEW: Notice system integration
+        // Notice system integration
         function initNoticeUpdates() {
             updateNoticeCount();
             // Update notice count every 30 seconds
@@ -1609,7 +2024,7 @@
                 .catch(() => {});
         }
 
-        // 🔥 NEW: Reschedule system integration 🔥
+        // Reschedule system integration
         function initRescheduleUpdates() {
             updateRescheduleBadge();
             // Update reschedule badge every 30 seconds
@@ -1704,6 +2119,21 @@
                callback();
            }
        };
+       
+       // 🔥 NEW: Expose smart loader methods globally
+       window.LMS.showLoader = function(title, subtitle) {
+           smartLoader.showLoader(title, subtitle);
+       };
+       
+       window.LMS.hideLoader = function() {
+           smartLoader.hideLoader();
+       };
+       
+       window.LMS.showError = function(message) {
+           smartLoader.showError(message);
+       };
+       
+       console.log('✨ Smart Loading System initialized successfully! 🚀');
    </script>
    
    {% block extra_js %}{% endblock %}

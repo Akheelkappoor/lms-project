@@ -73,9 +73,12 @@ def my_classes():
         scheduled_date=today
     ).order_by(Class.scheduled_time).all()
     
+    filtered_args = request.args.to_dict()
+    filtered_args.pop('page', None)
+    
     return render_template('tutor/my_classes.html', 
                          classes=classes, todays_classes=todays_classes,
-                         tutor=tutor)
+                         tutor=tutor, filtered_args=filtered_args)
 
 @bp.route('/today-classes')
 @login_required

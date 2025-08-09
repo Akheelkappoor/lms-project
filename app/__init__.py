@@ -73,6 +73,9 @@ def create_app(config_class=Config):
 
     from app.routes import demo
     app.register_blueprint(demo.bp, url_prefix='/demo')
+    
+    from app.routes.timetable import bp as timetable_bp
+    app.register_blueprint(timetable_bp, url_prefix='/admin')
 
     from app.routes.finance import bp as finance_bp
     app.register_blueprint(finance_bp)
@@ -85,6 +88,9 @@ def create_app(config_class=Config):
     
     from app.routes import reschedule
     app.register_blueprint(reschedule.bp, url_prefix='/reschedule')
+    
+    from app.routes.export_email_timetable import bp as export_email_bp
+    app.register_blueprint(export_email_bp, url_prefix='/admin')
 
     # Notice Management System Blueprint
     from app.routes import notice

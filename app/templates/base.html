@@ -1275,7 +1275,7 @@
                     <!-- Schedule Management - Only with schedule_management permission -->
                     {% if current_user.has_permission('schedule_management') %}
                     <li class="nav-item">
-                        <a href="{{ url_for('admin.timetable') }}" class="nav-link {% if request.endpoint and 'timetable' in request.endpoint %}active{% endif %}">
+                        <a href="{{ url_for('timetable.timetable') }}" class="nav-link {% if request.endpoint and 'timetable' in request.endpoint %}active{% endif %}">
                             <i class="fas fa-calendar-alt"></i>
                             <span>Schedule Management</span>
                         </a>

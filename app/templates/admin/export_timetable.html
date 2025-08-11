@@ -442,6 +442,10 @@
                     <i class="fas fa-eye"></i>
                     Generate Preview
                 </button>
+                <button class="btn btn-info" onclick="generateEmailPreview()" id="emailPreviewBtn">
+                    <i class="fas fa-envelope"></i>
+                    Email Preview
+                </button>
             </div>
         </div>
     </div>
@@ -456,6 +460,21 @@
                 <div class="preview-placeholder">
                     <i class="fas fa-eye fa-3x" style="color: #d1d5db;"></i>
                     <p>Click "Generate Preview" to see your timetable</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Email Preview Panel -->
+    <div class="export-panel" id="emailPreviewPanel" style="display: none;">
+        <div class="panel-header">
+            <h2 class="panel-title">📧 Email Preview</h2>
+        </div>
+        <div class="panel-body">
+            <div class="preview-section" id="emailPreviewSection">
+                <div class="preview-placeholder">
+                    <i class="fas fa-envelope fa-3x" style="color: #d1d5db;"></i>
+                    <p>Click "Email Preview" to see how your email will look</p>
                 </div>
             </div>
         </div>
@@ -617,6 +636,51 @@ async function generatePreview() {
     }
 }
 
+// NEW FUNCTION: Generate Email Preview
+async function generateEmailPreview() {
+    if (!validateForm()) return;
+    
+    const btn = document.getElementById('emailPreviewBtn');
+    if (!btn) {
+        showNotification('Email preview button not found', 'error');
+        return;
+    }
+    
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<div class="loading-spinner"></div> Generating...';
+    btn.disabled = true;
+    
+    try {
+        const data = getFormData();
+        
+        const response = await fetch('/admin/api/v1/export/email-preview', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCSRFToken()
+            },
+            body: JSON.stringify(data)
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            previewData = result;
+            showEmailPreview(result);
+            showNotification(`Email preview generated! Subject: "${result.email_subject}"`, 'success');
+        } else {
+            showNotification(result.error, 'error');
+        }
+        
+    } catch (error) {
+        showNotification('Error generating email preview: ' + error.message, 'error');
+        console.error('Email preview error:', error);
+    } finally {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+    }
+}
+
 function showPreview(html) {
     document.getElementById('previewSection').innerHTML = html;
     document.getElementById('previewPanel').style.display = 'block';
@@ -626,9 +690,85 @@ function showPreview(html) {
     document.getElementById('previewPanel').scrollIntoView({ behavior: 'smooth' });
 }
 
+// NEW FUNCTION: Show Email Preview
+function showEmailPreview(result) {
+    const emailPreviewPanel = document.getElementById('emailPreviewPanel');
+    const emailPreviewSection = document.getElementById('emailPreviewSection');
+    
+    if (!emailPreviewPanel || !emailPreviewSection) {
+        showNotification('Email preview panel not found. Please add the email preview section to your HTML.', 'error');
+        return;
+    }
+    
+    emailPreviewSection.innerHTML = `
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; height: 600px;">
+            <!-- Email Template Preview -->
+            <div style="border: 2px solid #dee2e6; border-radius: 8px; overflow: hidden;">
+                <div style="background: #495057; color: white; padding: 1rem; font-weight: bold; text-align: center;">
+                    📧 Email Template Preview
+                </div>
+                <div style="height: calc(100% - 60px); overflow: auto; background: white;">
+                    ${result.email_html}
+                </div>
+            </div>
+            
+            <!-- Timetable Attachment Preview -->
+            <div style="border: 2px solid #dee2e6; border-radius: 8px; overflow: hidden;">
+                <div style="background: #667eea; color: white; padding: 1rem; font-weight: bold; text-align: center;">
+                    📎 Attachment Preview
+                </div>
+                <div style="height: calc(100% - 60px); overflow: auto; background: white;">
+                    ${result.timetable_html}
+                </div>
+            </div>
+        </div>
+        
+        <div style="margin-top: 1.5rem; padding: 1rem; background: #f8f9fa; border-radius: 8px; border-left: 4px solid #667eea;">
+            <h4 style="margin: 0 0 0.5rem 0; color: #495057;">📬 Email Details:</h4>
+            <div><strong>Subject:</strong> ${result.email_subject}</div>
+            <div><strong>Type:</strong> ${result.export_type === 'student' ? 'Student Schedule' : 'Tutor Schedule'}</div>
+            <div><strong>Classes Found:</strong> ${result.class_count} classes</div>
+            <div><strong>Attachment:</strong> HTML file with clean timetable</div>
+            <div><strong>Recipients will see:</strong> Professional email + printable schedule</div>
+        </div>
+        
+        <!-- Mobile Responsive View for smaller screens -->
+        <style>
+            @media (max-width: 768px) {
+                .email-preview-grid {
+                    grid-template-columns: 1fr !important;
+                    height: auto !important;
+                }
+                .email-preview-grid > div {
+                    height: 400px !important;
+                }
+            }
+        </style>
+    `;
+    
+    // Update grid for mobile
+    const grid = emailPreviewSection.querySelector('div[style*="grid-template-columns"]');
+    if (grid) {
+        grid.classList.add('email-preview-grid');
+    }
+    
+    emailPreviewPanel.style.display = 'block';
+    document.getElementById('actionsPanel').style.display = 'block';
+    
+    // Scroll to email preview
+    emailPreviewPanel.scrollIntoView({ behavior: 'smooth' });
+}
+
 function clearPreview() {
     document.getElementById('previewPanel').style.display = 'none';
     document.getElementById('actionsPanel').style.display = 'none';
+    
+    // Also hide email preview panel if it exists
+    const emailPreviewPanel = document.getElementById('emailPreviewPanel');
+    if (emailPreviewPanel) {
+        emailPreviewPanel.style.display = 'none';
+    }
+    
     previewData = null;
 }
 
@@ -856,5 +996,8 @@ function isValidEmail(email) {
 function getCSRFToken() {
     return document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
 }
+
+// Console log for debugging
+console.log('✅ Export & Email system loaded with email preview functionality!');
 </script>
 {% endblock %}

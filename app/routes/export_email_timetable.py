@@ -20,6 +20,54 @@ from sqlalchemy import or_, and_, func
 
 bp = Blueprint('export_email_timetable', __name__)
 
+# ============ HELPER FUNCTIONS ============
+
+def simplify_subject_name(full_subject_name):
+    """
+    Extract simplified subject name from full class names.
+    Example: "HARSHINI-GRD10-CBSE-HINDI" becomes "HINDI"
+    """
+    if not full_subject_name:
+        return full_subject_name
+    
+    # Remove common prefixes and extract subject
+    name = str(full_subject_name).strip()
+    
+    # Split by dash and get the last part (subject)
+    if '-' in name:
+        parts = name.split('-')
+        # Get the last part which should be the subject
+        subject = parts[-1].strip()
+        
+        # Clean up common patterns
+        subject = subject.replace('CBSE', '').replace('CLASS', '').replace('CLASSES', '')
+        subject = subject.strip('-').strip()
+        
+        return subject if subject else name
+    
+    return name
+
+def format_student_name_display(student_names):
+    """Format student names for better display"""
+    if not student_names:
+        return []
+    
+    # If it's a string, split by comma
+    if isinstance(student_names, str):
+        names = [name.strip() for name in student_names.split(',')]
+    else:
+        names = student_names
+    
+    # Limit to first name only for space
+    simplified_names = []
+    for name in names:
+        if name:
+            # Get first name only
+            first_name = name.split()[0] if ' ' in name else name
+            simplified_names.append(first_name)
+    
+    return simplified_names[:5]  # Limit to 5 names for space
+
 # ============ MAIN EXPORT PAGE ============
 
 @bp.route('/export-timetable')
@@ -102,17 +150,36 @@ def get_filtered_classes(filters):
         return []
 
 def format_student_timetable_data(classes, student_info, filters):
-    """Format data for student timetable (your HTML template) - FIXED TIME FORMAT"""
+    """Format data for student timetable template with correct variable names"""
     try:
-        # Group classes by day of week and time
-        weekly_schedule = {}
-        subjects_set = set()
+        from datetime import datetime, timedelta
         
+        # Initialize timetable structure
+        timetable_data = {
+            'monday': {},
+            'tuesday': {},
+            'wednesday': {},
+            'thursday': {},
+            'friday': {},
+            'saturday': {},
+            'sunday': {}
+        }
+        
+        time_slots = set()
+        subjects_set = set()
+        tutors_set = set()
+        total_duration = 0
+        
+        # Process each class
         for cls in classes:
-            day_of_week = cls.scheduled_date.weekday()  # 0=Monday, 6=Sunday
+            # Get day of week (0=Monday, 6=Sunday)
+            day_of_week = cls.scheduled_date.weekday()
+            day_names = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
+            day_name = day_names[day_of_week]
             
-            # FIXED: 12-hour format with start and end time
+            # Format time
             if cls.scheduled_time:
+                start_time = cls.scheduled_time.strftime('%H:%M')
                 start_time_12hr = cls.scheduled_time.strftime('%I:%M %p')
                 
                 # Calculate end time
@@ -120,65 +187,104 @@ def format_student_timetable_data(classes, student_info, filters):
                     start_datetime = datetime.combine(datetime.today(), cls.scheduled_time)
                     end_datetime = start_datetime + timedelta(minutes=cls.duration)
                     end_time_12hr = end_datetime.time().strftime('%I:%M %p')
-                    time_display = f"{start_time_12hr} - {end_time_12hr}"
+                    total_duration += cls.duration
                 else:
-                    time_display = start_time_12hr
+                    end_time_12hr = start_time_12hr
+                    total_duration += 60  # Default 1 hour
             else:
-                time_display = '12:00 AM'
+                start_time = '00:00'
+                start_time_12hr = '12:00 AM'
+                end_time_12hr = '01:00 AM'
             
-            # Use start time for grouping
-            time_key = cls.scheduled_time.strftime('%H:%M') if cls.scheduled_time else '00:00'
-            
-            if time_key not in weekly_schedule:
-                weekly_schedule[time_key] = [''] * 7  # 7 days
+            time_slots.add(start_time)
             
             # Get tutor name
             tutor_name = 'No Tutor'
             if cls.tutor and cls.tutor.user:
                 tutor_name = cls.tutor.user.full_name
+                tutors_set.add(tutor_name)
             
-            # Format class info with FIXED 12-hour time format
-            class_info = f"{cls.subject}\n{tutor_name}\n{time_display}\n{cls.status}"
-            weekly_schedule[time_key][day_of_week] = class_info
-            subjects_set.add(cls.subject)
+            # Simplify subject name
+            simplified_subject = simplify_subject_name(cls.subject)
+            subjects_set.add(simplified_subject)
+            
+            # Create class info
+            class_info = {
+                'subject': simplified_subject,
+                'tutor_name': tutor_name,
+                'start_time': start_time_12hr,
+                'end_time': end_time_12hr,
+                'status': cls.status or 'scheduled'
+            }
+            
+            # Add to timetable data
+            if start_time not in timetable_data[day_name]:
+                timetable_data[day_name][start_time] = []
+            
+            timetable_data[day_name][start_time].append(class_info)
         
-        # Create time slots list (sorted by time)
-        time_slots = []
-        for time_key in sorted(weekly_schedule.keys()):
-            time_slots.append(weekly_schedule[time_key])
+        # Sort time slots
+        sorted_time_slots = sorted(list(time_slots))
         
-        # Prepare template data
+        # Calculate subject details
+        subject_details = {}
+        for subject in subjects_set:
+            subject_classes = [cls for cls in classes if simplify_subject_name(cls.subject) == subject]
+            tutor_for_subject = 'N/A'
+            total_subject_hours = 0
+            
+            for cls in subject_classes:
+                if cls.tutor and cls.tutor.user:
+                    tutor_for_subject = cls.tutor.user.full_name
+                if cls.duration:
+                    total_subject_hours += cls.duration
+                else:
+                    total_subject_hours += 60
+            
+            subject_details[subject] = {
+                'tutor_name': tutor_for_subject,
+                'classes_count': len(subject_classes),
+                'total_hours': round(total_subject_hours / 60, 1)
+            }
+        
+        # Prepare template data with correct variable names
         template_data = {
-            'title': f"Class Schedule - {student_info['name']}",
-            'person_info': f"Student: {student_info['name']} | Grade: {student_info.get('grade', 'N/A')}",
-            'grade_board': f"{student_info.get('grade', 'N/A')} / {student_info.get('board', 'N/A')}",
-            'subjects_list': ', '.join(sorted(subjects_set)),
-            'duration_period': f"{filters['start_date']} to {filters['end_date']}",
-            'time_slots': time_slots,
-            'details_subjects': list(sorted(subjects_set))[:6],  # Max 6 subjects
-            'details_second_row_label': 'TUTORS',
-            'details_second_row': [cls.tutor.user.full_name if cls.tutor and cls.tutor.user else 'N/A' 
-                                 for cls in classes[:6]]  # Max 6 tutors
+            'student_info': student_info,  # This is the key fix!
+            'timetable_data': timetable_data,
+            'time_slots': sorted_time_slots,
+            'date_range': f"{filters['start_date']} to {filters['end_date']}",
+            'total_classes': len(classes),
+            'unique_subjects': list(subjects_set),
+            'unique_tutors': list(tutors_set),
+            'total_hours': round(total_duration / 60, 1),
+            'subject_details': subject_details,
+            'current_date': datetime.now().strftime('%B %d, %Y')
         }
         
         return template_data
         
     except Exception as e:
         print(f"Error formatting student data: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return None
 
 def format_tutor_timetable_data(classes, tutor_info, filters):
-    """Format data for tutor timetable (table format for lots of data)"""
+    """Format data for tutor timetable template with correct variable names"""
     try:
+        from datetime import datetime, timedelta
+        import json
+        
         # Group classes by date
-        classes_by_date = {}
-        total_students = set()
+        schedule_by_date = {}
         subjects_set = set()
+        total_students = set()
+        total_duration = 0
         
         for cls in classes:
-            date_str = cls.scheduled_date.strftime('%Y-%m-%d')
-            if date_str not in classes_by_date:
-                classes_by_date[date_str] = []
+            date_str = cls.scheduled_date.strftime('%A, %B %d, %Y')
+            if date_str not in schedule_by_date:
+                schedule_by_date[date_str] = []
             
             # Get student names
             student_names = []
@@ -204,36 +310,60 @@ def format_tutor_timetable_data(classes, tutor_info, filters):
                 except:
                     pass
             
-            subjects_set.add(cls.subject)
+            # Format time
+            if cls.scheduled_time:
+                start_time = cls.scheduled_time.strftime('%I:%M %p')
+                
+                if cls.duration:
+                    start_datetime = datetime.combine(datetime.today(), cls.scheduled_time)
+                    end_datetime = start_datetime + timedelta(minutes=cls.duration)
+                    end_time = end_datetime.time().strftime('%I:%M %p')
+                    total_duration += cls.duration
+                else:
+                    end_time = start_time
+                    total_duration += 60
+            else:
+                start_time = '12:00 AM'
+                end_time = '01:00 AM'
             
+            # Simplify subject name
+            simplified_subject = simplify_subject_name(cls.subject)
+            subjects_set.add(simplified_subject)
+            
+            # Format student names for display
+            formatted_students = format_student_name_display(student_names)
+            
+            # Create class info
             class_info = {
-                'id': cls.id,
-                'subject': cls.subject,
-                'time': cls.scheduled_time.strftime('%H:%M') if cls.scheduled_time else '00:00',
-                'duration': cls.duration,
-                'students': ', '.join(student_names) if student_names else 'No Students',
-                'student_count': len(student_names),
-                'status': cls.status,
+                'subject': simplified_subject,
+                'students': formatted_students,
+                'start_time': start_time,
+                'end_time': end_time,
+                'status': cls.status or 'scheduled',
                 'platform': cls.platform or 'N/A',
-                'meeting_link': cls.meeting_link or 'N/A'
+                'meeting_link': cls.meeting_link
             }
             
-            classes_by_date[date_str].append(class_info)
+            schedule_by_date[date_str].append(class_info)
         
+        # Prepare template data with correct variable names
         template_data = {
-            'title': f"Teaching Schedule - {tutor_info['name']}",
-            'tutor_info': tutor_info,
-            'classes_by_date': classes_by_date,
+            'tutor_info': tutor_info,  # This is the key fix!
+            'schedule_by_date': schedule_by_date,
+            'date_range': f"{filters['start_date']} to {filters['end_date']}",
             'total_classes': len(classes),
+            'unique_subjects': list(subjects_set),
             'total_students': len(total_students),
-            'subjects_taught': list(sorted(subjects_set)),
-            'date_range': f"{filters['start_date']} to {filters['end_date']}"
+            'total_hours': round(total_duration / 60, 1),
+            'current_date': datetime.now().strftime('%B %d, %Y')
         }
         
         return template_data
         
     except Exception as e:
         print(f"Error formatting tutor data: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return None
 
 # ============ API ENDPOINTS ============
@@ -573,7 +703,7 @@ def api_email_timetable():
         if not classes:
             return jsonify({'success': False, 'error': 'No classes found'}), 404
         
-        # Send emails based on type
+        # Send email based on type
         if data.get('student_id'):
             return email_student_timetable(classes, data, recipients)
         elif data.get('tutor_id'):
@@ -622,7 +752,7 @@ def email_student_timetable(classes, filters, recipients):
                 send_email(
                     to=recipient,
                     subject=subject,
-                    template='emails/timetable_email.html',
+                    template='email/timetable_email.html',
                     student_name=student.full_name,
                     html_attachment=html_content,
                     attachment_filename=f"schedule_{student.full_name.replace(' ', '_')}.html"
@@ -680,7 +810,7 @@ def email_tutor_timetable(classes, filters, recipients):
                 send_email(
                     to=recipient,
                     subject=subject,
-                    template='emails/timetable_email.html',
+                    template='email/timetable_email.html',
                     tutor_name=tutor.user.full_name,
                     html_attachment=html_content,
                     attachment_filename=f"schedule_{tutor.user.full_name.replace(' ', '_')}.html"
@@ -758,11 +888,12 @@ def api_export_download_pdf():
         
         # PDF generation options
         options = {
-            'page-size': 'A4',
-            'margin-top': '0.75in',
-            'margin-right': '0.75in',
-            'margin-bottom': '0.75in',
-            'margin-left': '0.75in',
+            'page-size': 'A3',              # CHANGE TO A3
+            'orientation': 'landscape',      # ADD LANDSCAPE
+            'margin-top': '0.4in',          # SMALLER MARGINS FOR A3
+            'margin-right': '0.4in',
+            'margin-bottom': '0.4in',
+            'margin-left': '0.4in',
             'encoding': "UTF-8",
             'no-outline': None,
             'enable-local-file-access': None,
@@ -788,37 +919,111 @@ def api_export_download_pdf():
             'error': f'PDF generation failed: {str(e)}'
         }), 500
         
-def fallback_html_as_pdf(html_content, filename):
-    """Fallback: Return HTML file with PDF extension for browser print"""
+        
+# Add this to app/routes/export_email_timetable.py
+
+@bp.route('/api/v1/export/email-preview', methods=['POST'])
+@login_required
+@admin_required
+def api_email_preview():
+    """Generate email preview (both email template and timetable attachment)"""
     try:
-        # Add print-optimized CSS to the HTML
-        print_optimized_html = html_content.replace(
-            '</head>',
-            '''
-            <style>
-                @media print {
-                    body { margin: 0; padding: 20px; }
-                    .container { max-width: none; }
-                }
-            </style>
-            <script>
-                window.onload = function() {
-                    // Auto-print when opened (optional)
-                    // window.print();
-                }
-            </script>
-            </head>'''
-        )
+        data = request.get_json()
         
-        # Return as HTML but suggest printing to PDF
-        response = make_response(print_optimized_html)
-        response.headers['Content-Type'] = 'text/html'
-        response.headers['Content-Disposition'] = f'attachment; filename="{filename.replace(".pdf", ".html")}"'
+        # Validate required fields
+        if not data.get('start_date') or not data.get('end_date'):
+            return jsonify({'success': False, 'error': 'Date range is required'}), 400
         
-        return response
+        # Get filtered classes
+        classes = get_filtered_classes(data)
         
+        if not classes:
+            return jsonify({
+                'success': True,
+                'email_html': '<div class="text-center"><h3>No classes found - Email will not be sent</h3></div>',
+                'timetable_html': '<div class="text-center"><h3>No timetable to attach</h3></div>',
+                'class_count': 0
+            })
+        
+        # Determine type and generate both email and timetable previews
+        if data.get('student_id'):
+            # Student email preview
+            student = Student.query.get(data['student_id'])
+            if not student:
+                return jsonify({'success': False, 'error': 'Student not found'}), 404
+            
+            student_info = {
+                'name': student.full_name,
+                'grade': student.grade,
+                'board': student.board
+            }
+            
+            # Generate timetable attachment preview
+            template_data = format_student_timetable_data(classes, student_info, data)
+            if not template_data:
+                return jsonify({'success': False, 'error': 'Error formatting student data'}), 500
+            
+            timetable_html = render_template('exports/student_timetable_template.html', **template_data)
+            
+            # Generate email preview
+            email_html = render_template('email/timetable_email.html',
+                student_name=student.full_name,
+                date_range=f"{data['start_date']} to {data['end_date']}",
+                attachment_filename=f"schedule_{student.full_name.replace(' ', '_')}.html"
+            )
+            
+            return jsonify({
+                'success': True,
+                'email_html': email_html,
+                'timetable_html': timetable_html,
+                'export_type': 'student',
+                'class_count': len(classes),
+                'student_name': student.full_name,
+                'email_subject': f"Class Schedule - {student.full_name}"
+            })
+            
+        elif data.get('tutor_id'):
+            # Tutor email preview
+            tutor = Tutor.query.get(data['tutor_id'])
+            if not tutor or not tutor.user:
+                return jsonify({'success': False, 'error': 'Tutor not found'}), 404
+            
+            tutor_info = {
+                'name': tutor.user.full_name,
+                'email': tutor.user.email,
+                'phone': tutor.user.phone,
+                'department': tutor.user.department.name if tutor.user.department else 'N/A'
+            }
+            
+            # Generate timetable attachment preview
+            template_data = format_tutor_timetable_data(classes, tutor_info, data)
+            if not template_data:
+                return jsonify({'success': False, 'error': 'Error formatting tutor data'}), 500
+            
+            timetable_html = render_template('exports/tutor_timetable_template.html', **template_data)
+            
+            # Generate email preview
+            email_html = render_template('email/timetable_email.html',
+                tutor_name=tutor.user.full_name,
+                date_range=f"{data['start_date']} to {data['end_date']}",
+                attachment_filename=f"schedule_{tutor.user.full_name.replace(' ', '_')}.html"
+            )
+            
+            return jsonify({
+                'success': True,
+                'email_html': email_html,
+                'timetable_html': timetable_html,
+                'export_type': 'tutor',
+                'class_count': len(classes),
+                'tutor_name': tutor.user.full_name,
+                'email_subject': f"Teaching Schedule - {tutor.user.full_name}"
+            })
+        
+        else:
+            return jsonify({'success': False, 'error': 'Please select either a student or tutor'}), 400
+            
     except Exception as e:
-        return jsonify({
-            'success': False, 
-            'error': 'PDF generation not available. Please use HTML download.'
-        }), 500
+        print(f"Error generating email preview: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500

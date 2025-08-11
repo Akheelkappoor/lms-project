@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ title }}</title>
+    <title>{{ tutor_info.name }} - Teaching Schedule</title>
     <style>
         * {
             margin: 0;
@@ -12,130 +12,113 @@
         }
         
         body {
-            font-family: 'Arial', sans-serif;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background: white;
             color: #333;
+            line-height: 1.4;
             padding: 20px;
-            line-height: 1.6;
         }
         
         .container {
-            max-width: 100%;
+            max-width: 1200px;
             margin: 0 auto;
             background: white;
+            border: 2px solid #dee2e6;
+            border-radius: 8px;
+            overflow: hidden;
         }
         
-        /* Header Section */
+        /* Header */
         .header {
-            border: 3px solid #2c3e50;
-            padding: 30px;
+            background: #f8f9fa;
+            padding: 30px 20px;
             text-align: center;
-            margin-bottom: 30px;
-            background: linear-gradient(135deg, #f8f9fa, #e9ecef);
-            border-radius: 8px;
+            border-bottom: 2px solid #dee2e6;
         }
         
         .header h1 {
-            font-size: 32px;
+            font-size: 28px;
             font-weight: bold;
-            margin-bottom: 10px;
             color: #2c3e50;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
         }
         
-        .header h2 {
-            font-size: 18px;
-            color: #34495e;
+        .tutor-name {
+            font-size: 22px;
+            font-weight: 600;
+            color: #495057;
             margin-bottom: 15px;
         }
         
         .header-info {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 20px;
-            margin-top: 20px;
-            text-align: left;
+            gap: 15px;
+            max-width: 800px;
+            margin: 0 auto;
         }
         
         .info-item {
             background: white;
-            padding: 15px;
+            padding: 12px;
             border-radius: 6px;
             border: 1px solid #dee2e6;
+            text-align: center;
         }
         
         .info-label {
-            font-weight: bold;
-            color: #495057;
-            margin-bottom: 5px;
+            font-size: 12px;
+            color: #6c757d;
+            font-weight: 500;
+            margin-bottom: 4px;
+            text-transform: uppercase;
         }
         
         .info-value {
-            color: #2c3e50;
             font-size: 14px;
+            font-weight: bold;
+            color: #2c3e50;
+            word-break: break-word;
         }
         
-        /* Summary Stats */
+        /* Summary Statistics */
         .summary-stats {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 20px;
-            margin-bottom: 30px;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 15px;
+            padding: 20px;
+            background: white;
+            border-bottom: 1px solid #dee2e6;
         }
         
         .stat-card {
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            color: white;
+            background: #f8f9fa;
             padding: 20px;
-            border-radius: 12px;
+            border-radius: 8px;
             text-align: center;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            border: 1px solid #dee2e6;
         }
         
         .stat-number {
             font-size: 28px;
             font-weight: bold;
             margin-bottom: 5px;
+            color: #495057;
         }
         
         .stat-label {
-            font-size: 14px;
-            opacity: 0.9;
-        }
-        
-        /* Subjects Section */
-        .subjects-section {
-            background: #f8f9fa;
-            padding: 20px;
-            border-radius: 8px;
-            margin-bottom: 30px;
-            border: 1px solid #dee2e6;
-        }
-        
-        .subjects-title {
-            font-size: 18px;
-            font-weight: bold;
-            margin-bottom: 15px;
-            color: #2c3e50;
-        }
-        
-        .subjects-list {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-        }
-        
-        .subject-tag {
-            background: #667eea;
-            color: white;
-            padding: 8px 16px;
-            border-radius: 20px;
-            font-size: 14px;
+            font-size: 12px;
+            color: #6c757d;
             font-weight: 500;
+            text-transform: uppercase;
         }
         
         /* Schedule Section */
         .schedule-section {
-            margin-bottom: 30px;
+            padding: 20px;
+            background: white;
         }
         
         .schedule-title {
@@ -144,21 +127,24 @@
             margin-bottom: 20px;
             color: #2c3e50;
             text-align: center;
+            text-transform: uppercase;
         }
         
         .date-section {
-            margin-bottom: 30px;
+            margin-bottom: 25px;
             border: 1px solid #dee2e6;
             border-radius: 8px;
             overflow: hidden;
+            background: white;
         }
         
         .date-header {
-            background: #2c3e50;
+            background: #495057;
             color: white;
             padding: 15px 20px;
             font-weight: bold;
             font-size: 16px;
+            border-bottom: 2px solid #6c757d;
         }
         
         .classes-table {
@@ -169,81 +155,112 @@
         
         .classes-table th {
             background: #f8f9fa;
-            padding: 12px 8px;
+            padding: 12px 10px;
             text-align: left;
             border-bottom: 2px solid #dee2e6;
             font-weight: bold;
             color: #495057;
-            font-size: 14px;
+            font-size: 13px;
+            text-transform: uppercase;
         }
         
         .classes-table td {
-            padding: 12px 8px;
+            padding: 12px 10px;
             border-bottom: 1px solid #dee2e6;
-            font-size: 13px;
+            font-size: 12px;
             vertical-align: top;
         }
         
-        .classes-table tr:hover {
+        .classes-table tr:nth-child(even) {
             background: #f8f9fa;
+        }
+        
+        .classes-table tr:hover {
+            background: #e9ecef;
         }
         
         .time-cell {
             font-weight: bold;
-            color: #667eea;
+            color: #495057;
             white-space: nowrap;
+            min-width: 120px;
         }
         
         .subject-cell {
             font-weight: bold;
             color: #2c3e50;
+            min-width: 150px;
         }
         
         .students-cell {
-            max-width: 200px;
+            max-width: 250px;
             word-wrap: break-word;
+            line-height: 1.4;
+        }
+        
+        .student-name {
+            display: inline-block;
+            background: #e9ecef;
+            padding: 2px 8px;
+            border-radius: 12px;
+            margin: 1px;
+            font-size: 11px;
+            color: #495057;
         }
         
         .status-cell {
             text-align: center;
+            min-width: 100px;
         }
         
         .status-badge {
             padding: 4px 12px;
             border-radius: 12px;
-            font-size: 11px;
+            font-size: 10px;
             font-weight: bold;
             text-transform: uppercase;
+            display: inline-block;
         }
         
         .status-scheduled {
-            background: #e3f2fd;
-            color: #1976d2;
+            background: #cfe2ff;
+            color: #0a58ca;
+            border: 1px solid #9ec5fe;
         }
         
         .status-completed {
-            background: #e8f5e8;
-            color: #388e3c;
+            background: #d1e7dd;
+            color: #0f5132;
+            border: 1px solid #badbcc;
         }
         
         .status-cancelled {
-            background: #ffebee;
-            color: #d32f2f;
+            background: #f8d7da;
+            color: #842029;
+            border: 1px solid #f5c2c7;
         }
         
         .status-ongoing {
-            background: #fff3e0;
-            color: #f57c00;
+            background: #fff3cd;
+            color: #664d03;
+            border: 1px solid #ffecb5;
+        }
+        
+        .platform-cell {
+            font-size: 11px;
+            color: #6c757d;
         }
         
         .meeting-link {
-            color: #667eea;
+            color: #495057;
             text-decoration: none;
-            font-size: 12px;
+            font-size: 11px;
+            word-break: break-all;
         }
         
         .meeting-link:hover {
             text-decoration: underline;
+            color: #2c3e50;
         }
         
         /* No classes message */
@@ -252,22 +269,27 @@
             padding: 40px;
             color: #6c757d;
             font-style: italic;
+            background: #f8f9fa;
+            border-radius: 6px;
+        }
+        
+        .no-classes-icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+            opacity: 0.5;
         }
         
         /* Footer */
         .footer {
-            border: 2px solid #2c3e50;
+            background: #495057;
+            color: white;
             padding: 20px;
             text-align: center;
-            margin-top: 30px;
-            background: #f8f9fa;
-            border-radius: 8px;
+            margin-top: 0;
         }
         
         .footer p {
-            font-size: 16px;
-            font-weight: bold;
-            color: #2c3e50;
+            font-size: 14px;
             margin: 0;
         }
         
@@ -275,7 +297,12 @@
         @media print {
             body {
                 padding: 10px;
-                font-size: 12px;
+                background: white;
+            }
+            
+            .container {
+                border: 1px solid #000;
+                box-shadow: none;
             }
             
             .stat-card {
@@ -291,6 +318,11 @@
             }
             
             .classes-table th {
+                background: #f8f9fa !important;
+                color: black !important;
+            }
+            
+            .classes-table tr:nth-child(even) {
                 background: #f8f9fa !important;
             }
         }
@@ -311,36 +343,66 @@
             
             .classes-table th,
             .classes-table td {
-                padding: 8px 4px;
+                padding: 8px 6px;
             }
             
             .students-cell {
-                max-width: 120px;
+                max-width: 150px;
+            }
+            
+            .time-cell {
+                min-width: 100px;
+            }
+            
+            .subject-cell {
+                min-width: 120px;
             }
         }
     </style>
+    <script>
+        // Function to extract and simplify subject names
+        function simplifySubjectName(fullName) {
+            // Extract subject from names like "HARSHINI-GRD10-CBSE-HINDI"
+            if (fullName.includes('-')) {
+                const parts = fullName.split('-');
+                // Get the last part which should be the subject
+                return parts[parts.length - 1];
+            }
+            return fullName;
+        }
+        
+        // Simplify all subject names when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            const subjects = document.querySelectorAll('.subject-cell');
+            subjects.forEach(function(element) {
+                const originalText = element.textContent.trim();
+                const simplifiedText = simplifySubjectName(originalText);
+                element.textContent = simplifiedText;
+            });
+        });
+    </script>
 </head>
 <body>
     <div class="container">
         <!-- Header -->
         <div class="header">
-            <h1>📚 TEACHING SCHEDULE</h1>
-            <h2>{{ tutor_info.name }}</h2>
+            <h1>📚 Teaching Schedule</h1>
+            <div class="tutor-name">{{ tutor_info.name }}</div>
             <div class="header-info">
                 <div class="info-item">
-                    <div class="info-label">📧 Email</div>
+                    <div class="info-label">Email</div>
                     <div class="info-value">{{ tutor_info.email }}</div>
                 </div>
                 <div class="info-item">
-                    <div class="info-label">📞 Phone</div>
+                    <div class="info-label">Phone</div>
                     <div class="info-value">{{ tutor_info.phone or 'N/A' }}</div>
                 </div>
                 <div class="info-item">
-                    <div class="info-label">🏢 Department</div>
+                    <div class="info-label">Department</div>
                     <div class="info-value">{{ tutor_info.department }}</div>
                 </div>
                 <div class="info-item">
-                    <div class="info-label">📅 Period</div>
+                    <div class="info-label">Period</div>
                     <div class="info-value">{{ date_range }}</div>
                 </div>
             </div>
@@ -349,97 +411,96 @@
         <!-- Summary Statistics -->
         <div class="summary-stats">
             <div class="stat-card">
-                <div class="stat-number">{{ total_classes }}</div>
+                <div class="stat-number">{{ total_classes or 0 }}</div>
                 <div class="stat-label">Total Classes</div>
             </div>
             <div class="stat-card">
-                <div class="stat-number">{{ total_students }}</div>
-                <div class="stat-label">Students</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-number">{{ subjects_taught|length }}</div>
+                <div class="stat-number">{{ unique_subjects|length or 0 }}</div>
                 <div class="stat-label">Subjects</div>
             </div>
             <div class="stat-card">
-                <div class="stat-number">{{ classes_by_date|length }}</div>
-                <div class="stat-label">Teaching Days</div>
+                <div class="stat-number">{{ total_students or 0 }}</div>
+                <div class="stat-label">Students</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">{{ total_hours or 0 }}</div>
+                <div class="stat-label">Hours</div>
             </div>
         </div>
-        
-        <!-- Subjects Section -->
-        {% if subjects_taught %}
-        <div class="subjects-section">
-            <div class="subjects-title">📚 Subjects Taught</div>
-            <div class="subjects-list">
-                {% for subject in subjects_taught %}
-                <span class="subject-tag">{{ subject }}</span>
-                {% endfor %}
-            </div>
-        </div>
-        {% endif %}
         
         <!-- Schedule Section -->
         <div class="schedule-section">
-            <h2 class="schedule-title">📅 Class Schedule</h2>
+            <div class="schedule-title">Class Schedule</div>
             
-            {% if classes_by_date %}
-                {% for date_str, date_classes in classes_by_date.items() %}
+            {% if schedule_by_date %}
+                {% for date, classes in schedule_by_date.items() %}
                 <div class="date-section">
                     <div class="date-header">
-                        {{ date_str }} - {{ date_classes|length }} class{{ 'es' if date_classes|length != 1 else '' }}
+                        📅 {{ date }} ({{ classes|length }} classes)
                     </div>
                     
+                    {% if classes %}
                     <table class="classes-table">
                         <thead>
                             <tr>
-                                <th style="width: 10%;">Time</th>
-                                <th style="width: 15%;">Subject</th>
-                                <th style="width: 8%;">Duration</th>
-                                <th style="width: 30%;">Students</th>
-                                <th style="width: 10%;">Count</th>
-                                <th style="width: 10%;">Status</th>
-                                <th style="width: 10%;">Platform</th>
-                                <th style="width: 7%;">Meeting</th>
+                                <th>Time</th>
+                                <th>Subject</th>
+                                <th>Students</th>
+                                <th>Status</th>
+                                <th>Platform</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {% for class_info in date_classes %}
+                            {% for class_info in classes %}
                             <tr>
-                                <td class="time-cell">{{ class_info.time }}</td>
-                                <td class="subject-cell">{{ class_info.subject }}</td>
-                                <td>{{ class_info.duration }}min</td>
-                                <td class="students-cell">{{ class_info.students }}</td>
-                                <td style="text-align: center;">{{ class_info.student_count }}</td>
+                                <td class="time-cell">
+                                    {{ class_info.start_time }} - {{ class_info.end_time }}
+                                </td>
+                                <td class="subject-cell">
+                                    {{ class_info.subject }}
+                                </td>
+                                <td class="students-cell">
+                                    {% if class_info.students %}
+                                        {% for student in class_info.students %}
+                                        <span class="student-name">{{ student }}</span>
+                                        {% endfor %}
+                                    {% else %}
+                                        <em style="color: #6c757d;">No students assigned</em>
+                                    {% endif %}
+                                </td>
                                 <td class="status-cell">
-                                    <span class="status-badge status-{{ class_info.status }}">
+                                    <span class="status-badge status-{{ class_info.status|lower }}">
                                         {{ class_info.status }}
                                     </span>
                                 </td>
-                                <td>{{ class_info.platform }}</td>
-                                <td style="text-align: center;">
-                                    {% if class_info.meeting_link and class_info.meeting_link != 'N/A' %}
-                                    <a href="{{ class_info.meeting_link }}" class="meeting-link" target="_blank">🔗</a>
-                                    {% else %}
-                                    -
+                                <td class="platform-cell">
+                                    {{ class_info.platform or 'N/A' }}
+                                    {% if class_info.meeting_link %}
+                                    <br>
+                                    <a href="{{ class_info.meeting_link }}" class="meeting-link" target="_blank">
+                                        Join Link
+                                    </a>
                                     {% endif %}
                                 </td>
                             </tr>
                             {% endfor %}
                         </tbody>
                     </table>
+                    {% endif %}
                 </div>
                 {% endfor %}
             {% else %}
-                <div class="no-classes">
-                    <h3>📭 No Classes Found</h3>
-                    <p>No classes scheduled for the selected period.</p>
-                </div>
+            <div class="no-classes">
+                <div class="no-classes-icon">📅</div>
+                <h3>No Classes Scheduled</h3>
+                <p>No classes found for the selected date range.</p>
+            </div>
             {% endif %}
         </div>
         
         <!-- Footer -->
         <div class="footer">
-            <p>Generated by I2Global LMS - Teaching Schedule Report</p>
+            <p>📚 Generated by i2Global Learning Management System | {{ current_date }}</p>
         </div>
     </div>
 </body>

@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Timetable Email</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f8f9fa;
+            margin: 0;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        
+        .email-container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .email-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 2rem;
+            text-align: center;
+        }
+        
+        .email-header h1 {
+            margin: 0;
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+        
+        .email-body {
+            padding: 2rem;
+        }
+        
+        .greeting {
+            font-size: 1.1rem;
+            color: #2c3e50;
+            margin-bottom: 1.5rem;
+        }
+        
+        .attachment-info {
+            background: #e3f2fd;
+            border: 1px solid #bbdefb;
+            border-radius: 6px;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+        }
+        
+        .attachment-title {
+            color: #1976d2;
+            font-weight: 600;
+            margin: 0 0 0.5rem 0;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .schedule-summary {
+            background: #f8f9fa;
+            border-left: 4px solid #667eea;
+            padding: 1rem;
+            margin: 1rem 0;
+        }
+        
+        .summary-item {
+            margin: 0.5rem 0;
+            color: #495057;
+        }
+        
+        .summary-item strong {
+            color: #2c3e50;
+        }
+        
+        .email-footer {
+            background: #f8f9fa;
+            padding: 1.5rem 2rem;
+            border-top: 1px solid #dee2e6;
+            text-align: center;
+            color: #6c757d;
+        }
+        
+        .company-info {
+            margin-top: 1rem;
+            font-size: 0.9rem;
+        }
+        
+        .company-info strong {
+            color: #495057;
+        }
+        
+        .icon {
+            display: inline-block;
+            width: 20px;
+            text-align: center;
+        }
+        
+        @media (max-width: 600px) {
+            .email-container {
+                margin: 0;
+                border-radius: 0;
+            }
+            
+            .email-header, .email-body, .email-footer {
+                padding: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <!-- Header -->
+        <div class="email-header">
+            <h1>
+                {% if student_name %}
+                📚 Student Class Schedule
+                {% else %}
+                👨‍🏫 Teaching Schedule
+                {% endif %}
+            </h1>
+        </div>
+        
+        <!-- Body -->
+        <div class="email-body">
+            <div class="greeting">
+                {% if student_name %}
+                Dear Parent/Student,
+                {% else %}
+                Dear {{ tutor_name }},
+                {% endif %}
+            </div>
+            
+            <p>
+                {% if student_name %}
+                Please find attached the <strong>class schedule for {{ student_name }}</strong> for the requested time period.
+                {% else %}
+                Your <strong>teaching schedule</strong> for the requested period is attached. This includes all your assigned classes with student details.
+                {% endif %}
+            </p>
+            
+            <!-- Attachment Info -->
+            <div class="attachment-info">
+                <div class="attachment-title">
+                    <span class="icon">📎</span>
+                    Attachment Details
+                </div>
+                <div style="margin-top: 1rem;">
+                    <div><strong>File:</strong> {{ attachment_filename }}</div>
+                    <div><strong>Format:</strong> Clean, printable HTML timetable</div>
+                    {% if student_name %}
+                    <div><strong>Content:</strong> Weekly schedule with simplified subject names</div>
+                    {% else %}
+                    <div><strong>Content:</strong> Teaching schedule with student details</div>
+                    {% endif %}
+                    <div><strong>Design:</strong> Professional white layout (mobile-friendly)</div>
+                </div>
+            </div>
+            
+            <!-- Schedule Summary -->
+            <div class="schedule-summary">
+                <div style="font-weight: 600; margin-bottom: 0.5rem; color: #495057;">
+                    <span class="icon">📊</span>
+                    Schedule Overview
+                </div>
+                
+                {% if student_name %}
+                <div class="summary-item"><strong>Student:</strong> {{ student_name }}</div>
+                <div class="summary-item"><strong>Period:</strong> {{ date_range or 'Custom date range' }}</div>
+                {% else %}
+                <div class="summary-item"><strong>Tutor:</strong> {{ tutor_name }}</div>
+                <div class="summary-item"><strong>Period:</strong> {{ date_range or 'Custom date range' }}</div>
+                {% endif %}
+            </div>
+            
+            <p><strong>How to view:</strong></p>
+            <ol style="margin: 1rem 0; padding-left: 1.5rem;">
+                <li>Open the attached HTML file in any web browser</li>
+                <li>View your schedule in a clean, professional format</li>
+                <li>Print directly from your browser if needed</li>
+                <li>Access on any device - mobile, tablet, or computer</li>
+            </ol>
+            
+            <p style="margin-top: 2rem;">
+                If you have any questions about your schedule, please don't hesitate to contact us.
+            </p>
+        </div>
+        
+        <!-- Footer -->
+        <div class="email-footer">
+            <p style="margin: 0;">
+                Best regards,<br>
+                <strong>i2Global Academic Team</strong>
+            </p>
+            
+            <div class="company-info">
+                <div><strong>i2Global Virtual Learning</strong></div>
+                <div>48, 4th Block, Koramangala, Bengaluru, Karnataka 560034</div>
+                <div>📧 care@i2global.co.in | 📞 +91 9600127000</div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

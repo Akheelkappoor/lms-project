@@ -1,0 +1,401 @@
+{% extends "base.html" %}
+{% set active_page = "email_hub" %}
+
+{% block title %}Fee Reminders - Email Hub{% endblock %}
+
+{% block extra_css %}
+<style>
+    .fee-reminders-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 2rem;
+    }
+
+    .back-button {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        background: #f8f9fa;
+        color: #6b7280;
+        padding: 0.75rem 1rem;
+        border-radius: 8px;
+        text-decoration: none;
+        margin-bottom: 2rem;
+        border: 1px solid #e5e7eb;
+    }
+
+    .back-button:hover {
+        background: #F1A150;
+        color: white;
+    }
+
+    .page-header {
+        background: linear-gradient(135deg, #ef4444, #dc2626);
+        color: white;
+        padding: 2rem;
+        border-radius: 12px;
+        margin-bottom: 2rem;
+        text-align: center;
+    }
+
+    .students-grid {
+        display: grid;
+        gap: 1rem;
+        margin-bottom: 2rem;
+    }
+
+    .student-card {
+        background: white;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        padding: 1.5rem;
+        display: flex;
+        justify-content: between;
+        align-items: center;
+    }
+
+    .student-info {
+        flex: 1;
+    }
+
+    .student-name {
+        font-weight: 600;
+        color: #1f2937;
+        margin: 0 0 0.5rem 0;
+    }
+
+    .student-details {
+        color: #6b7280;
+        font-size: 0.875rem;
+    }
+
+    .fee-amount {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: #ef4444;
+        text-align: right;
+        margin-bottom: 1rem;
+    }
+
+    .student-actions {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+    }
+
+    .btn {
+        padding: 0.5rem 1rem;
+        border-radius: 6px;
+        font-size: 0.875rem;
+        font-weight: 500;
+        border: none;
+        cursor: pointer;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .btn-primary {
+        background: #F1A150;
+        color: white;
+    }
+
+    .btn-outline {
+        background: transparent;
+        color: #6b7280;
+        border: 1px solid #d1d5db;
+    }
+
+    .bulk-actions {
+        background: white;
+        padding: 2rem;
+        border-radius: 12px;
+        border: 1px solid #e5e7eb;
+        margin-bottom: 2rem;
+    }
+
+    .checkbox-group {
+        display: flex;
+        gap: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    .send-all-btn {
+        background: #10b981;
+        color: white;
+        padding: 1rem 2rem;
+        border-radius: 8px;
+        font-weight: 600;
+        border: none;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="fee-reminders-container">
+    <!-- Back Button -->
+    <a href="{{ url_for('email_hub.dashboard') }}" class="back-button">
+        <i class="fas fa-arrow-left"></i>
+        Back to Email Hub
+    </a>
+
+    <!-- Page Header -->
+    <div class="page-header">
+        <h1>💰 Fee Payment Reminders</h1>
+        <p>Send payment reminders to students with outstanding fees</p>
+    </div>
+
+    <!-- Bulk Actions -->
+    <div class="bulk-actions">
+        <h3>📤 Bulk Actions</h3>
+        <div class="checkbox-group">
+            <label>
+                <input type="checkbox" id="selectAll" onchange="toggleSelectAll()">
+                Select All Students
+            </label>
+        </div>
+        <button class="send-all-btn" onclick="sendBulkFeeReminders()">
+            <i class="fas fa-paper-plane"></i>
+            Send Reminders to Selected
+            <span id="selectedCount">(0 selected)</span>
+        </button>
+    </div>
+
+    <!-- Students List -->
+    <div class="students-grid">
+        {% for student in students %}
+        <div class="student-card">
+            <div style="display: flex; align-items: center; gap: 1rem;">
+                <input type="checkbox" class="student-checkbox" value="{{ student.id }}" onchange="updateSelectedCount()">
+                <div class="student-info">
+                    <h4 class="student-name">{{ student.full_name }}</h4>
+                    <div class="student-details">
+                        <div>📧 {{ student.email }}</div>
+                        <div>📱 {{ student.phone }}</div>
+                        <div>🎓 Grade {{ student.grade }} - {{ student.board }}</div>
+                        {% if student.get_parent_details().get('father', {}).get('name') %}
+                        <div>👨‍👩‍👧 Parent: {{ student.get_parent_details().get('father', {}).get('name') }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            <div style="text-align: right;">
+                <div class="fee-amount">₹{{ "%.2f"|format(student.calculate_outstanding_fees()) }}</div>
+                <div class="student-actions">
+                    <button class="btn btn-primary" onclick="sendIndividualReminder({{ student.id }})">
+                        <i class="fas fa-envelope"></i>
+                        Send Reminder
+                    </button>
+                    <button class="btn btn-outline" onclick="viewStudentDetails({{ student.id }})">
+                        <i class="fas fa-eye"></i>
+                        View Details
+                    </button>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div style="text-align: center; padding: 3rem; color: #6b7280;">
+            <i class="fas fa-check-circle" style="font-size: 3rem; margin-bottom: 1rem; color: #10b981;"></i>
+            <h3>🎉 No Outstanding Fees!</h3>
+            <p>All students have cleared their fees. Great job!</p>
+            <a href="{{ url_for('email_hub.dashboard') }}" class="btn btn-primary">
+                <i class="fas fa-arrow-left"></i>
+                Back to Email Hub
+            </a>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Email Preview Modal (hidden by default) -->
+    <div id="emailPreviewModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000;">
+        <div style="max-width: 600px; margin: 5% auto; background: white; border-radius: 12px; overflow: hidden;">
+            <div style="background: #F1A150; color: white; padding: 1rem; display: flex; justify-content: between; align-items: center;">
+                <h3 style="margin: 0;">📧 Email Preview</h3>
+                <button onclick="closePreview()" style="background: none; border: none; color: white; font-size: 1.5rem; cursor: pointer;">×</button>
+            </div>
+            <div id="emailPreviewContent" style="padding: 2rem;">
+                <!-- Preview content will be inserted here -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let selectedStudents = [];
+
+function toggleSelectAll() {
+    const selectAll = document.getElementById('selectAll');
+    const checkboxes = document.querySelectorAll('.student-checkbox');
+    
+    checkboxes.forEach(checkbox => {
+        checkbox.checked = selectAll.checked;
+    });
+    
+    updateSelectedCount();
+}
+
+function updateSelectedCount() {
+    const checkboxes = document.querySelectorAll('.student-checkbox:checked');
+    selectedStudents = Array.from(checkboxes).map(cb => cb.value);
+    
+    document.getElementById('selectedCount').textContent = `(${selectedStudents.length} selected)`;
+    
+    // Update select all checkbox state
+    const allCheckboxes = document.querySelectorAll('.student-checkbox');
+    const selectAll = document.getElementById('selectAll');
+    
+    if (selectedStudents.length === 0) {
+        selectAll.indeterminate = false;
+        selectAll.checked = false;
+    } else if (selectedStudents.length === allCheckboxes.length) {
+        selectAll.indeterminate = false;
+        selectAll.checked = true;
+    } else {
+        selectAll.indeterminate = true;
+    }
+}
+
+function sendIndividualReminder(studentId) {
+    sendFeeReminders([studentId]);
+}
+
+function sendBulkFeeReminders() {
+    if (selectedStudents.length === 0) {
+        showNotification('❌ Please select at least one student', 'error');
+        return;
+    }
+    
+    sendFeeReminders(selectedStudents);
+}
+
+function sendFeeReminders(studentIds) {
+    showNotification('📤 Sending fee reminders...', 'info');
+    
+    fetch('/notifications/email-hub/fee-reminders', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCSRFToken()
+        },
+        body: JSON.stringify({
+            student_ids: studentIds,
+            reminder_type: 'fee_payment'
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showNotification(`✅ Sent ${data.sent_count} fee reminders successfully!`, 'success');
+            
+            // Uncheck sent students
+            studentIds.forEach(id => {
+                const checkbox = document.querySelector(`input[value="${id}"]`);
+                if (checkbox) checkbox.checked = false;
+            });
+            updateSelectedCount();
+        } else {
+            showNotification(`❌ ${data.error || 'Failed to send reminders'}`, 'error');
+        }
+    })
+    .catch(error => {
+        showNotification('❌ Network error occurred', 'error');
+    });
+}
+
+function viewStudentDetails(studentId) {
+    window.open(`/admin/students/${studentId}`, '_blank');
+}
+
+function showEmailPreview(studentId) {
+    // Show preview modal with sample email content
+    const modal = document.getElementById('emailPreviewModal');
+    const content = document.getElementById('emailPreviewContent');
+    
+    content.innerHTML = `
+        <div style="font-family: Arial, sans-serif;">
+            <div style="background: linear-gradient(135deg, #ef4444, #dc2626); color: white; padding: 20px; text-align: center;">
+                <h2>💰 Fee Payment Reminder</h2>
+            </div>
+            <div style="padding: 20px;">
+                <p>Dear Student/Parent,</p>
+                <p>This is a friendly reminder about your outstanding fee payment.</p>
+                
+                <div style="background: #fef2f2; border: 1px solid #fecaca; padding: 15px; border-radius: 8px; margin: 20px 0;">
+                    <h3 style="color: #dc2626; margin: 0 0 10px 0;">Payment Details</h3>
+                    <p><strong>Outstanding Amount:</strong> ₹5,000</p>
+                    <p><strong>Due Date:</strong> March 31, 2024</p>
+                    <p><strong>Student:</strong> Sample Student</p>
+                </div>
+                
+                <p>Please make the payment at your earliest convenience to avoid any disruption in classes.</p>
+                
+                <div style="text-align: center; margin: 30px 0;">
+                    <a href="#" style="background: #F1A150; color: white; padding: 15px 30px; text-decoration: none; border-radius: 8px; font-weight: bold;">
+                        💳 Pay Now
+                    </a>
+                </div>
+                
+                <p>For any queries, please contact us at care@i2global.co.in</p>
+            </div>
+        </div>
+    `;
+    
+    modal.style.display = 'block';
+}
+
+function closePreview() {
+    document.getElementById('emailPreviewModal').style.display = 'none';
+}
+
+function showNotification(message, type = 'info') {
+    const notification = document.createElement('div');
+    notification.className = `notification ${type}`;
+    notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: white;
+        border: 1px solid #e5e7eb;
+        border-left: 4px solid ${type === 'success' ? '#10b981' : type === 'error' ? '#ef4444' : '#3b82f6'};
+        border-radius: 8px;
+        padding: 1rem;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        z-index: 1001;
+        animation: slideIn 0.3s ease-out;
+        max-width: 400px;
+    `;
+    
+    notification.innerHTML = `
+        <div style="display: flex; align-items: center; gap: 0.5rem;">
+            <i class="fas ${type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle'}"></i>
+            <span>${message}</span>
+        </div>
+    `;
+    
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        if (notification.parentNode) {
+            notification.parentNode.removeChild(notification);
+        }
+    }, 5000);
+}
+
+function getCSRFToken() {
+    return document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+}
+
+// Initialize
+document.addEventListener('DOMContentLoaded', function() {
+    updateSelectedCount();
+});
+
+console.log('💰 Fee Reminders page loaded successfully!');
+</script>
+{% endblock %}

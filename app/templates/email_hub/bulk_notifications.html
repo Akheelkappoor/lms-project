@@ -1,0 +1,1132 @@
+{% extends "base.html" %}
+{% set active_page = "email_hub" %}
+
+{% block title %}Bulk Notifications - Email Hub{% endblock %}
+
+{% block extra_css %}
+<style>
+    :root {
+        --primary: #F1A150;
+        --primary-dark: #C86706;
+        --success: #10b981;
+        --info: #3b82f6;
+        --warning: #f59e0b;
+        --danger: #ef4444;
+        --purple: #8b5cf6;
+        --gray-50: #f9fafb;
+        --gray-100: #f3f4f6;
+        --gray-200: #e5e7eb;
+        --gray-300: #d1d5db;
+        --gray-500: #6b7280;
+        --gray-700: #374151;
+        --gray-800: #1f2937;
+        --white: #ffffff;
+    }
+
+    .bulk-container {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 2rem;
+    }
+
+    .back-button {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        background: var(--gray-100);
+        color: var(--gray-700);
+        padding: 0.75rem 1rem;
+        border-radius: 8px;
+        text-decoration: none;
+        margin-bottom: 2rem;
+        border: 1px solid var(--gray-200);
+        transition: all 0.2s ease;
+    }
+
+    .back-button:hover {
+        background: var(--primary);
+        color: white;
+    }
+
+    .page-header {
+        background: linear-gradient(135deg, var(--purple), #7c3aed);
+        color: white;
+        padding: 2rem;
+        border-radius: 12px;
+        margin-bottom: 2rem;
+        text-align: center;
+    }
+
+    .notification-wizard {
+        display: grid;
+        grid-template-columns: 300px 1fr;
+        gap: 2rem;
+        margin-bottom: 2rem;
+    }
+
+    .wizard-steps {
+        background: var(--white);
+        border: 1px solid var(--gray-200);
+        border-radius: 12px;
+        padding: 1.5rem;
+        height: fit-content;
+    }
+
+    .step {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 1rem;
+        border-radius: 8px;
+        margin-bottom: 0.5rem;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .step.active {
+        background: var(--primary);
+        color: white;
+    }
+
+    .step.completed {
+        background: var(--success);
+        color: white;
+    }
+
+    .step:hover:not(.active) {
+        background: var(--gray-100);
+    }
+
+    .step-number {
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        background: var(--gray-300);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+        font-size: 0.875rem;
+    }
+
+    .step.active .step-number,
+    .step.completed .step-number {
+        background: rgba(255, 255, 255, 0.2);
+        color: white;
+    }
+
+    .step-title {
+        font-weight: 500;
+    }
+
+    .wizard-content {
+        background: var(--white);
+        border: 1px solid var(--gray-200);
+        border-radius: 12px;
+        padding: 2rem;
+    }
+
+    .step-content {
+        display: none;
+    }
+
+    .step-content.active {
+        display: block;
+    }
+
+    .step-header {
+        margin-bottom: 2rem;
+    }
+
+    .step-header h3 {
+        color: var(--gray-800);
+        margin: 0 0 0.5rem 0;
+        font-size: 1.5rem;
+    }
+
+    .step-header p {
+        color: var(--gray-500);
+        margin: 0;
+    }
+
+    .form-group {
+        margin-bottom: 1.5rem;
+    }
+
+    .form-label {
+        display: block;
+        margin-bottom: 0.5rem;
+        font-weight: 500;
+        color: var(--gray-700);
+    }
+
+    .form-control, .form-select {
+        width: 100%;
+        padding: 0.75rem 1rem;
+        border: 1px solid var(--gray-300);
+        border-radius: 8px;
+        font-size: 0.875rem;
+        background: var(--white);
+        transition: all 0.2s ease;
+    }
+
+    .form-control:focus, .form-select:focus {
+        outline: none;
+        border-color: var(--primary);
+        box-shadow: 0 0 0 3px rgba(241, 161, 80, 0.1);
+    }
+
+    .recipient-groups {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 1rem;
+        margin: 1.5rem 0;
+    }
+
+    .recipient-group {
+        border: 2px solid var(--gray-200);
+        border-radius: 12px;
+        padding: 1.5rem;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .recipient-group:hover {
+        border-color: var(--primary);
+        transform: translateY(-2px);
+    }
+
+    .recipient-group.selected {
+        border-color: var(--primary);
+        background: rgba(241, 161, 80, 0.1);
+    }
+
+    .group-icon {
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 1rem auto;
+        font-size: 1.5rem;
+        color: white;
+    }
+
+    .group-title {
+        font-weight: 600;
+        color: var(--gray-800);
+        margin: 0 0 0.5rem 0;
+    }
+
+    .group-count {
+        color: var(--gray-500);
+        font-size: 0.875rem;
+    }
+
+    .message-editor {
+        border: 1px solid var(--gray-300);
+        border-radius: 8px;
+        overflow: hidden;
+    }
+
+    .editor-toolbar {
+        background: var(--gray-100);
+        padding: 0.75rem;
+        border-bottom: 1px solid var(--gray-300);
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+    }
+
+    .editor-btn {
+        padding: 0.5rem;
+        border: none;
+        background: transparent;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .editor-btn:hover {
+        background: var(--gray-200);
+    }
+
+    .editor-content {
+        min-height: 200px;
+        padding: 1rem;
+        font-family: inherit;
+        font-size: 0.875rem;
+        line-height: 1.6;
+        border: none;
+        outline: none;
+        resize: vertical;
+    }
+
+    .template-options {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 1rem;
+        margin: 1.5rem 0;
+    }
+
+    .template-card {
+        border: 1px solid var(--gray-200);
+        border-radius: 8px;
+        padding: 1.5rem;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .template-card:hover {
+        border-color: var(--primary);
+        transform: translateY(-1px);
+    }
+
+    .template-card.selected {
+        border-color: var(--primary);
+        background: rgba(241, 161, 80, 0.05);
+    }
+
+    .template-title {
+        font-weight: 600;
+        color: var(--gray-800);
+        margin: 0 0 0.5rem 0;
+    }
+
+    .template-description {
+        color: var(--gray-500);
+        font-size: 0.875rem;
+        line-height: 1.4;
+    }
+
+    .preview-section {
+        background: var(--gray-50);
+        border: 1px solid var(--gray-200);
+        border-radius: 8px;
+        padding: 1.5rem;
+        margin: 1.5rem 0;
+    }
+
+    .preview-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+    }
+
+    .preview-stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .stat-item {
+        text-align: center;
+        background: var(--white);
+        padding: 1rem;
+        border-radius: 8px;
+        border: 1px solid var(--gray-200);
+    }
+
+    .stat-number {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--gray-800);
+    }
+
+    .stat-label {
+        color: var(--gray-500);
+        font-size: 0.875rem;
+        margin-top: 0.25rem;
+    }
+
+    .wizard-navigation {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 2rem;
+        padding-top: 1.5rem;
+        border-top: 1px solid var(--gray-200);
+    }
+
+    .btn {
+        padding: 0.75rem 1.5rem;
+        border-radius: 8px;
+        font-weight: 500;
+        text-decoration: none;
+        border: none;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.875rem;
+    }
+
+    .btn:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+
+    .btn-primary {
+        background: var(--primary);
+        color: white;
+    }
+
+    .btn-primary:hover:not(:disabled) {
+        background: var(--primary-dark);
+        transform: translateY(-1px);
+    }
+
+    .btn-success {
+        background: var(--success);
+        color: white;
+    }
+
+    .btn-success:hover:not(:disabled) {
+        background: #059669;
+        transform: translateY(-1px);
+    }
+
+    .btn-outline {
+        background: transparent;
+        color: var(--gray-700);
+        border: 1px solid var(--gray-300);
+    }
+
+    .btn-outline:hover {
+        background: var(--gray-50);
+    }
+
+    .notification {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        max-width: 400px;
+        background: var(--white);
+        border: 1px solid var(--gray-200);
+        border-radius: 8px;
+        padding: 1rem;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        z-index: 1001;
+        animation: slideIn 0.3s ease-out;
+    }
+
+    .notification.success { border-left: 4px solid var(--success); }
+    .notification.error { border-left: 4px solid var(--danger); }
+    .notification.info { border-left: 4px solid var(--info); }
+
+    @keyframes slideIn {
+        from { transform: translateX(100%); opacity: 0; }
+        to { transform: translateX(0); opacity: 1; }
+    }
+
+    @media (max-width: 768px) {
+        .bulk-container { padding: 1rem; }
+        .notification-wizard { grid-template-columns: 1fr; }
+        .recipient-groups { grid-template-columns: 1fr; }
+        .template-options { grid-template-columns: 1fr; }
+        .preview-stats { grid-template-columns: repeat(2, 1fr); }
+        .wizard-navigation { flex-direction: column; gap: 1rem; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="bulk-container">
+    <!-- Back Button -->
+    <a href="{{ url_for('email_hub.dashboard') }}" class="back-button">
+        <i class="fas fa-arrow-left"></i>
+        Back to Email Hub
+    </a>
+
+    <!-- Page Header -->
+    <div class="page-header">
+        <h1>📢 Bulk Notifications</h1>
+        <p>Send announcements and updates to multiple groups with our step-by-step wizard</p>
+    </div>
+
+    <!-- Notification Wizard -->
+    <div class="notification-wizard">
+        <!-- Wizard Steps -->
+        <div class="wizard-steps">
+            <h3 style="margin: 0 0 1rem 0; color: var(--gray-800);">📋 Steps</h3>
+            
+            <div class="step active" data-step="1" onclick="goToStep(1)">
+                <div class="step-number">1</div>
+                <div class="step-title">Select Recipients</div>
+            </div>
+            
+            <div class="step" data-step="2" onclick="goToStep(2)">
+                <div class="step-number">2</div>
+                <div class="step-title">Choose Template</div>
+            </div>
+            
+            <div class="step" data-step="3" onclick="goToStep(3)">
+                <div class="step-number">3</div>
+                <div class="step-title">Compose Message</div>
+            </div>
+            
+            <div class="step" data-step="4" onclick="goToStep(4)">
+                <div class="step-number">4</div>
+                <div class="step-title">Review & Send</div>
+            </div>
+        </div>
+
+        <!-- Wizard Content -->
+        <div class="wizard-content">
+            <!-- Step 1: Select Recipients -->
+            <div class="step-content active" data-step="1">
+                <div class="step-header">
+                    <h3>👥 Select Recipients</h3>
+                    <p>Choose which groups of people should receive this notification</p>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Filter by Department (Optional)</label>
+                    <select class="form-select" id="departmentFilter">
+                        <option value="">All Departments</option>
+                        {% for dept in departments %}
+                        <option value="{{ dept.id }}">{{ dept.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="recipient-groups">
+                    <div class="recipient-group" data-group="all_students" onclick="toggleRecipientGroup(this)">
+                        <div class="group-icon" style="background: linear-gradient(135deg, var(--info), #1d4ed8);">
+                            <i class="fas fa-user-graduate"></i>
+                        </div>
+                        <h4 class="group-title">All Students</h4>
+                        <p class="group-count">{{ groups.all_students or 0 }} recipients</p>
+                    </div>
+
+                    <div class="recipient-group" data-group="all_tutors" onclick="toggleRecipientGroup(this)">
+                        <div class="group-icon" style="background: linear-gradient(135deg, var(--warning), #d97706);">
+                            <i class="fas fa-chalkboard-teacher"></i>
+                        </div>
+                        <h4 class="group-title">All Tutors</h4>
+                        <p class="group-count">{{ groups.all_tutors or 0 }} recipients</p>
+                    </div>
+
+                    <div class="recipient-group" data-group="coordinators" onclick="toggleRecipientGroup(this)">
+                        <div class="group-icon" style="background: linear-gradient(135deg, var(--success), #059669);">
+                            <i class="fas fa-users-cog"></i>
+                        </div>
+                        <h4 class="group-title">Coordinators</h4>
+                        <p class="group-count">{{ groups.coordinators or 0 }} recipients</p>
+                    </div>
+
+                    <div class="recipient-group" data-group="admins" onclick="toggleRecipientGroup(this)">
+                        <div class="group-icon" style="background: linear-gradient(135deg, var(--danger), #dc2626);">
+                            <i class="fas fa-user-shield"></i>
+                        </div>
+                        <h4 class="group-title">Admins</h4>
+                        <p class="group-count">{{ groups.admins or 0 }} recipients</p>
+                    </div>
+
+                    <div class="recipient-group" data-group="parents" onclick="toggleRecipientGroup(this)">
+                        <div class="group-icon" style="background: linear-gradient(135deg, var(--purple), #7c3aed);">
+                            <i class="fas fa-family"></i>
+                        </div>
+                        <h4 class="group-title">Parents</h4>
+                        <p class="group-count" id="parent-count">Loading...</p>
+                    </div>
+
+                    <div class="recipient-group" data-group="active_users" onclick="toggleRecipientGroup(this)">
+                        <div class="group-icon" style="background: linear-gradient(135deg, var(--primary), var(--primary-dark));">
+                            <i class="fas fa-users"></i>
+                        </div>
+                        <h4 class="group-title">All Active Users</h4>
+                        <p class="group-count" id="active-users-count">Loading...</p>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Custom Recipients (Optional)</label>
+                    <textarea class="form-control" id="customRecipients" rows="3" 
+                              placeholder="Enter additional email addresses separated by commas..."></textarea>
+                    <small style="color: var(--gray-500);">Add specific email addresses not covered by the groups above</small>
+                </div>
+            </div>
+
+            <!-- Step 2: Choose Template -->
+            <div class="step-content" data-step="2">
+                <div class="step-header">
+                    <h3>📝 Choose Email Template</h3>
+                    <p>Select a pre-designed template or start with a blank message</p>
+                </div>
+
+                <div class="template-options">
+                    <div class="template-card" data-template="announcement" onclick="selectTemplate(this)">
+                        <h4 class="template-title">📢 General Announcement</h4>
+                        <p class="template-description">
+                            Perfect for company updates, policy changes, or general information that needs to reach everyone.
+                        </p>
+                    </div>
+
+                    <div class="template-card" data-template="urgent" onclick="selectTemplate(this)">
+                        <h4 class="template-title">🚨 Urgent Notice</h4>
+                        <p class="template-description">
+                            For time-sensitive information that requires immediate attention from recipients.
+                        </p>
+                    </div>
+
+                    <div class="template-card" data-template="event" onclick="selectTemplate(this)">
+                        <h4 class="template-title">🎉 Event Notification</h4>
+                        <p class="template-description">
+                            Announce upcoming events, workshops, meetings, or special occasions.
+                        </p>
+                    </div>
+
+                    <div class="template-card" data-template="update" onclick="selectTemplate(this)">
+                        <h4 class="template-title">📊 System Update</h4>
+                        <p class="template-description">
+                            Inform users about system changes, new features, or maintenance schedules.
+                        </p>
+                    </div>
+
+                    <div class="template-card" data-template="newsletter" onclick="selectTemplate(this)">
+                        <h4 class="template-title">📰 Newsletter</h4>
+                        <p class="template-description">
+                            Share regular updates, achievements, and highlights with your community.
+                        </p>
+                    </div>
+
+                    <div class="template-card" data-template="blank" onclick="selectTemplate(this)">
+                        <h4 class="template-title">📄 Blank Template</h4>
+                        <p class="template-description">
+                            Start with a clean slate and create your own custom message from scratch.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 3: Compose Message -->
+            <div class="step-content" data-step="3">
+                <div class="step-header">
+                    <h3>✍️ Compose Your Message</h3>
+                    <p>Write your notification message with our rich text editor</p>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Email Subject</label>
+                    <input type="text" class="form-control" id="emailSubject" 
+                           placeholder="Enter a clear and compelling subject line...">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Message Content</label>
+                    <div class="message-editor">
+                        <div class="editor-toolbar">
+                            <button class="editor-btn" onclick="formatText('bold')" title="Bold">
+                                <i class="fas fa-bold"></i>
+                            </button>
+                            <button class="editor-btn" onclick="formatText('italic')" title="Italic">
+                                <i class="fas fa-italic"></i>
+                            </button>
+                            <button class="editor-btn" onclick="formatText('underline')" title="Underline">
+                                <i class="fas fa-underline"></i>
+                            </button>
+                            <button class="editor-btn" onclick="insertList('ul')" title="Bullet List">
+                                <i class="fas fa-list-ul"></i>
+                            </button>
+                            <button class="editor-btn" onclick="insertList('ol')" title="Numbered List">
+                                <i class="fas fa-list-ol"></i>
+                            </button>
+                            <button class="editor-btn" onclick="insertLink()" title="Insert Link">
+                                <i class="fas fa-link"></i>
+                            </button>
+                        </div>
+                        <textarea class="editor-content" id="messageContent" 
+                                  placeholder="Write your message here..."></textarea>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Priority Level</label>
+                    <select class="form-select" id="priorityLevel">
+                        <option value="normal">Normal</option>
+                        <option value="high">High Priority</option>
+                        <option value="urgent">Urgent</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Schedule Delivery (Optional)</label>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                        <input type="date" class="form-control" id="scheduleDate">
+                        <input type="time" class="form-control" id="scheduleTime">
+                    </div>
+                    <small style="color: var(--gray-500);">Leave blank to send immediately</small>
+                </div>
+            </div>
+
+            <!-- Step 4: Review & Send -->
+            <div class="step-content" data-step="4">
+                <div class="step-header">
+                    <h3>👁️ Review & Send</h3>
+                    <p>Review your notification details before sending to all recipients</p>
+                </div>
+
+                <div class="preview-section">
+                    <div class="preview-header">
+                        <h4 style="margin: 0; color: var(--gray-800);">📊 Delivery Summary</h4>
+                        <button class="btn btn-outline" onclick="editPreview()">
+                            <i class="fas fa-edit"></i>
+                            Edit
+                        </button>
+                    </div>
+
+                    <div class="preview-stats">
+                        <div class="stat-item">
+                            <div class="stat-number" id="totalRecipients">0</div>
+                            <div class="stat-label">Total Recipients</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-number" id="selectedGroups">0</div>
+                            <div class="stat-label">Selected Groups</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-number" id="customEmails">0</div>
+                            <div class="stat-label">Custom Emails</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-number" id="estimatedDelivery">~2min</div>
+                            <div class="stat-label">Estimated Delivery</div>
+                        </div>
+                    </div>
+
+                    <div style="background: var(--white); border-radius: 8px; padding: 1.5rem; border: 1px solid var(--gray-200);">
+                        <h5 style="margin: 0 0 1rem 0; color: var(--gray-800);">📧 Email Preview</h5>
+                        <div style="background: var(--gray-50); padding: 1rem; border-radius: 6px; border: 1px solid var(--gray-200);">
+                            <div style="font-weight: 600; margin-bottom: 0.5rem;" id="previewSubject">
+                                Subject will appear here...
+                            </div>
+                            <div style="color: var(--gray-600); font-size: 0.875rem;" id="previewContent">
+                                Message content will appear here...
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="background: #fef3c7; border: 1px solid #fde68a; border-radius: 8px; padding: 1rem; margin: 1.5rem 0;">
+                    <div style="display: flex; align-items: center; gap: 0.5rem; color: #92400e;">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <strong>Important:</strong>
+                    </div>
+                    <p style="margin: 0.5rem 0 0 0; color: #92400e; font-size: 0.875rem;">
+                        This action will send emails to all selected recipients immediately. Please review all details before proceeding.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Wizard Navigation -->
+            <div class="wizard-navigation">
+                <button class="btn btn-outline" id="prevBtn" onclick="previousStep()" style="display: none;">
+                    <i class="fas fa-arrow-left"></i>
+                    Previous
+                </button>
+                
+                <div style="display: flex; gap: 1rem;">
+                    <button class="btn btn-outline" onclick="saveDraft()">
+                        <i class="fas fa-save"></i>
+                        Save Draft
+                    </button>
+                    <button class="btn btn-primary" id="nextBtn" onclick="nextStep()">
+                        Next
+                        <i class="fas fa-arrow-right"></i>
+                    </button>
+                    <button class="btn btn-success" id="sendBtn" onclick="sendBulkNotification()" style="display: none;">
+                        <i class="fas fa-paper-plane"></i>
+                        Send Notification
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Bulk Notifications JavaScript
+
+let currentStep = 1;
+let selectedGroups = [];
+let selectedTemplate = '';
+let recipientCounts = {
+    all_students: {{ groups.all_students or 0 }},
+    all_tutors: {{ groups.all_tutors or 0 }},
+    coordinators: {{ groups.coordinators or 0 }},
+    admins: {{ groups.admins or 0 }},
+    parents: 0,
+    active_users: 0
+};
+
+// Initialize page
+document.addEventListener('DOMContentLoaded', function() {
+    loadRecipientCounts();
+    setDefaultSchedule();
+    updateNavigation();
+});
+
+function loadRecipientCounts() {
+    // Load additional recipient counts
+    fetch('/notifications/email-hub/recipient-counts', {
+        method: 'GET',
+        headers: {
+            'X-CSRFToken': getCSRFToken()
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            recipientCounts.parents = data.parents || 0;
+            recipientCounts.active_users = data.active_users || 0;
+            
+            document.getElementById('parent-count').textContent = `${recipientCounts.parents} recipients`;
+            document.getElementById('active-users-count').textContent = `${recipientCounts.active_users} recipients`;
+        }
+    })
+    .catch(error => {
+        console.log('Could not load recipient counts');
+    });
+}
+
+function setDefaultSchedule() {
+    const today = new Date();
+    const tomorrow = new Date(today.getTime() + 24 * 60 * 60 * 1000);
+    
+    document.getElementById('scheduleDate').value = tomorrow.toISOString().split('T')[0];
+    document.getElementById('scheduleTime').value = '09:00';
+}
+
+function goToStep(step) {
+    if (step <= currentStep || validateCurrentStep()) {
+        currentStep = step;
+        updateStepDisplay();
+        updateNavigation();
+    }
+}
+
+function nextStep() {
+    if (validateCurrentStep()) {
+        if (currentStep < 4) {
+            currentStep++;
+            updateStepDisplay();
+            updateNavigation();
+            
+            if (currentStep === 4) {
+                updatePreview();
+            }
+        }
+    }
+}
+
+function previousStep() {
+    if (currentStep > 1) {
+        currentStep--;
+        updateStepDisplay();
+        updateNavigation();
+    }
+}
+
+function updateStepDisplay() {
+    // Update step indicators
+    document.querySelectorAll('.step').forEach(step => {
+        const stepNumber = parseInt(step.dataset.step);
+        step.classList.remove('active', 'completed');
+        
+        if (stepNumber === currentStep) {
+            step.classList.add('active');
+        } else if (stepNumber < currentStep) {
+            step.classList.add('completed');
+        }
+    });
+    
+    // Update step content
+    document.querySelectorAll('.step-content').forEach(content => {
+        content.classList.remove('active');
+    });
+    document.querySelector(`[data-step="${currentStep}"]`).classList.add('active');
+}
+
+function updateNavigation() {
+    const prevBtn = document.getElementById('prevBtn');
+    const nextBtn = document.getElementById('nextBtn');
+    const sendBtn = document.getElementById('sendBtn');
+    
+    prevBtn.style.display = currentStep > 1 ? 'flex' : 'none';
+    nextBtn.style.display = currentStep < 4 ? 'flex' : 'none';
+    sendBtn.style.display = currentStep === 4 ? 'flex' : 'none';
+}
+
+function validateCurrentStep() {
+    switch (currentStep) {
+        case 1:
+            if (selectedGroups.length === 0) {
+                showNotification('❌ Please select at least one recipient group', 'error');
+                return false;
+            }
+            return true;
+        case 2:
+            if (!selectedTemplate) {
+                showNotification('❌ Please select an email template', 'error');
+                return false;
+            }
+            return true;
+        case 3:
+            const subject = document.getElementById('emailSubject').value.trim();
+            const content = document.getElementById('messageContent').value.trim();
+            
+            if (!subject) {
+                showNotification('❌ Please enter an email subject', 'error');
+                return false;
+            }
+            if (!content) {
+                showNotification('❌ Please enter message content', 'error');
+                return false;
+            }
+            return true;
+        default:
+            return true;
+    }
+}
+
+function toggleRecipientGroup(element) {
+    const group = element.dataset.group;
+    
+    if (element.classList.contains('selected')) {
+        element.classList.remove('selected');
+        selectedGroups = selectedGroups.filter(g => g !== group);
+    } else {
+        element.classList.add('selected');
+        selectedGroups.push(group);
+    }
+    
+    updateRecipientCount();
+}
+
+function updateRecipientCount() {
+    // This would update the display of selected recipients
+    console.log('Selected groups:', selectedGroups);
+}
+
+function selectTemplate(element) {
+    // Remove previous selection
+    document.querySelectorAll('.template-card').forEach(card => {
+        card.classList.remove('selected');
+    });
+    
+    // Select new template
+    element.classList.add('selected');
+    selectedTemplate = element.dataset.template;
+    
+    // Load template content
+    loadTemplate(selectedTemplate);
+}
+
+function loadTemplate(templateType) {
+    const templates = {
+        announcement: {
+            subject: '📢 Important Announcement - {COMPANY_NAME}',
+            content: 'Dear Team,\n\nWe have an important announcement to share with you...\n\nBest regards,\n{SENDER_NAME}'
+        },
+        urgent: {
+            subject: '🚨 URGENT: Immediate Action Required',
+            content: 'URGENT NOTICE:\n\nThis message requires your immediate attention...\n\nPlease act accordingly.\n\n{SENDER_NAME}'
+        },
+        event: {
+            subject: '🎉 Upcoming Event: {EVENT_NAME}',
+            content: 'Dear Team,\n\nWe are excited to announce our upcoming event...\n\nSee you there!\n{SENDER_NAME}'
+        },
+        update: {
+            subject: '📊 System Update Notification',
+            content: 'Dear Users,\n\nWe have made some important updates to our system...\n\nThank you,\n{SENDER_NAME}'
+        },
+        newsletter: {
+            subject: '📰 {COMPANY_NAME} Newsletter - {MONTH} {YEAR}',
+            content: 'Welcome to our monthly newsletter!\n\nIn this edition:\n- Latest updates\n- Achievements\n- Upcoming events\n\nBest regards,\n{SENDER_NAME}'
+        },
+        blank: {
+            subject: '',
+            content: ''
+        }
+    };
+    
+    const template = templates[templateType] || templates.blank;
+    
+    document.getElementById('emailSubject').value = template.subject;
+    document.getElementById('messageContent').value = template.content;
+}
+
+function updatePreview() {
+    const subject = document.getElementById('emailSubject').value || 'No subject';
+    const content = document.getElementById('messageContent').value || 'No content';
+    const customEmails = document.getElementById('customRecipients').value.split(',').filter(email => email.trim()).length;
+    
+    document.getElementById('previewSubject').textContent = subject;
+    document.getElementById('previewContent').textContent = content.substring(0, 200) + (content.length > 200 ? '...' : '');
+    
+    // Calculate total recipients
+    let totalRecipients = 0;
+    selectedGroups.forEach(group => {
+        totalRecipients += recipientCounts[group] || 0;
+    });
+    totalRecipients += customEmails;
+    
+    document.getElementById('totalRecipients').textContent = totalRecipients;
+    document.getElementById('selectedGroups').textContent = selectedGroups.length;
+    document.getElementById('customEmails').textContent = customEmails;
+    
+    // Estimate delivery time
+    const estimatedMinutes = Math.ceil(totalRecipients / 100); // Rough estimate
+    document.getElementById('estimatedDelivery').textContent = `~${estimatedMinutes}min`;
+}
+
+function sendBulkNotification() {
+    if (!validateCurrentStep()) return;
+    
+    const confirmMessage = `Send notification to ${document.getElementById('totalRecipients').textContent} recipients?`;
+    
+    if (!confirm(confirmMessage)) return;
+    
+    showNotification('📤 Sending bulk notification...', 'info');
+    
+    const notificationData = {
+        action: 'send_bulk_notification',
+        groups: selectedGroups,
+        template: selectedTemplate,
+        subject: document.getElementById('emailSubject').value,
+        content: document.getElementById('messageContent').value,
+        priority: document.getElementById('priorityLevel').value,
+        custom_recipients: document.getElementById('customRecipients').value,
+        schedule_date: document.getElementById('scheduleDate').value,
+        schedule_time: document.getElementById('scheduleTime').value,
+        department_filter: document.getElementById('departmentFilter').value
+    };
+    
+    fetch('/notifications/email-hub/bulk-notifications', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCSRFToken()
+        },
+        body: JSON.stringify(notificationData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showNotification(`✅ Successfully sent notification to ${data.sent_count || 0} recipients!`, 'success');
+            
+            // Reset form after successful send
+            setTimeout(() => {
+                window.location.href = '/notifications/email-hub';
+            }, 2000);
+        } else {
+            showNotification(`❌ ${data.error || 'Failed to send notification'}`, 'error');
+        }
+    })
+    .catch(error => {
+        showNotification('❌ Network error occurred', 'error');
+    });
+}
+
+function saveDraft() {
+    showNotification('💾 Saving draft...', 'info');
+    
+    const draftData = {
+        action: 'save_draft',
+        groups: selectedGroups,
+        template: selectedTemplate,
+        subject: document.getElementById('emailSubject').value,
+        content: document.getElementById('messageContent').value,
+        priority: document.getElementById('priorityLevel').value,
+        custom_recipients: document.getElementById('customRecipients').value
+    };
+    
+    // Save to localStorage as backup
+    localStorage.setItem('bulk_notification_draft', JSON.stringify(draftData));
+    
+    fetch('/notifications/email-hub/bulk-notifications', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCSRFToken()
+        },
+        body: JSON.stringify(draftData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showNotification('✅ Draft saved successfully!', 'success');
+        } else {
+            showNotification('⚠️ Draft saved locally only', 'warning');
+        }
+    })
+    .catch(error => {
+        showNotification('⚠️ Draft saved locally only', 'warning');
+    });
+}
+
+function editPreview() {
+    // Go back to step 3 for editing
+    currentStep = 3;
+    updateStepDisplay();
+    updateNavigation();
+}
+
+function formatText(command) {
+    document.execCommand(command, false, null);
+}
+
+function insertList(type) {
+    document.execCommand('insert' + (type === 'ul' ? 'UnorderedList' : 'OrderedList'), false, null);
+}
+
+function insertLink() {
+    const url = prompt('Enter URL:');
+    if (url) {
+        document.execCommand('createLink', false, url);
+    }
+}
+
+function showNotification(message, type = 'info') {
+    const existingNotifications = document.querySelectorAll('.notification');
+    existingNotifications.forEach(n => n.remove());
+    
+    const notification = document.createElement('div');
+    notification.className = `notification ${type}`;
+    
+    const iconMap = {
+        'success': 'fa-check-circle',
+        'error': 'fa-exclamation-circle',
+        'info': 'fa-info-circle',
+        'warning': 'fa-exclamation-triangle'
+    };
+    
+    notification.innerHTML = `
+        <div style="display: flex; align-items: center; gap: 0.5rem;">
+            <i class="fas ${iconMap[type] || 'fa-info-circle'}"></i>
+            <span>${message}</span>
+        </div>
+    `;
+    
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        if (notification.parentNode) {
+            notification.parentNode.removeChild(notification);
+        }
+    }, 5000);
+}
+
+function getCSRFToken() {
+    return document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+}
+
+console.log('📢 Bulk Notifications wizard loaded successfully!');
+</script>
+{% endblock %}

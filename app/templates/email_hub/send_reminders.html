@@ -1,0 +1,730 @@
+{% extends "base.html" %}
+{% set active_page = "email_hub" %}
+
+{% block title %}Class Reminders - Email Hub{% endblock %}
+
+{% block extra_css %}
+<style>
+    :root {
+        --primary: #F1A150;
+        --primary-dark: #C86706;
+        --success: #10b981;
+        --warning: #f59e0b;
+        --danger: #ef4444;
+        --info: #3b82f6;
+        --gray-50: #f9fafb;
+        --gray-100: #f3f4f6;
+        --gray-200: #e5e7eb;
+        --gray-500: #6b7280;
+        --gray-700: #374151;
+        --gray-800: #1f2937;
+        --white: #ffffff;
+    }
+
+    .reminders-container {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 2rem;
+    }
+
+    .back-button {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        background: var(--gray-100);
+        color: var(--gray-700);
+        padding: 0.75rem 1rem;
+        border-radius: 8px;
+        text-decoration: none;
+        margin-bottom: 2rem;
+        border: 1px solid var(--gray-200);
+        transition: all 0.2s ease;
+    }
+
+    .back-button:hover {
+        background: var(--primary);
+        color: white;
+    }
+
+    .page-header {
+        background: linear-gradient(135deg, var(--warning), #d97706);
+        color: white;
+        padding: 2rem;
+        border-radius: 12px;
+        margin-bottom: 2rem;
+        text-align: center;
+    }
+
+    .reminder-types-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+        gap: 2rem;
+        margin-bottom: 3rem;
+    }
+
+    .reminder-card {
+        background: var(--white);
+        border: 1px solid var(--gray-200);
+        border-radius: 12px;
+        padding: 2rem;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        transition: all 0.3s ease;
+    }
+
+    .reminder-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+
+    .reminder-header {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .reminder-icon {
+        width: 50px;
+        height: 50px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.25rem;
+        color: white;
+    }
+
+    .reminder-title {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: var(--gray-800);
+        margin: 0;
+    }
+
+    .reminder-description {
+        color: var(--gray-500);
+        margin-bottom: 1.5rem;
+        line-height: 1.6;
+    }
+
+    .reminder-stats {
+        background: var(--gray-50);
+        padding: 1rem;
+        border-radius: 8px;
+        margin-bottom: 1.5rem;
+    }
+
+    .stat-row {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 0.5rem;
+    }
+
+    .stat-row:last-child {
+        margin-bottom: 0;
+    }
+
+    .stat-label {
+        color: var(--gray-500);
+        font-size: 0.875rem;
+    }
+
+    .stat-value {
+        font-weight: 600;
+        color: var(--gray-800);
+    }
+
+    .reminder-actions {
+        display: flex;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+    }
+
+    .btn {
+        padding: 0.75rem 1.5rem;
+        border-radius: 8px;
+        font-weight: 500;
+        text-decoration: none;
+        border: none;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.875rem;
+    }
+
+    .btn:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+
+    .btn-primary {
+        background: var(--primary);
+        color: white;
+    }
+
+    .btn-primary:hover:not(:disabled) {
+        background: var(--primary-dark);
+        transform: translateY(-1px);
+    }
+
+    .btn-success {
+        background: var(--success);
+        color: white;
+    }
+
+    .btn-success:hover:not(:disabled) {
+        background: #059669;
+        transform: translateY(-1px);
+    }
+
+    .btn-outline {
+        background: transparent;
+        color: var(--gray-700);
+        border: 1px solid var(--gray-300);
+    }
+
+    .btn-outline:hover {
+        background: var(--gray-50);
+    }
+
+    .custom-reminder-section {
+        background: var(--white);
+        border: 1px solid var(--gray-200);
+        border-radius: 12px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+    }
+
+    .form-group {
+        margin-bottom: 1.5rem;
+    }
+
+    .form-label {
+        display: block;
+        margin-bottom: 0.5rem;
+        font-weight: 500;
+        color: var(--gray-700);
+    }
+
+    .form-control, .form-select {
+        width: 100%;
+        padding: 0.75rem 1rem;
+        border: 1px solid var(--gray-300);
+        border-radius: 8px;
+        font-size: 0.875rem;
+        background: var(--white);
+        transition: all 0.2s ease;
+    }
+
+    .form-control:focus, .form-select:focus {
+        outline: none;
+        border-color: var(--primary);
+        box-shadow: 0 0 0 3px rgba(241, 161, 80, 0.1);
+    }
+
+    .checkbox-group {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        margin: 1rem 0;
+    }
+
+    .checkbox-item {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.75rem;
+        background: var(--gray-50);
+        border-radius: 8px;
+        border: 1px solid var(--gray-200);
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .checkbox-item:hover {
+        background: var(--primary);
+        color: white;
+    }
+
+    .checkbox-item input[type="checkbox"] {
+        margin: 0;
+    }
+
+    .loading-spinner {
+        display: inline-block;
+        width: 16px;
+        height: 16px;
+        border: 2px solid var(--gray-300);
+        border-top: 2px solid var(--primary);
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+
+    .notification {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        max-width: 400px;
+        background: var(--white);
+        border: 1px solid var(--gray-200);
+        border-radius: 8px;
+        padding: 1rem;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        z-index: 1001;
+        animation: slideIn 0.3s ease-out;
+    }
+
+    .notification.success { border-left: 4px solid var(--success); }
+    .notification.error { border-left: 4px solid var(--danger); }
+    .notification.info { border-left: 4px solid var(--info); }
+
+    @keyframes slideIn {
+        from { transform: translateX(100%); opacity: 0; }
+        to { transform: translateX(0); opacity: 1; }
+    }
+
+    @media (max-width: 768px) {
+        .reminders-container { padding: 1rem; }
+        .reminder-types-grid { grid-template-columns: 1fr; }
+        .reminder-actions { flex-direction: column; }
+        .checkbox-group { grid-template-columns: 1fr; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="reminders-container">
+    <!-- Back Button -->
+    <a href="{{ url_for('email_hub.dashboard') }}" class="back-button">
+        <i class="fas fa-arrow-left"></i>
+        Back to Email Hub
+    </a>
+
+    <!-- Page Header -->
+    <div class="page-header">
+        <h1>🔔 Class Reminders</h1>
+        <p>Send automated reminders to students about their upcoming classes</p>
+    </div>
+
+    <!-- Quick Reminder Types -->
+    <div class="reminder-types-grid">
+        <!-- 24 Hour Reminders -->
+        <div class="reminder-card">
+            <div class="reminder-header">
+                <div class="reminder-icon" style="background: linear-gradient(135deg, var(--info), #1d4ed8);">
+                    <i class="fas fa-calendar"></i>
+                </div>
+                <h3 class="reminder-title">24-Hour Reminders</h3>
+            </div>
+            <p class="reminder-description">
+                Send reminders to students 24 hours before their classes to help them prepare.
+            </p>
+            <div class="reminder-stats">
+                <div class="stat-row">
+                    <span class="stat-label">Tomorrow's Classes:</span>
+                    <span class="stat-value" id="tomorrow-classes">{{ stats.upcoming_classes_24h or 0 }}</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Students to Notify:</span>
+                    <span class="stat-value" id="tomorrow-students">Loading...</span>
+                </div>
+            </div>
+            <div class="reminder-actions">
+                <button class="btn btn-primary" onclick="sendQuickReminder('24h')" id="send24hBtn">
+                    <i class="fas fa-paper-plane"></i>
+                    Send 24h Reminders
+                </button>
+                <button class="btn btn-outline" onclick="preview24hReminder()">
+                    <i class="fas fa-eye"></i>
+                    Preview
+                </button>
+            </div>
+        </div>
+
+        <!-- 1 Hour Reminders -->
+        <div class="reminder-card">
+            <div class="reminder-header">
+                <div class="reminder-icon" style="background: linear-gradient(135deg, var(--warning), #d97706);">
+                    <i class="fas fa-clock"></i>
+                </div>
+                <h3 class="reminder-title">1-Hour Reminders</h3>
+            </div>
+            <p class="reminder-description">
+                Send urgent reminders to students 1 hour before class starts for immediate preparation.
+            </p>
+            <div class="reminder-stats">
+                <div class="stat-row">
+                    <span class="stat-label">Next Hour Classes:</span>
+                    <span class="stat-value" id="next-hour-classes">0</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Students to Notify:</span>
+                    <span class="stat-value" id="next-hour-students">0</span>
+                </div>
+            </div>
+            <div class="reminder-actions">
+                <button class="btn btn-success" onclick="sendQuickReminder('1h')" id="send1hBtn">
+                    <i class="fas fa-bell"></i>
+                    Send 1h Reminders
+                </button>
+                <button class="btn btn-outline" onclick="preview1hReminder()">
+                    <i class="fas fa-eye"></i>
+                    Preview
+                </button>
+            </div>
+        </div>
+
+        <!-- Manual Reminders -->
+        <div class="reminder-card">
+            <div class="reminder-header">
+                <div class="reminder-icon" style="background: linear-gradient(135deg, var(--primary), var(--primary-dark));">
+                    <i class="fas fa-cog"></i>
+                </div>
+                <h3 class="reminder-title">Custom Reminders</h3>
+            </div>
+            <p class="reminder-description">
+                Send customized reminders to specific students or classes with your own timing and message.
+            </p>
+            <div class="reminder-stats">
+                <div class="stat-row">
+                    <span class="stat-label">Total Active Students:</span>
+                    <span class="stat-value">{{ stats.total_students or 0 }}</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">This Week's Classes:</span>
+                    <span class="stat-value" id="week-classes">Loading...</span>
+                </div>
+            </div>
+            <div class="reminder-actions">
+                <button class="btn btn-primary" onclick="showCustomReminder()">
+                    <i class="fas fa-edit"></i>
+                    Create Custom
+                </button>
+                <button class="btn btn-outline" onclick="showBulkReminder()">
+                    <i class="fas fa-users"></i>
+                    Bulk Send
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Custom Reminder Section (Hidden by default) -->
+    <div class="custom-reminder-section" id="customReminderSection" style="display: none;">
+        <h3>📝 Create Custom Reminder</h3>
+        <form id="customReminderForm">
+            <div class="form-group">
+                <label class="form-label">Select Date Range</label>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <input type="date" class="form-control" id="startDate" required>
+                    <input type="date" class="form-control" id="endDate" required>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Filter by Subject</label>
+                <select class="form-select" id="subjectFilter">
+                    <option value="">All Subjects</option>
+                    <option value="Mathematics">Mathematics</option>
+                    <option value="Physics">Physics</option>
+                    <option value="Chemistry">Chemistry</option>
+                    <option value="Biology">Biology</option>
+                    <option value="English">English</option>
+                    <option value="Hindi">Hindi</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Filter by Grade</label>
+                <select class="form-select" id="gradeFilter">
+                    <option value="">All Grades</option>
+                    <option value="9">Grade 9</option>
+                    <option value="10">Grade 10</option>
+                    <option value="11">Grade 11</option>
+                    <option value="12">Grade 12</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Custom Message (Optional)</label>
+                <textarea class="form-control" id="customMessage" rows="3" 
+                          placeholder="Add a custom message to the reminder email..."></textarea>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Send Time</label>
+                <select class="form-select" id="sendTime">
+                    <option value="now">Send Now</option>
+                    <option value="24h">24 Hours Before Class</option>
+                    <option value="1h">1 Hour Before Class</option>
+                    <option value="custom">Custom Time</option>
+                </select>
+            </div>
+
+            <div class="reminder-actions">
+                <button type="button" class="btn btn-primary" onclick="sendCustomReminder()">
+                    <i class="fas fa-paper-plane"></i>
+                    Send Custom Reminders
+                </button>
+                <button type="button" class="btn btn-outline" onclick="previewCustomReminder()">
+                    <i class="fas fa-eye"></i>
+                    Preview
+                </button>
+                <button type="button" class="btn btn-outline" onclick="hideCustomReminder()">
+                    <i class="fas fa-times"></i>
+                    Cancel
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Classes Preview Section -->
+    <div id="classesPreview" style="display: none; background: white; border: 1px solid #e5e7eb; border-radius: 12px; padding: 2rem; margin-top: 2rem;">
+        <h3>📅 Classes to Send Reminders</h3>
+        <div id="classesPreviewContent">
+            <!-- Dynamic content will be loaded here -->
+        </div>
+    </div>
+</div>
+
+<script>
+// Class Reminders JavaScript with Fixed Network Errors
+
+let isLoading = false;
+
+// Initialize page
+document.addEventListener('DOMContentLoaded', function() {
+    loadStats();
+    setDefaultDates();
+});
+
+function setDefaultDates() {
+    const today = new Date();
+    const nextWeek = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
+    
+    document.getElementById('startDate').value = today.toISOString().split('T')[0];
+    document.getElementById('endDate').value = nextWeek.toISOString().split('T')[0];
+}
+
+function loadStats() {
+    // Load statistics for the dashboard
+    showNotification('Loading class statistics...', 'info');
+    
+    // Simulate loading for now - you can replace with actual API calls
+    setTimeout(() => {
+        document.getElementById('tomorrow-students').textContent = '15';
+        document.getElementById('week-classes').textContent = '45';
+        updateHourlyStats();
+    }, 1000);
+}
+
+function updateHourlyStats() {
+    // Update next hour statistics
+    const now = new Date();
+    const nextHour = new Date(now.getTime() + 60 * 60 * 1000);
+    
+    // This would typically be an API call
+    document.getElementById('next-hour-classes').textContent = '3';
+    document.getElementById('next-hour-students').textContent = '8';
+}
+
+function sendQuickReminder(type) {
+    if (isLoading) return;
+    
+    const buttonId = type === '24h' ? 'send24hBtn' : 'send1hBtn';
+    const button = document.getElementById(buttonId);
+    const originalText = button.innerHTML;
+    
+    // Show loading state
+    isLoading = true;
+    button.disabled = true;
+    button.innerHTML = `<span class="loading-spinner"></span> Sending...`;
+    
+    showNotification(`📤 Sending ${type} reminders...`, 'info');
+    
+    // Make API call with proper error handling
+    fetch('/notifications/email-hub/send-reminders', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCSRFToken()
+        },
+        body: JSON.stringify({ 
+            type: type,
+            action: 'send_quick_reminder'
+        })
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            showNotification(`✅ Successfully sent ${data.sent || 0} ${type} reminders!`, 'success');
+            loadStats(); // Refresh stats
+        } else {
+            throw new Error(data.error || 'Unknown error occurred');
+        }
+    })
+    .catch(error => {
+        console.error('Reminder error:', error);
+        showNotification(`❌ Failed to send reminders: ${error.message}`, 'error');
+    })
+    .finally(() => {
+        // Reset button state
+        isLoading = false;
+        button.disabled = false;
+        button.innerHTML = originalText;
+    });
+}
+
+function showCustomReminder() {
+    document.getElementById('customReminderSection').style.display = 'block';
+    document.getElementById('customReminderSection').scrollIntoView({ behavior: 'smooth' });
+}
+
+function hideCustomReminder() {
+    document.getElementById('customReminderSection').style.display = 'none';
+}
+
+function showBulkReminder() {
+    showNotification('📢 Opening bulk reminder interface...', 'info');
+    // This could open a modal or redirect to a dedicated page
+    window.location.href = '/notifications/email-hub/bulk-notifications';
+}
+
+function sendCustomReminder() {
+    if (isLoading) return;
+    
+    const formData = {
+        start_date: document.getElementById('startDate').value,
+        end_date: document.getElementById('endDate').value,
+        subject: document.getElementById('subjectFilter').value,
+        grade: document.getElementById('gradeFilter').value,
+        custom_message: document.getElementById('customMessage').value,
+        send_time: document.getElementById('sendTime').value
+    };
+    
+    if (!formData.start_date || !formData.end_date) {
+        showNotification('❌ Please select both start and end dates', 'error');
+        return;
+    }
+    
+    isLoading = true;
+    showNotification('📤 Sending custom reminders...', 'info');
+    
+    fetch('/notifications/email-hub/send-reminders', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCSRFToken()
+        },
+        body: JSON.stringify({
+            type: 'custom',
+            action: 'send_custom_reminder',
+            ...formData
+        })
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            showNotification(`✅ Successfully sent ${data.sent || 0} custom reminders!`, 'success');
+            hideCustomReminder();
+            document.getElementById('customReminderForm').reset();
+            setDefaultDates();
+        } else {
+            throw new Error(data.error || 'Unknown error occurred');
+        }
+    })
+    .catch(error => {
+        console.error('Custom reminder error:', error);
+        showNotification(`❌ Failed to send custom reminders: ${error.message}`, 'error');
+    })
+    .finally(() => {
+        isLoading = false;
+    });
+}
+
+function preview24hReminder() {
+    showReminderPreview('24h');
+}
+
+function preview1hReminder() {
+    showReminderPreview('1h');
+}
+
+function previewCustomReminder() {
+    showReminderPreview('custom');
+}
+
+function showReminderPreview(type) {
+    showNotification('👁️ Loading email preview...', 'info');
+    
+    // Create a modal or redirect to preview page
+    const previewUrl = `/notifications/email-hub/preview-reminder?type=${type}`;
+    window.open(previewUrl, '_blank', 'width=800,height=600');
+}
+
+function showNotification(message, type = 'info') {
+    // Remove existing notifications
+    const existingNotifications = document.querySelectorAll('.notification');
+    existingNotifications.forEach(n => n.remove());
+    
+    const notification = document.createElement('div');
+    notification.className = `notification ${type}`;
+    
+    const iconMap = {
+        'success': 'fa-check-circle',
+        'error': 'fa-exclamation-circle',
+        'info': 'fa-info-circle'
+    };
+    
+    notification.innerHTML = `
+        <div style="display: flex; align-items: center; gap: 0.5rem;">
+            <i class="fas ${iconMap[type] || 'fa-info-circle'}"></i>
+            <span>${message}</span>
+        </div>
+    `;
+    
+    document.body.appendChild(notification);
+    
+    // Auto remove after 5 seconds
+    setTimeout(() => {
+        if (notification.parentNode) {
+            notification.parentNode.removeChild(notification);
+        }
+    }, 5000);
+}
+
+function getCSRFToken() {
+    // Try multiple methods to get CSRF token
+    const metaToken = document.querySelector('meta[name="csrf-token"]');
+    if (metaToken) {
+        return metaToken.getAttribute('content');
+    }
+    
+    const inputToken = document.querySelector('input[name="csrf_token"]');
+    if (inputToken) {
+        return inputToken.value;
+    }
+    
+    // Fallback - you might need to generate this server-side
+    return '';
+}
+
+console.log('🔔 Class Reminders page loaded successfully!');
+</script>
+{% endblock %}

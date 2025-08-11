@@ -2270,7 +2270,7 @@ def finance_dashboard_api():
 
 @bp.route('/system-documents')
 @login_required
-@require_permission('system_documents')
+@admin_required
 def system_documents():
     """Manage system documents"""
     from app.models.system_document import SystemDocument
@@ -2441,9 +2441,6 @@ def toggle_document_status(doc_id):
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
 
-
-# Enhanced API routes to add to your existing app/routes/admin.py
-# Add these routes after your existing API routes
 
 @bp.route('/api/v1/tutors/smart-search')
 @login_required
@@ -2771,13 +2768,9 @@ def api_tutor_detailed_profile(tutor_id):
     try:
         tutor = Tutor.query.get_or_404(tutor_id)
         
-        # Get recent classes
         recent_classes = Class.query.filter_by(tutor_id=tutor_id)\
                                    .order_by(Class.scheduled_date.desc())\
                                    .limit(10).all()
-        
-        # Get student feedback/ratings (if you have feedback model)
-        # This would need to be implemented based on your feedback system
         
         detailed_profile = {
             'basic_info': {
@@ -2846,7 +2839,7 @@ def api_tutor_detailed_profile(tutor_id):
             'error': str(e)
         }), 500
 
-# Add this helper function to improve the existing compatible tutors API
+
 @bp.route('/api/v1/compatible-tutors-enhanced')
 @login_required
 @admin_required
@@ -2859,7 +2852,7 @@ def api_compatible_tutors_enhanced():
         board = request.args.get('board', '')
         include_scores = request.args.get('include_scores', 'true').lower() == 'true'
         
-        # Use the smart search function with basic parameters
+        
         search_result = api_smart_tutor_search()
         
         # If it's a JSON response (error case), return it
@@ -5266,3 +5259,551 @@ def api_allocation_analytics():
             'success': False,
             'error': 'Failed to fetch analytics'
         }), 500
+        
+## new Funtion testing## 
+
+@bp.route('/attendance/live-monitor')
+@login_required
+@require_permission('attendance_management')
+def live_attendance_monitor():
+    """Real-time attendance monitoring dashboard"""
+    
+    # Get today's classes with attendance status
+    today = date.today()
+    todays_classes = db.session.query(Class).filter(
+        Class.scheduled_date == today
+    ).order_by(Class.scheduled_time).all()
+    
+    # Get attendance summary for today
+    attendance_summary = db.session.query(
+        func.count(Attendance.id).label('total_classes'),
+        func.sum(case((Attendance.tutor_late_minutes > 2, 1), else_=0)).label('late_starts'),
+        func.sum(case((Attendance.tutor_early_leave_minutes > 0, 1), else_=0)).label('early_completions'),
+        func.sum(Attendance.penalty_amount).label('total_penalties'),
+        func.count(case((Attendance.student_present == False, 1))).label('student_absences')
+    ).filter(
+        Attendance.class_date == today
+    ).first()
+    
+    # Get video upload status for recently completed classes
+    video_status = db.session.query(Class).filter(
+        Class.status == 'completed',
+        Class.scheduled_date >= today - timedelta(days=1),
+        Class.video_upload_status.in_(['pending', 'overdue'])
+    ).all()
+    
+    # Get current ongoing classes
+    ongoing_classes = db.session.query(Class).filter(
+        Class.status == 'ongoing'
+    ).all()
+    
+    # Get critical alerts
+    critical_alerts = db.session.query(
+        text("""
+        SELECT * FROM admin_monitoring_alerts 
+        WHERE status = 'new' AND severity IN ('high', 'critical')
+        ORDER BY created_at DESC
+        LIMIT 10
+        """)
+    ).fetchall()
+    
+    return render_template('admin/live_attendance_monitor.html',
+                         todays_classes=todays_classes,
+                         attendance_summary=attendance_summary,
+                         video_status=video_status,
+                         ongoing_classes=ongoing_classes,
+                         critical_alerts=critical_alerts,
+                         today=today)
+
+
+@bp.route('/attendance/penalty-tracking')
+@login_required
+@require_permission('attendance_management')
+def penalty_tracking():
+    """Penalty tracking and management"""
+    
+    # Get filter parameters
+    tutor_filter = request.args.get('tutor_id', type=int)
+    date_from = request.args.get('date_from')
+    date_to = request.args.get('date_to')
+    penalty_type = request.args.get('penalty_type')
+    
+    # Build base query
+    query = db.session.query(
+        text("""
+        SELECT 
+            tp.*,
+            u.full_name as tutor_name,
+            c.subject,
+            c.scheduled_date,
+            c.scheduled_time
+        FROM tutor_penalties tp
+        JOIN tutors t ON tp.tutor_id = t.id
+        JOIN users u ON t.user_id = u.id
+        JOIN classes c ON tp.class_id = c.id
+        WHERE 1=1
+        """)
+    )
+    
+    # Apply filters
+    conditions = []
+    params = {}
+    
+    if tutor_filter:
+        conditions.append("tp.tutor_id = :tutor_id")
+        params['tutor_id'] = tutor_filter
+    
+    if date_from:
+        conditions.append("tp.penalty_date >= :date_from")
+        params['date_from'] = date_from
+    
+    if date_to:
+        conditions.append("tp.penalty_date <= :date_to")
+        params['date_to'] = date_to
+    
+    if penalty_type:
+        conditions.append("tp.penalty_type = :penalty_type")
+        params['penalty_type'] = penalty_type
+    
+    if conditions:
+        query_str = query.statement.text + " AND " + " AND ".join(conditions)
+    else:
+        query_str = query.statement.text
+    
+    query_str += " ORDER BY tp.penalty_date DESC, tp.created_at DESC"
+    
+    penalties = db.session.execute(text(query_str), params).fetchall()
+    
+    # Get summary statistics
+    penalty_stats = db.session.execute(text("""
+        SELECT 
+            penalty_type,
+            COUNT(*) as count,
+            SUM(penalty_amount) as total_amount,
+            AVG(penalty_amount) as avg_amount,
+            SUM(CASE WHEN waived = 1 THEN 1 ELSE 0 END) as waived_count
+        FROM tutor_penalties 
+        WHERE penalty_date >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+        GROUP BY penalty_type
+    """)).fetchall()
+    
+    # Get tutors for filter dropdown
+    tutors = Tutor.query.join(User).all()
+    
+    return render_template('admin/penalty_tracking.html',
+                         penalties=penalties,
+                         penalty_stats=penalty_stats,
+                         tutors=tutors,
+                         filters={
+                             'tutor_id': tutor_filter,
+                             'date_from': date_from,
+                             'date_to': date_to,
+                             'penalty_type': penalty_type
+                         })
+
+
+@bp.route('/video-upload/monitoring')
+@login_required
+@require_permission('class_management')
+def video_upload_monitoring():
+    """Video upload monitoring dashboard"""
+    
+    # Get video upload status using the view we created
+    video_monitoring = db.session.execute(text("""
+        SELECT * FROM video_upload_monitoring 
+        ORDER BY 
+            CASE urgency_level
+                WHEN 'critical_overdue' THEN 1
+                WHEN 'overdue_grace_period' THEN 2
+                WHEN 'warning_zone' THEN 3
+                ELSE 4
+            END,
+            minutes_to_deadline DESC
+        LIMIT 50
+    """)).fetchall()
+    
+    # Get summary statistics
+    video_stats = db.session.execute(text("""
+        SELECT 
+            video_upload_status,
+            COUNT(*) as count,
+            urgency_level,
+            COUNT(*) as urgency_count
+        FROM video_upload_monitoring
+        GROUP BY video_upload_status, urgency_level
+    """)).fetchall()
+    
+    # Get escalations
+    escalations = db.session.execute(text("""
+        SELECT 
+            vue.*,
+            u.full_name as tutor_name,
+            c.subject,
+            c.scheduled_date,
+            c.scheduled_time
+        FROM video_upload_escalations vue
+        JOIN tutors t ON vue.tutor_id = t.id
+        JOIN users u ON t.user_id = u.id
+        JOIN classes c ON vue.class_id = c.id
+        WHERE vue.resolved = 0
+        ORDER BY vue.escalation_time DESC
+    """)).fetchall()
+    
+    return render_template('admin/video_upload_monitoring.html',
+                         video_monitoring=video_monitoring,
+                         video_stats=video_stats,
+                         escalations=escalations)
+
+
+# ============ ENHANCED API ENDPOINTS FOR REAL-TIME UPDATES ============
+
+@bp.route('/api/live-stats')
+@login_required
+@require_permission('attendance_management')
+def api_live_stats():
+    """API endpoint for live dashboard statistics"""
+    
+    today = date.today()
+    
+    # Get real-time stats
+    stats = db.session.execute(text("""
+        SELECT 
+            COUNT(DISTINCT c.id) as total_classes_today,
+            COUNT(DISTINCT CASE WHEN c.status = 'ongoing' THEN c.id END) as ongoing_classes,
+            COUNT(DISTINCT CASE WHEN c.status = 'completed' THEN c.id END) as completed_classes,
+            COUNT(DISTINCT CASE WHEN a.tutor_late_minutes > 2 THEN c.id END) as late_starts,
+            COUNT(DISTINCT CASE WHEN a.tutor_early_leave_minutes > 0 THEN c.id END) as early_completions,
+            COALESCE(SUM(a.penalty_amount), 0) as total_penalties,
+            COUNT(DISTINCT CASE WHEN c.video_upload_status = 'overdue' THEN c.id END) as overdue_videos,
+            COUNT(DISTINCT CASE WHEN c.video_upload_status = 'pending' THEN c.id END) as pending_videos
+        FROM classes c
+        LEFT JOIN attendance a ON c.id = a.class_id
+        WHERE c.scheduled_date = :today
+    """), {'today': today}).fetchone()
+    
+    return jsonify({
+        'success': True,
+        'stats': {
+            'total_classes_today': stats.total_classes_today or 0,
+            'ongoing_classes': stats.ongoing_classes or 0,
+            'completed_classes': stats.completed_classes or 0,
+            'late_starts': stats.late_starts or 0,
+            'early_completions': stats.early_completions or 0,
+            'total_penalties': float(stats.total_penalties or 0),
+            'overdue_videos': stats.overdue_videos or 0,
+            'pending_videos': stats.pending_videos or 0
+        },
+        'timestamp': datetime.now().isoformat()
+    })
+
+
+@bp.route('/api/urgent-alerts')
+@login_required
+@require_permission('attendance_management')
+def api_urgent_alerts():
+    """API endpoint for urgent alerts that need immediate attention"""
+    
+    # Get critical video upload alerts
+    overdue_videos = db.session.execute(text("""
+        SELECT 
+            c.id as class_id,
+            c.subject,
+            u.full_name as tutor_name,
+            u.phone as tutor_phone,
+            s.full_name as student_name,
+            c.video_upload_deadline,
+            TIMESTAMPDIFF(MINUTE, c.video_upload_deadline, NOW()) as overdue_minutes
+        FROM classes c
+        JOIN tutors t ON c.tutor_id = t.id
+        JOIN users u ON t.user_id = u.id
+        LEFT JOIN students s ON c.primary_student_id = s.id
+        WHERE c.video_upload_status = 'pending'
+          AND c.video_upload_deadline < NOW()
+        ORDER BY c.video_upload_deadline ASC
+        LIMIT 10
+    """)).fetchall()
+    
+    # Get classes that should have started but tutor hasn't arrived
+    missing_tutors = db.session.execute(text("""
+        SELECT 
+            c.id as class_id,
+            c.subject,
+            c.scheduled_time,
+            u.full_name as tutor_name,
+            u.phone as tutor_phone,
+            TIMESTAMPDIFF(MINUTE, 
+                TIMESTAMP(c.scheduled_date, c.scheduled_time), 
+                NOW()
+            ) as minutes_late
+        FROM classes c
+        JOIN tutors t ON c.tutor_id = t.id
+        JOIN users u ON t.user_id = u.id
+        WHERE c.status = 'scheduled'
+          AND c.scheduled_date = CURDATE()
+          AND TIMESTAMP(c.scheduled_date, c.scheduled_time) < DATE_SUB(NOW(), INTERVAL 10 MINUTE)
+          AND NOT EXISTS (
+              SELECT 1 FROM attendance a 
+              WHERE a.class_id = c.id AND a.tutor_present = 1
+          )
+        ORDER BY c.scheduled_time ASC
+    """)).fetchall()
+    
+    alerts = []
+    
+    # Add video upload alerts
+    for video in overdue_videos:
+        alerts.append({
+            'type': 'video_overdue',
+            'priority': 'critical' if video.overdue_minutes > 60 else 'high',
+            'title': f'Video Upload Overdue - {video.subject}',
+            'description': f'{video.tutor_name} is {video.overdue_minutes} minutes late uploading video',
+            'class_id': video.class_id,
+            'tutor_name': video.tutor_name,
+            'tutor_phone': video.tutor_phone,
+            'overdue_minutes': video.overdue_minutes,
+            'actions': ['call_tutor', 'send_email', 'escalate']
+        })
+    
+    # Add missing tutor alerts
+    for missing in missing_tutors:
+        alerts.append({
+            'type': 'missing_tutor',
+            'priority': 'critical',
+            'title': f'Tutor Missing - {missing.subject}',
+            'description': f'{missing.tutor_name} has not started class (scheduled {missing.scheduled_time})',
+            'class_id': missing.class_id,
+            'tutor_name': missing.tutor_name,
+            'tutor_phone': missing.tutor_phone,
+            'minutes_late': missing.minutes_late,
+            'actions': ['call_tutor', 'send_reminder', 'find_substitute']
+        })
+    
+    return jsonify({
+        'success': True,
+        'alerts': alerts,
+        'total_critical': len([a for a in alerts if a['priority'] == 'critical']),
+        'timestamp': datetime.now().isoformat()
+    })
+
+
+@bp.route('/api/attendance/<int:class_id>/emergency-contact', methods=['POST'])
+@login_required
+@require_permission('attendance_management')
+def emergency_contact_tutor(class_id):
+    """Emergency contact tutor for missing class or overdue video"""
+    
+    class_obj = Class.query.get_or_404(class_id)
+    data = request.get_json()
+    
+    contact_reason = data.get('reason', 'emergency_contact')
+    message = data.get('message', '')
+    
+    try:
+        # Log the emergency contact
+        alert = AdminMonitoringAlert(
+            alert_type='emergency_contact',
+            severity='high',
+            title=f'Emergency Contact - {class_obj.subject}',
+            description=f'Admin emergency contact for {contact_reason}: {message}',
+            related_class_id=class_id,
+            related_tutor_id=class_obj.tutor_id,
+            alert_data=json.dumps({
+                'contact_reason': contact_reason,
+                'message': message,
+                'contacted_by': current_user.id
+            })
+        )
+        
+        db.session.add(alert)
+        db.session.commit()
+        
+        # Here you would integrate with your SMS/email system
+        # send_emergency_sms(class_obj.tutor.user.phone, message)
+        # send_emergency_email(class_obj.tutor.user.email, message)
+        
+        return jsonify({
+            'success': True,
+            'message': 'Emergency contact initiated',
+            'alert_id': alert.id
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@bp.route('/api/penalty/<int:penalty_id>/waive', methods=['POST'])
+@login_required
+@require_permission('attendance_management')
+def waive_penalty(penalty_id):
+    """Waive a tutor penalty"""
+    
+    data = request.get_json()
+    reason = data.get('reason', '')
+    
+    try:
+        # Update penalty record
+        db.session.execute(text("""
+            UPDATE tutor_penalties 
+            SET waived = 1, 
+                waived_by = :user_id,
+                waived_reason = :reason,
+                waived_at = NOW()
+            WHERE id = :penalty_id
+        """), {
+            'penalty_id': penalty_id,
+            'user_id': current_user.id,
+            'reason': reason
+        })
+        
+        # Also update the attendance record
+        penalty = db.session.execute(text("""
+            SELECT attendance_id, penalty_amount 
+            FROM tutor_penalties 
+            WHERE id = :penalty_id
+        """), {'penalty_id': penalty_id}).fetchone()
+        
+        if penalty:
+            db.session.execute(text("""
+                UPDATE attendance 
+                SET penalty_amount = penalty_amount - :penalty_amount,
+                    penalty_reason = CONCAT(COALESCE(penalty_reason, ''), '; Waived: ', :reason)
+                WHERE id = :attendance_id
+            """), {
+                'attendance_id': penalty.attendance_id,
+                'penalty_amount': penalty.penalty_amount,
+                'reason': reason
+            })
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Penalty waived successfully'
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+# ============ BULK OPERATIONS FOR ADMIN ============
+
+@bp.route('/api/attendance/bulk-resolve', methods=['POST'])
+@login_required
+@require_permission('attendance_management')
+def bulk_resolve_attendance_issues():
+    """Bulk resolve multiple attendance issues"""
+    
+    data = request.get_json()
+    issue_ids = data.get('issue_ids', [])
+    resolution_type = data.get('resolution_type')  # 'waive', 'escalate', 'contact'
+    notes = data.get('notes', '')
+    
+    try:
+        resolved_count = 0
+        
+        for issue_id in issue_ids:
+            if resolution_type == 'waive':
+                # Waive penalties
+                db.session.execute(text("""
+                    UPDATE tutor_penalties 
+                    SET waived = 1, waived_by = :user_id, waived_reason = :notes, waived_at = NOW()
+                    WHERE id = :issue_id
+                """), {'issue_id': issue_id, 'user_id': current_user.id, 'notes': notes})
+                
+            elif resolution_type == 'escalate':
+                # Create escalation
+                penalty = db.session.execute(text("""
+                    SELECT tp.*, c.tutor_id 
+                    FROM tutor_penalties tp
+                    JOIN classes c ON tp.class_id = c.id
+                    WHERE tp.id = :issue_id
+                """), {'issue_id': issue_id}).fetchone()
+                
+                if penalty:
+                    escalation = Escalation(
+                        escalation_type='penalty_review',
+                        created_by=current_user.id,
+                        related_records=json.dumps({
+                            'penalty_id': issue_id,
+                            'tutor_id': penalty.tutor_id,
+                            'notes': notes
+                        }),
+                        priority='medium',
+                        status='open'
+                    )
+                    db.session.add(escalation)
+            
+            resolved_count += 1
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': f'Resolved {resolved_count} issues',
+            'resolved_count': resolved_count
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+# ============ AUTOMATED REPORT GENERATION ============
+
+@bp.route('/reports/daily-attendance-summary')
+@login_required
+@require_permission('report_generation')
+def daily_attendance_summary():
+    """Generate daily attendance summary report"""
+    
+    report_date = request.args.get('date', date.today().strftime('%Y-%m-%d'))
+    
+    # Get comprehensive daily statistics
+    daily_stats = db.session.execute(text("""
+        SELECT 
+            COUNT(DISTINCT c.id) as total_classes,
+            COUNT(DISTINCT CASE WHEN c.status = 'completed' THEN c.id END) as completed_classes,
+            COUNT(DISTINCT CASE WHEN c.status = 'cancelled' THEN c.id END) as cancelled_classes,
+            COUNT(DISTINCT CASE WHEN a.tutor_late_minutes > 2 THEN c.id END) as late_starts,
+            COUNT(DISTINCT CASE WHEN a.tutor_early_leave_minutes > 0 THEN c.id END) as early_completions,
+            COUNT(DISTINCT CASE WHEN a.student_present = 0 THEN a.id END) as student_absences,
+            COALESCE(SUM(a.penalty_amount), 0) as total_penalties,
+            COALESCE(AVG(a.tutor_late_minutes), 0) as avg_tutor_late_minutes,
+            COUNT(DISTINCT CASE WHEN c.video_upload_status = 'uploaded' THEN c.id END) as videos_uploaded,
+            COUNT(DISTINCT CASE WHEN c.video_upload_status = 'pending' THEN c.id END) as videos_pending
+        FROM classes c
+        LEFT JOIN attendance a ON c.id = a.class_id
+        WHERE c.scheduled_date = :report_date
+    """), {'report_date': report_date}).fetchone()
+    
+    # Get tutor performance breakdown
+    tutor_breakdown = db.session.execute(text("""
+        SELECT 
+            u.full_name as tutor_name,
+            COUNT(c.id) as classes_count,
+            COALESCE(SUM(a.penalty_amount), 0) as total_penalties,
+            AVG(a.tutor_late_minutes) as avg_late_minutes,
+            COUNT(CASE WHEN a.tutor_late_minutes > 2 THEN 1 END) as late_incidents
+        FROM classes c
+        JOIN tutors t ON c.tutor_id = t.id
+        JOIN users u ON t.user_id = u.id
+        LEFT JOIN attendance a ON c.id = a.class_id
+        WHERE c.scheduled_date = :report_date
+        GROUP BY t.id, u.full_name
+        ORDER BY total_penalties DESC, late_incidents DESC
+    """), {'report_date': report_date}).fetchall()
+    
+    return render_template('admin/daily_attendance_summary.html',
+                         daily_stats=daily_stats,
+                         tutor_breakdown=tutor_breakdown,
+                         report_date=report_date)

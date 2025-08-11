@@ -164,45 +164,336 @@ def class_details(class_id):
 @login_required
 @tutor_required
 def start_class(class_id):
-    """Start a class"""
+    """Enhanced start class with auto-attendance and penalty calculation"""
     tutor = get_current_tutor()
     class_obj = Class.query.filter_by(id=class_id, tutor_id=tutor.id).first_or_404()
     
     if class_obj.status != 'scheduled':
         return jsonify({'error': 'Class cannot be started'}), 400
     
+    current_time = datetime.now()
+    
+    # Calculate if tutor is late
+    scheduled_datetime = datetime.combine(class_obj.scheduled_date, class_obj.scheduled_time)
+    late_minutes = 0
+    late_penalty = 0
+    
+    if current_time > scheduled_datetime:
+        late_minutes = int((current_time - scheduled_datetime).total_seconds() / 60)
+        if late_minutes > 2:  # 2-minute grace period
+            late_penalty = (late_minutes - 2) * 10  # ₹10 per minute
+    
+    # Start the class (your existing logic)
     class_obj.start_class()
     
-    # Create attendance records if they don't exist
+    # Create attendance records if they don't exist (your existing logic)
     existing_attendance = Attendance.query.filter_by(class_id=class_id).first()
     if not existing_attendance:
         Attendance.create_attendance_record(class_obj)
-        db.session.commit()
     
-    return jsonify({'success': True, 'message': 'Class started successfully'})
+    # 🔥 NEW: Auto-mark tutor attendance with timing
+    attendance_records = Attendance.query.filter_by(class_id=class_id).all()
+    for attendance in attendance_records:
+        attendance.mark_tutor_attendance(
+            present=True,
+            join_time=current_time,
+            leave_time=None,  # Will be set when completing
+            absence_reason=None
+        )
+        
+        # Set late minutes and penalty
+        attendance.tutor_late_minutes = late_minutes
+        if late_penalty > 0:
+            attendance.penalty_amount = late_penalty
+            attendance.penalty_reason = f"Late arrival: {late_minutes} minutes"
+            attendance.tutor_penalty_applied = True
+    
+    db.session.commit()
+    
+    # 🔥 NEW: Return enhanced response with meeting link
+    response_data = {
+        'success': True, 
+        'message': 'Class started successfully',
+        'meeting_link': class_obj.meeting_link,
+        'auto_redirect': True,
+        'timing_info': {
+            'started_at': current_time.strftime('%H:%M'),
+            'late_minutes': late_minutes,
+            'penalty_amount': late_penalty,
+            'scheduled_duration': class_obj.duration
+        }
+    }
+    
+    return jsonify(response_data)
+
 
 @bp.route('/class/<int:class_id>/complete', methods=['POST'])
 @login_required
 @tutor_required
 def complete_class(class_id):
-    """Complete a class"""
+    """Enhanced complete class with early completion detection and video upload"""
     tutor = get_current_tutor()
     class_obj = Class.query.filter_by(id=class_id, tutor_id=tutor.id).first_or_404()
     
     if class_obj.status not in ['scheduled', 'ongoing']:
         return jsonify({'error': 'Class cannot be completed'}), 400
     
-    completion_status = request.json.get('completion_status', 'completed')
-    class_notes = request.json.get('class_notes', '')
-    topics_covered = request.json.get('topics_covered', [])
+    current_time = datetime.now()
     
+    # Calculate actual duration
+    if class_obj.actual_start_time:
+        actual_duration = int((current_time - class_obj.actual_start_time).total_seconds() / 60)
+    else:
+        # Fallback if start time not recorded
+        scheduled_start = datetime.combine(class_obj.scheduled_date, class_obj.scheduled_time)
+        actual_duration = int((current_time - scheduled_start).total_seconds() / 60)
+    
+    # Check for early completion
+    scheduled_duration = class_obj.duration
+    early_completion_minutes = 0
+    early_penalty = 0
+    is_early = False
+    
+    if actual_duration < (scheduled_duration * 0.9):  # Less than 90% of scheduled time
+        early_completion_minutes = scheduled_duration - actual_duration
+        early_penalty = early_completion_minutes * 5  # ₹5 per minute early
+        is_early = True
+    
+    # Get completion data from request
+    data = request.get_json() or {}
+    completion_status = data.get('completion_status', 'completed')
+    class_notes = data.get('class_notes', '')
+    topics_covered = data.get('topics_covered', [])
+    early_reason = data.get('early_reason', '') if is_early else ''
+    student_attendance_data = data.get('student_attendance', [])
+    
+    # Complete the class (your existing logic)
     class_obj.complete_class(completion_status)
     class_obj.class_notes = class_notes
     class_obj.set_topics_covered(topics_covered)
     
+    # 🔥 NEW: Set video upload deadline (2 hours from now)
+    class_obj.video_upload_deadline = current_time + timedelta(hours=2)
+    class_obj.video_upload_status = 'pending'
+    
+    # 🔥 NEW: Update attendance records with completion timing
+    attendance_records = Attendance.query.filter_by(class_id=class_id).all()
+    
+    for attendance in attendance_records:
+        # Update tutor leave time
+        attendance.tutor_leave_time = current_time
+        attendance.class_duration_actual = actual_duration
+        
+        # Apply early completion penalty
+        if is_early:
+            existing_penalty = attendance.penalty_amount or 0
+            attendance.penalty_amount = existing_penalty + early_penalty
+            attendance.tutor_early_leave_minutes = early_completion_minutes
+            penalty_reason = attendance.penalty_reason or ""
+            attendance.penalty_reason = f"{penalty_reason}; Early completion: {early_completion_minutes} min"
+            attendance.tutor_penalty_applied = True
+        
+        # 🔥 NEW: Mark student attendance if provided
+        student_data = next(
+            (s for s in student_attendance_data if s.get('student_id') == attendance.student_id), 
+            None
+        )
+        
+        if student_data:
+            attendance.mark_student_attendance(
+                present=student_data.get('present', True),
+                join_time=class_obj.actual_start_time,  # Assume joined when class started
+                leave_time=current_time,
+                absence_reason=student_data.get('absence_reason', ''),
+                engagement=student_data.get('engagement', 'good')
+            )
+    
     db.session.commit()
     
-    return jsonify({'success': True, 'message': 'Class completed successfully'})
+    # 🔥 NEW: Schedule video upload warning (2 hours from now)
+    # You'll need to add Celery task for this
+    # schedule_video_upload_warning.delay(class_id, delay=7200)
+    
+    response_data = {
+        'success': True,
+        'message': 'Class completed successfully',
+        'video_upload_required': True,
+        'video_deadline': class_obj.video_upload_deadline.isoformat(),
+        'completion_info': {
+            'actual_duration': actual_duration,
+            'scheduled_duration': scheduled_duration,
+            'is_early_completion': is_early,
+            'early_minutes': early_completion_minutes,
+            'early_penalty': early_penalty,
+            'total_penalty': sum(a.penalty_amount or 0 for a in attendance_records)
+        },
+        'redirect_to_upload': True
+    }
+    
+    return jsonify(response_data)
+
+
+@bp.route('/class/<int:class_id>/upload-video', methods=['GET', 'POST'])
+@login_required
+@tutor_required
+def upload_class_video(class_id):
+    """Upload class recording video"""
+    tutor = get_current_tutor()
+    class_obj = Class.query.filter_by(id=class_id, tutor_id=tutor.id).first_or_404()
+    
+    if request.method == 'GET':
+        # Show upload form
+        time_remaining = None
+        if class_obj.video_upload_deadline:
+            time_remaining = class_obj.video_upload_deadline - datetime.now()
+            
+        return render_template('tutor/upload_video.html', 
+                             class_obj=class_obj, 
+                             time_remaining=time_remaining)
+    
+    # Handle POST - file upload
+    if 'video_file' not in request.files:
+        return jsonify({'error': 'No video file provided'}), 400
+    
+    video_file = request.files['video_file']
+    
+    if video_file.filename == '':
+        return jsonify({'error': 'No file selected'}), 400
+    
+    # Check deadline
+    current_time = datetime.now()
+    if class_obj.video_upload_deadline and current_time > class_obj.video_upload_deadline + timedelta(minutes=5):
+        return jsonify({'error': 'Upload deadline has passed. Contact coordinator.'}), 403
+    
+    try:
+        # Upload to storage (using your existing helper)
+        filename = secure_filename(f"class_{class_id}_{int(current_time.timestamp())}.{video_file.filename.rsplit('.', 1)[1]}")
+        video_url = upload_file_to_s3(video_file, filename)
+        
+        # Update class record
+        class_obj.video_link = video_url
+        class_obj.video_upload_status = 'uploaded'
+        class_obj.video_upload_timestamp = current_time
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Video uploaded successfully!',
+            'video_url': video_url
+        })
+        
+    except Exception as e:
+        return jsonify({'error': f'Upload failed: {str(e)}'}), 500
+    
+@bp.route('/class/<int:class_id>/contact-coordinator', methods=['POST'])
+@login_required
+@tutor_required
+def contact_coordinator(class_id):
+    """Contact coordinator when unable to upload video on time"""
+    tutor = get_current_tutor()
+    class_obj = Class.query.filter_by(id=class_id, tutor_id=tutor.id).first_or_404()
+    
+    data = request.get_json()
+    reason = data.get('reason', 'Unable to upload video on time')
+    
+    # Create escalation record (you'll need to add this model)
+    from app.models.escalation import Escalation
+    
+    escalation = Escalation(
+        escalation_type='video_upload_delay',
+        created_by=current_user.id,
+        related_records=json.dumps({
+            'class_id': class_id,
+            'tutor_id': tutor.id,
+            'reason': reason
+        }),
+        priority='high',
+        status='open'
+    )
+    
+    db.session.add(escalation)
+    class_obj.video_upload_status = 'escalated'
+    db.session.commit()
+    
+    # Send email to coordinator (you'll need to implement)
+    # send_escalation_email(escalation.id)
+    
+    return jsonify({
+        'success': True,
+        'message': 'Coordinator has been notified. You will be contacted soon.',
+        'escalation_id': escalation.id
+    })
+    
+    
+@bp.route('/class/<int:class_id>/attendance-summary')
+@login_required
+@tutor_required
+def attendance_summary(class_id):
+    """View detailed attendance summary for a class"""
+    tutor = get_current_tutor()
+    class_obj = Class.query.filter_by(id=class_id, tutor_id=tutor.id).first_or_404()
+    
+    attendance_records = Attendance.query.filter_by(class_id=class_id).all()
+    
+    summary = {
+        'class_info': {
+            'subject': class_obj.subject,
+            'date': class_obj.scheduled_date.strftime('%Y-%m-%d'),
+            'scheduled_time': class_obj.scheduled_time.strftime('%H:%M'),
+            'actual_start': class_obj.actual_start_time.strftime('%H:%M') if class_obj.actual_start_time else None,
+            'actual_end': class_obj.actual_end_time.strftime('%H:%M') if class_obj.actual_end_time else None,
+            'duration': class_obj.duration,
+            'status': class_obj.status
+        },
+        'tutor_attendance': {},
+        'student_attendance': [],
+        'penalties': {
+            'total_amount': 0,
+            'breakdown': []
+        }
+    }
+    
+    if attendance_records:
+        # Tutor attendance info (same across all records)
+        first_record = attendance_records[0]
+        summary['tutor_attendance'] = {
+            'present': first_record.tutor_present,
+            'join_time': first_record.tutor_join_time.strftime('%H:%M') if first_record.tutor_join_time else None,
+            'leave_time': first_record.tutor_leave_time.strftime('%H:%M') if first_record.tutor_leave_time else None,
+            'late_minutes': first_record.tutor_late_minutes,
+            'early_leave_minutes': first_record.tutor_early_leave_minutes,
+            'penalty_amount': first_record.penalty_amount or 0,
+            'penalty_reason': first_record.penalty_reason
+        }
+        
+        # Student attendance details
+        for record in attendance_records:
+            student_info = {
+                'student_id': record.student_id,
+                'student_name': record.student.full_name if record.student else 'Unknown',
+                'present': record.student_present,
+                'join_time': record.student_join_time.strftime('%H:%M') if record.student_join_time else None,
+                'leave_time': record.student_leave_time.strftime('%H:%M') if record.student_leave_time else None,
+                'late_minutes': record.student_late_minutes,
+                'early_leave_minutes': record.student_early_leave_minutes,
+                'engagement': record.student_engagement,
+                'absence_reason': record.student_absence_reason
+            }
+            summary['student_attendance'].append(student_info)
+            
+            # Add to penalty total
+            if record.penalty_amount:
+                summary['penalties']['total_amount'] += record.penalty_amount
+                summary['penalties']['breakdown'].append({
+                    'type': 'tutor_penalty',
+                    'amount': record.penalty_amount,
+                    'reason': record.penalty_reason
+                })
+    
+    return render_template('tutor/attendance_summary.html', 
+                         class_obj=class_obj, 
+                         summary=summary)
 
 @bp.route('/attendance/mark', methods=['POST'])
 @login_required
@@ -327,45 +618,90 @@ def my_students():
 @login_required
 @tutor_required
 def attendance():
-    """View tutor's attendance records"""
+    """Enhanced attendance view with filtering and analytics"""
     tutor = get_current_tutor()
     if not tutor:
         flash('Tutor profile not found.', 'error')
         return redirect(url_for('dashboard.index'))
     
-    # Get date range filters
-    start_date = request.args.get('start_date', '')
-    end_date = request.args.get('end_date', '')
-    page = request.args.get('page', 1, type=int)
+    # Get date filters from request
+    start_date = request.args.get('start_date')
+    end_date = request.args.get('end_date')
+    student_filter = request.args.get('student_id', type=int)
+    status_filter = request.args.get('status')
     
     # Build query
     query = Attendance.query.filter_by(tutor_id=tutor.id)
     
+    # Apply filters (your existing logic)
     if start_date:
         try:
             start_date_obj = datetime.strptime(start_date, '%Y-%m-%d').date()
             query = query.filter(Attendance.class_date >= start_date_obj)
         except ValueError:
-            pass
+            flash('Invalid start date format', 'error')
     
     if end_date:
         try:
             end_date_obj = datetime.strptime(end_date, '%Y-%m-%d').date()
             query = query.filter(Attendance.class_date <= end_date_obj)
         except ValueError:
-            pass
+            flash('Invalid end date format', 'error')
     
-    # Get paginated results
-    attendance_records = query.order_by(Attendance.class_date.desc()).paginate(
-        page=page, per_page=20, error_out=False
-    )
+    # Apply other filters...
+    if student_filter:
+        query = query.filter_by(student_id=student_filter)
     
-    # Get summary statistics
+    if status_filter:
+        if status_filter == 'present':
+            query = query.filter_by(student_present=True, tutor_present=True)
+        elif status_filter == 'absent':
+            query = query.filter(
+                or_(Attendance.student_present == False, Attendance.tutor_present == False)
+            )
+        elif status_filter == 'late':
+            query = query.filter(
+                or_(Attendance.student_late_minutes > 0, Attendance.tutor_late_minutes > 0)
+            )
+    
+    # Get attendance records with pagination
+    page = request.args.get('page', 1, type=int)
+    attendance_records = query.order_by(Attendance.class_date.desc(), Attendance.scheduled_start.desc())\
+        .paginate(page=page, per_page=20, error_out=False)
+    
+    # Enhanced summary with penalty information
     summary = Attendance.get_attendance_summary(tutor_id=tutor.id)
     
-    return render_template('tutor/attendance.html', 
-                         attendance_records=attendance_records, 
-                         summary=summary, tutor=tutor)
+    # Add penalty summary
+    penalty_summary = db.session.query(
+        func.sum(Attendance.penalty_amount).label('total_penalties'),
+        func.count(Attendance.id).filter(Attendance.penalty_amount > 0).label('penalty_count')
+    ).filter_by(tutor_id=tutor.id).first()
+    
+    summary.update({
+        'total_penalties': penalty_summary.total_penalties or 0,
+        'penalty_incidents': penalty_summary.penalty_count or 0
+    })
+    
+    # Get students for filter dropdown
+    student_ids = set()
+    tutor_classes = Class.query.filter_by(tutor_id=tutor.id).all()
+    for cls in tutor_classes:
+        student_ids.update(cls.get_students())
+    
+    students = Student.query.filter(Student.id.in_(student_ids)).order_by(Student.full_name).all() if student_ids else []
+    
+    return render_template('tutor/attendance.html',
+                         attendance_records=attendance_records,
+                         summary=summary,
+                         students=students,
+                         tutor=tutor,
+                         filters={
+                             'start_date': start_date,
+                             'end_date': end_date,
+                             'student_id': student_filter,
+                             'status': status_filter
+                         })
 
 @bp.route('/salary')
 @login_required

@@ -10,6 +10,7 @@ from app.models.class_model import Class
 from app.models.attendance import Attendance
 from functools import wraps
 from app.utils.helper import upload_file_to_s3
+from flask_moment import Moment
 
 bp = Blueprint('tutor', __name__)
 
@@ -31,7 +32,7 @@ def get_current_tutor():
 @login_required
 @tutor_required
 def my_classes():
-    """View tutor's classes"""
+    """View tutor's classes with enhanced time-based controls"""
     tutor = get_current_tutor()
     if not tutor:
         flash('Tutor profile not found.', 'error')
@@ -43,42 +44,77 @@ def my_classes():
         flash('Please set your availability first before viewing classes.', 'warning')
         return redirect(url_for('tutor.availability'))
     
-    # Get filter parameters
-    date_filter = request.args.get('date', '')
-    status_filter = request.args.get('status', '')
-    page = request.args.get('page', 1, type=int)
+    # Get current time and date
+    current_time = datetime.now()
+    today = current_time.date()
     
-    # Build query
+    # Pagination and filtering
+    page = request.args.get('page', 1, type=int)
+    per_page = 20
+    
+    # Build query with filters
     query = Class.query.filter_by(tutor_id=tutor.id)
     
-    if date_filter:
+    # Date filter
+    if request.args.get('date'):
         try:
-            filter_date = datetime.strptime(date_filter, '%Y-%m-%d').date()
-            query = query.filter_by(scheduled_date=filter_date)
+            filter_date = datetime.strptime(request.args.get('date'), '%Y-%m-%d').date()
+            query = query.filter(Class.scheduled_date == filter_date)
         except ValueError:
-            pass
+            flash('Invalid date format', 'error')
     
-    if status_filter:
-        query = query.filter_by(status=status_filter)
+    # Status filter
+    if request.args.get('status'):
+        query = query.filter(Class.status == request.args.get('status'))
     
-    # Get paginated results
-    classes = query.order_by(Class.scheduled_date.desc(), Class.scheduled_time.desc()).paginate(
-        page=page, per_page=20, error_out=False
+    # Subject filter
+    if request.args.get('subject'):
+        query = query.filter(Class.subject == request.args.get('subject'))
+    
+    # Order by date and time
+    query = query.order_by(Class.scheduled_date.desc(), Class.scheduled_time.desc())
+    
+    # Paginate
+    classes = query.paginate(
+        page=page, per_page=per_page, 
+        error_out=False
     )
     
     # Get today's classes
-    today = date.today()
-    todays_classes = Class.query.filter_by(
-        tutor_id=tutor.id,
-        scheduled_date=today
+    todays_classes = Class.query.filter(
+        Class.tutor_id == tutor.id,
+        Class.scheduled_date == today
     ).order_by(Class.scheduled_time).all()
     
-    filtered_args = request.args.to_dict()
-    filtered_args.pop('page', None)
+    # Process today's classes with time information
+    todays_classes_with_time = []
+    for cls in todays_classes:
+        class_datetime = datetime.combine(cls.scheduled_date, cls.scheduled_time)
+        is_time_reached = current_time >= (class_datetime - timedelta(minutes=5))
+        time_until = max(0, int((class_datetime - current_time).total_seconds() / 60))
+        
+        cls_data = {
+            'class': cls,
+            'is_time_reached': is_time_reached,
+            'time_until': time_until,
+            'class_datetime': class_datetime
+        }
+        todays_classes_with_time.append(cls_data)
     
-    return render_template('tutor/my_classes.html', 
-                         classes=classes, todays_classes=todays_classes,
-                         tutor=tutor, filtered_args=filtered_args)
+    # Get filtered args for pagination links
+    filtered_args = {}
+    for key in ['date', 'status', 'subject']:
+        if request.args.get(key):
+            filtered_args[key] = request.args.get(key)
+    
+    return render_template('tutor/my_classes.html',
+                         classes=classes,
+                         todays_classes=todays_classes_with_time,
+                         tutor=tutor,
+                         filtered_args=filtered_args,
+                         current_time=current_time,
+                         today=today)
+
 
 @bp.route('/today-classes')
 @login_required
@@ -123,42 +159,45 @@ def today_classes():
 @login_required
 @tutor_required
 def class_details(class_id):
-    """View detailed information about a specific class"""
-    tutor = Tutor.query.filter_by(user_id=current_user.id).first_or_404()
+    """View class details with time-based controls"""
+    tutor = get_current_tutor()
+    if not tutor:
+        flash('Tutor profile not found.', 'error')
+        return redirect(url_for('dashboard.index'))
     
-    # Get the class and verify it belongs to this tutor
     class_item = Class.query.filter_by(id=class_id, tutor_id=tutor.id).first_or_404()
+    
+    # Get current time information
+    current_time = datetime.now()
+    class_datetime = datetime.combine(class_item.scheduled_date, class_item.scheduled_time)
+    is_today = class_item.scheduled_date == current_time.date()
+    is_time_reached = current_time >= (class_datetime - timedelta(minutes=5))
+    time_until_class = max(0, int((class_datetime - current_time).total_seconds() / 60))
     
     # Get students for this class
     student_ids = class_item.get_students()
     students = Student.query.filter(Student.id.in_(student_ids)).all() if student_ids else []
     
-    # Get attendance records if class has started
-    attendance_records = []
-    if class_item.status in ['ongoing', 'completed']:
-        attendance_records = Attendance.query.filter_by(class_id=class_item.id).all()
+    # Get attendance records
+    attendance_records = Attendance.query.filter_by(class_id=class_id).all()
     
-    # Get class feedback if completed
-    class_feedback = None
-    if class_item.status == 'completed':
-        # You might have a ClassFeedback model
-        # class_feedback = ClassFeedback.query.filter_by(class_id=class_item.id).first()
-        pass
-    
-    # Get related classes (same subject, same students)
+    # Get related classes (same subject, recent)
     related_classes = Class.query.filter(
         Class.tutor_id == tutor.id,
         Class.subject == class_item.subject,
-        Class.id != class_item.id
+        Class.id != class_id
     ).order_by(Class.scheduled_date.desc()).limit(5).all()
     
     return render_template('tutor/class_details.html',
                          class_item=class_item,
                          students=students,
                          attendance_records=attendance_records,
-                         class_feedback=class_feedback,
                          related_classes=related_classes,
-                         datetime=datetime)
+                         current_time=current_time,
+                         class_datetime=class_datetime,
+                         is_today=is_today,
+                         is_time_reached=is_time_reached,
+                         time_until_class=time_until_class)
 
 @bp.route('/class/<int:class_id>/start', methods=['POST'])
 @login_required
@@ -179,30 +218,25 @@ def start_class(class_id):
         Attendance.create_attendance_record(class_obj)
         db.session.commit()
     
-    return jsonify({'success': True, 'message': 'Class started successfully'})
+    return start_class_with_auto_attendance(class_id)
 
 @bp.route('/class/<int:class_id>/complete', methods=['POST'])
 @login_required
 @tutor_required
 def complete_class(class_id):
-    """Complete a class"""
+    """Redirect to completion workflow"""
     tutor = get_current_tutor()
     class_obj = Class.query.filter_by(id=class_id, tutor_id=tutor.id).first_or_404()
     
     if class_obj.status not in ['scheduled', 'ongoing']:
         return jsonify({'error': 'Class cannot be completed'}), 400
     
-    completion_status = request.json.get('completion_status', 'completed')
-    class_notes = request.json.get('class_notes', '')
-    topics_covered = request.json.get('topics_covered', [])
-    
-    class_obj.complete_class(completion_status)
-    class_obj.class_notes = class_notes
-    class_obj.set_topics_covered(topics_covered)
-    
-    db.session.commit()
-    
-    return jsonify({'success': True, 'message': 'Class completed successfully'})
+    # For API calls, return redirect URL
+    return jsonify({
+        'success': True,
+        'message': 'Redirecting to completion workflow...',
+        'redirect_url': f'/tutor/class/{class_id}/complete-workflow'
+    })
 
 @bp.route('/attendance/mark', methods=['POST'])
 @login_required
@@ -896,3 +930,357 @@ def availability_status():
         'status': tutor.status,
         'can_teach': tutor.status == 'active' and bool(availability)
     })
+    
+    
+# ADD these new routes to app/routes/tutor.py
+
+@bp.route('/class/<int:class_id>/start-with-auto-attendance', methods=['POST'])
+@login_required
+@tutor_required
+def start_class_with_auto_attendance(class_id):
+    """Start a class with automatic attendance marking"""
+    tutor = get_current_tutor()
+    if not tutor:
+        return jsonify({'error': 'Tutor profile not found'}), 400
+    
+    class_obj = Class.query.filter_by(id=class_id, tutor_id=tutor.id).first_or_404()
+    
+    # Validate class can be started
+    if class_obj.status != 'scheduled':
+        return jsonify({'error': 'Class cannot be started'}), 400
+    
+    # Time validation - only allow starting if it's class time
+    current_time = datetime.now()
+    class_datetime = datetime.combine(class_obj.scheduled_date, class_obj.scheduled_time)
+    
+    # Allow starting 5 minutes before scheduled time
+    if current_time < (class_datetime - timedelta(minutes=5)):
+        minutes_remaining = int((class_datetime - current_time).total_seconds() / 60)
+        return jsonify({
+            'error': f'Class cannot be started yet. Please wait {minutes_remaining} more minutes.',
+            'minutes_remaining': minutes_remaining
+        }), 400
+    
+    # Check if it's today's class
+    if class_obj.scheduled_date != current_time.date():
+        return jsonify({'error': 'Can only start today\'s classes'}), 400
+    
+    try:
+        # Start the class
+        class_obj.start_class()
+        class_obj.actual_start_time = current_time
+        
+        # Get all students for this class
+        student_ids = class_obj.get_students()
+        
+        # Create or update attendance records with AUTO-ATTENDANCE
+        attendance_records = Attendance.query.filter_by(class_id=class_id).all()
+        
+        if not attendance_records:
+            # Create new attendance records
+            for student_id in student_ids:
+                attendance = Attendance(
+                    class_id=class_id,
+                    tutor_id=tutor.id,
+                    student_id=student_id,
+                    class_date=class_obj.scheduled_date,
+                    scheduled_start=class_obj.scheduled_time,
+                    scheduled_end=class_obj.end_time
+                )
+                db.session.add(attendance)
+            
+            db.session.flush()  # Get the IDs
+            attendance_records = Attendance.query.filter_by(class_id=class_id).all()
+        
+        # AUTO-MARK ATTENDANCE FOR ALL
+        students_marked = 0
+        for attendance in attendance_records:
+            # Mark tutor as present
+            attendance.mark_tutor_attendance(
+                present=True,
+                join_time=current_time,
+                absence_reason=None
+            )
+            
+            # AUTO-MARK ALL STUDENTS AS PRESENT
+            attendance.mark_student_attendance(
+                present=True,
+                join_time=current_time,  # Will calculate lateness automatically
+                absence_reason=None,
+                engagement='medium'  # Default engagement level
+            )
+            
+            # Calculate actual durations and lateness
+            attendance.calculate_actual_duration()
+            attendance.marked_by = current_user.id
+            attendance.marked_at = current_time
+            students_marked += 1
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': f'Class started successfully! Auto-marked {students_marked} students as present.',
+            'class_status': 'ongoing',
+            'students_marked': students_marked,
+            'auto_attendance': True
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Error starting class with auto-attendance: {str(e)}")
+        return jsonify({'error': f'Error starting class: {str(e)}'}), 500
+
+
+@bp.route('/class/<int:class_id>/complete-workflow')
+@login_required
+@tutor_required
+def complete_class_workflow(class_id):
+    """Show class completion workflow page"""
+    tutor = get_current_tutor()
+    if not tutor:
+        flash('Tutor profile not found.', 'error')
+        return redirect(url_for('dashboard.index'))
+    
+    class_obj = Class.query.filter_by(id=class_id, tutor_id=tutor.id).first_or_404()
+    
+    if class_obj.status not in ['ongoing', 'scheduled']:
+        flash('Class cannot be completed.', 'error')
+        return redirect(url_for('tutor.class_details', class_id=class_id))
+    
+    # Get students and their current attendance status
+    student_ids = class_obj.get_students()
+    students = Student.query.filter(Student.id.in_(student_ids)).all() if student_ids else []
+    
+    # Get attendance records
+    attendance_records = Attendance.query.filter_by(class_id=class_id).all()
+    
+    # Create student-attendance mapping
+    student_attendance_map = {}
+    for attendance in attendance_records:
+        student_attendance_map[attendance.student_id] = attendance
+    
+    return render_template('tutor/complete_class_workflow.html',
+                         class_obj=class_obj,
+                         students=students,
+                         attendance_records=attendance_records,
+                         student_attendance_map=student_attendance_map,
+                         current_time=datetime.now())
+
+
+@bp.route('/class/<int:class_id>/complete-with-review', methods=['POST'])
+@login_required
+@tutor_required
+def complete_class_with_review(class_id):
+    """Complete class with attendance review and start video upload timer"""
+    tutor = get_current_tutor()
+    if not tutor:
+        return jsonify({'error': 'Tutor profile not found'}), 400
+    
+    class_obj = Class.query.filter_by(id=class_id, tutor_id=tutor.id).first_or_404()
+    
+    if class_obj.status not in ['ongoing', 'scheduled']:
+        return jsonify({'error': 'Class cannot be completed'}), 400
+    
+    try:
+        data = request.get_json()
+        current_time = datetime.now()
+        
+        # Update class status and timing
+        class_obj.status = 'completed'
+        class_obj.completion_status = 'completed'
+        class_obj.actual_end_time = current_time
+        class_obj.class_notes = data.get('class_notes', '')
+        
+        # Process attendance updates
+        attendance_updates = data.get('attendance_updates', [])
+        attendance_records = Attendance.query.filter_by(class_id=class_id).all()
+        
+        for attendance in attendance_records:
+            # Find update for this student
+            student_update = next(
+                (update for update in attendance_updates 
+                 if update.get('student_id') == attendance.student_id),
+                None
+            )
+            
+            if student_update:
+                # Update attendance based on tutor review
+                attendance.mark_student_attendance(
+                    present=student_update.get('present', True),
+                    join_time=attendance.student_join_time,  # Keep original join time
+                    leave_time=current_time,
+                    absence_reason=student_update.get('absence_reason'),
+                    engagement=student_update.get('engagement', 'medium')
+                )
+            
+            # Update tutor leave time
+            attendance.mark_tutor_attendance(
+                present=True,
+                join_time=attendance.tutor_join_time,
+                leave_time=current_time,
+                absence_reason=None
+            )
+            
+            # Recalculate durations and penalties
+            attendance.calculate_actual_duration()
+            attendance.calculate_tutor_penalty()
+            attendance.verified_by = current_user.id
+            attendance.verified_at = current_time
+        
+        # START VIDEO UPLOAD TIMER (2 hours)
+        from app.utils.video_upload_scheduler import schedule_video_upload_reminders
+        schedule_video_upload_reminders(class_id, tutor.id)
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Class completed successfully! Please upload your video within 2 hours.',
+            'video_upload_deadline': (current_time + timedelta(hours=2)).isoformat(),
+            'redirect_url': f'/tutor/class/{class_id}/upload-video?deadline=true'
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Error completing class: {str(e)}")
+        return jsonify({'error': f'Error completing class: {str(e)}'}), 500
+
+
+@bp.route('/class/<int:class_id>/upload-video')
+@login_required
+@tutor_required
+def upload_video_page(class_id):
+    """Video upload page with deadline tracking"""
+    tutor = get_current_tutor()
+    if not tutor:
+        flash('Tutor profile not found.', 'error')
+        return redirect(url_for('dashboard.index'))
+    
+    class_obj = Class.query.filter_by(id=class_id, tutor_id=tutor.id).first_or_404()
+    
+    if class_obj.status != 'completed':
+        flash('Can only upload videos for completed classes.', 'error')
+        return redirect(url_for('tutor.class_details', class_id=class_id))
+    
+    # Check if video already uploaded
+    if class_obj.video_link:
+        flash('Video already uploaded for this class.', 'success')
+        return redirect(url_for('tutor.class_details', class_id=class_id))
+    
+    # Calculate time remaining for upload (2 hours from completion)
+    if class_obj.actual_end_time:
+        deadline = class_obj.actual_end_time + timedelta(hours=2)
+        time_remaining = deadline - datetime.now()
+        
+        if time_remaining.total_seconds() <= 0:
+            flash('Video upload deadline has passed. Please contact admin.', 'error')
+            urgent_deadline = True
+        else:
+            urgent_deadline = False
+    else:
+        deadline = None
+        time_remaining = None
+        urgent_deadline = False
+    
+    return render_template('tutor/upload_video.html',
+                         class_obj=class_obj,
+                         deadline=deadline,
+                         time_remaining=time_remaining,
+                         urgent_deadline=urgent_deadline,
+                         deadline_param=request.args.get('deadline'))
+
+
+@bp.route('/class/<int:class_id>/upload-video-ajax', methods=['POST'])
+@login_required
+@tutor_required
+def upload_video_ajax(class_id):
+    """Handle video upload via AJAX with progress tracking"""
+    tutor = get_current_tutor()
+    class_obj = Class.query.filter_by(id=class_id, tutor_id=tutor.id).first_or_404()
+    
+    if 'video' not in request.files:
+        return jsonify({'error': 'No video file uploaded'}), 400
+    
+    video_file = request.files['video']
+    if video_file.filename == '':
+        return jsonify({'error': 'No video file selected'}), 400
+    
+    # Check file type and size
+    allowed_extensions = {'mp4', 'avi', 'mov', 'wmv', 'mkv', 'webm'}
+    if not ('.' in video_file.filename and 
+            video_file.filename.rsplit('.', 1)[1].lower() in allowed_extensions):
+        return jsonify({'error': 'Invalid video format. Please use MP4, AVI, MOV, WMV, MKV, or WEBM'}), 400
+    
+    # Check file size (limit to 500MB)
+    if hasattr(video_file, 'content_length') and video_file.content_length > 500 * 1024 * 1024:
+        return jsonify({'error': 'File size too large. Maximum 500MB allowed.'}), 400
+    
+    try:
+        # Generate secure filename
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        original_filename = secure_filename(video_file.filename)
+        filename = f"class_{class_id}_{timestamp}_{original_filename}"
+        
+        # Upload to S3
+        s3_url = upload_file_to_s3(
+            video_file, 
+            folder=f"{current_app.config['UPLOAD_FOLDER']}/videos/classes"
+        )
+        
+        if not s3_url:
+            raise ValueError("Video upload to S3 failed")
+        
+        # Update class record
+        class_obj.video_link = s3_url
+        class_obj.video_uploaded_at = datetime.now()
+        
+        # Cancel any pending upload reminders
+        from app.utils.video_upload_scheduler import cancel_video_upload_reminders
+        cancel_video_upload_reminders(class_id)
+        
+        # Calculate and update tutor rating based on compliance
+        from app.utils.rating_calculator import update_tutor_rating
+        update_tutor_rating(tutor.id)
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Video uploaded successfully! Class is now complete.',
+            'video_url': s3_url,
+            'upload_time': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        current_app.logger.error(f"Error uploading video: {str(e)}")
+        return jsonify({'error': f'Error uploading video: {str(e)}'}), 500
+
+
+# ADD this helper function to calculate time until class starts
+def get_time_until_class(class_obj):
+    """Calculate minutes until class starts"""
+    current_time = datetime.now()
+    class_datetime = datetime.combine(class_obj.scheduled_date, class_obj.scheduled_time)
+    
+    if current_time >= class_datetime:
+        return 0
+    
+    diff_seconds = (class_datetime - current_time).total_seconds()
+    return max(0, int(diff_seconds / 60))
+
+
+def can_start_class_now(class_obj):
+    """Check if class can be started now based on time"""
+    current_time = datetime.now()
+    class_datetime = datetime.combine(class_obj.scheduled_date, class_obj.scheduled_time)
+    
+    # Allow starting 5 minutes before scheduled time
+    earliest_start = class_datetime - timedelta(minutes=5)
+    
+    # Must be today's class and within time window
+    is_today = class_obj.scheduled_date == current_time.date()
+    is_time_reached = current_time >= earliest_start
+    
+    return is_today and is_time_reached
+

@@ -10,7 +10,7 @@
                 <i class="fas fa-chalkboard"></i>
                 My Classes
             </h1>
-            <p class="page-subtitle">Manage your teaching schedule and class activities</p>
+            <p class="page-subtitle">Manage your teaching schedule with auto-attendance system</p>
         </div>
         <div class="header-actions">
             <div class="btn-group">
@@ -69,12 +69,34 @@
         </div>
         <div class="col-lg-3 col-md-6">
             <div class="stat-card">
-                <div class="stat-icon info">
+                <div class="stat-icon danger">
                     <i class="fas fa-video"></i>
                 </div>
                 <div class="stat-content">
-                    <h3>{{ classes.items|selectattr('video_link')|list|length }}</h3>
-                    <p>With Videos</p>
+                    <h3>{{ classes.items|selectattr('status', 'equalto', 'completed')|rejectattr('video_link')|list|length }}</h3>
+                    <p>Missing Videos</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 🔥 NEW: System Notification 🔥 -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="alert alert-info border-0">
+                <div class="d-flex align-items-center">
+                    <i class="fas fa-info-circle fa-2x me-3"></i>
+                    <div>
+                        <h6 class="mb-1">
+                            <i class="fas fa-robot"></i>
+                            Auto-Attendance System Active
+                        </h6>
+                        <p class="mb-0">
+                            <strong>Start Class:</strong> Auto-marks all students present • 
+                            <strong>Complete Class:</strong> Review attendance & upload video within 2 hours • 
+                            <strong>Time-Based Access:</strong> Classes only available at scheduled time
+                        </p>
+                    </div>
                 </div>
             </div>
         </div>
@@ -97,6 +119,7 @@
                         <option value="ongoing" {{ 'selected' if request.args.get('status') == 'ongoing' }}>Ongoing</option>
                         <option value="completed" {{ 'selected' if request.args.get('status') == 'completed' }}>Completed</option>
                         <option value="cancelled" {{ 'selected' if request.args.get('status') == 'cancelled' }}>Cancelled</option>
+                        <option value="incomplete" {{ 'selected' if request.args.get('status') == 'incomplete' }}>Incomplete</option>
                     </select>
                 </div>
                 <div class="col-md-3">
@@ -141,12 +164,47 @@
         <div class="card-body">
             <div class="row g-3">
                 {% for class in todays_classes %}
+                    {% set current_time = moment() %}
+                    {% set class_start = class.scheduled_date.strftime('%Y-%m-%d') + ' ' + class.scheduled_time.strftime('%H:%M:%S') %}
+                    {% set class_datetime = strptime(class_start, '%Y-%m-%d %H:%M:%S') %}
+                    {% set time_diff = (class_datetime - current_time).total_seconds() / 60 %}
+                    {% set is_time_reached = time_diff <= 5 %}
+                    {% set time_until_class = time_diff if time_diff > 0 else 0 %}
+                    
                 <div class="col-lg-4 col-md-6">
-                    <div class="today-class-card">
-                        <div class="class-time">
-                            <strong>{{ class.scheduled_time.strftime('%H:%M') }}</strong>
-                            <span>({{ class.get_duration_display() }})</span>
+                    <div class="today-class-card {{ 'time-reached' if is_time_reached else 'waiting' }} {{ 'incomplete' if class.status == 'completed' and not class.video_link else '' }}">
+                        <!-- Time and Status Header -->
+                        <div class="class-time-header">
+                            <div class="class-time">
+                                <strong>{{ class.scheduled_time.strftime('%H:%M') }}</strong>
+                                <span>({{ class.get_duration_display() }})</span>
+                            </div>
+                            <div class="time-status">
+                                {% if class.status == 'completed' and not class.video_link %}
+                                    <span class="badge bg-danger">
+                                        <i class="fas fa-exclamation-triangle"></i> Video Missing
+                                    </span>
+                                {% elif class.status == 'ongoing' %}
+                                    <span class="badge bg-success">
+                                        <i class="fas fa-play"></i> Live
+                                    </span>
+                                {% elif class.status == 'completed' %}
+                                    <span class="badge bg-success">
+                                        <i class="fas fa-check"></i> Complete
+                                    </span>
+                                {% elif is_time_reached %}
+                                    <span class="badge bg-warning">
+                                        <i class="fas fa-clock"></i> Ready
+                                    </span>
+                                {% else %}
+                                    <span class="badge bg-secondary">
+                                        <i class="fas fa-hourglass-half"></i> {{ time_until_class|int }}m
+                                    </span>
+                                {% endif %}
+                            </div>
                         </div>
+                        
+                        <!-- Class Info -->
                         <div class="class-info">
                             <h6>{{ class.subject }}</h6>
                             <p class="mb-1">
@@ -158,12 +216,35 @@
                             </p>
                             <p class="mb-0 text-muted small">Grade {{ class.grade }}</p>
                         </div>
+                        
+                        <!-- Action Buttons -->
                         <div class="class-actions">
                             {% if class.status == 'scheduled' %}
-                                <button class="btn btn-sm btn-success" onclick="startClass('{{ class.id }}')">
-                                    <i class="fas fa-play"></i> Start
-                                </button>
-                                <!-- 🔥 NEW: Reschedule Button for Today's Classes 🔥 -->
+                                {% if is_time_reached %}
+                                    <button class="btn btn-success btn-sm" onclick="startClassWithAutoAttendance('{{ class.id }}')">
+                                        <i class="fas fa-play"></i> Start Class
+                                        <small class="d-block">Auto-marks present</small>
+                                    </button>
+                                {% else %}
+                                    <button class="btn btn-secondary btn-sm" disabled>
+                                        <i class="fas fa-hourglass-half"></i> Wait {{ time_until_class|int }}m
+                                    </button>
+                                {% endif %}
+                                
+                                <!-- Meeting Link - Time-based -->
+                                {% if class.meeting_link %}
+                                    {% if is_time_reached %}
+                                        <a href="{{ class.meeting_link }}" target="_blank" class="btn btn-info btn-sm">
+                                            <i class="fas fa-video"></i> Join
+                                        </a>
+                                    {% else %}
+                                        <button class="btn btn-outline-secondary btn-sm" disabled title="Available at class time">
+                                            <i class="fas fa-video"></i> Join
+                                        </button>
+                                    {% endif %}
+                                {% endif %}
+                                
+                                <!-- Reschedule Button -->
                                 {% if class.is_upcoming() %}
                                 <a href="{{ url_for('reschedule.create_reschedule_request', class_id=class.id) }}" 
                                    class="btn btn-sm btn-outline-warning" 
@@ -171,15 +252,30 @@
                                     <i class="fas fa-calendar-alt"></i>
                                 </a>
                                 {% endif %}
+                                
                             {% elif class.status == 'ongoing' %}
-                                <button class="btn btn-sm btn-warning" onclick="completeClass('{{ class.id }}')">
+                                <button class="btn btn-warning btn-sm" onclick="completeClassWithReview('{{ class.id }}')">
                                     <i class="fas fa-check"></i> Complete
+                                    <small class="d-block">Review attendance</small>
                                 </button>
-                            {% endif %}
-                            {% if class.meeting_link %}
-                                <a href="{{ class.meeting_link }}" target="_blank" class="btn btn-sm btn-outline-primary">
-                                    <i class="fas fa-video"></i>
+                                
+                                {% if class.meeting_link %}
+                                <a href="{{ class.meeting_link }}" target="_blank" class="btn btn-info btn-sm">
+                                    <i class="fas fa-video"></i> Join
                                 </a>
+                                {% endif %}
+                                
+                            {% elif class.status == 'completed' %}
+                                {% if not class.video_link %}
+                                    <button class="btn btn-danger btn-sm" onclick="urgentVideoUpload('{{ class.id }}')">
+                                        <i class="fas fa-upload"></i> Upload Video
+                                        <small class="d-block">URGENT</small>
+                                    </button>
+                                {% else %}
+                                    <a href="{{ class.video_link }}" target="_blank" class="btn btn-info btn-sm">
+                                        <i class="fas fa-play"></i> Watch
+                                    </a>
+                                {% endif %}
                             {% endif %}
                         </div>
                     </div>
@@ -210,18 +306,31 @@
                             <th>Duration</th>
                             <th>Status</th>
                             <th>Video</th>
+                            <th>Attendance</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for class in classes.items %}
-                        <tr class="{% if class.is_today() %}table-warning{% endif %}">
+                            {% set current_time = moment() %}
+                            {% set class_start = class.scheduled_date.strftime('%Y-%m-%d') + ' ' + class.scheduled_time.strftime('%H:%M:%S') %}
+                            {% set class_datetime = strptime(class_start, '%Y-%m-%d %H:%M:%S') %}
+                            {% set time_diff = (class_datetime - current_time).total_seconds() / 60 %}
+                            {% set is_time_reached = time_diff <= 5 %}
+                            {% set is_today = class.scheduled_date.strftime('%Y-%m-%d') == moment().strftime('%Y-%m-%d') %}
+                            
+                        <tr class="{% if is_today %}table-warning{% endif %} {% if class.status == 'completed' and not class.video_link %}table-danger{% endif %}">
                             <td>
                                 <div class="class-datetime">
                                     <strong>{{ class.scheduled_date.strftime('%d %b %Y') }}</strong><br>
                                     <small class="text-muted">
                                         {{ class.scheduled_time.strftime('%H:%M') }}
                                         {% if class.end_time %} - {{ class.end_time.strftime('%H:%M') }}{% endif %}
+                                        {% if is_today and not is_time_reached %}
+                                            <span class="badge badge-secondary ms-1">
+                                                {{ time_diff|int }}m
+                                            </span>
+                                        {% endif %}
                                     </small>
                                 </div>
                             </td>
@@ -250,9 +359,16 @@
                             </td>
                             <td>{{ class.get_duration_display() }}</td>
                             <td>
-                                <span class="badge badge-{{ 'success' if class.status == 'completed' else 'warning' if class.status == 'ongoing' else 'primary' if class.status == 'scheduled' else 'danger' }}">
-                                    {{ class.status|title }}
-                                </span>
+                                {% if class.status == 'completed' and not class.video_link %}
+                                    <span class="badge badge-danger">
+                                        <i class="fas fa-exclamation-triangle"></i> Incomplete
+                                    </span>
+                                    <br><small class="text-danger">Video missing</small>
+                                {% else %}
+                                    <span class="badge badge-{{ 'success' if class.status == 'completed' else 'warning' if class.status == 'ongoing' else 'primary' if class.status == 'scheduled' else 'danger' }}">
+                                        {{ class.status|title }}
+                                    </span>
+                                {% endif %}
                             </td>
                             <td>
                                 {% if class.video_link %}
@@ -260,11 +376,20 @@
                                         <i class="fas fa-check"></i> Uploaded
                                     </span>
                                 {% elif class.status == 'completed' %}
-                                    <button class="btn btn-sm btn-outline-warning" onclick="uploadVideo('{{ class.id }}')">
-                                        <i class="fas fa-upload"></i> Upload
-                                    </button>
+                                    <span class="badge badge-danger">
+                                        <i class="fas fa-exclamation-triangle"></i> Missing
+                                    </span>
                                 {% else %}
                                     <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if class.status in ['completed', 'ongoing'] %}
+                                    <span class="badge badge-info">
+                                        <i class="fas fa-robot"></i> Auto-marked
+                                    </span>
+                                {% else %}
+                                    <span class="text-muted">Pending</span>
                                 {% endif %}
                             </td>
                             <td>
@@ -274,28 +399,27 @@
                                         <i class="fas fa-eye"></i>
                                     </a>
                                     
-                                    {% if class.status == 'scheduled' and class.is_today() %}
+                                    {% if class.status == 'scheduled' and is_today and is_time_reached %}
                                         <button type="button" class="btn btn-outline-success" 
-                                                onclick="startClass('{{ class.id }}')"
+                                                onclick="startClassWithAutoAttendance('{{ class.id }}')"
                                                 data-bs-toggle="tooltip" title="Start Class">
                                             <i class="fas fa-play"></i>
                                         </button>
                                     {% elif class.status == 'ongoing' %}
                                         <button type="button" class="btn btn-outline-warning" 
-                                                onclick="completeClass('{{ class.id }}')"
+                                                onclick="completeClassWithReview('{{ class.id }}')"
                                                 data-bs-toggle="tooltip" title="Complete Class">
                                             <i class="fas fa-check"></i>
                                         </button>
                                     {% endif %}
                                     
-                                    {% if class.meeting_link %}
+                                    {% if class.meeting_link and ((class.status == 'scheduled' and is_today and is_time_reached) or class.status == 'ongoing') %}
                                         <a href="{{ class.meeting_link }}" target="_blank" 
                                            class="btn btn-outline-info" data-bs-toggle="tooltip" title="Join Meeting">
                                             <i class="fas fa-video"></i>
                                         </a>
                                     {% endif %}
                                     
-                                    <!-- 🔥 NEW: Reschedule Request Button 🔥 -->
                                     {% if class.status == 'scheduled' and class.is_upcoming() %}
                                         <a href="{{ url_for('reschedule.create_reschedule_request', class_id=class.id) }}" 
                                            class="btn btn-outline-warning" 
@@ -305,11 +429,11 @@
                                         </a>
                                     {% endif %}
                                     
-                                    {% if class.status == 'completed' %}
-                                        <button type="button" class="btn btn-outline-secondary" 
-                                                onclick="addFeedback('{{ class.id }}')"
-                                                data-bs-toggle="tooltip" title="Add Feedback">
-                                            <i class="fas fa-comment"></i>
+                                    {% if class.status == 'completed' and not class.video_link %}
+                                        <button type="button" class="btn btn-outline-danger" 
+                                                onclick="urgentVideoUpload('{{ class.id }}')"
+                                                data-bs-toggle="tooltip" title="Upload Video URGENT">
+                                            <i class="fas fa-upload"></i>
                                         </button>
                                     {% endif %}
                                 </div>
@@ -374,59 +498,15 @@
     </div>
 </div>
 
-<!-- Video Upload Modal -->
-<div class="modal fade" id="videoUploadModal" tabindex="-1" aria-labelledby="videoUploadModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="videoUploadModalLabel">
-                    <i class="fas fa-video"></i>
-                    Upload Class Video
-                </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <form id="videoUploadForm" enctype="multipart/form-data">
-                    <input type="hidden" id="uploadClassId" name="class_id">
-                    <div class="mb-3">
-                        <label for="videoFile" class="form-label">Select Video File *</label>
-                        <input type="file" class="form-control" id="videoFile" name="video" 
-                               accept="video/mp4,video/avi,video/mov,video/wmv" required>
-                        <small class="form-text text-muted">
-                            Supported formats: MP4, AVI, MOV, WMV (Max: 50MB)
-                        </small>
-                    </div>
-                    <div class="mb-3">
-                        <label for="videoDescription" class="form-label">Description (Optional)</label>
-                        <textarea class="form-control" id="videoDescription" name="description" rows="3"
-                                  placeholder="Brief description of the video content"></textarea>
-                    </div>
-                    <div class="upload-progress" style="display: none;">
-                        <div class="progress">
-                            <div class="progress-bar" role="progressbar" style="width: 0%"></div>
-                        </div>
-                        <small class="text-muted">Uploading video...</small>
-                    </div>
-                </form>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-primary" onclick="submitVideoUpload()">
-                    <i class="fas fa-upload"></i>
-                    Upload Video
-                </button>
-            </div>
-        </div>
-    </div>
-</div>
-
 <style>
+/* Enhanced Today's Class Cards */
 .today-class-card {
     background: white;
     border: 1px solid var(--border-color);
     border-radius: var(--border-radius);
     padding: 1rem;
     transition: var(--transition);
+    position: relative;
 }
 
 .today-class-card:hover {
@@ -434,10 +514,37 @@
     box-shadow: var(--shadow);
 }
 
+.today-class-card.time-reached {
+    border-color: #28a745;
+    background: rgba(40, 167, 69, 0.05);
+}
+
+.today-class-card.waiting {
+    border-color: #6c757d;
+    background: rgba(108, 117, 125, 0.05);
+}
+
+.today-class-card.incomplete {
+    border-color: #dc3545;
+    background: rgba(220, 53, 69, 0.05);
+}
+
+.class-time-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid #e9ecef;
+}
+
 .class-time {
     color: var(--primary-color);
     font-weight: 600;
-    margin-bottom: 0.5rem;
+}
+
+.time-status .badge {
+    font-size: 0.75rem;
 }
 
 .class-info h6 {
@@ -457,40 +564,41 @@
     flex-wrap: wrap;
 }
 
+.class-actions .btn-sm small {
+    font-size: 0.7rem;
+    opacity: 0.8;
+}
+
+/* Enhanced Table Styles */
 .table-warning {
     background-color: rgba(255, 193, 7, 0.1) !important;
+}
+
+.table-danger {
+    background-color: rgba(220, 53, 69, 0.1) !important;
 }
 
 .btn-group-sm .btn {
     padding: 0.25rem 0.5rem;
 }
 
-.upload-progress {
-    margin-top: 1rem;
+/* Status Indicators */
+.badge.badge-danger i {
+    animation: pulse 2s infinite;
 }
 
-.progress {
-    height: 8px;
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.7; }
+    100% { opacity: 1; }
 }
 
-/* 🔥 NEW: Reschedule Button Styles 🔥 */
-.btn-outline-warning:hover {
-    background-color: var(--warning-color);
-    border-color: var(--warning-color);
-    color: #212529;
+/* System Notification */
+.alert .fa-robot {
+    color: #007bff;
 }
 
-.btn-group-sm .btn-outline-warning {
-    border-color: #ffc107;
-    color: #856404;
-}
-
-.btn-group-sm .btn-outline-warning:hover {
-    background-color: #ffc107;
-    border-color: #ffc107;
-    color: #212529;
-}
-
+/* Responsive improvements */
 @media (max-width: 768px) {
     .today-class-card {
         margin-bottom: 1rem;
@@ -513,133 +621,93 @@
         flex-wrap: wrap;
         gap: 0.5rem;
     }
+    
+    .class-time-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
 }
 </style>
 
 <script>
-let currentUploadClassId = null;
+// 🔥 ENHANCED: Auto-Attendance Class Management Functions 🔥
 
-function startClass(classId) {
-    if (confirm('Are you ready to start this class?')) {
-        fetch(`/tutor/class/${classId}/start`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            }
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                LMS.showAlert(data.message, 'success');
-                setTimeout(() => location.reload(), 1000);
-            } else {
-                LMS.showAlert(data.error || 'Error starting class', 'error');
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            LMS.showAlert('Error starting class', 'error');
-        });
+function startClassWithAutoAttendance(classId) {
+    if (!confirm('Ready to start this class? This will automatically mark all students as present.')) {
+        return;
     }
-}
-
-function completeClass(classId) {
-    const notes = prompt('Add any notes about this class (optional):');
     
-    fetch(`/tutor/class/${classId}/complete`, {
+    const startBtn = event.target;
+    const originalText = startBtn.innerHTML;
+    
+    // Show loading state
+    startBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Starting...';
+    startBtn.disabled = true;
+    
+    fetch(`/tutor/class/${classId}/start-with-auto-attendance`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-            completion_status: 'completed',
-            class_notes: notes || ''
+            auto_mark_attendance: true
         })
     })
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            LMS.showAlert(data.message, 'success');
-            setTimeout(() => location.reload(), 1000);
+            LMS.showAlert(`${data.message} Auto-marked ${data.students_marked} students!`, 'success');
+            setTimeout(() => location.reload(), 1500);
         } else {
-            LMS.showAlert(data.error || 'Error completing class', 'error');
+            LMS.showAlert(data.error || 'Error starting class', 'error');
+            startBtn.innerHTML = originalText;
+            startBtn.disabled = false;
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        LMS.showAlert('Error completing class', 'error');
+        LMS.showAlert('Error starting class', 'error');
+        startBtn.innerHTML = originalText;
+        startBtn.disabled = false;
     });
 }
 
-function uploadVideo(classId) {
-    currentUploadClassId = classId;
-    document.getElementById('uploadClassId').value = classId;
-    const modal = new bootstrap.Modal(document.getElementById('videoUploadModal'));
-    modal.show();
-}
-
-function submitVideoUpload() {
-    const form = document.getElementById('videoUploadForm');
-    const formData = new FormData(form);
-    const progressBar = document.querySelector('.progress-bar');
-    const progressContainer = document.querySelector('.upload-progress');
-    
-    // Validate file
-    const fileInput = document.getElementById('videoFile');
-    const file = fileInput.files[0];
-    
-    if (!file) {
-        LMS.showAlert('Please select a video file', 'error');
+function completeClassWithReview(classId) {
+    if (!confirm('Ready to complete this class? You\'ll review attendance and must upload video within 2 hours.')) {
         return;
     }
     
-    // Check file size (50MB limit)
-    if (file.size > 50 * 1024 * 1024) {
-        LMS.showAlert('File size must be less than 50MB', 'error');
-        return;
-    }
-    
-    // Show progress
-    progressContainer.style.display = 'block';
-    
-    const xhr = new XMLHttpRequest();
-    
-    xhr.upload.addEventListener('progress', function(e) {
-        if (e.lengthComputable) {
-            const percentComplete = (e.loaded / e.total) * 100;
-            progressBar.style.width = percentComplete + '%';
-        }
-    });
-    
-    xhr.addEventListener('load', function() {
-        if (xhr.status === 200) {
-            const response = JSON.parse(xhr.responseText);
-            if (response.success) {
-                LMS.showAlert('Video uploaded successfully', 'success');
-                bootstrap.Modal.getInstance(document.getElementById('videoUploadModal')).hide();
-                setTimeout(() => location.reload(), 1000);
-            } else {
-                LMS.showAlert(response.error || 'Error uploading video', 'error');
-            }
-        } else {
-            LMS.showAlert('Error uploading video', 'error');
-        }
-        progressContainer.style.display = 'none';
-    });
-    
-    xhr.addEventListener('error', function() {
-        LMS.showAlert('Error uploading video', 'error');
-        progressContainer.style.display = 'none';
-    });
-    
-    xhr.open('POST', `/tutor/upload-video/${currentUploadClassId}`);
-    xhr.send(formData);
+    // Redirect to completion workflow
+    window.location.href = `/tutor/class/${classId}/complete-workflow`;
 }
 
-function addFeedback(classId) {
-    // Redirect to feedback page or open modal
-    window.location.href = `/tutor/class/${classId}/feedback`;
+function urgentVideoUpload(classId) {
+    // Redirect to urgent video upload
+    window.location.href = `/tutor/class/${classId}/upload-video?deadline=true&urgent=true`;
 }
+
+// Update today's classes every 2 minutes
+setInterval(() => {
+    if (window.location.pathname === '/tutor/my-classes') {
+        // Only reload if there are today's classes
+        const todaySection = document.querySelector('.border-primary');
+        if (todaySection) {
+            fetch(window.location.href)
+                .then(response => response.text())
+                .then(html => {
+                    const parser = new DOMParser();
+                    const doc = parser.parseFromString(html, 'text/html');
+                    const newTodaySection = doc.querySelector('.border-primary');
+                    
+                    if (newTodaySection) {
+                        todaySection.innerHTML = newTodaySection.innerHTML;
+                    }
+                })
+                .catch(error => console.error('Auto-refresh error:', error));
+        }
+    }
+}, 120000);
 
 // Initialize tooltips
 document.addEventListener('DOMContentLoaded', function() {
@@ -655,25 +723,5 @@ document.addEventListener('DOMContentLoaded', function() {
         dateInput.min = today;
     }
 });
-
-// Auto-refresh every 2 minutes for today's classes
-setInterval(() => {
-    if (window.location.pathname === '/tutor/my-classes') {
-        fetch(window.location.href)
-            .then(response => response.text())
-            .then(html => {
-                // Update today's classes section
-                const parser = new DOMParser();
-                const doc = parser.parseFromString(html, 'text/html');
-                const newTodaySection = doc.querySelector('.border-primary');
-                const currentTodaySection = document.querySelector('.border-primary');
-                
-                if (newTodaySection && currentTodaySection) {
-                    currentTodaySection.innerHTML = newTodaySection.innerHTML;
-                }
-            })
-            .catch(error => console.error('Auto-refresh error:', error));
-    }
-}, 120000);
 </script>
 {% endblock %}

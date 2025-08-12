@@ -9,6 +9,7 @@ import os
 from flask import render_template
 from datetime import datetime, timedelta
 import json
+from flask_moment import Moment
 
 
 
@@ -361,5 +362,66 @@ def create_app(config_class=Config):
             return str(o)
         
         return json.dumps(obj, default=default_serializer, ensure_ascii=False)
+    
+    @app.template_filter('datetime_format')
+    def datetime_format(datetime_obj, format='%Y-%m-%d %H:%M'):
+        if not datetime_obj:
+            return ''
+        if hasattr(datetime_obj, 'strftime'):
+            return datetime_obj.strftime(format)
+        return str(datetime_obj)
+    
+    @app.template_global()
+    def now():
+        """Get current datetime"""
+        from datetime import datetime
+        return datetime.now()
+    
+    @app.template_global()
+    def today():
+        """Get today's date"""
+        from datetime import date
+        return date.today()
+    
+    @app.template_filter('time_until')
+    def time_until(target_datetime):
+        """Calculate time until target datetime"""
+        from datetime import datetime
+        if not target_datetime:
+            return 0
+        
+        current_time = datetime.now()
+        if isinstance(target_datetime, str):
+            # Handle time strings
+            from datetime import time, date
+            target_time = time.fromisoformat(target_datetime)
+            target_datetime = datetime.combine(date.today(), target_time)
+        
+        diff = target_datetime - current_time
+        return max(0, int(diff.total_seconds() / 60))  # Return minutes
+    
+    @app.template_filter('is_today')
+    def is_today(date_obj):
+        """Check if date is today"""
+        from datetime import date
+        if not date_obj:
+            return False
+        if hasattr(date_obj, 'date'):
+            date_obj = date_obj.date()
+        return date_obj == date.today()
+    
+    @app.template_filter('is_time_reached')
+    def is_time_reached(scheduled_date, scheduled_time, minutes_before=5):
+        """Check if time has been reached (allowing minutes before)"""
+        from datetime import datetime, timedelta
+        
+        if not scheduled_date or not scheduled_time:
+            return False
+        
+        current_time = datetime.now()
+        class_datetime = datetime.combine(scheduled_date, scheduled_time)
+        earliest_start = class_datetime - timedelta(minutes=minutes_before)
+        
+        return current_time >= earliest_start
 
     return app

@@ -24,6 +24,7 @@ import urllib.parse
 from flask import make_response
 from app.utils.allocation_helper import allocation_helper
 from sqlalchemy import or_, and_, func, text
+from flask_moment import Moment
 
 from app.utils.advanced_permissions import (
     require_permission, 
@@ -5266,3 +5267,621 @@ def api_allocation_analytics():
             'success': False,
             'error': 'Failed to fetch analytics'
         }), 500
+        
+# ADD these routes to app/routes/admin.py
+
+@bp.route('/live-monitoring')
+@login_required
+@require_permission('system_monitoring')
+def live_monitoring():
+    """Live monitoring dashboard for admins"""
+    
+    # Get current time and today's date
+    current_time = datetime.now()
+    today = current_time.date()
+    
+    # Get live stats
+    live_stats = get_live_monitoring_stats()
+    
+    # Get currently ongoing classes
+    live_classes = Class.query.filter(
+        Class.status == 'ongoing',
+        Class.scheduled_date == today
+    ).order_by(Class.scheduled_time).all()
+    
+    # Get attendance stats for live classes
+    attendance_stats = {}
+    for cls in live_classes:
+        attendance_records = Attendance.query.filter_by(class_id=cls.id).all()
+        present_count = sum(1 for a in attendance_records if a.student_present)
+        attendance_stats[cls.id] = {
+            'total': len(attendance_records),
+            'present': present_count
+        }
+    
+    # Get classes with pending video uploads
+    pending_videos = Class.query.filter(
+        Class.status == 'completed',
+        Class.video_link.is_(None),
+        Class.scheduled_date >= today - timedelta(days=1)
+    ).order_by(Class.video_upload_deadline.asc()).all()
+    
+    # Get today's summary
+    today_summary = get_today_summary()
+    
+    # Get system alerts
+    system_alerts = get_system_alerts()
+    
+    # Get performance metrics
+    performance_metrics = get_performance_metrics()
+    
+    return render_template('admin/live_monitoring.html',
+                         live_stats=live_stats,
+                         live_classes=live_classes,
+                         attendance_stats=attendance_stats,
+                         pending_videos=pending_videos,
+                         today_summary=today_summary,
+                         system_alerts=system_alerts,
+                         performance_metrics=performance_metrics)
+
+
+@bp.route('/api/live-monitoring-data')
+@login_required
+@require_permission('system_monitoring')
+def live_monitoring_data_api():
+    """API endpoint for live monitoring data"""
+    try:
+        current_time = datetime.now()
+        today = current_time.date()
+        
+        # Get live stats
+        live_stats = get_live_monitoring_stats()
+        
+        # Get live classes with detailed info
+        live_classes = []
+        ongoing_classes = Class.query.filter(
+            Class.status == 'ongoing',
+            Class.scheduled_date == today
+        ).order_by(Class.scheduled_time).all()
+        
+        for cls in ongoing_classes:
+            # Get attendance info
+            attendance_records = Attendance.query.filter_by(class_id=cls.id).all()
+            present_count = sum(1 for a in attendance_records if a.student_present)
+            
+            # Calculate duration
+            duration_minutes = 0
+            if cls.actual_start_time:
+                duration_minutes = int((current_time - cls.actual_start_time).total_seconds() / 60)
+            
+            live_classes.append({
+                'id': cls.id,
+                'subject': cls.subject,
+                'scheduled_time': cls.scheduled_time.strftime('%H:%M'),
+                'tutor_name': cls.tutor.user.full_name if cls.tutor and cls.tutor.user else 'Unknown',
+                'tutor_rating': cls.tutor.rating if cls.tutor else 0,
+                'student_count': len(cls.get_students()),
+                'present_count': present_count,
+                'duration_minutes': duration_minutes,
+                'scheduled_duration': cls.duration,
+                'meeting_link': cls.meeting_link,
+                'status': cls.status
+            })
+        
+        # Get system alerts
+        system_alerts = []
+        alerts = get_system_alerts()
+        for alert in alerts:
+            system_alerts.append({
+                'title': alert['title'],
+                'message': alert['message'],
+                'severity': alert['severity'],
+                'icon': alert['icon'],
+                'timestamp': alert['timestamp'].strftime('%H:%M'),
+                'action_url': alert.get('action_url')
+            })
+        
+        return jsonify({
+            'success': True,
+            'live_stats': live_stats,
+            'live_classes': live_classes,
+            'system_alerts': system_alerts,
+            'timestamp': current_time.isoformat()
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@bp.route('/api/send-video-reminder/<int:class_id>', methods=['POST'])
+@login_required
+@require_permission('system_monitoring')
+def send_video_reminder_api(class_id):
+    """Send urgent video upload reminder"""
+    try:
+        class_obj = Class.query.get_or_404(class_id)
+        
+        if class_obj.video_link:
+            return jsonify({'success': False, 'error': 'Video already uploaded'})
+        
+        # Send reminder email
+        from app.utils.video_upload_scheduler import send_final_warning
+        send_final_warning(class_id)
+        
+        # Update reminder flag
+        class_obj.video_final_warning_sent = True
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Urgent reminder sent successfully'
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@bp.route('/api/mark-class-incomplete/<int:class_id>', methods=['POST'])
+@login_required
+@require_permission('system_monitoring')
+def mark_class_incomplete_api(class_id):
+    """Mark class as incomplete due to policy violations"""
+    try:
+        class_obj = Class.query.get_or_404(class_id)
+        data = request.get_json()
+        reason = data.get('reason', 'admin_decision')
+        
+        # Mark as incomplete
+        class_obj.status = 'incomplete'
+        class_obj.completion_status = 'incomplete_admin_action'
+        class_obj.completion_compliance = False
+        
+        # Add admin note
+        admin_note = f"Marked incomplete by admin. Reason: {reason}. Time: {datetime.now().strftime('%d %b %Y at %H:%M')}"
+        if class_obj.admin_notes:
+            class_obj.admin_notes += f"\n{admin_note}"
+        else:
+            class_obj.admin_notes = admin_note
+        
+        db.session.commit()
+        
+        # Update tutor rating due to non-compliance
+        if class_obj.tutor:
+            from app.utils.rating_calculator import update_tutor_rating
+            update_tutor_rating(class_obj.tutor.id)
+        
+        return jsonify({
+            'success': True,
+            'message': 'Class marked as incomplete successfully'
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@bp.route('/api/system-alerts')
+@login_required
+@require_permission('system_monitoring')
+def system_alerts_api():
+    """Get current system alerts"""
+    try:
+        alerts = get_system_alerts()
+        return jsonify({
+            'success': True,
+            'alerts': [{
+                'title': alert['title'],
+                'message': alert['message'],
+                'severity': alert['severity'],
+                'icon': alert['icon'],
+                'timestamp': alert['timestamp'].strftime('%H:%M'),
+                'action_url': alert.get('action_url')
+            } for alert in alerts]
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@bp.route('/api/export-monitoring-report')
+@login_required
+@require_permission('system_monitoring')
+def export_monitoring_report():
+    """Export monitoring reports"""
+    try:
+        report_type = request.args.get('type', 'daily')
+        
+        if report_type == 'daily':
+            data = generate_daily_report()
+            filename = f"daily_monitoring_report_{date.today().isoformat()}.csv"
+        elif report_type == 'weekly':
+            data = generate_weekly_report()
+            filename = f"weekly_monitoring_report_{date.today().isoformat()}.csv"
+        elif report_type == 'compliance':
+            data = generate_compliance_report()
+            filename = f"compliance_report_{date.today().isoformat()}.csv"
+        else:
+            return jsonify({'error': 'Invalid report type'}), 400
+        
+        # Create CSV response
+        output = StringIO()
+        writer = csv.writer(output)
+        
+        # Write headers
+        writer.writerow(data['headers'])
+        
+        # Write data
+        for row in data['rows']:
+            writer.writerow(row)
+        
+        output.seek(0)
+        
+        return Response(
+            output.getvalue(),
+            mimetype='text/csv',
+            headers={'Content-Disposition': f'attachment; filename={filename}'}
+        )
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+def get_live_monitoring_stats():
+    """Get real-time monitoring statistics"""
+    today = date.today()
+    current_time = datetime.now()
+    
+    # Ongoing classes
+    ongoing_classes = Class.query.filter(
+        Class.status == 'ongoing',
+        Class.scheduled_date == today
+    ).count()
+    
+    # Pending videos (completed classes without videos)
+    pending_videos = Class.query.filter(
+        Class.status == 'completed',
+        Class.video_link.is_(None),
+        Class.scheduled_date >= today - timedelta(days=1)
+    ).count()
+    
+    # Overdue videos
+    overdue_videos = Class.query.filter(
+        Class.status == 'completed',
+        Class.video_link.is_(None),
+        Class.video_upload_deadline < current_time
+    ).count()
+    
+    # Auto-attendance usage today
+    auto_attendance_today = Class.query.filter(
+        Class.scheduled_date == today,
+        Class.auto_attendance_marked == True
+    ).count()
+    
+    # Total classes today
+    total_classes_today = Class.query.filter(
+        Class.scheduled_date == today
+    ).count()
+    
+    # Active alerts
+    alerts = get_system_alerts()
+    active_alerts = len(alerts)
+    critical_alerts = len([a for a in alerts if a['severity'] == 'critical'])
+    
+    return {
+        'ongoing_classes': ongoing_classes,
+        'pending_videos': pending_videos,
+        'overdue_videos': overdue_videos,
+        'auto_attendance_today': auto_attendance_today,
+        'total_classes_today': total_classes_today,
+        'active_alerts': active_alerts,
+        'critical_alerts': critical_alerts
+    }
+
+
+def get_today_summary():
+    """Get today's summary statistics"""
+    today = date.today()
+    
+    # Total classes today
+    total_classes = Class.query.filter(Class.scheduled_date == today).count()
+    
+    # Completed classes
+    completed_classes = Class.query.filter(
+        Class.scheduled_date == today,
+        Class.status == 'completed'
+    ).count()
+    
+    # Auto-attendance usage
+    auto_attendance = Class.query.filter(
+        Class.scheduled_date == today,
+        Class.auto_attendance_marked == True
+    ).count()
+    
+    # Videos uploaded
+    videos_uploaded = Class.query.filter(
+        Class.scheduled_date == today,
+        Class.status == 'completed',
+        Class.video_link.isnot(None)
+    ).count()
+    
+    return {
+        'total_classes': total_classes,
+        'completed_classes': completed_classes,
+        'auto_attendance': auto_attendance,
+        'videos_uploaded': videos_uploaded
+    }
+
+
+def get_system_alerts():
+    """Generate system alerts based on current system state"""
+    alerts = []
+    current_time = datetime.now()
+    today = current_time.date()
+    
+    # Critical: Overdue video uploads
+    overdue_videos = Class.query.filter(
+        Class.status == 'completed',
+        Class.video_link.is_(None),
+        Class.video_upload_deadline < current_time
+    ).all()
+    
+    for cls in overdue_videos:
+        hours_overdue = int((current_time - cls.video_upload_deadline).total_seconds() / 3600)
+        alerts.append({
+            'title': 'Video Upload Overdue',
+            'message': f'{cls.subject} class by {cls.tutor.user.full_name if cls.tutor else "Unknown"} is {hours_overdue}h overdue',
+            'severity': 'critical',
+            'icon': 'fa-exclamation-triangle',
+            'timestamp': current_time,
+            'action_url': f'/admin/class/{cls.id}'
+        })
+    
+    # Warning: Classes starting without tutors present
+    upcoming_classes = Class.query.filter(
+        Class.status == 'scheduled',
+        Class.scheduled_date == today,
+        Class.scheduled_time <= (current_time + timedelta(minutes=10)).time(),
+        Class.scheduled_time > current_time.time()
+    ).all()
+    
+    for cls in upcoming_classes:
+        # Check if tutor is marked as present
+        tutor_attendance = Attendance.query.filter_by(
+            class_id=cls.id,
+            tutor_id=cls.tutor_id,
+            tutor_present=True
+        ).first()
+        
+        if not tutor_attendance:
+            alerts.append({
+                'title': 'Tutor Not Present',
+                'message': f'{cls.subject} starts in {int((datetime.combine(today, cls.scheduled_time) - current_time).total_seconds() / 60)}min but tutor not present',
+                'severity': 'warning',
+                'icon': 'fa-user-times',
+                'timestamp': current_time,
+                'action_url': f'/admin/class/{cls.id}'
+            })
+    
+    # Warning: Low engagement classes
+    low_engagement_classes = Class.query.filter(
+        Class.scheduled_date == today,
+        Class.status == 'completed',
+        Class.engagement_average < 2.0
+    ).all()
+    
+    for cls in low_engagement_classes:
+        alerts.append({
+            'title': 'Low Student Engagement',
+            'message': f'{cls.subject} class had very low engagement (avg: {cls.engagement_average:.1f}/5)',
+            'severity': 'warning',
+            'icon': 'fa-chart-line',
+            'timestamp': current_time,
+            'action_url': f'/admin/class/{cls.id}'
+        })
+    
+    # Info: High-performing tutors
+    high_performing_tutors = Tutor.query.filter(
+        Tutor.rating >= 4.5,
+        Tutor.video_upload_compliance >= 95.0
+    ).count()
+    
+    if high_performing_tutors > 0:
+        alerts.append({
+            'title': 'High Performance',
+            'message': f'{high_performing_tutors} tutors maintaining excellent standards',
+            'severity': 'info',
+            'icon': 'fa-star',
+            'timestamp': current_time
+        })
+    
+    return sorted(alerts, key=lambda x: (x['severity'] == 'critical', x['severity'] == 'warning'), reverse=True)
+
+
+def get_performance_metrics():
+    """Get overall system performance metrics"""
+    thirty_days_ago = date.today() - timedelta(days=30)
+    
+    # Completion rate
+    total_classes = Class.query.filter(Class.scheduled_date >= thirty_days_ago).count()
+    completed_classes = Class.query.filter(
+        Class.scheduled_date >= thirty_days_ago,
+        Class.status == 'completed'
+    ).count()
+    
+    completion_rate = (completed_classes / total_classes * 100) if total_classes > 0 else 100
+    
+    # Punctuality (classes started on time)
+    on_time_classes = Class.query.filter(
+        Class.scheduled_date >= thirty_days_ago,
+        Class.status.in_(['completed', 'ongoing']),
+        Class.punctuality_score >= 4.0
+    ).count()
+    
+    punctuality = (on_time_classes / completed_classes * 100) if completed_classes > 0 else 100
+    
+    # Video compliance
+    classes_needing_video = Class.query.filter(
+        Class.scheduled_date >= thirty_days_ago,
+        Class.status == 'completed'
+    ).count()
+    
+    classes_with_video = Class.query.filter(
+        Class.scheduled_date >= thirty_days_ago,
+        Class.status == 'completed',
+        Class.video_link.isnot(None)
+    ).count()
+    
+    video_compliance = (classes_with_video / classes_needing_video * 100) if classes_needing_video > 0 else 100
+    
+    # Average tutor rating
+    avg_rating = db.session.query(func.avg(Tutor.rating)).filter(
+        Tutor.rating.isnot(None),
+        Tutor.status == 'active'
+    ).scalar() or 0
+    
+    return {
+        'avg_completion_rate': round(completion_rate, 1),
+        'avg_punctuality': round(punctuality, 1),
+        'video_compliance': round(video_compliance, 1),
+        'avg_rating': round(avg_rating, 1)
+    }
+
+
+def generate_daily_report():
+    """Generate daily monitoring report data"""
+    today = date.today()
+    
+    classes = Class.query.filter(Class.scheduled_date == today).all()
+    
+    headers = [
+        'Class ID', 'Subject', 'Tutor', 'Scheduled Time', 'Status',
+        'Students Enrolled', 'Students Present', 'Video Uploaded',
+        'Punctuality Score', 'Engagement Average'
+    ]
+    
+    rows = []
+    for cls in classes:
+        # Get attendance data
+        attendance_records = Attendance.query.filter_by(class_id=cls.id).all()
+        enrolled = len(attendance_records)
+        present = sum(1 for a in attendance_records if a.student_present)
+        
+        rows.append([
+            cls.id,
+            cls.subject,
+            cls.tutor.user.full_name if cls.tutor and cls.tutor.user else 'Unknown',
+            cls.scheduled_time.strftime('%H:%M'),
+            cls.status,
+            enrolled,
+            present,
+            'Yes' if cls.video_link else 'No',
+            cls.punctuality_score or 0,
+            cls.engagement_average or 0
+        ])
+    
+    return {'headers': headers, 'rows': rows}
+
+
+def generate_weekly_report():
+    """Generate weekly monitoring report data"""
+    end_date = date.today()
+    start_date = end_date - timedelta(days=7)
+    
+    classes = Class.query.filter(
+        Class.scheduled_date >= start_date,
+        Class.scheduled_date <= end_date
+    ).all()
+    
+    headers = [
+        'Date', 'Total Classes', 'Completed', 'Videos Uploaded', 
+        'Auto-Attendance Used', 'Avg Punctuality', 'Avg Engagement'
+    ]
+    
+    # Group by date
+    daily_stats = {}
+    for cls in classes:
+        date_key = cls.scheduled_date.isoformat()
+        if date_key not in daily_stats:
+            daily_stats[date_key] = {
+                'total': 0, 'completed': 0, 'videos': 0, 
+                'auto_attendance': 0, 'punctuality': [], 'engagement': []
+            }
+        
+        stats = daily_stats[date_key]
+        stats['total'] += 1
+        
+        if cls.status == 'completed':
+            stats['completed'] += 1
+            
+        if cls.video_link:
+            stats['videos'] += 1
+            
+        if cls.auto_attendance_marked:
+            stats['auto_attendance'] += 1
+            
+        if cls.punctuality_score:
+            stats['punctuality'].append(cls.punctuality_score)
+            
+        if cls.engagement_average:
+            stats['engagement'].append(cls.engagement_average)
+    
+    rows = []
+    for date_key, stats in sorted(daily_stats.items()):
+        avg_punct = sum(stats['punctuality']) / len(stats['punctuality']) if stats['punctuality'] else 0
+        avg_eng = sum(stats['engagement']) / len(stats['engagement']) if stats['engagement'] else 0
+        
+        rows.append([
+            date_key,
+            stats['total'],
+            stats['completed'],
+            stats['videos'],
+            stats['auto_attendance'],
+            round(avg_punct, 1),
+            round(avg_eng, 1)
+        ])
+    
+    return {'headers': headers, 'rows': rows}
+
+
+def generate_compliance_report():
+    """Generate compliance report data"""
+    thirty_days_ago = date.today() - timedelta(days=30)
+    
+    tutors = Tutor.query.filter(Tutor.status == 'active').all()
+    
+    headers = [
+        'Tutor ID', 'Tutor Name', 'Total Classes', 'Completion Rate',
+        'Video Compliance', 'Punctuality Average', 'Rating', 'Auto-Attendance Usage'
+    ]
+    
+    rows = []
+    for tutor in tutors:
+        # Get tutor's classes in last 30 days
+        tutor_classes = Class.query.filter(
+            Class.tutor_id == tutor.id,
+            Class.scheduled_date >= thirty_days_ago
+        ).all()
+        
+        if not tutor_classes:
+            continue
+        
+        total_classes = len(tutor_classes)
+        completed = len([c for c in tutor_classes if c.status == 'completed'])
+        with_video = len([c for c in tutor_classes if c.video_link])
+        auto_attendance = len([c for c in tutor_classes if c.auto_attendance_marked])
+        
+        completion_rate = (completed / total_classes * 100) if total_classes > 0 else 0
+        video_compliance = (with_video / completed * 100) if completed > 0 else 0
+        auto_usage = (auto_attendance / total_classes * 100) if total_classes > 0 else 0
+        
+        rows.append([
+            tutor.id,
+            tutor.user.full_name if tutor.user else 'Unknown',
+            total_classes,
+            round(completion_rate, 1),
+            round(video_compliance, 1),
+            tutor.punctuality_average or 0,
+            tutor.rating or 0,
+            round(auto_usage, 1)
+        ])
+    
+    return {'headers': headers, 'rows': rows}

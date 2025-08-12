@@ -62,8 +62,28 @@ class Attendance(db.Model):
     class_session = db.relationship('Class', backref='attendance_records', lazy=True)
     tutor = db.relationship('Tutor', backref='attendance_records', lazy=True)
     student = db.relationship('Student', backref='attendance_records', lazy=True)
-    marked_by_user = db.relationship('User', foreign_keys=[marked_by], backref='marked_attendance', lazy=True)
-    verified_by_user = db.relationship('User', foreign_keys=[verified_by], backref='verified_attendance', lazy=True)
+    marked_by_user = db.relationship('User', 
+                                   foreign_keys=[marked_by], 
+                                   backref='marked_attendance', 
+                                   lazy=True)
+    verified_by_user = db.relationship('User', 
+                                     foreign_keys=[verified_by], 
+                                     backref='verified_attendance', 
+                                     lazy=True)
+    
+    auto_marked = db.Column(db.Boolean, default=False)  # Was auto-marked on class start
+    manually_reviewed = db.Column(db.Boolean, default=False)  # Was manually reviewed by tutor
+    review_timestamp = db.Column(db.DateTime)  # When manually reviewed
+    
+    # 🔥 NEW: Enhanced Tracking
+    original_status = db.Column(db.String(20))  # Original auto-marked status
+    final_status = db.Column(db.String(20))  # Final status after review
+    status_change_reason = db.Column(db.String(200))  # Why status was changed
+    
+    # 🔥 NEW: Quality Metrics
+    engagement_score = db.Column(db.Float)  # Numerical engagement score (1-5)
+    participation_notes = db.Column(db.Text)  # Detailed participation notes
+    tutor_satisfaction = db.Column(db.Integer)  # Tutor satisfaction with student (1-5)
     
     def __init__(self, **kwargs):
         super(Attendance, self).__init__(**kwargs)
@@ -324,6 +344,114 @@ class Attendance(db.Model):
             'penalty_amount': self.penalty_amount,
             'student_engagement': self.student_engagement,
             'marked_at': self.marked_at.isoformat() if self.marked_at else None
+        }
+        
+        
+    def mark_auto_attendance(self):
+        """Mark attendance automatically when class starts"""
+        from datetime import datetime
+        
+        current_time = datetime.now()
+        
+        # Mark both tutor and student as present initially
+        self.tutor_present = True
+        self.student_present = True
+        self.auto_marked = True
+        self.original_status = 'present'
+        self.final_status = 'present'
+        
+        # Set join times
+        self.tutor_join_time = current_time
+        self.student_join_time = current_time
+        
+        # Calculate lateness if applicable
+        self.calculate_lateness()
+        
+        # Set default engagement
+        self.student_engagement = 'medium'
+        self.engagement_score = 3.0
+        
+        return True
+
+    def review_attendance(self, present, join_time=None, leave_time=None, 
+                         engagement=None, absence_reason=None, reviewed_by=None):
+        """Review and update attendance manually"""
+        from datetime import datetime
+        
+        # Store original status before changes
+        if not self.original_status:
+            self.original_status = 'present' if self.student_present else 'absent'
+        
+        # Update attendance
+        self.student_present = present
+        self.manually_reviewed = True
+        self.review_timestamp = datetime.now()
+        
+        if present:
+            if join_time:
+                self.student_join_time = join_time
+            if leave_time:
+                self.student_leave_time = leave_time
+            if engagement:
+                self.student_engagement = engagement
+                # Convert engagement to score
+                if engagement == 'high':
+                    self.engagement_score = 5.0
+                elif engagement == 'medium':
+                    self.engagement_score = 3.0
+                elif engagement == 'low':
+                    self.engagement_score = 1.0
+        else:
+            self.student_absence_reason = absence_reason
+            self.engagement_score = 0.0
+        
+        # Update final status
+        self.final_status = 'present' if present else 'absent'
+        
+        # Track status changes
+        if self.original_status != self.final_status:
+            self.status_change_reason = f"Changed from {self.original_status} to {self.final_status} during review"
+        
+        # Recalculate everything
+        self.calculate_lateness()
+        self.calculate_actual_duration()
+        
+        return True
+
+    def calculate_lateness(self):
+        """Enhanced lateness calculation"""
+        if not self.scheduled_start or not self.student_join_time:
+            return
+        
+        from datetime import datetime
+        
+        # Calculate student lateness
+        scheduled_datetime = datetime.combine(self.class_date, self.scheduled_start)
+        if self.student_join_time > scheduled_datetime:
+            self.student_late_minutes = int((self.student_join_time - scheduled_datetime).total_seconds() / 60)
+        else:
+            self.student_late_minutes = 0
+        
+        # Calculate tutor lateness
+        if self.tutor_join_time and self.tutor_join_time > scheduled_datetime:
+            self.tutor_late_minutes = int((self.tutor_join_time - scheduled_datetime).total_seconds() / 60)
+        else:
+            self.tutor_late_minutes = 0
+
+    def get_attendance_summary(self):
+        """Get comprehensive attendance summary"""
+        return {
+            'auto_marked': self.auto_marked,
+            'manually_reviewed': self.manually_reviewed,
+            'original_status': self.original_status,
+            'final_status': self.final_status,
+            'student_present': self.student_present,
+            'tutor_present': self.tutor_present,
+            'late_minutes': self.student_late_minutes,
+            'engagement': self.student_engagement,
+            'engagement_score': self.engagement_score,
+            'status_changed': self.original_status != self.final_status if self.original_status else False,
+            'change_reason': self.status_change_reason
         }
     
     def __repr__(self):

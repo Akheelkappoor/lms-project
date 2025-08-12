@@ -71,13 +71,55 @@ class Class(db.Model):
     parent_class_id = db.Column(db.Integer, db.ForeignKey('classes.id'))
     
     # ADD THIS RELATIONSHIP
-    demo_student_profile = db.relationship('DemoStudent', foreign_keys=[demo_student_id])
+    demo_student_profile = db.relationship('DemoStudent', 
+                                         foreign_keys=[demo_student_id], 
+                                         lazy=True)
 
     # Relationships
     tutor = db.relationship('Tutor', backref='classes', lazy=True)
     primary_student = db.relationship('Student', backref='primary_classes', lazy=True)
-    creator = db.relationship('User', backref='created_classes', lazy=True)
-    parent_class = db.relationship('Class', remote_side=[id], backref='recurring_classes')
+    creator = db.relationship('User', 
+                            foreign_keys=[created_by], 
+                            backref='created_classes', 
+                            lazy=True)
+    parent_class = db.relationship('Class', 
+                                 remote_side=[id], 
+                                 backref='recurring_classes')
+    
+    
+    video_uploaded_at = db.Column(db.DateTime)  # When video was uploaded
+    video_upload_deadline = db.Column(db.DateTime)  # 2-hour deadline
+    video_reminder_sent = db.Column(db.Boolean, default=False)  # 1-hour reminder sent
+    video_final_warning_sent = db.Column(db.Boolean, default=False)  # Final warning sent
+    
+    # 🔥 NEW: Auto-Attendance Tracking
+    auto_attendance_marked = db.Column(db.Boolean, default=False)  # Auto-attendance applied on start
+    attendance_review_completed = db.Column(db.Boolean, default=False)  # Tutor reviewed attendance
+    attendance_verified_by = db.Column(db.Integer, db.ForeignKey('users.id'))  # Who verified
+    attendance_verified_at = db.Column(db.DateTime)  # When verified
+    
+    # 🔥 NEW: Enhanced Status Tracking
+    completion_method = db.Column(db.String(20))  # 'auto', 'manual', 'admin_override'
+    quality_review_status = db.Column(db.String(20))  # 'pending', 'approved', 'rejected'
+    quality_reviewed_by = db.Column(db.Integer, db.ForeignKey('users.id'))
+    quality_reviewed_at = db.Column(db.DateTime)
+    quality_feedback = db.Column(db.Text)  # Admin feedback on video quality
+    
+    # 🔥 NEW: Performance Metrics
+    punctuality_score = db.Column(db.Float)  # Calculated punctuality score
+    engagement_average = db.Column(db.Float)  # Average student engagement
+    completion_compliance = db.Column(db.Boolean, default=True)  # Met all requirements
+    
+    # Add new relationships
+    verified_by_user = db.relationship('User', 
+                                     foreign_keys=[attendance_verified_by], 
+                                     backref='verified_classes', 
+                                     lazy=True)
+
+    quality_reviewer = db.relationship('User', 
+                                     foreign_keys=[quality_reviewed_by], 
+                                     backref='quality_reviewed_classes', 
+                                     lazy=True)
     
     def __init__(self, **kwargs):
         super(Class, self).__init__(**kwargs)
@@ -856,6 +898,117 @@ class Class(db.Model):
         # Can't delete if class has started
         if self.actual_start_time:
             return False
+        
+        return True
+    
+    def start_class_with_auto_attendance(self):
+        """Enhanced start class method with auto-attendance"""
+        from datetime import datetime, timedelta
+        
+        current_time = datetime.now()
+        
+        # Update class status
+        self.status = 'ongoing'
+        self.actual_start_time = current_time
+        self.auto_attendance_marked = True
+        
+        # Set video upload deadline (2 hours from now)
+        self.video_upload_deadline = current_time + timedelta(hours=2)
+        
+        return True
+
+    def complete_class_with_review(self):
+        """Enhanced complete class method"""
+        from datetime import datetime
+        
+        current_time = datetime.now()
+        
+        # Update class status
+        self.status = 'completed'
+        self.actual_end_time = current_time
+        self.completion_method = 'manual'  # Tutor completed manually
+        
+        # Update video deadline if not set
+        if not self.video_upload_deadline:
+            self.video_upload_deadline = current_time + timedelta(hours=2)
+        
+        return True
+
+    def calculate_performance_metrics(self):
+        """Calculate performance metrics for this class"""
+        from app.models.attendance import Attendance
+        
+        # Get attendance records
+        attendance_records = Attendance.query.filter_by(class_id=self.id).all()
+        
+        if not attendance_records:
+            return
+        
+        # Calculate punctuality score (based on tutor attendance)
+        tutor_attendance = next((a for a in attendance_records if a.tutor_id), None)
+        if tutor_attendance:
+            if tutor_attendance.tutor_late_minutes == 0:
+                self.punctuality_score = 5.0
+            elif tutor_attendance.tutor_late_minutes <= 2:
+                self.punctuality_score = 4.0
+            elif tutor_attendance.tutor_late_minutes <= 5:
+                self.punctuality_score = 3.0
+            elif tutor_attendance.tutor_late_minutes <= 10:
+                self.punctuality_score = 2.0
+            else:
+                self.punctuality_score = 1.0
+        
+        # Calculate average engagement
+        engagement_scores = []
+        for attendance in attendance_records:
+            if attendance.student_engagement:
+                if attendance.student_engagement == 'high':
+                    engagement_scores.append(5)
+                elif attendance.student_engagement == 'medium':
+                    engagement_scores.append(3)
+                elif attendance.student_engagement == 'low':
+                    engagement_scores.append(1)
+        
+        if engagement_scores:
+            self.engagement_average = sum(engagement_scores) / len(engagement_scores)
+        
+        # Check completion compliance
+        self.completion_compliance = bool(
+            self.video_link and  # Video uploaded
+            self.attendance_review_completed and  # Attendance reviewed
+            self.status == 'completed'  # Class completed
+        )
+
+    def is_video_upload_overdue(self):
+        """Check if video upload is overdue"""
+        if not self.video_upload_deadline:
+            return False
+        
+        from datetime import datetime
+        return datetime.now() > self.video_upload_deadline
+
+    def get_video_upload_time_remaining(self):
+        """Get time remaining for video upload in minutes"""
+        if not self.video_upload_deadline:
+            return None
+        
+        from datetime import datetime
+        remaining = self.video_upload_deadline - datetime.now()
+        return max(0, int(remaining.total_seconds() / 60))
+
+    def mark_video_uploaded(self, uploaded_by_user_id):
+        """Mark video as uploaded and update related fields"""
+        from datetime import datetime
+        
+        self.video_uploaded_at = datetime.now()
+        self.quality_review_status = 'pending'
+        
+        # Cancel reminder flags since video is uploaded
+        self.video_reminder_sent = False
+        self.video_final_warning_sent = False
+        
+        # Update compliance
+        self.calculate_performance_metrics()
         
         return True
     

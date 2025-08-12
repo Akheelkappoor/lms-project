@@ -3,7 +3,7 @@ from app import db
 import json
 import re 
 from app.models.user import User
-
+from flask_moment import Moment
 
 class Tutor(db.Model):
     __tablename__ = "tutors"
@@ -44,6 +44,20 @@ class Tutor(db.Model):
 
     # Banking Information
     bank_details = db.Column(db.Text)  # JSON object with banking info
+    
+    rating_history = db.Column(db.Text)  # JSON array of rating changes
+    last_rating_update = db.Column(db.DateTime)  # When rating was last calculated
+    rating_calculation_method = db.Column(db.String(50), default='performance_based')  # How rating is calculated
+    
+    # 🔥 NEW: Compliance Metrics
+    video_upload_compliance = db.Column(db.Float, default=100.0)  # Percentage of videos uploaded on time
+    punctuality_average = db.Column(db.Float, default=5.0)  # Average punctuality score
+    engagement_average = db.Column(db.Float, default=3.0)  # Average student engagement achieved
+    completion_rate_30d = db.Column(db.Float, default=100.0)  # Completion rate last 30 days
+    
+    # 🔥 NEW: System Usage
+    auto_attendance_usage = db.Column(db.Integer, default=0)  # Number of times used auto-attendance
+    manual_review_rate = db.Column(db.Float, default=0.0)
 
     # Status and Performance
     status = db.Column(

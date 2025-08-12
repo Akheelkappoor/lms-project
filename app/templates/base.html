@@ -1375,17 +1375,6 @@
                     </li>
                     {% endif %}
 
-                    <!-- Email Hub Management - Only with communication permission -->
-                    {% if current_user.has_permission('communication') %}
-                    <li class="nav-item">
-                        <a href="{{ url_for('email_hub.dashboard') }}" class="nav-link {% if request.endpoint and 'email_hub' in request.endpoint %}active{% endif %}">
-                            <i class="fas fa-envelope"></i>
-                            <span>Email Hub</span>
-                            <span class="badge bg-primary ms-auto" id="email-pending-badge" style="display: none;">0</span>
-                        </a>
-                    </li>
-                    {% endif %}
-
                     <!-- Report Generation - Only with report_generation permission --> 
                     {% if current_user.has_permission('report_generation') %}
                     <li class="nav-item">

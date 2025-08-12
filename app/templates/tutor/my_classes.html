@@ -22,7 +22,7 @@
                     <i class="fas fa-calendar-alt"></i>
                     My Reschedule Requests
                 </a>
-                <button class="btn btn-primary" onclick="refreshClasses()">
+                <button class="btn btn-primary" onclick="location.reload()">
                     <i class="fas fa-sync-alt"></i>
                     Refresh
                 </button>
@@ -32,43 +32,7 @@
 </div>
 
 <div class="container-fluid">
-    <!-- 🚨 URGENT ACTIONS ALERT (Enhanced) -->
-    {% set urgent_video_uploads = classes.items | selectattr('video_upload_status', 'equalto', 'overdue') | list %}
-    {% set pending_video_uploads = classes.items | selectattr('video_upload_status', 'equalto', 'pending') | list %}
-    {% if urgent_video_uploads or pending_video_uploads %}
-    <div class="alert alert-warning border-0 shadow-sm mb-4" role="alert">
-        <div class="d-flex align-items-center">
-            <div class="alert-icon me-3">
-                <i class="fas fa-exclamation-triangle fa-2x text-warning"></i>
-            </div>
-            <div class="flex-grow-1">
-                <h5 class="alert-heading mb-1">
-                    <i class="fas fa-video"></i>
-                    Video Upload Attention Required
-                </h5>
-                {% if urgent_video_uploads %}
-                <p class="mb-1">
-                    <strong class="text-danger">{{ urgent_video_uploads|length }} OVERDUE:</strong> 
-                    Immediate upload required or contact coordinator
-                </p>
-                {% endif %}
-                {% if pending_video_uploads %}
-                <p class="mb-0">
-                    <strong class="text-warning">{{ pending_video_uploads|length }} PENDING:</strong> 
-                    Upload within 2-hour deadline
-                </p>
-                {% endif %}
-            </div>
-            <div class="alert-actions">
-                <a href="#video-status-section" class="btn btn-warning btn-sm">
-                    <i class="fas fa-eye"></i> View Details
-                </a>
-            </div>
-        </div>
-    </div>
-    {% endif %}
-
-    <!-- Enhanced Quick Stats -->
+    <!-- Quick Stats -->
     <div class="row g-4 mb-4">
         <div class="col-lg-3 col-md-6">
             <div class="stat-card">
@@ -78,10 +42,6 @@
                 <div class="stat-content">
                     <h3>{{ todays_classes|length }}</h3>
                     <p>Today's Classes</p>
-                    {% set ongoing_today = todays_classes | selectattr('status', 'equalto', 'ongoing') | list %}
-                    {% if ongoing_today %}
-                    <small class="text-info">{{ ongoing_today|length }} ongoing now</small>
-                    {% endif %}
                 </div>
             </div>
         </div>
@@ -93,8 +53,6 @@
                 <div class="stat-content">
                     <h3>{{ classes.items|selectattr('status', 'equalto', 'completed')|list|length }}</h3>
                     <p>Completed</p>
-                    {% set completed_with_video = classes.items | selectattr('status', 'equalto', 'completed') | selectattr('video_link') | list %}
-                    <small class="text-success">{{ completed_with_video|length }} with videos</small>
                 </div>
             </div>
         </div>
@@ -106,34 +64,23 @@
                 <div class="stat-content">
                     <h3>{{ classes.items|selectattr('status', 'equalto', 'scheduled')|list|length }}</h3>
                     <p>Upcoming</p>
-                    {% set ready_to_start = todays_classes | selectattr('status', 'equalto', 'scheduled') | list %}
-                    {% if ready_to_start %}
-                    <small class="text-warning">{{ ready_to_start|length }} ready to start</small>
-                    {% endif %}
                 </div>
             </div>
         </div>
         <div class="col-lg-3 col-md-6">
             <div class="stat-card">
-                <div class="stat-icon {{ 'danger' if urgent_video_uploads else 'info' }}">
+                <div class="stat-icon info">
                     <i class="fas fa-video"></i>
                 </div>
                 <div class="stat-content">
-                    <h3>{{ (pending_video_uploads|length + urgent_video_uploads|length) }}</h3>
-                    <p>Video Status</p>
-                    {% if urgent_video_uploads %}
-                    <small class="text-danger">{{ urgent_video_uploads|length }} overdue!</small>
-                    {% elif pending_video_uploads %}
-                    <small class="text-warning">{{ pending_video_uploads|length }} pending</small>
-                    {% else %}
-                    <small class="text-success">All uploaded</small>
-                    {% endif %}
+                    <h3>{{ classes.items|selectattr('video_link')|list|length }}</h3>
+                    <p>With Videos</p>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Filters (Keep your existing filter section) -->
+    <!-- Filters -->
     <div class="card mb-4">
         <div class="card-body">
             <form method="GET" class="row g-3">
@@ -182,54 +129,24 @@
         </div>
     </div>
 
-    <!-- Enhanced Today's Schedule -->
+    <!-- Today's Schedule Highlight -->
     {% if todays_classes %}
     <div class="card mb-4 border-primary">
         <div class="card-header bg-primary text-white">
-            <div class="d-flex justify-content-between align-items-center">
-                <h5 class="card-title mb-0">
-                    <i class="fas fa-calendar-day"></i>
-                    Today's Schedule - {{ todays_classes|length }} Classes
-                </h5>
-                <div class="live-indicator">
-                    <span class="badge bg-light text-dark">
-                        <i class="fas fa-circle text-success blink"></i>
-                        LIVE UPDATES
-                    </span>
-                </div>
-            </div>
+            <h5 class="card-title mb-0">
+                <i class="fas fa-calendar-day"></i>
+                Today's Schedule - {{ todays_classes|length }} Classes
+            </h5>
         </div>
         <div class="card-body">
             <div class="row g-3">
                 {% for class in todays_classes %}
-                <!-- Enhanced Today's Class Card -->
                 <div class="col-lg-4 col-md-6">
-                    <div class="today-class-card {{ 'class-scheduled' if class.status == 'scheduled' else 'class-ongoing' if class.status == 'ongoing' else 'class-completed' if class.status == 'completed' }}">
-                        
-                        <!-- Class Header with Status -->
-                        <div class="class-header">
-                            <div class="class-time">
-                                <strong>{{ class.scheduled_time.strftime('%H:%M') }}</strong>
-                                <span>({{ class.get_duration_display() }})</span>
-                            </div>
-                            <div class="class-status-badge">
-                                {% if class.status == 'scheduled' %}
-                                    <span class="badge bg-warning text-dark">
-                                        <i class="fas fa-clock"></i> SCHEDULED
-                                    </span>
-                                {% elif class.status == 'ongoing' %}
-                                    <span class="badge bg-info">
-                                        <i class="fas fa-play-circle blink"></i> ONGOING
-                                    </span>
-                                {% elif class.status == 'completed' %}
-                                    <span class="badge bg-success">
-                                        <i class="fas fa-check-circle"></i> COMPLETED
-                                    </span>
-                                {% endif %}
-                            </div>
+                    <div class="today-class-card">
+                        <div class="class-time">
+                            <strong>{{ class.scheduled_time.strftime('%H:%M') }}</strong>
+                            <span>({{ class.get_duration_display() }})</span>
                         </div>
-                        
-                        <!-- Class Info -->
                         <div class="class-info">
                             <h6>{{ class.subject }}</h6>
                             <p class="mb-1">
@@ -241,100 +158,28 @@
                             </p>
                             <p class="mb-0 text-muted small">Grade {{ class.grade }}</p>
                         </div>
-
-                        <!-- Video Upload Status for Completed Classes -->
-                        {% if class.status == 'completed' %}
-                        <div class="video-status-section">
-                            {% if class.video_upload_status == 'pending' and class.video_upload_deadline %}
-                                {% set time_remaining = (class.video_upload_deadline - moment()) %}
-                                {% if time_remaining.total_seconds() > 0 %}
-                                <div class="alert alert-warning alert-sm mb-2">
-                                    <i class="fas fa-clock"></i>
-                                    <strong>Upload deadline:</strong>
-                                    <span class="countdown text-warning" data-deadline="{{ class.video_upload_deadline.isoformat() }}">
-                                        {{ (time_remaining.total_seconds() // 60) | int }} minutes remaining
-                                    </span>
-                                </div>
-                                {% else %}
-                                <div class="alert alert-danger alert-sm mb-2">
-                                    <i class="fas fa-exclamation-triangle"></i>
-                                    <strong>OVERDUE!</strong> Upload immediately or contact coordinator
-                                </div>
-                                {% endif %}
-                            {% elif class.video_upload_status == 'uploaded' %}
-                            <div class="alert alert-success alert-sm mb-2">
-                                <i class="fas fa-check-circle"></i>
-                                Video uploaded successfully
-                            </div>
-                            {% endif %}
-                        </div>
-                        {% endif %}
-                        
-                        <!-- Enhanced Action Buttons -->
                         <div class="class-actions">
                             {% if class.status == 'scheduled' %}
-                                {% set can_start = class.can_start_soon(15) %}
-                                {% if can_start %}
-                                <button class="btn btn-success btn-sm btn-start" onclick="startClass('{{ class.id }}')">
-                                    <i class="fas fa-play"></i> START CLASS
+                                <button class="btn btn-sm btn-success" onclick="startClass('{{ class.id }}')">
+                                    <i class="fas fa-play"></i> Start
                                 </button>
-                                {% else %}
-                                <button class="btn btn-outline-secondary btn-sm" disabled>
-                                    <i class="fas fa-clock"></i>
-                                    {% set time_until = class.time_until_class() %}
-                                    {% if time_until.total_seconds() > 0 %}
-                                        Starts in {{ (time_until.total_seconds() // 3600) | int }}h {{ ((time_until.total_seconds() % 3600) // 60) | int }}m
-                                    {% else %}
-                                        Ready to start
-                                    {% endif %}
-                                </button>
-                                {% endif %}
-                                
+                                <!-- 🔥 NEW: Reschedule Button for Today's Classes 🔥 -->
                                 {% if class.is_upcoming() %}
                                 <a href="{{ url_for('reschedule.create_reschedule_request', class_id=class.id) }}" 
-                                   class="btn btn-outline-warning btn-sm" title="Request Reschedule">
+                                   class="btn btn-sm btn-outline-warning" 
+                                   title="Request Reschedule">
                                     <i class="fas fa-calendar-alt"></i>
                                 </a>
                                 {% endif %}
-                                
                             {% elif class.status == 'ongoing' %}
-                                {% if class.meeting_link %}
-                                <a href="{{ class.meeting_link }}" target="_blank" class="btn btn-primary btn-sm">
-                                    <i class="fas fa-video"></i> JOIN MEETING
-                                </a>
-                                {% endif %}
-                                <button class="btn btn-warning btn-sm" onclick="markAttendance('{{ class.id }}')">
-                                    <i class="fas fa-user-check"></i> ATTENDANCE
+                                <button class="btn btn-sm btn-warning" onclick="completeClass('{{ class.id }}')">
+                                    <i class="fas fa-check"></i> Complete
                                 </button>
-                                <button class="btn btn-success btn-sm btn-complete" onclick="completeClass('{{ class.id }}')">
-                                    <i class="fas fa-check"></i> COMPLETE
-                                </button>
-                                
-                            {% elif class.status == 'completed' %}
-                                {% if class.video_upload_status == 'pending' %}
-                                <a href="{{ url_for('tutor.upload_class_video', class_id=class.id) }}" 
-                                   class="btn btn-warning btn-sm">
-                                    <i class="fas fa-upload"></i> UPLOAD VIDEO
-                                </a>
-                                {% elif class.video_upload_status == 'overdue' %}
-                                <a href="{{ url_for('tutor.upload_class_video', class_id=class.id) }}" 
-                                   class="btn btn-danger btn-sm">
-                                    <i class="fas fa-exclamation-triangle"></i> URGENT UPLOAD
-                                </a>
-                                <button class="btn btn-outline-warning btn-sm" onclick="contactCoordinator('{{ class.id }}')">
-                                    <i class="fas fa-phone"></i> CALL COORDINATOR
-                                </button>
-                                {% elif class.video_upload_status == 'uploaded' %}
-                                <button class="btn btn-success btn-sm" disabled>
-                                    <i class="fas fa-check-circle"></i> VIDEO UPLOADED
-                                </button>
-                                {% endif %}
                             {% endif %}
-                            
-                            {% if class.meeting_link and class.status == 'scheduled' %}
-                            <a href="{{ class.meeting_link }}" target="_blank" class="btn btn-outline-info btn-sm">
-                                <i class="fas fa-video"></i>
-                            </a>
+                            {% if class.meeting_link %}
+                                <a href="{{ class.meeting_link }}" target="_blank" class="btn btn-sm btn-outline-primary">
+                                    <i class="fas fa-video"></i>
+                                </a>
                             {% endif %}
                         </div>
                     </div>
@@ -345,8 +190,8 @@
     </div>
     {% endif %}
 
-    <!-- Enhanced All Classes Table -->
-    <div class="card" id="video-status-section">
+    <!-- All Classes -->
+    <div class="card">
         <div class="card-header">
             <h5 class="card-title mb-0">
                 <i class="fas fa-list"></i>
@@ -364,15 +209,13 @@
                             <th>Student(s)</th>
                             <th>Duration</th>
                             <th>Status</th>
-                            <th>Video Status</th>
-                            <th>Penalties</th>
+                            <th>Video</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for class in classes.items %}
-                        <tr class="{% if class.is_today() %}table-warning{% endif %} 
-                                   {% if class.video_upload_status == 'overdue' %}table-danger-light{% endif %}">
+                        <tr class="{% if class.is_today() %}table-warning{% endif %}">
                             <td>
                                 <div class="class-datetime">
                                     <strong>{{ class.scheduled_date.strftime('%d %b %Y') }}</strong><br>
@@ -407,55 +250,19 @@
                             </td>
                             <td>{{ class.get_duration_display() }}</td>
                             <td>
-                                <span class="badge badge-{{ 'success' if class.status == 'completed' else 'info' if class.status == 'ongoing' else 'warning' if class.status == 'scheduled' else 'danger' }}">
+                                <span class="badge badge-{{ 'success' if class.status == 'completed' else 'warning' if class.status == 'ongoing' else 'primary' if class.status == 'scheduled' else 'danger' }}">
                                     {{ class.status|title }}
                                 </span>
                             </td>
-                            <!-- Enhanced Video Status Column -->
                             <td>
-                                {% if class.video_upload_status == 'uploaded' %}
-                                    <span class="badge bg-success">
+                                {% if class.video_link %}
+                                    <span class="badge badge-success">
                                         <i class="fas fa-check"></i> Uploaded
-                                    </span>
-                                {% elif class.video_upload_status == 'pending' and class.video_upload_deadline %}
-                                    {% set time_remaining = (class.video_upload_deadline - moment()) %}
-                                    {% if time_remaining.total_seconds() > 0 %}
-                                    <span class="badge bg-warning">
-                                        <i class="fas fa-clock"></i>
-                                        <span class="countdown" data-deadline="{{ class.video_upload_deadline.isoformat() }}">
-                                            {{ (time_remaining.total_seconds() // 60) | int }}m left
-                                        </span>
-                                    </span>
-                                    {% else %}
-                                    <span class="badge bg-danger blink">
-                                        <i class="fas fa-exclamation-triangle"></i> OVERDUE
-                                    </span>
-                                    {% endif %}
-                                {% elif class.video_upload_status == 'overdue' %}
-                                    <span class="badge bg-danger">
-                                        <i class="fas fa-exclamation-triangle"></i> OVERDUE
                                     </span>
                                 {% elif class.status == 'completed' %}
                                     <button class="btn btn-sm btn-outline-warning" onclick="uploadVideo('{{ class.id }}')">
                                         <i class="fas fa-upload"></i> Upload
                                     </button>
-                                {% else %}
-                                    <span class="text-muted">-</span>
-                                {% endif %}
-                            </td>
-                            <!-- New Penalties Column -->
-                            <td>
-                                {% if class.status == 'completed' %}
-                                    {% set total_penalty = class.attendance_records | sum(attribute='penalty_amount') | default(0) %}
-                                    {% if total_penalty > 0 %}
-                                    <span class="badge bg-danger">
-                                        ₹{{ total_penalty | int }}
-                                    </span>
-                                    {% else %}
-                                    <span class="badge bg-success">
-                                        ₹0
-                                    </span>
-                                    {% endif %}
                                 {% else %}
                                     <span class="text-muted">-</span>
                                 {% endif %}
@@ -468,15 +275,13 @@
                                     </a>
                                     
                                     {% if class.status == 'scheduled' and class.is_today() %}
-                                        {% if class.can_start_soon(15) %}
-                                        <button type="button" class="btn btn-success" 
+                                        <button type="button" class="btn btn-outline-success" 
                                                 onclick="startClass('{{ class.id }}')"
                                                 data-bs-toggle="tooltip" title="Start Class">
                                             <i class="fas fa-play"></i>
                                         </button>
-                                        {% endif %}
                                     {% elif class.status == 'ongoing' %}
-                                        <button type="button" class="btn btn-warning" 
+                                        <button type="button" class="btn btn-outline-warning" 
                                                 onclick="completeClass('{{ class.id }}')"
                                                 data-bs-toggle="tooltip" title="Complete Class">
                                             <i class="fas fa-check"></i>
@@ -490,6 +295,7 @@
                                         </a>
                                     {% endif %}
                                     
+                                    <!-- 🔥 NEW: Reschedule Request Button 🔥 -->
                                     {% if class.status == 'scheduled' and class.is_upcoming() %}
                                         <a href="{{ url_for('reschedule.create_reschedule_request', class_id=class.id) }}" 
                                            class="btn btn-outline-warning" 
@@ -514,7 +320,7 @@
                 </table>
             </div>
 
-            <!-- Keep your existing pagination section -->
+            <!-- Pagination -->
             {% if classes.pages > 1 %}
             <div class="card-footer">
                 <nav aria-label="Classes pagination">
@@ -568,9 +374,9 @@
     </div>
 </div>
 
-<!-- Enhanced Video Upload Modal -->
+<!-- Video Upload Modal -->
 <div class="modal fade" id="videoUploadModal" tabindex="-1" aria-labelledby="videoUploadModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
+    <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="videoUploadModalLabel">
@@ -580,11 +386,6 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <div id="uploadDeadlineAlert" class="alert alert-warning" style="display: none;">
-                    <i class="fas fa-clock"></i>
-                    <strong>Upload Deadline:</strong> <span id="deadlineTime"></span>
-                </div>
-                
                 <form id="videoUploadForm" enctype="multipart/form-data">
                     <input type="hidden" id="uploadClassId" name="class_id">
                     <div class="mb-3">
@@ -592,7 +393,7 @@
                         <input type="file" class="form-control" id="videoFile" name="video" 
                                accept="video/mp4,video/avi,video/mov,video/wmv" required>
                         <small class="form-text text-muted">
-                            Supported formats: MP4, AVI, MOV, WMV (Max: 2GB)
+                            Supported formats: MP4, AVI, MOV, WMV (Max: 50MB)
                         </small>
                     </div>
                     <div class="mb-3">
@@ -601,13 +402,10 @@
                                   placeholder="Brief description of the video content"></textarea>
                     </div>
                     <div class="upload-progress" style="display: none;">
-                        <div class="progress mb-2">
-                            <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%"></div>
+                        <div class="progress">
+                            <div class="progress-bar" role="progressbar" style="width: 0%"></div>
                         </div>
-                        <div class="d-flex justify-content-between">
-                            <small class="text-muted">Uploading video...</small>
-                            <small class="text-muted"><span id="uploadPercent">0</span>%</small>
-                        </div>
+                        <small class="text-muted">Uploading video...</small>
                     </div>
                 </form>
             </div>
@@ -622,54 +420,24 @@
     </div>
 </div>
 
-<!-- Enhanced Styles -->
 <style>
-/* Enhanced class cards */
 .today-class-card {
     background: white;
     border: 1px solid var(--border-color);
-    border-radius: 12px;
+    border-radius: var(--border-radius);
     padding: 1rem;
-    transition: all 0.3s ease;
-    position: relative;
-    overflow: hidden;
+    transition: var(--transition);
 }
 
 .today-class-card:hover {
     transform: translateY(-2px);
-    box-shadow: 0 8px 25px rgba(0,0,0,0.1);
-}
-
-.class-scheduled {
-    border-left: 4px solid #ffc107;
-    background: linear-gradient(135deg, #fff9c4 0%, #ffffff 100%);
-}
-
-.class-ongoing {
-    border-left: 4px solid #17a2b8;
-    background: linear-gradient(135deg, #d4f1f4 0%, #ffffff 100%);
-    box-shadow: 0 0 20px rgba(23, 162, 184, 0.3);
-}
-
-.class-completed {
-    border-left: 4px solid #28a745;
-}
-
-.class-header {
-    display: flex;
-    justify-content: between;
-    align-items: center;
-    margin-bottom: 0.75rem;
+    box-shadow: var(--shadow);
 }
 
 .class-time {
     color: var(--primary-color);
     font-weight: 600;
-    flex-grow: 1;
-}
-
-.class-status-badge {
-    margin-left: auto;
+    margin-bottom: 0.5rem;
 }
 
 .class-info h6 {
@@ -687,104 +455,42 @@
     display: flex;
     gap: 0.5rem;
     flex-wrap: wrap;
-    align-items: center;
 }
 
-.video-status-section {
-    margin: 0.75rem 0;
-    padding: 0.5rem;
-    border-radius: 8px;
-    background: rgba(0,0,0,0.02);
-}
-
-.alert-sm {
-    padding: 0.5rem 0.75rem;
-    font-size: 0.875rem;
-}
-
-/* Enhanced button styles */
-.btn-start {
-    background: linear-gradient(45deg, #28a745, #20c997);
-    border: none;
-    color: white;
-    font-weight: bold;
-    box-shadow: 0 4px 8px rgba(40, 167, 69, 0.3);
-    animation: pulse-start 2s infinite;
-}
-
-.btn-complete {
-    background: linear-gradient(45deg, #fd7e14, #ffc107);
-    border: none;
-    color: white;
-    font-weight: bold;
-}
-
-@keyframes pulse-start {
-    0% { box-shadow: 0 4px 8px rgba(40, 167, 69, 0.3); }
-    50% { box-shadow: 0 4px 15px rgba(40, 167, 69, 0.5); }
-    100% { box-shadow: 0 4px 8px rgba(40, 167, 69, 0.3); }
-}
-
-/* Live indicator animations */
-.blink {
-    animation: blink 1s infinite;
-}
-
-@keyframes blink {
-    0%, 50% { opacity: 1; }
-    51%, 100% { opacity: 0.3; }
-}
-
-/* Enhanced table styles */
 .table-warning {
     background-color: rgba(255, 193, 7, 0.1) !important;
 }
 
-.table-danger-light {
-    background-color: rgba(220, 53, 69, 0.05) !important;
+.btn-group-sm .btn {
+    padding: 0.25rem 0.5rem;
 }
 
-/* Countdown timer styles */
-.countdown {
-    font-weight: bold;
-    font-family: 'Courier New', monospace;
+.upload-progress {
+    margin-top: 1rem;
 }
 
-.countdown.warning {
-    color: #dc3545;
-    animation: blink 1s infinite;
-}
-
-/* Enhanced stat cards */
-.stat-card:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-}
-
-.stat-icon.danger {
-    background: linear-gradient(45deg, #dc3545, #c82333);
-}
-
-/* Progress bar enhancements */
 .progress {
-    height: 12px;
+    height: 8px;
 }
 
-.progress-bar-animated {
-    animation: progress-bar-stripes 1s linear infinite;
+/* 🔥 NEW: Reschedule Button Styles 🔥 */
+.btn-outline-warning:hover {
+    background-color: var(--warning-color);
+    border-color: var(--warning-color);
+    color: #212529;
 }
 
-/* Alert enhancements */
-.alert-icon {
-    display: flex;
-    align-items: center;
+.btn-group-sm .btn-outline-warning {
+    border-color: #ffc107;
+    color: #856404;
 }
 
-.alert-actions {
-    margin-left: auto;
+.btn-group-sm .btn-outline-warning:hover {
+    background-color: #ffc107;
+    border-color: #ffc107;
+    color: #212529;
 }
 
-/* Responsive improvements */
 @media (max-width: 768px) {
     .today-class-card {
         margin-bottom: 1rem;
@@ -794,421 +500,144 @@
         justify-content: center;
     }
     
-    .class-header {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 0.5rem;
-    }
-    
     .btn-group {
         flex-direction: column;
-        width: 100%;
     }
     
     .btn-group .btn {
         margin-bottom: 0.25rem;
-        border-radius: 0.375rem !important;
     }
     
     .header-actions .btn-group {
         flex-direction: row;
         flex-wrap: wrap;
         gap: 0.5rem;
-        width: auto;
     }
-
-    .alert {
-        font-size: 0.875rem;
-    }
-
-    .alert-icon {
-        display: none;
-    }
-}
-
-/* Loading states */
-.btn:disabled {
-    opacity: 0.7;
-    cursor: not-allowed;
-}
-
-.loading {
-    position: relative;
-}
-
-.loading::after {
-    content: '';
-    position: absolute;
-    width: 16px;
-    height: 16px;
-    border: 2px solid #fff;
-    border-top: 2px solid transparent;
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-    margin-left: 0.5rem;
-}
-
-@keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
 }
 </style>
 
-<!-- Enhanced JavaScript -->
 <script>
-class EnhancedClassManager {
-    constructor() {
-        this.initializeCountdowns();
-        this.setupEventListeners();
-        this.currentUploadClassId = null;
-    }
-    
-    // 🚀 ENHANCED START CLASS with auto-attendance
-    async startClass(classId) {
-        const startBtn = document.querySelector(`button[onclick="startClass('${classId}')"]`);
-        if (!startBtn) return;
-        
-        const originalText = startBtn.innerHTML;
-        startBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Starting...';
-        startBtn.disabled = true;
-        startBtn.classList.add('loading');
-        
-        try {
-            const response = await fetch(`/tutor/class/${classId}/start`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': document.querySelector('[name=csrf-token]')?.getAttribute('content')
-                }
-            });
-            
-            const result = await response.json();
-            
-            if (result.success) {
-                // Show success message with timing info
-                let message = 'Class started successfully!';
-                if (result.timing_info && result.timing_info.late_minutes > 0) {
-                    message += ` (Note: ${result.timing_info.late_minutes} min late, Penalty: ₹${result.timing_info.penalty_amount})`;
-                }
-                
-                this.showNotification(message, 'success');
-                
-                // Auto-redirect to meeting if available
-                if (result.meeting_link && result.auto_redirect) {
-                    this.showNotification('Redirecting to meeting in 2 seconds...', 'info');
-                    setTimeout(() => {
-                        window.open(result.meeting_link, '_blank');
-                    }, 2000);
-                }
-                
-                // Refresh page to show updated status
-                setTimeout(() => location.reload(), 3000);
-                
+let currentUploadClassId = null;
+
+function startClass(classId) {
+    if (confirm('Are you ready to start this class?')) {
+        fetch(`/tutor/class/${classId}/start`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                LMS.showAlert(data.message, 'success');
+                setTimeout(() => location.reload(), 1000);
             } else {
-                this.showNotification(result.error || 'Failed to start class', 'error');
-                startBtn.innerHTML = originalText;
-                startBtn.disabled = false;
-                startBtn.classList.remove('loading');
+                LMS.showAlert(data.error || 'Error starting class', 'error');
             }
-            
-        } catch (error) {
-            console.error('Start class error:', error);
-            this.showNotification('Error starting class. Please try again.', 'error');
-            startBtn.innerHTML = originalText;
-            startBtn.disabled = false;
-            startBtn.classList.remove('loading');
-        }
-    }
-    
-    // ✅ ENHANCED COMPLETE CLASS with early completion detection
-    async completeClass(classId) {
-        const confirmed = confirm('Complete this class? This will start the 2-hour video upload countdown.');
-        if (!confirmed) return;
-        
-        const completeBtn = document.querySelector(`button[onclick="completeClass('${classId}')"]`);
-        if (completeBtn) {
-            const originalText = completeBtn.innerHTML;
-            completeBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Completing...';
-            completeBtn.disabled = true;
-        }
-        
-        try {
-            const response = await fetch(`/tutor/class/${classId}/complete`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': document.querySelector('[name=csrf-token]')?.getAttribute('content')
-                },
-                body: JSON.stringify({
-                    completion_status: 'completed',
-                    class_notes: ''
-                })
-            });
-            
-            const result = await response.json();
-            
-            if (result.success) {
-                let message = 'Class completed successfully!';
-                
-                // Show early completion warning if applicable
-                if (result.completion_info && result.completion_info.is_early_completion) {
-                    message += ` (Early completion penalty: ₹${result.completion_info.early_penalty})`;
-                }
-                
-                this.showNotification(message, 'success');
-                
-                // Redirect to video upload if required
-                if (result.video_upload_required && result.redirect_to_upload) {
-                    this.showNotification('Redirecting to video upload page...', 'info');
-                    setTimeout(() => {
-                        window.location.href = `/tutor/class/${classId}/upload-video`;
-                    }, 2000);
-                } else {
-                    setTimeout(() => location.reload(), 2000);
-                }
-                
-            } else {
-                this.showNotification(result.error || 'Failed to complete class', 'error');
-                if (completeBtn) {
-                    completeBtn.innerHTML = originalText;
-                    completeBtn.disabled = false;
-                }
-            }
-            
-        } catch (error) {
-            console.error('Complete class error:', error);
-            this.showNotification('Error completing class. Please try again.', 'error');
-            if (completeBtn) {
-                completeBtn.innerHTML = originalText;
-                completeBtn.disabled = false;
-            }
-        }
-    }
-    
-    // 📊 MARK ATTENDANCE
-    markAttendance(classId) {
-        window.location.href = `/tutor/class/${classId}/attendance-form`;
-    }
-    
-    // 📞 CONTACT COORDINATOR
-    async contactCoordinator(classId) {
-        const reason = prompt('Please explain why you cannot upload the video on time:');
-        if (!reason || reason.trim() === '') return;
-        
-        try {
-            const response = await fetch(`/tutor/class/${classId}/contact-coordinator`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': document.querySelector('[name=csrf-token]')?.getAttribute('content')
-                },
-                body: JSON.stringify({ reason: reason.trim() })
-            });
-            
-            const result = await response.json();
-            
-            if (result.success) {
-                this.showNotification('Coordinator has been notified. You will be contacted soon.', 'success');
-                setTimeout(() => location.reload(), 2000);
-            } else {
-                this.showNotification(result.error || 'Failed to contact coordinator', 'error');
-            }
-            
-        } catch (error) {
-            console.error('Contact coordinator error:', error);
-            this.showNotification('Error contacting coordinator. Please call directly.', 'error');
-        }
-    }
-    
-    // 📹 UPLOAD VIDEO
-    uploadVideo(classId) {
-        this.currentUploadClassId = classId;
-        document.getElementById('uploadClassId').value = classId;
-        
-        // Show deadline info if available
-        const classCard = document.querySelector(`[data-class-id="${classId}"]`);
-        const deadlineElement = classCard?.querySelector('[data-deadline]');
-        if (deadlineElement) {
-            const deadline = new Date(deadlineElement.dataset.deadline);
-            document.getElementById('deadlineTime').textContent = deadline.toLocaleString();
-            document.getElementById('uploadDeadlineAlert').style.display = 'block';
-        }
-        
-        const modal = new bootstrap.Modal(document.getElementById('videoUploadModal'));
-        modal.show();
-    }
-    
-    // 📤 SUBMIT VIDEO UPLOAD
-    async submitVideoUpload() {
-        const form = document.getElementById('videoUploadForm');
-        const formData = new FormData(form);
-        const progressBar = document.querySelector('.progress-bar');
-        const progressContainer = document.querySelector('.upload-progress');
-        const uploadPercent = document.getElementById('uploadPercent');
-        
-        // Validate file
-        const fileInput = document.getElementById('videoFile');
-        const file = fileInput.files[0];
-        
-        if (!file) {
-            this.showNotification('Please select a video file', 'error');
-            return;
-        }
-        
-        // Check file size (2GB limit)
-        if (file.size > 2 * 1024 * 1024 * 1024) {
-            this.showNotification('File size must be less than 2GB', 'error');
-            return;
-        }
-        
-        // Show progress
-        progressContainer.style.display = 'block';
-        
-        const xhr = new XMLHttpRequest();
-        
-        xhr.upload.addEventListener('progress', (e) => {
-            if (e.lengthComputable) {
-                const percentComplete = Math.round((e.loaded / e.total) * 100);
-                progressBar.style.width = percentComplete + '%';
-                uploadPercent.textContent = percentComplete;
-            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            LMS.showAlert('Error starting class', 'error');
         });
-        
-        xhr.addEventListener('load', () => {
-            if (xhr.status === 200) {
-                const response = JSON.parse(xhr.responseText);
-                if (response.success) {
-                    this.showNotification('Video uploaded successfully!', 'success');
-                    bootstrap.Modal.getInstance(document.getElementById('videoUploadModal')).hide();
-                    setTimeout(() => location.reload(), 1000);
-                } else {
-                    this.showNotification(response.error || 'Error uploading video', 'error');
-                }
-            } else {
-                this.showNotification('Error uploading video', 'error');
-            }
-            progressContainer.style.display = 'none';
-        });
-        
-        xhr.addEventListener('error', () => {
-            this.showNotification('Error uploading video', 'error');
-            progressContainer.style.display = 'none';
-        });
-        
-        xhr.open('POST', `/tutor/upload-video/${this.currentUploadClassId}`);
-        xhr.send(formData);
-    }
-    
-    // 🕐 COUNTDOWN TIMERS
-    initializeCountdowns() {
-        const countdowns = document.querySelectorAll('.countdown[data-deadline]');
-        
-        countdowns.forEach(countdown => {
-            const deadline = new Date(countdown.dataset.deadline);
-            
-            const updateCountdown = () => {
-                const now = new Date();
-                const timeLeft = deadline - now;
-                
-                if (timeLeft <= 0) {
-                    countdown.textContent = 'DEADLINE PASSED';
-                    countdown.classList.add('warning');
-                    countdown.parentElement?.classList.add('bg-danger', 'text-white');
-                    return;
-                }
-                
-                const hours = Math.floor(timeLeft / (1000 * 60 * 60));
-                const minutes = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
-                
-                if (hours > 0) {
-                    countdown.textContent = `${hours}h ${minutes}m left`;
-                } else {
-                    countdown.textContent = `${minutes}m left`;
-                }
-                
-                // Add warning class if less than 30 minutes
-                if (timeLeft <= 30 * 60 * 1000) {
-                    countdown.classList.add('warning');
-                }
-            };
-            
-            updateCountdown();
-            setInterval(updateCountdown, 60000); // Update every minute
-        });
-    }
-    
-    // 💬 NOTIFICATIONS
-    showNotification(message, type = 'info') {
-        const notification = document.createElement('div');
-        notification.className = `alert alert-${type} notification-toast`;
-        notification.style.cssText = `
-            position: fixed; top: 20px; right: 20px; z-index: 9999; min-width: 300px;
-            animation: slideIn 0.3s ease; box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-            border: none; border-radius: 8px;
-        `;
-        notification.innerHTML = `
-            <div class="d-flex justify-content-between align-items-center">
-                <span>${message}</span>
-                <button type="button" class="btn-close" onclick="this.parentElement.parentElement.remove()"></button>
-            </div>
-        `;
-        document.body.appendChild(notification);
-        
-        setTimeout(() => notification.remove(), 5000);
-    }
-    
-    // 🔄 REFRESH FUNCTION
-    refreshClasses() {
-        const refreshBtn = document.querySelector('.header-actions .btn-primary');
-        if (refreshBtn) {
-            const originalText = refreshBtn.innerHTML;
-            refreshBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Refreshing...';
-            refreshBtn.disabled = true;
-            
-            setTimeout(() => {
-                location.reload();
-            }, 1000);
-        }
-    }
-    
-    setupEventListeners() {
-        // Auto-refresh every 2 minutes
-        setInterval(() => {
-            if (!document.querySelector('.modal.show')) {
-                const todaySection = document.querySelector('.border-primary .card-body');
-                if (todaySection) {
-                    fetch(window.location.href)
-                        .then(response => response.text())
-                        .then(html => {
-                            const parser = new DOMParser();
-                            const doc = parser.parseFromString(html, 'text/html');
-                            const newSection = doc.querySelector('.border-primary .card-body');
-                            if (newSection) {
-                                todaySection.innerHTML = newSection.innerHTML;
-                                this.initializeCountdowns(); // Reinitialize countdowns
-                            }
-                        })
-                        .catch(error => console.error('Auto-refresh error:', error));
-                }
-            }
-        }, 120000);
     }
 }
 
-// Initialize enhanced class manager
-const classManager = new EnhancedClassManager();
+function completeClass(classId) {
+    const notes = prompt('Add any notes about this class (optional):');
+    
+    fetch(`/tutor/class/${classId}/complete`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            completion_status: 'completed',
+            class_notes: notes || ''
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            LMS.showAlert(data.message, 'success');
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            LMS.showAlert(data.error || 'Error completing class', 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        LMS.showAlert('Error completing class', 'error');
+    });
+}
 
-// Make functions globally available
-function startClass(classId) { classManager.startClass(classId); }
-function completeClass(classId) { classManager.completeClass(classId); }
-function markAttendance(classId) { classManager.markAttendance(classId); }
-function contactCoordinator(classId) { classManager.contactCoordinator(classId); }
-function uploadVideo(classId) { classManager.uploadVideo(classId); }
-function submitVideoUpload() { classManager.submitVideoUpload(); }
-function refreshClasses() { classManager.refreshClasses(); }
+function uploadVideo(classId) {
+    currentUploadClassId = classId;
+    document.getElementById('uploadClassId').value = classId;
+    const modal = new bootstrap.Modal(document.getElementById('videoUploadModal'));
+    modal.show();
+}
 
-// Keep your existing functions
+function submitVideoUpload() {
+    const form = document.getElementById('videoUploadForm');
+    const formData = new FormData(form);
+    const progressBar = document.querySelector('.progress-bar');
+    const progressContainer = document.querySelector('.upload-progress');
+    
+    // Validate file
+    const fileInput = document.getElementById('videoFile');
+    const file = fileInput.files[0];
+    
+    if (!file) {
+        LMS.showAlert('Please select a video file', 'error');
+        return;
+    }
+    
+    // Check file size (50MB limit)
+    if (file.size > 50 * 1024 * 1024) {
+        LMS.showAlert('File size must be less than 50MB', 'error');
+        return;
+    }
+    
+    // Show progress
+    progressContainer.style.display = 'block';
+    
+    const xhr = new XMLHttpRequest();
+    
+    xhr.upload.addEventListener('progress', function(e) {
+        if (e.lengthComputable) {
+            const percentComplete = (e.loaded / e.total) * 100;
+            progressBar.style.width = percentComplete + '%';
+        }
+    });
+    
+    xhr.addEventListener('load', function() {
+        if (xhr.status === 200) {
+            const response = JSON.parse(xhr.responseText);
+            if (response.success) {
+                LMS.showAlert('Video uploaded successfully', 'success');
+                bootstrap.Modal.getInstance(document.getElementById('videoUploadModal')).hide();
+                setTimeout(() => location.reload(), 1000);
+            } else {
+                LMS.showAlert(response.error || 'Error uploading video', 'error');
+            }
+        } else {
+            LMS.showAlert('Error uploading video', 'error');
+        }
+        progressContainer.style.display = 'none';
+    });
+    
+    xhr.addEventListener('error', function() {
+        LMS.showAlert('Error uploading video', 'error');
+        progressContainer.style.display = 'none';
+    });
+    
+    xhr.open('POST', `/tutor/upload-video/${currentUploadClassId}`);
+    xhr.send(formData);
+}
+
 function addFeedback(classId) {
+    // Redirect to feedback page or open modal
     window.location.href = `/tutor/class/${classId}/feedback`;
 }
 
@@ -1227,14 +656,24 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
-// Add CSS animations
-const style = document.createElement('style');
-style.textContent = `
-    @keyframes slideIn {
-        from { transform: translateX(100%); opacity: 0; }
-        to { transform: translateX(0); opacity: 1; }
+// Auto-refresh every 2 minutes for today's classes
+setInterval(() => {
+    if (window.location.pathname === '/tutor/my-classes') {
+        fetch(window.location.href)
+            .then(response => response.text())
+            .then(html => {
+                // Update today's classes section
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(html, 'text/html');
+                const newTodaySection = doc.querySelector('.border-primary');
+                const currentTodaySection = document.querySelector('.border-primary');
+                
+                if (newTodaySection && currentTodaySection) {
+                    currentTodaySection.innerHTML = newTodaySection.innerHTML;
+                }
+            })
+            .catch(error => console.error('Auto-refresh error:', error));
     }
-`;
-document.head.appendChild(style);
+}, 120000);
 </script>
 {% endblock %}

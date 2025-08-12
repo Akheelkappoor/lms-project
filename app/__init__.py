@@ -92,10 +92,6 @@ def create_app(config_class=Config):
     from app.routes.export_email_timetable import bp as export_email_bp
     app.register_blueprint(export_email_bp, url_prefix='/admin')
 
-
-    from app.routes.email_hub import bp as email_hub_bp
-    app.register_blueprint(email_hub_bp, url_prefix='/notifications')
-    
     # Notice Management System Blueprint
     from app.routes import notice
     app.register_blueprint(notice.bp)

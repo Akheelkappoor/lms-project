@@ -1,9 +1,8 @@
 from app import create_app, db
-from app.models import User, Department, Tutor, Student, Class, Attendance
+from app.models import User, Department, Tutor, Student, Class, Attendance, Escalation
 from flask import url_for, redirect, request, jsonify, render_template
 
-# Create Flask application instance
-app = create_app()
+app = create_app()  
 
 @app.shell_context_processor
 def make_shell_context():
@@ -14,7 +13,8 @@ def make_shell_context():
         'Tutor': Tutor, 
         'Student': Student, 
         'Class': Class, 
-        'Attendance': Attendance
+        'Attendance': Attendance,
+        'Escalation': Escalation
     }
 
 @app.route('/')
@@ -132,7 +132,7 @@ def initialize_database():
 def display_config_info():
     """Display important configuration information"""
     max_size_gb = app.config.get('MAX_CONTENT_LENGTH', 5368709120) / (1024**3)
-    upload_folder = app.config.get('UPLOAD_FOLDER', 'app/static/uploads')
+    upload_folder = app.config.get('UPLOAD_FOLDER')
     
     print("=" * 60)
     print("🚀 I2Global LMS - Configuration")
@@ -157,10 +157,6 @@ if __name__ == '__main__':
     print("🌐 Server starting on http://0.0.0.0:5001")
     print("⏳ Large file uploads (up to 5GB) supported")
     print("🔄 Press Ctrl+C to stop the server")
+
+    app.run(host='0.0.0.0', port=5002)
     
-    try:
-        app.run(debug=True, host='0.0.0.0', port=5001, threaded=True)
-    except KeyboardInterrupt:
-        print("\n👋 Server stopped by user")
-    except Exception as e:
-        print(f"❌ Server error: {str(e)}")

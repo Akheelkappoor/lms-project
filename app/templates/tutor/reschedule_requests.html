@@ -1,0 +1,157 @@
+{% extends "base.html" %}
+
+{% block title %}My Reschedule Requests - {{ APP_NAME }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h1 class="page-title">
+                <i class="fas fa-calendar-alt"></i>
+                My Reschedule Requests
+            </h1>
+            <p class="page-subtitle">Manage your class reschedule requests</p>
+        </div>
+        <div class="header-actions">
+            <a href="{{ url_for('tutor.my_classes') }}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i>
+                Back to My Classes
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="container-fluid">
+    {% if requests %}
+    <div class="card">
+        <div class="card-header">
+            <h6 class="card-title mb-0">
+                <i class="fas fa-list"></i>
+                Reschedule Requests
+            </h6>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Class Details</th>
+                            <th>Original Schedule</th>
+                            <th>Requested Schedule</th>
+                            <th>Reason</th>
+                            <th>Status</th>
+                            <th>Conflicts</th>
+                            <th>Requested On</th>
+                            <th>Review</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for request in requests %}
+                        <tr>
+                            <td>
+                                <div class="fw-semibold">{{ request.class_item.subject }}</div>
+                                <small class="text-muted">
+                                    {{ request.class_item.class_type|title }} • 
+                                    {{ request.class_item.duration }} mins
+                                </small>
+                            </td>
+                            <td>
+                                <div>{{ request.original_date.strftime('%d %b %Y') }}</div>
+                                <small class="text-muted">{{ request.original_time.strftime('%I:%M %p') }}</small>
+                            </td>
+                            <td>
+                                <div>{{ request.requested_date.strftime('%d %b %Y') }}</div>
+                                <small class="text-muted">{{ request.requested_time.strftime('%I:%M %p') }}</small>
+                            </td>
+                            <td>
+                                <div class="text-truncate" style="max-width: 200px;" title="{{ request.reason }}">
+                                    {{ request.reason }}
+                                </div>
+                            </td>
+                            <td>
+                                {% if request.status == 'pending' %}
+                                    <span class="badge bg-warning">Pending</span>
+                                {% elif request.status == 'approved' %}
+                                    <span class="badge bg-success">Approved</span>
+                                {% elif request.status == 'rejected' %}
+                                    <span class="badge bg-danger">Rejected</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if request.has_conflicts %}
+                                    <span class="badge bg-danger">
+                                        <i class="fas fa-exclamation-triangle"></i>
+                                        {{ request.get_conflicts()|length }} conflict(s)
+                                    </span>
+                                {% else %}
+                                    <span class="badge bg-success">
+                                        <i class="fas fa-check"></i>
+                                        No conflicts
+                                    </span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div>{{ request.request_date.strftime('%d %b %Y') }}</div>
+                                <small class="text-muted">{{ request.request_date.strftime('%I:%M %p') }}</small>
+                            </td>
+                            <td>
+                                {% if request.reviewed_at %}
+                                    <div class="text-muted">
+                                        <small>Reviewed by {{ request.reviewer.full_name }}</small>
+                                        <br>
+                                        <small>{{ request.reviewed_at.strftime('%d %b %Y') }}</small>
+                                    </div>
+                                {% else %}
+                                    <span class="text-muted">Pending review</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% if request.review_notes %}
+                        <tr class="table-light">
+                            <td colspan="8">
+                                <small class="text-muted">
+                                    <strong>Review Notes:</strong> {{ request.review_notes }}
+                                </small>
+                            </td>
+                        </tr>
+                        {% endif %}
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <div class="empty-icon">
+            <i class="fas fa-calendar-alt"></i>
+        </div>
+        <h5>No Reschedule Requests</h5>
+        <p class="text-muted">You haven't submitted any reschedule requests yet.</p>
+        <a href="{{ url_for('tutor.my_classes') }}" class="btn btn-primary">
+            <i class="fas fa-calendar-plus"></i>
+            View My Classes
+        </a>
+    </div>
+    {% endif %}
+</div>
+
+<style>
+.empty-state {
+    text-align: center;
+    padding: 4rem 2rem;
+}
+
+.empty-icon {
+    font-size: 4rem;
+    color: var(--bs-gray-400);
+    margin-bottom: 1rem;
+}
+
+.table-light td {
+    border-top: none;
+    padding-top: 0.25rem;
+    padding-bottom: 0.75rem;
+}
+</style>
+{% endblock %}

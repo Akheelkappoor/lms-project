@@ -1,0 +1,192 @@
+{% extends "base.html" %}
+
+{% block title %}Error Search{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1><i class="fas fa-search"></i> Error Search</h1>
+            <p class="text-muted">Search and filter error logs</p>
+        </div>
+    </div>
+
+    <!-- Navigation -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="btn-group">
+                <a href="{{ url_for('error_monitoring.dashboard') }}" class="btn btn-outline-primary">
+                    <i class="fas fa-home"></i> Dashboard
+                </a>
+                <a href="{{ url_for('error_monitoring.search') }}" class="btn btn-primary">
+                    <i class="fas fa-search"></i> Search Errors
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Search Form -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-filter"></i> Search Filters</h5>
+                </div>
+                <div class="card-body">
+                    <form method="GET" action="{{ url_for('error_monitoring.search') }}">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="q">Search in Error Messages:</label>
+                                    <input type="text" 
+                                           class="form-control" 
+                                           id="q" 
+                                           name="q" 
+                                           value="{{ query }}" 
+                                           placeholder="Enter keywords...">
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label for="user_id">Filter by User:</label>
+                                    <select class="form-control" id="user_id" name="user_id">
+                                        <option value="">All Users</option>
+                                        {% for user in users %}
+                                        <option value="{{ user.id }}" {% if selected_user_id == user.id|string %}selected{% endif %}>
+                                            {{ user.full_name }} ({{ user.role }})
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-2">
+                                <div class="form-group">
+                                    <label>&nbsp;</label>
+                                    <div>
+                                        <button type="submit" class="btn btn-primary">
+                                            <i class="fas fa-search"></i> Search
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Search Results -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-list"></i> Search Results ({{ errors|length }} found)</h5>
+                </div>
+                <div class="card-body">
+                    {% if errors %}
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Time</th>
+                                    <th>Type</th>
+                                    <th>Category</th>
+                                    <th>Severity</th>
+                                    <th>User</th>
+                                    <th>IP Address</th>
+                                    <th>Message</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for error in errors %}
+                                <tr class="{% if error.severity == 'critical' %}table-danger{% elif error.severity == 'high' %}table-warning{% endif %}">
+                                    <td>
+                                        <small>{{ error.created_at.strftime('%Y-%m-%d %H:%M:%S') if error.created_at else 'N/A' }}</small>
+                                    </td>
+                                    <td>
+                                        <span class="badge badge-secondary">{{ error.error_type }}</span>
+                                    </td>
+                                    <td>
+                                        <span class="badge badge-info">{{ error.error_category }}</span>
+                                    </td>
+                                    <td>
+                                        <span class="badge badge-{% if error.severity == 'critical' %}danger{% elif error.severity == 'high' %}warning{% elif error.severity == 'medium' %}info{% else %}success{% endif %}">
+                                            {{ error.severity|title }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        {% if error.user %}
+                                            <strong>{{ error.user.full_name }}</strong><br>
+                                            <small class="text-muted">{{ error.user_role }} (ID: {{ error.user_id }})</small>
+                                        {% else %}
+                                            <span class="text-muted">Anonymous</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <small>{{ error.ip_address or 'Unknown' }}</small>
+                                    </td>
+                                    <td>
+                                        <small>{{ error.error_message[:150] }}{% if error.error_message|length > 150 %}...{% endif %}</small>
+                                        {% if error.request_url %}
+                                        <br><small class="text-muted">URL: {{ error.request_url }}</small>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <span class="badge badge-{% if error.status == 'resolved' %}success{% elif error.status == 'open' %}danger{% else %}secondary{% endif %}">
+                                            {{ error.status|title }}
+                                        </span>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-search fa-3x text-muted mb-3"></i>
+                        <p class="text-muted">No errors found matching your search criteria.</p>
+                        {% if query or selected_user_id %}
+                        <a href="{{ url_for('error_monitoring.search') }}" class="btn btn-outline-primary">Clear Filters</a>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.card {
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    border: none;
+    border-radius: 8px;
+    margin-bottom: 20px;
+}
+
+.badge {
+    font-size: 0.8em;
+    padding: 0.4em 0.8em;
+}
+
+.table th {
+    background-color: #f8f9fa;
+    font-weight: 600;
+    border-top: none;
+}
+
+.btn-group .btn {
+    margin-right: 5px;
+}
+
+.table-danger {
+    background-color: rgba(220, 53, 69, 0.1);
+}
+
+.table-warning {
+    background-color: rgba(255, 193, 7, 0.1);
+}
+</style>
+{% endblock %}

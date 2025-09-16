@@ -228,7 +228,7 @@
                                 {% endif %}
                             </td>
                             <td>
-                                {% if hasattr(class, 'get_students') %}
+                                {% if class.get_students %}
                                     {% set student_ids = class.get_students() %}
                                     {% if student_ids %}
                                     <div>
@@ -399,15 +399,15 @@
     </div>
 </div>
 
-<!-- Create Class Modal with Smart Filtering -->
+<!-- Enhanced Create Class Modal -->
 {% if tutors %}
 <div class="modal fade" id="createClassModal" tabindex="-1" aria-labelledby="createClassModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
+    <div class="modal-dialog modal-xl">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="createClassModalLabel">
                     <i class="fas fa-plus"></i>
-                    Create New Class
+                    Create New Class - Smart Tutor Finder
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
@@ -422,10 +422,11 @@
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     {% endif %}
                     
+                    <!-- Basic Class Information -->
                     <div class="row">
                         <div class="col-md-6">
                             <div class="mb-3">
-                                <label class="form-label">Subject *</label>
+                                <label class="form-label">Subject/Class Room *</label>
                                 <input type="text" name="subject" class="form-control" id="subjectInput" required onchange="filterCompatibleTutors()">
                             </div>
                         </div>
@@ -467,7 +468,7 @@
                     <div class="row">
                         <div class="col-md-12">
                             <div class="mb-3">
-                                <label class="form-label">Select Student First (for tutor filtering) *</label>
+                                <label class="form-label">Select Student First (for intelligent tutor matching) *</label>
                                 <select id="primaryStudentSelect" class="form-select" onchange="filterCompatibleTutors()">
                                     <option value="">Choose Student</option>
                                     {% for student in students %}
@@ -479,30 +480,178 @@
                                     </option>
                                     {% endfor %}
                                 </select>
-                                <small class="form-text text-muted">Select a student first to show only compatible tutors</small>
+                                <small class="form-text text-muted">Select a student first to enable intelligent tutor matching</small>
                             </div>
                         </div>
                     </div>
-                    
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label class="form-label">Compatible Tutors *</label>
-                                <select name="tutor_id" class="form-select" id="tutorSelect" required onchange="checkAvailability()">
-                                    <option value="">Select Student First</option>
-                                </select>
-                                <div id="tutorInfo" class="mt-2" style="display: none;">
-                                    <small class="text-info">
-                                        <i class="fas fa-info-circle"></i>
-                                        <span id="tutorInfoText"></span>
-                                    </small>
+
+                    <!-- Enhanced Tutor Finder Section -->
+                    <div class="tutor-finder-enhanced">
+                        <!-- Mode Selection Tabs -->
+                        <div class="finder-mode-tabs">
+                            <button type="button" class="mode-tab-btn active" onclick="switchFinderMode('smart')" id="smartModeBtn">
+                                <i class="fas fa-brain"></i> Smart Match
+                            </button>
+                            <button type="button" class="mode-tab-btn" onclick="switchFinderMode('search')" id="searchModeBtn">
+                                <i class="fas fa-search"></i> Advanced Search
+                            </button>
+                            <button type="button" class="mode-tab-btn" onclick="switchFinderMode('browse')" id="browseModeBtn">
+                                <i class="fas fa-th-large"></i> Browse All
+                            </button>
+                            <button type="button" class="mode-tab-btn" onclick="switchFinderMode('manual')" id="manualModeBtn">
+                                <i class="fas fa-hand-pointer"></i> Manual Select
+                            </button>
+                        </div>
+
+                        <!-- Smart Match Panel -->
+                        <div id="smartMatchPanel" class="search-panel active">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <h6><i class="fas fa-brain"></i> Intelligent Tutor Matching</h6>
+                                    <p class="text-muted small">AI-powered matching based on student profile, tutor performance, and compatibility factors.</p>
+                                    
+                                    <div class="quick-filters">
+                                        <span class="quick-filter-btn" onclick="setQuickFilter('high_rated')">High Rated (4.5+)</span>
+                                        <span class="quick-filter-btn" onclick="setQuickFilter('excellent_test')">Excellent Test Scores</span>
+                                        <span class="quick-filter-btn" onclick="setQuickFilter('experienced')">Most Experienced</span>
+                                        <span class="quick-filter-btn" onclick="setQuickFilter('available_now')">Available Now</span>
+                                    </div>
+
+                                    <button type="button" class="btn btn-primary btn-sm" onclick="runSmartMatch()" id="smartMatchBtn">
+                                        <i class="fas fa-search"></i> Find Best Matches
+                                    </button>
+                                    <small class="text-muted d-block mt-2">Select a student first to enable smart matching</small>
+                                </div>
+                                <div class="col-md-6">
+                                    <div id="smartMatchResults">
+                                        <div class="text-center text-muted py-3">
+                                            <i class="fas fa-brain fa-2x mb-2"></i>
+                                            <p class="mb-0">Smart matching will show here</p>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label class="form-label">Grade</label>
-                                <input type="text" name="grade" class="form-control" id="gradeInput" placeholder="e.g., 10, 12">
+
+                        <!-- Advanced Search Panel -->
+                        <div id="advancedSearchPanel" class="search-panel">
+                            <h6><i class="fas fa-search-plus"></i> Advanced Search</h6>
+                            <div class="row">
+                                <div class="col-md-3">
+                                    <label class="form-label small">Search Name/Qualification</label>
+                                    <input type="text" id="tutorNameSearch" class="form-control form-control-sm" 
+                                           placeholder="Type to search..." onkeyup="debounceAdvancedSearch()">
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label small">Min Test Score</label>
+                                    <select id="minTestScore" class="form-select form-select-sm" onchange="performAdvancedSearch()">
+                                        <option value="">Any Score</option>
+                                        <option value="90">90+ (A+)</option>
+                                        <option value="85">85+ (A)</option>
+                                        <option value="80">80+ (B+)</option>
+                                        <option value="70">70+ (B)</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label small">Min Rating</label>
+                                    <select id="minRating" class="form-select form-select-sm" onchange="performAdvancedSearch()">
+                                        <option value="">Any Rating</option>
+                                        <option value="4.5">4.5+ ⭐</option>
+                                        <option value="4.0">4.0+ ⭐</option>
+                                        <option value="3.5">3.5+ ⭐</option>
+                                        <option value="3.0">3.0+ ⭐</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label small">Experience Level</label>
+                                    <select id="experienceLevel" class="form-select form-select-sm" onchange="performAdvancedSearch()">
+                                        <option value="">Any Experience</option>
+                                        <option value="master">Master's Degree</option>
+                                        <option value="phd">PhD/Doctorate</option>
+                                        <option value="expert">Expert Level</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-2">
+                                    <button type="button" class="btn btn-primary btn-sm w-100 mt-4" onclick="performAdvancedSearch()">
+                                        <i class="fas fa-search"></i> Search
+                                    </button>
+                                </div>
+                            </div>
+                            <div id="advancedSearchResults" class="mt-3"></div>
+                        </div>
+
+                        <!-- Browse All Panel -->
+                        <div id="browseAllPanel" class="search-panel">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h6 class="mb-0"><i class="fas fa-list"></i> Browse All Available Tutors</h6>
+                                <div class="d-flex gap-2">
+                                    <select id="sortBy" class="form-select form-select-sm" style="width: auto;" onchange="sortTutorCards()">
+                                        <option value="rating">Sort by Rating</option>
+                                        <option value="test_score">Sort by Test Score</option>
+                                        <option value="name">Sort by Name</option>
+                                        <option value="experience">Sort by Experience</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div id="tutorCardsContainer" class="row">
+                                <!-- Tutor cards will be populated here -->
+                            </div>
+                        </div>
+
+                        <!-- Manual Select Panel -->
+                        <div id="manualSelectPanel" class="search-panel">
+                            <h6><i class="fas fa-hand-pointer"></i> Manual Tutor Selection</h6>
+                            <p class="text-muted small">Select from dropdown without any filters or recommendations.</p>
+                            <div class="row">
+                                <div class="col-md-8">
+                                    <select id="manualTutorSelect" class="form-select" onchange="selectManualTutor()">
+                                        <option value="">Choose any available tutor</option>
+                                        <!-- Will be populated with all available tutors -->
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <button type="button" class="btn btn-secondary btn-sm" onclick="populateAllTutors()">
+                                        <i class="fas fa-refresh"></i> Refresh List
+                                    </button>
+                                </div>
+                            </div>
+                            <div id="manualTutorInfo" class="mt-3"></div>
+                        </div>
+
+                        <!-- Final Tutor Selection -->
+                        <div class="row mt-3">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Selected Tutor *</label>
+                                    <select name="tutor_id" class="form-select" id="tutorSelect" required onchange="checkAvailability()">
+                                        <option value="">Select Student First</option>
+                                    </select>
+                                    <div id="tutorInfo" class="mt-2" style="display: none;">
+                                        <small class="text-info">
+                                            <i class="fas fa-info-circle"></i>
+                                            <span id="tutorInfoText"></span>
+                                        </small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Grade</label>
+                                    <input type="text" name="grade" class="form-control" id="gradeInput" placeholder="e.g., 10, 12">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Enhanced Info Panel -->
+                        <div id="enhancedInfoPanel" class="enhanced-info-panel" style="display: none;">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <strong id="selectedTutorName">Selected Tutor</strong>
+                                    <div id="selectedTutorDetails" class="tutor-details-mini"></div>
+                                </div>
+                                <button type="button" class="btn btn-sm btn-outline-info" onclick="showTutorDetailedProfile()" id="showDetailsBtn">
+                                    <i class="fas fa-info-circle"></i> View Details
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -526,7 +675,12 @@
                             <div class="student-checkbox-list" style="max-height: 200px; overflow-y: auto; border: 1px solid #dee2e6; padding: 10px; border-radius: 0.375rem;">
                                 {% for student in students %}
                                 <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" name="students" value="{{ student.id }}" id="student_{{ student.id }}">
+                                    <input class="form-check-input" 
+                                            type="checkbox"
+                                            name="students"
+                                            value="{{ student.id }}"
+                                            id="student_{{ student.id }}"
+                                            onchange="toggleStudentSelection(this, {{ student.id }})">
                                     <label class="form-check-label" for="student_{{ student.id }}">
                                         {{ student.full_name }} - Grade {{ student.grade }}
                                     </label>
@@ -541,7 +695,7 @@
                         <div class="col-md-12">
                             <div class="mb-3">
                                 <label class="form-label">Meeting Link</label>
-                                <input type="url" name="meeting_link" class="form-control" placeholder="https://zoom.us/j/...">
+                                <input type="url" name="meeting_link" class="form-control" placeholder="https://...">
                             </div>
                         </div>
                     </div>
@@ -563,9 +717,9 @@
     </div>
 </div>
 
-<!-- Bulk Create Modal -->
+<!-- Enhanced Bulk Create Modal with Student Search -->
 <div class="modal fade" id="bulkCreateModal" tabindex="-1" aria-labelledby="bulkCreateModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-xl">
+    <div class="modal-dialog modal-xxl">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="bulkCreateModalLabel">
@@ -585,131 +739,254 @@
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     {% endif %}
                     
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label class="form-label">Subject *</label>
-                                <input type="text" name="subject" class="form-control" required>
-                            </div>
+                    <!-- Class Details Section -->
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h6 class="mb-0"><i class="fas fa-info-circle"></i> Class Details</h6>
                         </div>
-                        <div class="col-md-3">
-                            <div class="mb-3">
-                                <label class="form-label">Grade *</label>
-                                <input type="text" name="grade" class="form-control" required>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Subject/Class Room *</label>
+                                        <input type="text" name="subject" class="form-control" required>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="mb-3">
+                                        <label class="form-label">Grade *</label>
+                                        <input type="text" name="grade" class="form-control" required>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="mb-3">
+                                        <label class="form-label">Duration (minutes) *</label>
+                                        <input type="number" name="duration" class="form-control" min="15" max="300" value="60" required>
+                                    </div>
+                                </div>
                             </div>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="mb-3">
-                                <label class="form-label">Duration (minutes) *</label>
-                                <input type="number" name="duration" class="form-control" min="15" max="300" value="60" required>
+
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Tutor *</label>
+                                        <select name="tutor_id" class="form-select" required>
+                                            <option value="">Select Tutor</option>
+                                            {% for tutor in tutors %}
+                                            <option value="{{ tutor.id }}">{{ tutor.user.full_name }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Class Type *</label>
+                                        <select name="class_type" class="form-select" required>
+                                            <option value="">Select Type</option>
+                                            <option value="one_on_one">One-on-One</option>
+                                            <option value="group">Group Class</option>
+                                        </select>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
 
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label class="form-label">Tutor *</label>
-                                <select name="tutor_id" class="form-select" required>
-                                    <option value="">Select Tutor</option>
-                                    {% for tutor in tutors %}
-                                    <option value="{{ tutor.id }}">{{ tutor.user.full_name }}</option>
-                                    {% endfor %}
-                                </select>
+                    <!-- Student Selection Section -->
+                    <div class="card mb-4">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h6 class="mb-0"><i class="fas fa-users"></i> Select Students</h6>
+                            <div class="selected-count">
+                                Selected: <span id="selectedCount">0</span> students
+                                <button type="button" class="btn btn-sm btn-outline-danger ms-2" onclick="clearAllSelections()" id="clearAllBtn" style="display: none;">
+                                    <i class="fas fa-times"></i> Clear All
+                                </button>
                             </div>
                         </div>
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label class="form-label">Class Type *</label>
-                                <select name="class_type" class="form-select" required>
-                                    <option value="">Select Type</option>
-                                    <option value="one_on_one">One-on-One</option>
-                                    <option value="group">Group Class</option>
-                                </select>
+                        <div class="card-body">
+                            <!-- Search and Filter Section -->
+                            <div class="search-filter-section mb-4">
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <div class="search-input-group">
+                                            <div class="input-group">
+                                                <span class="input-group-text"><i class="fas fa-search"></i></span>
+                                                <input type="text" class="form-control" id="studentSearchInput" 
+                                                       placeholder="Search by name, email, or phone..." 
+                                                       onkeyup="debounceStudentSearch()">
+                                                <button class="btn btn-outline-secondary" type="button" onclick="clearSearch()">
+                                                    <i class="fas fa-times"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <select class="form-select" id="gradeFilter" onchange="applyStudentFilters()">
+                                            <option value="">All Grades</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <select class="form-select" id="boardFilter" onchange="applyStudentFilters()">
+                                            <option value="">All Boards</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <select class="form-select" id="subjectFilter" onchange="applyStudentFilters()">
+                                            <option value="">All Subjects</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <button type="button" class="btn btn-outline-primary w-100" onclick="resetAllFilters()">
+                                            <i class="fas fa-refresh"></i> Reset
+                                        </button>
+                                    </div>
+                                </div>
+                                
+                                <!-- Department filter (for admins only) -->
+                                {% if current_user.role != 'coordinator' %}
+                                <div class="row mt-2">
+                                    <div class="col-md-3">
+                                        <select class="form-select" id="departmentFilter" onchange="applyStudentFilters()">
+                                            <option value="">All Departments</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <select class="form-select" id="enrollmentStatusFilter" onchange="applyStudentFilters()">
+                                            <option value="">All Status</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                {% endif %}
+                                
+                                <!-- Active Filters Display -->
+                                <div id="activeFilters" class="active-filters mt-2" style="display: none;">
+                                    <small class="text-muted">Active filters: </small>
+                                    <div id="filterTags" class="d-inline"></div>
+                                </div>
+                            </div>
+
+                            <!-- Loading Indicator -->
+                            <div id="studentSearchLoading" class="text-center py-3" style="display: none;">
+                                <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+                                <span class="ms-2">Searching students...</span>
+                            </div>
+
+                            <!-- Search Results -->
+                            <div id="studentSearchResults" class="student-search-results">
+                                <!-- Results will be populated here -->
+                            </div>
+
+                            <!-- Pagination -->
+                            <div id="studentPagination" class="student-pagination mt-3" style="display: none;">
+                                <nav aria-label="Student search pagination">
+                                    <ul class="pagination pagination-sm justify-content-center">
+                                        <!-- Pagination will be populated here -->
+                                    </ul>
+                                </nav>
+                            </div>
+
+                            <!-- Selected Students Display -->
+                            <div id="selectedStudentsSection" class="selected-students-section mt-4" style="display: none;">
+                                <h6><i class="fas fa-check-circle text-success"></i> Selected Students</h6>
+                                <div id="selectedStudentsList" class="selected-students-list">
+                                    <!-- Selected students will be displayed here -->
+                                </div>
+                            </div>
+
+                            <!-- Hidden inputs for selected students -->
+                            <div id="hiddenStudentInputs">
+                                <!-- Hidden inputs will be added here -->
                             </div>
                         </div>
                     </div>
+                    <!-- Schedule Section -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h6 class="mb-0"><i class="fas fa-calendar"></i> Schedule Details</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        <label class="form-label">Start Date *</label>
+                                        <input type="date" name="start_date" class="form-control" required>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        <label class="form-label">End Date *</label>
+                                        <input type="date" name="end_date" class="form-control" required>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        <label class="form-label">Start Time *</label>
+                                        <input type="time" name="start_time" class="form-control" required>
+                                    </div>
+                                </div>
+                            </div>
 
-                    <div class="mb-3">
-                        <label class="form-label">Select Students *</label>
-                        <div class="student-checkbox-list" style="max-height: 200px; overflow-y: auto; border: 1px solid #dee2e6; padding: 10px; border-radius: 0.375rem;">
-                            {% for student in students %}
-                            <div class="form-check">
-                                <input class="form-check-input" type="checkbox" name="students" value="{{ student.id }}" id="bulk_student_{{ student.id }}">
-                                <label class="form-check-label" for="bulk_student_{{ student.id }}">
-                                    {{ student.full_name }} - Grade {{ student.grade }}
-                                </label>
-                            </div>
-                            {% endfor %}
-                        </div>
-                    </div>
-
-                    <div class="row">
-                        <div class="col-md-4">
                             <div class="mb-3">
-                                <label class="form-label">Start Date *</label>
-                                <input type="date" name="start_date" class="form-control" required>
-                            </div>
-                        </div>
-                        <div class="col-md-4">
-                            <div class="mb-3">
-                                <label class="form-label">End Date *</label>
-                                <input type="date" name="end_date" class="form-control" required>
-                            </div>
-                        </div>
-                        <div class="col-md-4">
-                            <div class="mb-3">
-                                <label class="form-label">Start Time *</label>
-                                <input type="time" name="start_time" class="form-control" required>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="mb-3">
-                        <label class="form-label">Days of Week *</label>
-                        <div class="row">
-                            <div class="col-md-3">
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" name="days_of_week" value="0" id="monday">
-                                    <label class="form-check-label" for="monday">Monday</label>
+                                <label class="form-label">Days of Week *</label>
+                                <div class="row">
+                                    <div class="col-md-3">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" name="days_of_week" value="0" id="monday">
+                                            <label class="form-check-label" for="monday">Monday</label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" name="days_of_week" value="1" id="tuesday">
+                                            <label class="form-check-label" for="tuesday">Tuesday</label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" name="days_of_week" value="2" id="wednesday">
+                                            <label class="form-check-label" for="wednesday">Wednesday</label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" name="days_of_week" value="3" id="thursday">
+                                            <label class="form-check-label" for="thursday">Thursday</label>
+                                        </div>
+                                    </div>
                                 </div>
-                            </div>
-                            <div class="col-md-3">
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" name="days_of_week" value="1" id="tuesday">
-                                    <label class="form-check-label" for="tuesday">Tuesday</label>
-                                </div>
-                            </div>
-                            <div class="col-md-3">
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" name="days_of_week" value="2" id="wednesday">
-                                    <label class="form-check-label" for="wednesday">Wednesday</label>
-                                </div>
-                            </div>
-                            <div class="col-md-3">
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" name="days_of_week" value="3" id="thursday">
-                                    <label class="form-check-label" for="thursday">Thursday</label>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="row mt-2">
-                            <div class="col-md-3">
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" name="days_of_week" value="4" id="friday">
-                                    <label class="form-check-label" for="friday">Friday</label>
-                                </div>
-                            </div>
-                            <div class="col-md-3">
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" name="days_of_week" value="5" id="saturday">
-                                    <label class="form-check-label" for="saturday">Saturday</label>
-                                </div>
-                            </div>
-                            <div class="col-md-3">
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" name="days_of_week" value="6" id="sunday">
-                                    <label class="form-check-label" for="sunday">Sunday</label>
+                                <div class="row mt-2">
+                                    <div class="col-md-3">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" name="days_of_week" value="4" id="friday">
+                                            <label class="form-check-label" for="friday">Friday</label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" name="days_of_week" value="5" id="saturday">
+                                            <label class="form-check-label" for="saturday">Saturday</label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" name="days_of_week" value="6" id="sunday">
+                                            <label class="form-check-label" for="sunday">Sunday</label>
+                                        </div>
+                                    </div>
+                                    <!-- Meeting Link -->
+                                    <div class="row">
+                                        <div class="col-md-12">
+                                            <div class="mb-3">
+                                                <label class="form-label">Meeting Link</label>
+                                                <input type="url" name="meeting_link" class="form-control" placeholder="https://...">
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <!-- Class Notes -->
+                                    <div class="mb-3">
+                                        <label class="form-label">Notes</label>
+                                        <textarea name="class_notes" class="form-control" rows="3" placeholder="Any additional notes"></textarea>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -718,9 +995,9 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="submit" form="bulkCreateForm" class="btn btn-primary">
+                <button type="submit" form="bulkCreateForm" class="btn btn-primary" id="bulkCreateSubmitBtn">
                     <i class="fas fa-layer-group"></i>
-                    Create Classes
+                    Create Classes (<span id="submitCount">0</span> students)
                 </button>
             </div>
         </div>
@@ -729,39 +1006,1183 @@
 {% endif %}
 
 <script>
-// Store tutor data for filtering
-const tutorData = {{ tutors_dict_data|tojson }};
-const studentData = {{ students_dict_data|tojson }};
 
+const studentData = {{ students_dict_data | tojson | safe }};
+const tutorData = {{ tutors_dict_data | tojson | safe }};
+
+let studentSearchTimeout;
+let currentPage = 1;
+let selectedStudents = new Map();
+let currentFilters = {};
+let filterOptions = {
+    grades: [],
+    boards: [],
+    subjects: [],
+    departments: [],
+    enrollment_statuses: []
+};
+// Enhanced finder mode management
+let currentFinderMode = 'smart';
+let searchTimeout;
+
+
+function populateAllTutors() {
+    console.log('🔧 Populating tutors...');
+    const select = document.getElementById('manualTutorSelect');
+    
+    if (!select) {
+        console.log('ℹ️ Manual tutor select not found, skipping...');
+        return;
+    }
+    
+    select.innerHTML = '<option value="">Loading tutors...</option>';
+    
+    if (tutorData && Array.isArray(tutorData) && tutorData.length > 0) {
+        let html = '<option value="">Choose any available tutor</option>';
+        tutorData.forEach(tutor => {
+            const testScore = tutor.test_score || 0;
+            const testGrade = testScore >= 90 ? 'A+' : testScore >= 85 ? 'A' : testScore >= 80 ? 'B+' : testScore >= 70 ? 'B' : 'C';
+            const rating = tutor.rating || 0;
+            const userName = tutor.user_name || tutor.name || 'Unknown Tutor';
+            
+            html += `<option value="${tutor.id}">${userName} - ${testGrade} - ⭐${rating.toFixed(1)}</option>`;
+        });
+        select.innerHTML = html;
+        console.log(`✅ Populated ${tutorData.length} tutors`);
+    } else {
+        select.innerHTML = '<option value="">No tutors available</option>';
+        console.log('⚠️ No tutor data available');
+    }
+}
+
+console.log('✅ Variables initialized safely');
+
+
+function updateCreateButtonState() {
+    const btn = document.querySelector("#bulkCreateSubmitBtn");
+    if (btn) {
+        const count = selectedStudents.size;
+        console.log(`Updating create button state with ${count} students`);
+        btn.innerHTML = `<i class="fas fa-layer-group"></i> Create Classes (<span id="submitCount">${count}</span> students)`;
+        btn.disabled = count === 0;
+    } else {
+        console.error('Bulk create submit button not found');
+    }
+}
+
+function switchFinderMode(mode) {
+    // Update tab buttons
+    document.querySelectorAll('.mode-tab-btn').forEach(btn => btn.classList.remove('active'));
+    document.getElementById(mode + 'ModeBtn').classList.add('active');
+    
+    // Hide all panels
+    document.querySelectorAll('.search-panel').forEach(panel => panel.classList.remove('active'));
+    
+    // Show selected panel
+    const panelMap = {
+        'smart': 'smartMatchPanel',
+        'search': 'advancedSearchPanel', 
+        'browse': 'browseAllPanel',
+        'manual': 'manualSelectPanel'
+    };
+    
+    document.getElementById(panelMap[mode]).classList.add('active');
+    currentFinderMode = mode;
+    
+    // Initialize panel if needed
+    if (mode === 'browse' && !document.getElementById('tutorCardsContainer').innerHTML.trim()) {
+        loadTutorCards();
+    } else if (mode === 'manual' && !document.getElementById('manualTutorSelect').innerHTML.trim()) {
+        populateAllTutors();
+    }
+}
+
+function setQuickFilter(filterType) {
+    // Toggle active state
+    event.target.classList.toggle('active');
+    
+    // Run filtered search based on active filters
+    runSmartMatch();
+}
+
+function runSmartMatch() {
+    const selectedStudentId = document.getElementById('primaryStudentSelect').value;
+    if (!selectedStudentId) {
+        showSmartMatchError('Please select a student first');
+        return;
+    }
+    
+    const subject = document.getElementById('subjectInput').value;
+    const activeFilters = Array.from(document.querySelectorAll('.quick-filter-btn.active'))
+                              .map(btn => btn.textContent.trim());
+    
+    // Build search parameters
+    let searchParams = `student_id=${selectedStudentId}`;
+    if (subject) searchParams += `&subject=${encodeURIComponent(subject)}`;
+    
+    // Add filter-based parameters
+    if (activeFilters.includes('High Rated (4.5+)')) {
+        searchParams += '&min_rating=4.5';
+    }
+    if (activeFilters.includes('Excellent Test Scores')) {
+        searchParams += '&min_test_score=85';
+    }
+    if (activeFilters.includes('Most Experienced')) {
+        searchParams += '&experience_level=expert';
+    }
+    
+    // Show loading
+    document.getElementById('smartMatchResults').innerHTML = `
+        <div class="text-center py-3">
+            <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+            <p class="mt-2 mb-0">Finding best matches...</p>
+        </div>
+    `;
+    
+    // Call enhanced API (fallback to compatible tutors if smart search not available)
+    const apiUrl = '/admin/api/v1/tutors/smart-search';
+    fetch(`${apiUrl}?${searchParams}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                displaySmartMatchResults(data.tutors || data.matches || []);
+            } else {
+                // Fallback to enhanced compatible tutors
+                return fetch(`/admin/api/v1/compatible-tutors?${searchParams}`);
+            }
+        })
+        .then(response => {
+            if (response) return response.json();
+        })
+        .then(data => {
+            if (data && data.success) {
+                displaySmartMatchResults(data.tutors || []);
+            } else {
+                showSmartMatchError('Search failed. Please try again.');
+            }
+        })
+        .catch(error => {
+            console.error('Smart match error:', error);
+            showSmartMatchError('Network error. Please try again.');
+        });
+}
+
+function displaySmartMatchResults(tutors) {
+    const resultsContainer = document.getElementById('smartMatchResults');
+    
+    if (!tutors || tutors.length === 0) {
+        resultsContainer.innerHTML = `
+            <div class="text-center text-muted py-3">
+                <i class="fas fa-search fa-2x mb-2"></i>
+                <p class="mb-0">No matching tutors found</p>
+                <small>Try adjusting your criteria</small>
+            </div>
+        `;
+        return;
+    }
+    
+    let html = `<div class="mb-2"><small class="text-muted">Found ${tutors.length} compatible tutors</small></div>`;
+    
+    tutors.slice(0, 5).forEach((tutor, index) => {
+        const score = tutor.score_data ? tutor.score_data.total_score : (tutor.compatibility_score || 75);
+        const badgeClass = score >= 80 ? 'score-excellent' : 
+                          score >= 60 ? 'score-good' : 'score-fair';
+        
+        const tutorName = tutor.tutor_name || tutor.name || tutor.user_name || 'Unknown';
+        const tutorId = tutor.tutor_id || tutor.id;
+        const rating = tutor.rating || 0;
+        const testScore = tutor.test_score || 0;
+        const completedClasses = tutor.completed_classes || tutor.total_classes || 0;
+        
+        html += `
+            <div class="tutor-card-enhanced" onclick="selectTutorFromMatch(${tutorId})">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div class="flex-grow-1">
+                        <div class="d-flex align-items-center gap-2 mb-1">
+                            <strong>${tutorName}</strong>
+                            ${index === 0 ? '<span class="badge bg-success tutor-badge">Best Match</span>' : ''}
+                        </div>
+                        
+                        <div class="tutor-quick-stats">
+                            <span class="stat-item">
+                                <i class="fas fa-star tutor-rating"></i>
+                                ${rating.toFixed(1)}
+                            </span>
+                            <span class="stat-item">
+                                <i class="fas fa-chart-line"></i>
+                                ${testScore > 0 ? testScore + '/100' : 'Not tested'}
+                            </span>
+                            <span class="stat-item">
+                                <i class="fas fa-graduation-cap"></i>
+                                ${completedClasses} classes
+                            </span>
+                        </div>
+                        
+                        ${tutor.score_data && tutor.score_data.match_reasons ? `
+                        <div class="match-reasons">
+                            <i class="fas fa-check-circle text-success"></i>
+                            ${tutor.score_data.match_reasons.slice(0, 2).join(' • ')}
+                        </div>
+                        ` : ''}
+                    </div>
+                    
+                    <div class="text-end">
+                        <span class="compatibility-badge ${badgeClass}">
+                            ${score}% match
+                        </span>
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+    
+    if (tutors.length > 5) {
+        html += `
+            <div class="text-center mt-2">
+                <small class="text-muted">+${tutors.length - 5} more tutors available</small>
+                <button type="button" class="btn btn-link btn-sm p-0 ms-2" onclick="switchFinderMode('browse')">
+                    View all
+                </button>
+            </div>
+        `;
+    }
+    
+    resultsContainer.innerHTML = html;
+}
+
+function showSmartMatchError(message) {
+    document.getElementById('smartMatchResults').innerHTML = `
+        <div class="text-center text-danger py-3">
+            <i class="fas fa-exclamation-triangle fa-2x mb-2"></i>
+            <p class="mb-0">${message}</p>
+        </div>
+    `;
+}
+
+function selectTutorFromMatch(tutorId) {
+    // Update the main tutor select dropdown
+    const tutorSelect = document.getElementById('tutorSelect');
+    tutorSelect.value = tutorId;
+    
+    // Trigger change event for availability check
+    tutorSelect.dispatchEvent(new Event('change'));
+    
+    // Update visual selection
+    document.querySelectorAll('.tutor-card-enhanced').forEach(card => {
+        card.classList.remove('selected');
+    });
+    if (event && event.currentTarget) {
+        event.currentTarget.classList.add('selected');
+    }
+    
+    // Show enhanced info
+    showEnhancedTutorInfo(tutorId);
+}
+
+function showEnhancedTutorInfo(tutorId) {
+    const tutor = tutorData.find(t => t.id == tutorId);
+    if (!tutor) return;
+    
+    const panel = document.getElementById('enhancedInfoPanel');
+    document.getElementById('selectedTutorName').textContent = tutor.user_name;
+    document.getElementById('selectedTutorDetails').innerHTML = `
+        ${tutor.test_score ? tutor.test_score + '/100' : 'Not tested'} • ⭐${(tutor.rating || 0).toFixed(1)} • 
+        ${(tutor.subjects || []).slice(0, 2).join(', ')}
+    `;
+    document.getElementById('showDetailsBtn').setAttribute('data-tutor-id', tutorId);
+    
+    panel.style.display = 'block';
+}
+
+// Debounced search for performance
+function debounceAdvancedSearch() {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(performAdvancedSearch, 300);
+}
+
+function performAdvancedSearch() {
+    const searchTerm = document.getElementById('tutorNameSearch').value;
+    const minTestScore = document.getElementById('minTestScore').value;
+    const minRating = document.getElementById('minRating').value;
+    const experienceLevel = document.getElementById('experienceLevel').value;
+    
+    // Build search parameters
+    let searchParams = new URLSearchParams();
+    if (searchTerm) searchParams.append('search_term', searchTerm);
+    if (minTestScore) searchParams.append('min_test_score', minTestScore);
+    if (minRating) searchParams.append('min_rating', minRating);
+    if (experienceLevel) searchParams.append('experience_level', experienceLevel);
+    
+    // Call API (fallback to compatible tutors if advanced search not available)
+    fetch(`/admin/api/v1/tutors/smart-search?${searchParams}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                displayAdvancedSearchResults(data.tutors || data.matches || []);
+            } else {
+                console.error('Search failed:', data.error);
+            }
+        })
+        .catch(error => console.error('Search error:', error));
+}
+
+function displayAdvancedSearchResults(tutors) {
+    const container = document.getElementById('advancedSearchResults');
+    
+    if (!tutors || tutors.length === 0) {
+        container.innerHTML = '<p class="text-muted">No tutors match your search criteria.</p>';
+        return;
+    }
+    
+    let html = `<h6>Search Results (${tutors.length} found)</h6><div class="row">`;
+    
+    tutors.forEach(tutor => {
+        const tutorName = tutor.tutor_name || tutor.name || tutor.user_name || 'Unknown';
+        const tutorId = tutor.tutor_id || tutor.id;
+        const rating = tutor.rating || 0;
+        const testScore = tutor.test_score || 0;
+        const completedClasses = tutor.completed_classes || tutor.total_classes || 0;
+        const score = tutor.score_data ? tutor.score_data.total_score : (tutor.compatibility_score || 75);
+        
+        html += `
+            <div class="col-md-6 mb-2">
+                <div class="tutor-card-enhanced" onclick="selectTutorFromMatch(${tutorId})">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <strong>${tutorName}</strong>
+                            <div class="tutor-details-mini">
+                                ${testScore > 0 ? testScore + '/100' : 'Not tested'} • ⭐${rating.toFixed(1)} • 
+                                ${completedClasses} classes
+                            </div>
+                        </div>
+                        <span class="compatibility-badge score-good">
+                            ${score}%
+                        </span>
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+    
+    html += '</div>';
+    container.innerHTML = html;
+}
+
+function loadTutorCards() {
+    fetch('/admin/api/v1/tutors/browse-all')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                displayTutorCards(data.tutors);
+            } else {
+                // Fallback: use existing tutor data
+                displayTutorCards(tutorData.map(t => ({
+                    id: t.id,
+                    name: t.user_name,
+                    test_score: t.test_score || 0,
+                    test_grade: t.test_score >= 90 ? 'A+' : t.test_score >= 85 ? 'A' : t.test_score >= 80 ? 'B+' : t.test_score >= 70 ? 'B' : 'C',
+                    rating: t.rating || 0,
+                    qualification: 'Qualified Tutor',
+                    subjects: t.subjects || [],
+                    grades: t.grades || [],
+                    total_classes: t.total_classes || 0,
+                    completion_rate: 95
+                })));
+            }
+        })
+        .catch(error => {
+            console.error('Error loading tutor cards:', error);
+            // Fallback to existing data
+            displayTutorCards(tutorData.map(t => ({
+                id: t.id,
+                name: t.user_name,
+                test_score: t.test_score || 0,
+                test_grade: t.test_score >= 90 ? 'A+' : t.test_score >= 85 ? 'A' : t.test_score >= 80 ? 'B+' : t.test_score >= 70 ? 'B' : 'C',
+                rating: t.rating || 0,
+                qualification: 'Qualified Tutor',
+                subjects: t.subjects || [],
+                grades: t.grades || [],
+                total_classes: t.total_classes || 0,
+                completion_rate: 95
+            })));
+        });
+}
+
+function displayTutorCards(tutors) {
+    const container = document.getElementById('tutorCardsContainer');
+    let html = '';
+    
+    tutors.forEach(tutor => {
+        html += `
+            <div class="col-md-6 col-lg-4 mb-3">
+                <div class="card h-100 tutor-card-enhanced" onclick="selectTutorFromMatch(${tutor.id})">
+                    <div class="card-body">
+                        <h6 class="card-title">${tutor.name}</h6>
+                        <div class="mb-2">
+                            <span class="badge ${getTestScoreBadgeClass(tutor.test_score)}">${tutor.test_grade}</span>
+                            <span class="tutor-rating ms-2">⭐ ${tutor.rating.toFixed(1)}</span>
+                        </div>
+                        <p class="card-text small text-muted">
+                            ${tutor.qualification}
+                        </p>
+                        <div class="small">
+                            <strong>Subjects:</strong> ${tutor.subjects.slice(0, 3).join(', ')}
+                            ${tutor.subjects.length > 3 ? `<small>(+${tutor.subjects.length - 3} more)</small>` : ''}
+                        </div>
+                        <div class="small mt-1">
+                            <strong>Grades:</strong> ${tutor.grades.join(', ')}
+                        </div>
+                    </div>
+                    <div class="card-footer">
+                        <small class="text-muted">
+                            ${tutor.total_classes} classes • ${tutor.completion_rate.toFixed(1)}% completion
+                        </small>
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+    
+    container.innerHTML = html;
+}
+
+function getTestScoreBadgeClass(score) {
+    if (score >= 90) return 'bg-success';
+    if (score >= 80) return 'bg-info'; 
+    if (score >= 70) return 'bg-warning';
+    return 'bg-secondary';
+}
+
+
+function selectManualTutor() {
+    const tutorId = document.getElementById('manualTutorSelect').value;
+    if (tutorId) {
+        // Update main select
+        document.getElementById('tutorSelect').value = tutorId;
+        document.getElementById('tutorSelect').dispatchEvent(new Event('change'));
+        
+        // Show info
+        showEnhancedTutorInfo(tutorId);
+    }
+}
+
+function sortTutorCards() {
+    const sortBy = document.getElementById('sortBy').value;
+    // Reload cards with new sort
+    loadTutorCards();
+}
+
+function showTutorDetailedProfile() {
+    const tutorId = document.getElementById('showDetailsBtn').getAttribute('data-tutor-id');
+    if (tutorId) {
+        // You can implement a modal or redirect to detailed view
+        window.open(`/admin/tutors/${tutorId}`, '_blank');
+    }
+}
+
+
+async function initializeStudentSearch() {
+    try {
+        // Load filter options
+        await loadFilterOptions();
+        
+        // Clear previous state
+        selectedStudents.clear();
+        currentPage = 1;
+        currentFilters = {};
+        
+        // Reset UI
+        updateSelectedCount();
+        document.getElementById('studentSearchInput').value = '';
+        resetAllFilters();
+        
+        // Load initial results
+        await searchStudents();
+        
+    } catch (error) {
+        console.error('Error initializing student search:', error);
+        showError('Failed to load student search. Please try again.');
+    }
+}
+
+async function loadFilterOptions() {
+    try {
+        const response = await fetch('/student/api/students/filter-options');
+        const data = await response.json();
+        
+        if (data.success) {
+            filterOptions = data.options;
+            populateFilterDropdowns();
+        } else {
+            throw new Error('Failed to load filter options');
+        }
+    } catch (error) {
+        console.error('Error loading filter options:', error);
+    }
+}
+
+function populateFilterDropdowns() {
+    // Populate grade filter
+    const gradeFilter = document.getElementById('gradeFilter');
+    if (gradeFilter) {
+        gradeFilter.innerHTML = '<option value="">All Grades</option>';
+        filterOptions.grades.forEach(grade => {
+            gradeFilter.innerHTML += `<option value="${grade}">Grade ${grade}</option>`;
+        });
+    }
+    
+    // Populate board filter
+    const boardFilter = document.getElementById('boardFilter');
+    if (boardFilter) {
+        boardFilter.innerHTML = '<option value="">All Boards</option>';
+        filterOptions.boards.forEach(board => {
+            boardFilter.innerHTML += `<option value="${board}">${board}</option>`;
+        });
+    }
+    
+    // Populate subject filter
+    const subjectFilter = document.getElementById('subjectFilter');
+    if (subjectFilter) {
+        subjectFilter.innerHTML = '<option value="">All Subjects</option>';
+        filterOptions.subjects.forEach(subject => {
+            subjectFilter.innerHTML += `<option value="${subject}">${subject}</option>`;
+        });
+    }
+    
+    // Populate department filter (if available)
+    const departmentFilter = document.getElementById('departmentFilter');
+    if (departmentFilter && filterOptions.departments) {
+        departmentFilter.innerHTML = '<option value="">All Departments</option>';
+        filterOptions.departments.forEach(dept => {
+            departmentFilter.innerHTML += `<option value="${dept.id}">${dept.name}</option>`;
+        });
+    }
+    
+    // Populate enrollment status filter
+    const statusFilter = document.getElementById('enrollmentStatusFilter');
+    if (statusFilter) {
+        statusFilter.innerHTML = '<option value="">All Status</option>';
+        filterOptions.enrollment_statuses.forEach(status => {
+            statusFilter.innerHTML += `<option value="${status}">${status.charAt(0).toUpperCase() + status.slice(1)}</option>`;
+        });
+    }
+}
+
+function debounceStudentSearch() {
+    clearTimeout(studentSearchTimeout);
+    studentSearchTimeout = setTimeout(() => {
+        currentPage = 1; // Reset to first page on new search
+        searchStudents();
+    }, 300);
+}
+
+function applyStudentFilters() {
+    currentPage = 1; // Reset to first page when filters change
+    searchStudents();
+}
+
+async function searchStudents(page = 1) {
+    try {
+        showLoading(true);
+        console.log(`Searching students for page ${page}`);
+        
+        // Build search parameters
+        const searchParams = new URLSearchParams();
+        
+        // Text search
+        const searchQuery = document.getElementById('studentSearchInput').value.trim();
+        if (searchQuery) {
+            searchParams.append('q', searchQuery);
+        }
+        
+        // Filters
+        const grade = document.getElementById('gradeFilter').value;
+        if (grade) searchParams.append('grade', grade);
+        
+        const board = document.getElementById('boardFilter').value;
+        if (board) searchParams.append('board', board);
+        
+        const subject = document.getElementById('subjectFilter').value;
+        if (subject) searchParams.append('subject', subject);
+        
+        const departmentFilter = document.getElementById('departmentFilter');
+        if (departmentFilter && departmentFilter.value) {
+            searchParams.append('department_id', departmentFilter.value);
+        }
+        
+        const statusFilter = document.getElementById('enrollmentStatusFilter');
+        if (statusFilter && statusFilter.value) {
+            searchParams.append('enrollment_status', statusFilter.value);
+        }
+        
+        // Pagination
+        searchParams.append('page', page);
+        searchParams.append('per_page', 20);
+        
+        // Store current filters
+        currentFilters = {
+            query: searchQuery,
+            grade,
+            board,
+            subject,
+            department_id: departmentFilter ? departmentFilter.value : '',
+            enrollment_status: statusFilter ? statusFilter.value : ''
+        };
+        
+        const response = await fetch(`/student/api/students/search-enhanced?${searchParams}`);
+        const data = await response.json();
+        
+        if (data.success) {
+            console.log(`Search successful, found ${data.students.length} students`);
+            displaySearchResults(data.students, data.pagination);
+            displayActiveFilters();
+            currentPage = page;
+        } else {
+            throw new Error('Search failed');
+        }
+        
+    } catch (error) {
+        console.error('Error searching students:', error);
+        showError('Search failed. Please try again.');
+    } finally {
+        showLoading(false);
+    }
+}
+
+function displaySearchResults(students, pagination) {
+    const resultsContainer = document.getElementById('studentSearchResults');
+    
+    if (students.length === 0) {
+        resultsContainer.innerHTML = `
+            <div class="text-center py-4 text-muted">
+                <i class="fas fa-search fa-2x mb-3"></i>
+                <h6>No students found</h6>
+                <p>Try adjusting your search criteria or filters.</p>
+            </div>
+        `;
+        document.getElementById('studentPagination').style.display = 'none';
+        return;
+    }
+    
+    let html = `
+        <div class="student-results-header mb-3">
+            <small class="text-muted">
+                Showing ${students.length} of ${pagination.total} students
+                ${pagination.total > pagination.per_page ? `(Page ${pagination.page} of ${pagination.pages})` : ''}
+            </small>
+        </div>
+        <div class="student-results-grid">
+    `;
+    
+    students.forEach(student => {
+        const isSelected = selectedStudents.has(Number(student.id));
+        const subjects = student.subjects_enrolled.slice(0, 3).join(', ');
+        const moreSubjects = student.subjects_enrolled.length > 3 ? ` (+${student.subjects_enrolled.length - 3} more)` : '';
+        
+        html += `
+            <div class="student-result-card ${isSelected ? 'selected' : ''}" data-student-id="${student.id}">
+                <div class="student-card-header">
+                    <div class="form-check">
+                        <input class="form-check-input student-checkbox" type="checkbox" 
+                               ${isSelected ? 'checked' : ''} 
+                               onchange="toggleStudentSelection(this)"
+                               value="${student.id}"
+                               id="student_${student.id}">
+                        <label class="form-check-label" for="student_${student.id}">
+                            <strong>${student.name}</strong>
+                        </label>
+                    </div>
+                </div>
+                <div class="student-card-body">
+                    <div class="student-info">
+                        <div class="info-row">
+                            <span class="info-label">Grade:</span>
+                            <span class="info-value">Grade ${student.grade} (${student.board})</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Email:</span>
+                            <span class="info-value">${student.email}</span>
+                        </div>
+                        ${student.phone ? `
+                        <div class="info-row">
+                            <span class="info-label">Phone:</span>
+                            <span class="info-value">${student.phone}</span>
+                        </div>
+                        ` : ''}
+                        ${student.department ? `
+                        <div class="info-row">
+                            <span class="info-label">Department:</span>
+                            <span class="info-value">${student.department}</span>
+                        </div>
+                        ` : ''}
+                        ${subjects ? `
+                        <div class="info-row">
+                            <span class="info-label">Subjects:</span>
+                            <span class="info-value">${subjects}${moreSubjects}</span>
+                        </div>
+                        ` : ''}
+                        <div class="info-row">
+                            <span class="info-label">Status:</span>
+                            <span class="badge badge-${getStatusBadgeClass(student.enrollment_status)}">${student.enrollment_status}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+    
+    html += '</div>';
+    resultsContainer.innerHTML = html;
+    
+    // Display pagination
+    displayPagination(pagination);
+}
+
+function displayPagination(pagination) {
+    const paginationContainer = document.getElementById('studentPagination');
+    
+    if (pagination.pages <= 1) {
+        paginationContainer.style.display = 'none';
+        return;
+    }
+    
+    let html = '<ul class="pagination pagination-sm justify-content-center">';
+    
+    // Previous button
+    if (pagination.has_prev) {
+        html += `<li class="page-item">
+                    <a class="page-link" href="#" onclick="searchStudents(${pagination.page - 1}); return false;">
+                        <i class="fas fa-chevron-left"></i>
+                    </a>
+                 </li>`;
+    } else {
+        html += '<li class="page-item disabled"><span class="page-link"><i class="fas fa-chevron-left"></i></span></li>';
+    }
+    
+    // Page numbers
+    const startPage = Math.max(1, pagination.page - 2);
+    const endPage = Math.min(pagination.pages, pagination.page + 2);
+    
+    if (startPage > 1) {
+        html += '<li class="page-item"><a class="page-link" href="#" onclick="searchStudents(1); return false;">1</a></li>';
+        if (startPage > 2) {
+            html += '<li class="page-item disabled"><span class="page-link">...</span></li>';
+        }
+    }
+    
+    for (let i = startPage; i <= endPage; i++) {
+        if (i === pagination.page) {
+            html += `<li class="page-item active"><span class="page-link">${i}</span></li>`;
+        } else {
+            html += `<li class="page-item"><a class="page-link" href="#" onclick="searchStudents(${i}); return false;">${i}</a></li>`;
+        }
+    }
+    
+    if (endPage < pagination.pages) {
+        if (endPage < pagination.pages - 1) {
+            html += '<li class="page-item disabled"><span class="page-link">...</span></li>';
+        }
+        html += `<li class="page-item"><a class="page-link" href="#" onclick="searchStudents(${pagination.pages}); return false;">${pagination.pages}</a></li>`;
+    }
+    
+    // Next button
+    if (pagination.has_next) {
+        html += `<li class="page-item">
+                    <a class="page-link" href="#" onclick="searchStudents(${pagination.page + 1}); return false;">
+                        <i class="fas fa-chevron-right"></i>
+                    </a>
+                 </li>`;
+    } else {
+        html += '<li class="page-item disabled"><span class="page-link"><i class="fas fa-chevron-right"></i></span></li>';
+    }
+    
+    html += '</ul>';
+    paginationContainer.innerHTML = html;
+    paginationContainer.style.display = 'block';
+}
+
+function toggleStudentSelection(checkboxElement) {
+    console.log('🔄 Toggle student selection called with:', checkboxElement);
+    
+    // Safety checks
+    if (!checkboxElement || !checkboxElement.value) {
+        console.error('❌ Invalid checkbox element:', checkboxElement);
+        return;
+    }
+    
+    const studentId = parseInt(checkboxElement.value);
+    const checked = checkboxElement.checked;
+    
+    if (isNaN(studentId)) {
+        console.error('❌ Invalid student ID:', checkboxElement.value);
+        return;
+    }
+    
+    console.log(`🔄 Toggling student ${studentId}, checked: ${checked}`);
+    
+    // Find the card element
+    const card = document.querySelector(`[data-student-id="${studentId}"]`);
+    
+    if (checked) {
+        // Get student data safely
+        const studentData = getStudentDataFromCard(card) || {
+            name: `Student ${studentId}`,
+            grade: 'Unknown',
+            board: 'Unknown',
+            email: 'unknown@email.com'
+        };
+        
+        selectedStudents.set(studentId, studentData);
+        if (card) card.classList.add('selected');
+        console.log(`✅ Added student ${studentId}:`, studentData);
+    } else {
+        selectedStudents.delete(studentId);
+        if (card) card.classList.remove('selected');
+        console.log(`➖ Removed student ${studentId}`);
+    }
+
+    updateSelectedCount();
+    updateSelectedStudentsDisplay();
+    updateHiddenInputs();
+}
+
+
+
+function getStudentDataFromCard(card) {
+    console.log('📝 Getting student data from card:', card);
+    
+    if (!card) {
+        console.warn('⚠️ Card element is null');
+        return null;
+    }
+    
+    try {
+        const studentId = parseInt(card.dataset.studentId);
+        
+        // Try to get student name - with multiple fallback attempts
+        let studentName = 'Unknown Student';
+        
+        // Method 1: Try the label strong element
+        const labelStrong = card.querySelector('.form-check-label strong');
+        if (labelStrong && labelStrong.textContent) {
+            studentName = labelStrong.textContent.trim();
+        } else {
+            // Method 2: Try just the label
+            const label = card.querySelector('.form-check-label');
+            if (label && label.textContent) {
+                studentName = label.textContent.trim();
+            } else {
+                // Method 3: Try any strong element
+                const anyStrong = card.querySelector('strong');
+                if (anyStrong && anyStrong.textContent) {
+                    studentName = anyStrong.textContent.trim();
+                }
+            }
+        }
+        
+        // Try to get grade and board info
+        let grade = 'Unknown';
+        let board = 'Unknown';
+        let email = 'unknown@email.com';
+        
+        // Look for info rows
+        const infoRows = card.querySelectorAll('.info-row');
+        infoRows.forEach(row => {
+            const labelElement = row.querySelector('.info-label');
+            const valueElement = row.querySelector('.info-value');
+            
+            if (labelElement && valueElement && labelElement.textContent && valueElement.textContent) {
+                const label = labelElement.textContent.trim();
+                const value = valueElement.textContent.trim();
+                
+                if (label === 'Grade:') {
+                    const gradeMatch = value.match(/Grade (\d+)/);
+                    if (gradeMatch) grade = gradeMatch[1];
+                    
+                    const boardMatch = value.match(/\(([^)]+)\)/);
+                    if (boardMatch) board = boardMatch[1];
+                } else if (label === 'Email:') {
+                    email = value;
+                }
+            }
+        });
+        
+        const studentData = { 
+            name: studentName, 
+            grade: grade, 
+            board: board, 
+            email: email 
+        };
+        
+        console.log('✅ Extracted student data:', studentData);
+        return studentData;
+        
+    } catch (error) {
+        console.error('❌ Error extracting student data:', error);
+        return {
+            name: 'Unknown Student',
+            grade: 'Unknown',
+            board: 'Unknown', 
+            email: 'unknown@email.com'
+        };
+    }
+}
+
+function updateSelectedCount() {
+    const count = selectedStudents ? selectedStudents.size : 0;
+    console.log(`📊 Updating selected count: ${count}`);
+    
+    // Update all count displays
+    const countElements = document.querySelectorAll('#selectedCount, #submitCount');
+    countElements.forEach(el => {
+        if (el) el.textContent = count;
+    });
+    
+    // Show/hide clear all button
+    const clearAllBtn = document.getElementById('clearAllBtn');
+    if (clearAllBtn) {
+        clearAllBtn.style.display = count > 0 ? 'inline-block' : 'none';
+    }
+    
+    // Enable/disable submit button
+    const submitBtn = document.getElementById('bulkCreateSubmitBtn');
+    if (submitBtn) {
+        submitBtn.disabled = count === 0;
+        submitBtn.innerHTML = `<i class="fas fa-layer-group"></i> Create Classes (${count} students)`;
+    }
+    
+    console.log(`✅ Updated UI for ${count} selected students`);
+}
+
+function updateSelectedStudentsDisplay() {
+    const section = document.getElementById('selectedStudentsSection');
+    const list = document.getElementById('selectedStudentsList');
+
+    if (!section || !list) {
+        console.warn('⚠️ Selected students display elements not found');
+        return;
+    }
+
+    if (!selectedStudents || selectedStudents.size === 0) {
+        section.style.display = 'none';
+        list.innerHTML = '';
+        return;
+    }
+
+    let html = '';
+    selectedStudents.forEach((student, id) => {
+        html += `
+            <div class="selected-student-tag d-flex align-items-center mb-2 me-2">
+                <span class="student-name me-2 fw-bold">${student.name}</span>
+                <span class="student-details me-2 text-muted">Grade ${student.grade} (${student.board})</span>
+                <button type="button" class="btn btn-sm btn-outline-danger btn-remove" onclick="removeStudentSelection(${id})" title="Remove">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        `;
+    });
+
+    list.innerHTML = html;
+    section.style.display = 'block';
+}
+
+
+function updateHiddenInputs() {
+    const container = document.getElementById('hiddenStudentInputs');
+    if (!container) {
+        console.error('❌ Hidden student inputs container not found');
+        return;
+    }
+
+    // Clear old inputs
+    container.innerHTML = '';
+    
+    if (!selectedStudents || selectedStudents.size === 0) {
+        console.log('ℹ️ No students selected - no hidden inputs to create');
+        return;
+    }
+
+    console.log(`🔧 Creating ${selectedStudents.size} hidden inputs`);
+
+    // Create new hidden inputs
+    selectedStudents.forEach((student, id) => {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'students';
+        input.value = id;
+        container.appendChild(input);
+        console.log(`✅ Added hidden input for student ID: ${id}`);
+    });
+}
+
+
+function removeStudentSelection(studentId) {
+    const id = parseInt(studentId);
+    selectedStudents.delete(id);
+    
+    // Update checkbox if visible
+    const checkbox = document.getElementById(`student_${studentId}`);
+    if (checkbox) {
+        checkbox.checked = false;
+        const card = document.querySelector(`[data-student-id="${studentId}"]`);
+        if (card) {
+            card.classList.remove('selected');
+        }
+    }
+    
+    updateSelectedCount();
+    updateSelectedStudentsDisplay();
+    updateHiddenInputs();
+    updateCreateButtonState();
+}
+
+
+function clearAllSelections() {
+    selectedStudents.clear();
+
+    document.querySelectorAll('#studentSearchResults .form-check-input').forEach(checkbox => {
+        checkbox.checked = false;
+    });
+
+    document.querySelectorAll('#studentSearchResults .student-result-card').forEach(card => {
+        card.classList.remove('selected');
+    });
+
+    updateSelectedCount();
+    updateSelectedStudentsDisplay();
+    updateHiddenInputs();
+    updateCreateButtonState();
+}
+
+
+function clearSearch() {
+    document.getElementById('studentSearchInput').value = '';
+    currentPage = 1;
+    searchStudents();
+}
+
+function resetAllFilters() {
+    document.getElementById('studentSearchInput').value = '';
+    document.getElementById('gradeFilter').value = '';
+    document.getElementById('boardFilter').value = '';
+    document.getElementById('subjectFilter').value = '';
+    
+    const departmentFilter = document.getElementById('departmentFilter');
+    if (departmentFilter) departmentFilter.value = '';
+    
+    const statusFilter = document.getElementById('enrollmentStatusFilter');
+    if (statusFilter) statusFilter.value = '';
+    
+    document.getElementById('activeFilters').style.display = 'none';
+    
+    currentPage = 1;
+    searchStudents();
+}
+
+function displayActiveFilters() {
+    const activeFiltersDiv = document.getElementById('activeFilters');
+    const filterTagsDiv = document.getElementById('filterTags');
+    
+    const activeTags = [];
+    
+    if (currentFilters.query) {
+        activeTags.push(`<span class="filter-tag">Search: "${currentFilters.query}"</span>`);
+    }
+    if (currentFilters.grade) {
+        activeTags.push(`<span class="filter-tag">Grade: ${currentFilters.grade}</span>`);
+    }
+    if (currentFilters.board) {
+        activeTags.push(`<span class="filter-tag">Board: ${currentFilters.board}</span>`);
+    }
+    if (currentFilters.subject) {
+        activeTags.push(`<span class="filter-tag">Subject: ${currentFilters.subject}</span>`);
+    }
+    if (currentFilters.department_id) {
+        const dept = filterOptions.departments?.find(d => d.id == currentFilters.department_id);
+        if (dept) {
+            activeTags.push(`<span class="filter-tag">Department: ${dept.name}</span>`);
+        }
+    }
+    if (currentFilters.enrollment_status) {
+        activeTags.push(`<span class="filter-tag">Status: ${currentFilters.enrollment_status}</span>`);
+    }
+    
+    if (activeTags.length > 0) {
+        filterTagsDiv.innerHTML = activeTags.join(' ');
+        activeFiltersDiv.style.display = 'block';
+    } else {
+        activeFiltersDiv.style.display = 'none';
+    }
+}
+
+function getStatusBadgeClass(status) {
+    switch (status) {
+        case 'active': return 'success';
+        case 'paused': return 'warning';
+        case 'completed': return 'info';
+        case 'dropped': return 'danger';
+        default: return 'secondary';
+    }
+}
+
+function showLoading(show) {
+    const loader = document.getElementById('studentSearchLoading');
+    const results = document.getElementById('studentSearchResults');
+    
+    if (show) {
+        loader.style.display = 'block';
+        results.style.opacity = '0.5';
+    } else {
+        loader.style.display = 'none';
+        results.style.opacity = '1';
+    }
+}
+
+function showError(message) {
+    const resultsContainer = document.getElementById('studentSearchResults');
+    resultsContainer.innerHTML = `
+        <div class="alert alert-danger">
+            <i class="fas fa-exclamation-triangle"></i>
+            ${message}
+        </div>
+    `;
+}
+
+// Original functions (keep existing functionality)
 function toggleStudentFields() {
     const classType = document.getElementById('classType').value;
     const oneOnOneField = document.getElementById('oneOnOneStudent');
     const groupField = document.getElementById('groupStudents');
     
-    // Hide all student fields first
-    oneOnOneField.style.display = 'none';
-    groupField.style.display = 'none';
+    if (oneOnOneField) oneOnOneField.style.display = 'none';
+    if (groupField) groupField.style.display = 'none';
     
-    // Clear required attributes
-    oneOnOneField.querySelector('select').removeAttribute('required');
-    groupField.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.removeAttribute('required'));
+    if (oneOnOneField) {
+        oneOnOneField.querySelector('select').removeAttribute('required');
+    }
+    if (groupField) {
+        groupField.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.removeAttribute('required'));
+    }
     
-    // Show appropriate field based on class type
     if (classType === 'one_on_one' || classType === 'demo') {
-        oneOnOneField.style.display = 'block';
-        oneOnOneField.querySelector('select').setAttribute('required', 'required');
-        
-        // Copy selected student from primary selection
-        const primaryStudent = document.getElementById('primaryStudentSelect').value;
-        if (primaryStudent) {
-            document.getElementById('confirmStudentSelect').value = primaryStudent;
+        if (oneOnOneField) {
+            oneOnOneField.style.display = 'block';
+            oneOnOneField.querySelector('select').setAttribute('required', 'required');
+            
+            const primaryStudent = document.getElementById('primaryStudentSelect').value;
+            if (primaryStudent) {
+                document.getElementById('confirmStudentSelect').value = primaryStudent;
+            }
         }
     } else if (classType === 'group') {
-        groupField.style.display = 'block';
+        if (groupField) {
+            groupField.style.display = 'block';
+        }
     }
 }
 
 function filterCompatibleTutors() {
+    // Keep existing implementation
     const selectedStudentId = document.getElementById('primaryStudentSelect').value;
     const subject = document.getElementById('subjectInput').value.toLowerCase();
     const tutorSelect = document.getElementById('tutorSelect');
@@ -769,96 +2190,104 @@ function filterCompatibleTutors() {
     const tutorInfoText = document.getElementById('tutorInfoText');
     const gradeInput = document.getElementById('gradeInput');
     
-    // Clear tutor selection
-    tutorSelect.innerHTML = '<option value="">Loading compatible tutors...</option>';
-    tutorInfo.style.display = 'none';
+    if (tutorSelect) {
+        tutorSelect.innerHTML = '<option value="">Loading compatible tutors...</option>';
+    }
+    if (tutorInfo) {
+        tutorInfo.style.display = 'none';
+    }
     
     if (!selectedStudentId) {
-        tutorSelect.innerHTML = '<option value="">Select Student First</option>';
+        if (tutorSelect) {
+            tutorSelect.innerHTML = '<option value="">Select Student First</option>';
+        }
         return;
     }
     
     // Find selected student
-    const selectedStudent = studentData.find(s => s.id == selectedStudentId);
+    const selectedStudent = studentData ? studentData.find(s => s.id == selectedStudentId) : null;
     if (!selectedStudent) return;
     
     // Auto-fill grade
-    gradeInput.value = selectedStudent.grade;
-    
-    // Filter compatible tutors
-    const compatibleTutors = tutorData.filter(tutor => {
-        // Check if tutor has availability
-        if (!tutor.has_availability) return false;
-        
-        // Check grade compatibility
-        if (tutor.grades && tutor.grades.length > 0) {
-            if (!tutor.grades.includes(selectedStudent.grade)) return false;
-        }
-        
-        // Check subject compatibility if subject is specified
-        if (subject && tutor.subjects && tutor.subjects.length > 0) {
-            const tutorSubjects = tutor.subjects.map(s => s.toLowerCase());
-            if (!tutorSubjects.some(s => s.includes(subject) || subject.includes(s))) return false;
-        }
-        
-        // Check board compatibility
-        if (tutor.boards && tutor.boards.length > 0) {
-            if (!tutor.boards.includes(selectedStudent.board)) return false;
-        }
-        
-        return true;
-    });
-    
-    // Populate tutor dropdown
-    tutorSelect.innerHTML = '<option value="">Choose Compatible Tutor</option>';
-    
-    if (compatibleTutors.length === 0) {
-        tutorSelect.innerHTML = '<option value="">No compatible tutors found</option>';
-        tutorInfo.style.display = 'block';
-        tutorInfoText.textContent = 'No tutors match this student\'s grade, board, or subject requirements.';
-        tutorInfo.className = 'mt-2';
-        tutorInfoText.className = 'text-warning';
-        return;
+    if (gradeInput) {
+        gradeInput.value = selectedStudent.grade;
     }
     
-    compatibleTutors.forEach(tutor => {
-        const option = document.createElement('option');
-        option.value = tutor.id;
-        option.textContent = `${tutor.user_name} (${tutor.subjects ? tutor.subjects.join(', ') : 'All subjects'})`;
-        tutorSelect.appendChild(option);
-    });
-    
-    // Show compatibility info
-    tutorInfo.style.display = 'block';
-    tutorInfoText.textContent = `Found ${compatibleTutors.length} compatible tutor(s) for ${selectedStudent.full_name} (Grade ${selectedStudent.grade}, ${selectedStudent.board})`;
-    tutorInfoText.className = 'text-success';
+    // Filter compatible tutors (if tutorData exists)
+    if (typeof tutorData !== 'undefined' && tutorSelect) {
+        const compatibleTutors = tutorData.filter(tutor => {
+            if (!tutor.has_availability) return false;
+            
+            if (tutor.grades && tutor.grades.length > 0) {
+                if (!tutor.grades.includes(selectedStudent.grade)) return false;
+            }
+            
+            if (subject && tutor.subjects && tutor.subjects.length > 0) {
+                const tutorSubjects = tutor.subjects.map(s => s.toLowerCase());
+                if (!tutorSubjects.some(s => s.includes(subject) || subject.includes(s))) return false;
+            }
+            
+            if (tutor.boards && tutor.boards.length > 0) {
+                if (!tutor.boards.includes(selectedStudent.board)) return false;
+            }
+            
+            return true;
+        });
+        
+        tutorSelect.innerHTML = '<option value="">Choose Compatible Tutor</option>';
+        
+        if (compatibleTutors.length === 0) {
+            tutorSelect.innerHTML = '<option value="">No compatible tutors found</option>';
+            if (tutorInfo && tutorInfoText) {
+                tutorInfo.style.display = 'block';
+                tutorInfoText.textContent = 'No tutors match this student\'s grade, board, or subject requirements.';
+                tutorInfoText.className = 'text-warning';
+            }
+            return;
+        }
+        
+        compatibleTutors.forEach(tutor => {
+            const option = document.createElement('option');
+            option.value = tutor.id;
+            option.textContent = `${tutor.user_name} (${tutor.subjects ? tutor.subjects.join(', ') : 'All subjects'})`;
+            tutorSelect.appendChild(option);
+        });
+        
+        if (tutorInfo && tutorInfoText) {
+            tutorInfo.style.display = 'block';
+            tutorInfoText.textContent = `Found ${compatibleTutors.length} compatible tutor(s) for ${selectedStudent.full_name} (Grade ${selectedStudent.grade}, ${selectedStudent.board})`;
+            tutorInfoText.className = 'text-success';
+        }
+    }
 }
 
 function checkAvailability() {
-    const tutorId = document.getElementById('tutorSelect').value;
-    const classDate = document.getElementById('classDate').value;
-    const classTime = document.getElementById('classTime').value;
+    // Keep existing implementation
+    const tutorId = document.getElementById('tutorSelect')?.value;
+    const classDate = document.getElementById('classDate')?.value;
+    const classTime = document.getElementById('classTime')?.value;
     const alertDiv = document.getElementById('availabilityAlert');
     const messageSpan = document.getElementById('availabilityMessage');
     const createBtn = document.getElementById('createClassBtn');
     
     if (!tutorId || !classDate || !classTime) {
-        alertDiv.style.display = 'none';
+        if (alertDiv) alertDiv.style.display = 'none';
         return;
     }
     
-    // Check availability via API
     fetch(`/admin/api/v1/check-class-conflict?tutor_id=${tutorId}&date=${classDate}&time=${classTime}`)
         .then(response => response.json())
         .then(data => {
             if (data.can_schedule) {
-                alertDiv.style.display = 'none';
-                createBtn.disabled = false;
+                if (alertDiv) alertDiv.style.display = 'none';
+                if (createBtn) createBtn.disabled = false;
             } else {
-                alertDiv.style.display = 'block';
-                alertDiv.className = 'alert alert-danger';
-                messageSpan.textContent = data.message;
-                createBtn.disabled = true;
+                if (alertDiv && messageSpan) {
+                    alertDiv.style.display = 'block';
+                    alertDiv.className = 'alert alert-danger';
+                    messageSpan.textContent = data.message;
+                }
+                if (createBtn) createBtn.disabled = true;
             }
         })
         .catch(error => {
@@ -946,27 +2375,20 @@ function showTutorAvailability() {
         });
 }
 
-// Initialize on page load
-document.addEventListener('DOMContentLoaded', function() {
-    toggleStudentFields();
-    
-    // Set minimum date to today
-    const today = new Date().toISOString().split('T')[0];
-    document.getElementById('classDate').min = today;
-    document.getElementById('availabilityDate').min = today;
-    
-    // Set default date to today
-    if (!document.getElementById('classDate').value) {
-        document.getElementById('classDate').value = today;
-    }
-    if (!document.getElementById('availabilityDate').value) {
-        document.getElementById('availabilityDate').value = today;
-    }
-});
 
 function rescheduleClass(classId) {
-    // Implement reschedule functionality
-    alert('Reschedule functionality to be implemented');
+    // Check user role and redirect accordingly
+    const userRole = '{{ current_user.role }}';
+    
+    if (userRole === 'tutor') {
+        // Redirect tutor to request reschedule form
+        window.location.href = `/reschedule/tutor/request-reschedule/${classId}`;
+    } else if (['admin', 'coordinator', 'superadmin'].includes(userRole)) {
+        // Redirect admin to quick reschedule form
+        window.location.href = `/reschedule/admin/class/${classId}/quick-reschedule`;
+    } else {
+        LMS.showAlert('You do not have permission to reschedule classes', 'error');
+    }
 }
 
 function cancelClass(classId) {
@@ -975,9 +2397,187 @@ function cancelClass(classId) {
         alert('Cancel functionality to be implemented');
     }
 }
+
+
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('=== DOM CONTENT LOADED - INITIALIZING ALL COMPONENTS ===');
+    
+    // ===== 1. BASIC FORM INITIALIZATION =====
+    toggleStudentFields();
+    
+    // Set minimum date to today
+    const today = new Date().toISOString().split('T')[0];
+    const classDateInput = document.getElementById('classDate');
+    const availabilityDateInput = document.getElementById('availabilityDate');
+    
+    if (classDateInput) {
+        classDateInput.min = today;
+        if (!classDateInput.value) {
+            classDateInput.value = today;
+        }
+    }
+    
+    if (availabilityDateInput) {
+        availabilityDateInput.min = today;
+        if (!availabilityDateInput.value) {
+            availabilityDateInput.value = today;
+        }
+    }
+    
+    // Initialize manual tutor list
+    if (typeof populateAllTutors === 'function') {
+        populateAllTutors();
+    }
+    
+    // ===== 2. BULK CREATE MODAL INITIALIZATION =====
+    const bulkModal = document.getElementById('bulkCreateModal');
+    if (bulkModal) {
+        console.log('Setting up bulk create modal event listeners');
+        
+        // When modal is about to show - initialize student search
+        bulkModal.addEventListener('show.bs.modal', function() {
+            console.log('Bulk create modal opening - initializing student search');
+            if (typeof initializeStudentSearch === 'function') {
+                initializeStudentSearch();
+            }
+        });
+        
+        // When modal is fully shown - reset selections
+        bulkModal.addEventListener('shown.bs.modal', function() {
+            console.log("Bulk create modal shown - resetting student selection");
+            // Re-initialize the selectedStudents Map
+            if (typeof selectedStudents !== 'undefined') {
+                selectedStudents = new Map();
+                if (typeof updateSelectedCount === 'function') updateSelectedCount();
+                if (typeof updateSelectedStudentsDisplay === 'function') updateSelectedStudentsDisplay();
+                if (typeof updateHiddenInputs === 'function') updateHiddenInputs();
+            }
+        });
+    }
+    
+    // ===== 3. BULK CREATE FORM SUBMISSION HANDLER =====
+    const bulkForm = document.getElementById('bulkCreateForm');
+    if (bulkForm) {
+        console.log('=== BULK CREATE FORM INITIALIZED ===');
+        
+        // Add form submission handler
+        bulkForm.addEventListener('submit', function(e) {
+            console.log('=== BULK CREATE FORM SUBMISSION STARTED ===');
+            
+            // Get the submit button
+
+            const form = this; 
+            const submitBtn = document.querySelector('button[form="bulkCreateForm"]');  
+
+
+            // Disable submit button
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creating Classes...';
+            }
+            
+            // Validate required fields
+            const errors = [];
+            
+            // Check basic fields - Direct access like in your original code
+            const subject  = form.querySelector('input[name="subject"]').value.trim();
+            const grade = form.querySelector('input[name="grade"]').value.trim();
+            const duration = form.querySelector('input[name="duration"]').value.trim();
+            const tutorId = form.querySelector('select[name="tutor_id"]').value;
+            const classType = form.querySelector('select[name="class_type"]').value;
+
+            if (!subject) errors.push('Subject is required');
+            if (!grade) errors.push('Grade is required');
+            if (!duration) errors.push('Duration is required');
+            if (!tutorId) errors.push('Tutor selection is required');
+            if (!classType) errors.push('Class type is required');
+            
+            // Check schedule fields
+            const startDate = form.querySelector('input[name="start_date"]').value;
+            const endDate   = form.querySelector('input[name="end_date"]').value;
+            const startTime = form.querySelector('input[name="start_time"]').value;
+
+            if (!startDate) errors.push('Start date is required');
+            if (!endDate) errors.push('End date is required');
+            if (!startTime) errors.push('Start time is required');
+            
+            // Check days of week
+            const daysChecked = form.querySelectorAll('input[name="days_of_week"]:checked');
+            if (daysChecked.length === 0) {
+                errors.push('At least one day of the week must be selected');
+            }
+            
+            // Check students - use selectedStudents Map
+            if (selectedStudents.size === 0) {
+                errors.push('At least one student must be selected');
+            }
+            
+            // Date validation
+            if (startDate && endDate) {
+                const start = new Date(startDate);
+                const end = new Date(endDate);
+                if (end <= start) {
+                    errors.push('End date must be after start date');
+                }
+            }
+            
+            // If there are errors, prevent submission
+            if (errors.length > 0) {
+                console.log('=== VALIDATION ERRORS ===', errors);
+                alert('Please fix the following errors:\n\n' + errors.join('\n'));
+                
+                // Re-enable submit button
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = '<i class="fas fa-layer-group"></i> Create Classes';
+                }
+                
+                e.preventDefault();
+                return false;
+            }
+            
+            // Make sure hidden inputs are updated before submission
+            updateHiddenInputs();
+            
+            // Log form data for debugging
+            const formData = new FormData(this);
+            console.log('=== FORM DATA BEING SUBMITTED ===');
+            for (let [key, value] of formData.entries()) {
+                console.log(key + ':', value);
+            }
+            
+            // Check if students are in the form data
+            const studentInputs = formData.getAll('students');
+            console.log(`Found ${studentInputs.length} student inputs in form data`);
+            
+            if (studentInputs.length === 0) {
+                console.error('No student inputs found in form data!');
+                // Add them manually if needed
+                selectedStudents.forEach((student, id) => {
+                    formData.append('students', id);
+                });
+                
+                // Log updated form data
+                console.log('=== UPDATED FORM DATA ===');
+                for (let [key, value] of formData.entries()) {
+                    console.log(key + ':', value);
+                }
+            }
+            
+            console.log('=== FORM VALIDATION PASSED - SUBMITTING ===');
+            return true;
+        });
+    }
+    
+    // ===== 4. OTHER INITIALIZATIONS =====
+    console.log('=== ALL COMPONENTS INITIALIZED SUCCESSFULLY ===');
+});
+
+
 </script>
 
 <style>
+/* Original styles */
 .stat-card {
     background: white;
     border-radius: 0.5rem;
@@ -1067,5 +2667,613 @@ function cancelClass(classId) {
 
 .bg-success { background-color: #198754 !important; }
 .bg-danger { background-color: #dc3545 !important; }
+
+/* Enhanced Tutor Finder Styles */
+.tutor-finder-enhanced {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 15px;
+    margin: 15px 0;
+    border: 1px solid #dee2e6;
+}
+
+.finder-mode-tabs {
+    border-bottom: 2px solid #dee2e6;
+    margin-bottom: 15px;
+    padding-bottom: 10px;
+}
+
+.mode-tab-btn {
+    background: none;
+    border: none;
+    padding: 8px 16px;
+    margin-right: 10px;
+    color: #6c757d;
+    font-weight: 500;
+    border-radius: 4px;
+    transition: all 0.3s ease;
+    font-size: 0.875rem;
+}
+
+.mode-tab-btn.active {
+    background: #007bff;
+    color: white;
+}
+
+.mode-tab-btn:hover:not(.active) {
+    background: #e9ecef;
+    color: #495057;
+}
+
+.tutor-card-enhanced {
+    background: white;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    padding: 12px;
+    margin-bottom: 10px;
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.tutor-card-enhanced:hover {
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    border-color: #007bff;
+    transform: translateY(-1px);
+}
+
+.tutor-card-enhanced.selected {
+    border-color: #28a745;
+    background: #f8fff9;
+    box-shadow: 0 0 0 2px rgba(40, 167, 69, 0.25);
+}
+
+.compatibility-badge {
+    font-size: 0.75rem;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-weight: 600;
+}
+
+.score-excellent { background: #d4edda; color: #155724; }
+.score-good { background: #fff3cd; color: #856404; }
+.score-fair { background: #f8d7da; color: #721c24; }
+.score-basic { background: #e2e3e5; color: #383d41; }
+
+.tutor-rating {
+    color: #ffc107;
+    font-size: 0.875rem;
+}
+
+.tutor-badge {
+    font-size: 0.625rem;
+    padding: 2px 4px;
+    border-radius: 2px;
+    text-transform: uppercase;
+    font-weight: 600;
+}
+
+.search-panel {
+    background: white;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    padding: 15px;
+    margin-bottom: 15px;
+    display: none;
+}
+
+.search-panel.active {
+    display: block;
+}
+
+.quick-filters {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 15px;
+}
+
+.quick-filter-btn {
+    font-size: 0.75rem;
+    padding: 4px 8px;
+    border: 1px solid #dee2e6;
+    background: white;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.quick-filter-btn:hover {
+    background: #007bff;
+    color: white;
+    border-color: #007bff;
+}
+
+.quick-filter-btn.active {
+    background: #007bff;
+    color: white;
+    border-color: #007bff;
+}
+
+.tutor-details-mini {
+    font-size: 0.75rem;
+    color: #6c757d;
+    margin-top: 5px;
+}
+
+.availability-indicator {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 5px;
+}
+
+.available { background: #28a745; }
+.busy { background: #ffc107; }
+.unavailable { background: #dc3545; }
+
+.match-reasons {
+    font-size: 0.7rem;
+    color: #6c757d;
+    margin-top: 5px;
+    line-height: 1.2;
+}
+
+.enhanced-info-panel {
+    background: #e7f3ff;
+    border: 1px solid #b8daff;
+    border-radius: 4px;
+    padding: 10px;
+    margin-top: 10px;
+    font-size: 0.875rem;
+}
+
+.tutor-quick-stats {
+    display: flex;
+    gap: 15px;
+    font-size: 0.75rem;
+    color: #6c757d;
+    margin-top: 8px;
+}
+
+.stat-item {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+}
+
+/* Enhanced Student Search Styles */
+
+/* Modal size enhancement */
+.modal-xxl {
+    max-width: 95vw;
+}
+
+/* Search and Filter Section */
+.search-filter-section {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 20px;
+    border: 1px solid #dee2e6;
+}
+
+.search-input-group .input-group {
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.search-input-group .form-control {
+    border-right: none;
+    font-size: 0.95rem;
+}
+
+.search-input-group .input-group-text {
+    background: #fff;
+    border-right: none;
+    color: #6c757d;
+}
+
+.search-input-group .btn {
+    border-left: none;
+    background: #fff;
+    border-color: #ced4da;
+}
+
+/* Active Filters */
+.active-filters {
+    margin-top: 10px;
+    padding: 8px 12px;
+    background: #e7f3ff;
+    border-radius: 4px;
+    border-left: 3px solid #007bff;
+}
+
+.filter-tag {
+    display: inline-block;
+    background: #007bff;
+    color: white;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    margin-right: 8px;
+    margin-bottom: 4px;
+}
+
+/* Student Search Results */
+.student-search-results {
+    min-height: 300px;
+    max-height: 400px;
+    overflow-y: auto;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    background: #fff;
+}
+
+.student-results-header {
+    padding: 12px 16px;
+    background: #f8f9fa;
+    border-bottom: 1px solid #dee2e6;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+}
+
+.student-results-grid {
+    padding: 12px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+    gap: 12px;
+}
+
+/* Student Result Cards */
+.student-result-card {
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    background: #fff;
+    transition: all 0.2s ease;
+    cursor: pointer;
+    overflow: hidden;
+}
+
+.student-result-card:hover {
+    border-color: #007bff;
+    box-shadow: 0 2px 8px rgba(0,123,255,0.15);
+    transform: translateY(-1px);
+}
+
+.student-result-card.selected {
+    border-color: #28a745;
+    background: #f8fff9;
+    box-shadow: 0 0 0 2px rgba(40, 167, 69, 0.2);
+}
+
+.student-card-header {
+    padding: 12px 16px;
+    background: #f8f9fa;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.student-card-header .form-check {
+    margin: 0;
+}
+
+.student-card-header .form-check-label {
+    cursor: pointer;
+    font-size: 0.95rem;
+    margin-left: 8px;
+}
+
+.student-card-body {
+    padding: 12px 16px;
+}
+
+.student-info {
+    font-size: 0.85rem;
+}
+
+.info-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+    padding: 2px 0;
+}
+
+.info-row:last-child {
+    margin-bottom: 0;
+}
+
+.info-label {
+    font-weight: 500;
+    color: #6c757d;
+    min-width: 80px;
+    text-align: left;
+}
+
+.info-value {
+    flex: 1;
+    text-align: right;
+    color: #495057;
+    word-break: break-word;
+}
+
+/* Badges */
+.badge {
+    font-size: 0.7rem;
+    padding: 3px 8px;
+    border-radius: 12px;
+}
+
+.badge-success { background-color: #28a745; }
+.badge-warning { background-color: #ffc107; color: #000; }
+.badge-info { background-color: #17a2b8; }
+.badge-danger { background-color: #dc3545; }
+.badge-secondary { background-color: #6c757d; }
+
+/* Selected Students Section */
+.selected-students-section {
+    background: #f8fff9;
+    border: 1px solid #d4edda;
+    border-radius: 6px;
+    padding: 16px;
+}
+
+.selected-students-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.selected-student-tag {
+    display: flex;
+    align-items: center;
+    background: #28a745;
+    color: white;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    gap: 8px;
+}
+
+.selected-student-tag .student-name {
+    font-weight: 500;
+}
+
+.selected-student-tag .student-details {
+    opacity: 0.9;
+    font-size: 0.75rem;
+}
+
+.selected-student-tag .btn-remove {
+    background: none;
+    border: none;
+    color: white;
+    padding: 2px;
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    opacity: 0.8;
+    transition: all 0.2s ease;
+}
+
+.selected-student-tag .btn-remove:hover {
+    background: rgba(255,255,255,0.2);
+    opacity: 1;
+}
+
+/* Selected Count Display */
+.selected-count {
+    font-size: 0.9rem;
+    color: #495057;
+}
+
+.selected-count span {
+    font-weight: 600;
+    color: #28a745;
+}
+
+/* Pagination */
+.student-pagination .pagination {
+    margin: 0;
+}
+
+.student-pagination .page-link {
+    font-size: 0.85rem;
+    padding: 6px 12px;
+}
+
+/* Form Enhancements */
+.card-header h6 {
+    font-weight: 600;
+    color: #495057;
+}
+
+.form-select, .form-control {
+    font-size: 0.9rem;
+}
+
+.form-label {
+    font-weight: 500;
+    color: #495057;
+    margin-bottom: 6px;
+}
+
+/* Loading States */
+.spinner-border-sm {
+    width: 1rem;
+    height: 1rem;
+}
+
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+    .tutor-finder-enhanced {
+        padding: 10px;
+    }
+    
+    .finder-mode-tabs {
+        overflow-x: auto;
+        white-space: nowrap;
+    }
+    
+    .mode-tab-btn {
+        font-size: 0.75rem;
+        padding: 6px 12px;
+    }
+    
+    .quick-filters {
+        justify-content: center;
+    }
+    
+    .tutor-quick-stats {
+        flex-direction: column;
+        gap: 5px;
+    }
+    
+    .modal-xxl {
+        max-width: 98vw;
+        margin: 5px;
+    }
+    
+    .student-results-grid {
+        grid-template-columns: 1fr;
+        gap: 8px;
+        padding: 8px;
+    }
+    
+    .search-filter-section {
+        padding: 12px;
+    }
+    
+    .search-filter-section .row {
+        margin: 0;
+    }
+    
+    .search-filter-section .col-md-2,
+    .search-filter-section .col-md-3,
+    .search-filter-section .col-md-4 {
+        padding: 0;
+        margin-bottom: 10px;
+    }
+    
+    .info-row {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 2px;
+    }
+    
+    .info-label {
+        min-width: auto;
+        font-size: 0.75rem;
+    }
+    
+    .info-value {
+        text-align: left;
+        font-size: 0.8rem;
+    }
+    
+    .selected-students-list {
+        flex-direction: column;
+        gap: 6px;
+    }
+    
+    .selected-student-tag {
+        justify-content: space-between;
+        width: 100%;
+    }
+}
+
+@media (max-width: 576px) {
+    .student-card-header,
+    .student-card-body {
+        padding: 8px 12px;
+    }
+    
+    .search-input-group .input-group {
+        font-size: 0.85rem;
+    }
+    
+    .student-info {
+        font-size: 0.8rem;
+    }
+    
+    .filter-tag {
+        font-size: 0.7rem;
+        padding: 1px 6px;
+        margin-right: 4px;
+    }
+}
+
+/* Empty State */
+.student-search-results .text-center.py-4 {
+    padding: 40px 20px !important;
+}
+
+.student-search-results .text-center.py-4 i {
+    color: #dee2e6;
+}
+
+.student-search-results .text-center.py-4 h6 {
+    color: #6c757d;
+    margin-bottom: 8px;
+}
+
+.student-search-results .text-center.py-4 p {
+    color: #868e96;
+    font-size: 0.9rem;
+}
+
+/* Card Section Enhancements */
+.card {
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+}
+
+.card-header {
+    background: #f8f9fa;
+    border-bottom: 1px solid #dee2e6;
+    font-weight: 500;
+}
+
+/* Button Enhancements */
+.btn-outline-primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0,123,255,0.2);
+}
+
+.btn-outline-danger:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(220,53,69,0.2);
+}
+
+/* Animation for card selection */
+@keyframes selectCard {
+    0% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.02);
+    }
+    100% {
+        transform: scale(1);
+    }
+}
+
+.student-result-card.selected {
+    animation: selectCard 0.3s ease;
+}
+
+/* Improved checkbox styling */
+.form-check-input:checked {
+    background-color: #28a745;
+    border-color: #28a745;
+}
+
+.form-check-input:focus {
+    border-color: #80bdff;
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
 </style>
 {% endblock %}

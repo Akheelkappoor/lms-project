@@ -1,0 +1,540 @@
+{% extends "base.html" %}
+
+{% block title %}{{ notice.title }} - Notice Details - {{ APP_NAME }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h1 class="page-title">
+                <i class="fas fa-eye"></i>
+                Notice Details
+            </h1>
+            <p class="page-subtitle">View notice information and delivery analytics</p>
+        </div>
+        <div class="header-actions">
+            {% if current_user.role in ['superadmin', 'admin'] or (current_user.role == 'coordinator' and notice.created_by == current_user.id) %}
+            <a href="{{ url_for('notice.edit_notice', notice_id=notice.id) }}" class="btn btn-outline-primary">
+                <i class="fas fa-edit"></i>
+                Edit Notice
+            </a>
+            {% endif %}
+            <a href="{{ url_for('notice.admin_notices') }}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i>
+                Back to Notices
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="container-fluid">
+    <div class="row">
+        <!-- Notice Content -->
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h6 class="card-title mb-0">
+                        <i class="fas fa-file-alt"></i>
+                        Notice Content
+                    </h6>
+                    <div class="notice-badges">
+                        <span class="badge badge-category-{{ notice.category }}">
+                            {{ notice.category.title() }}
+                        </span>
+                        {% if notice.priority == 'urgent' %}
+                        <span class="badge bg-danger">Urgent</span>
+                        {% elif notice.priority == 'high' %}
+                        <span class="badge bg-warning">High</span>
+                        {% else %}
+                        <span class="badge bg-secondary">Normal</span>
+                        {% endif %}
+                        
+                        {% if notice.is_published %}
+                            {% if notice.expiry_date and notice.expiry_date < moment().utc %}
+                            <span class="badge bg-secondary">Expired</span>
+                            {% else %}
+                            <span class="badge bg-success">Published</span>
+                            {% endif %}
+                        {% else %}
+                        <span class="badge bg-warning">Draft</span>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="notice-header mb-4">
+                        <h2 class="notice-title">{{ notice.title }}</h2>
+                        <div class="notice-meta text-muted">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <small>
+                                        <i class="fas fa-user"></i>
+                                        Created by {{ notice.author.full_name }}
+                                    </small>
+                                </div>
+                                <div class="col-md-6 text-md-end">
+                                    <small>
+                                        <i class="fas fa-calendar"></i>
+                                        {{ notice.created_at.strftime('%d %b %Y at %I:%M %p') }}
+                                    </small>
+                                </div>
+                            </div>
+                            {% if notice.publish_date %}
+                            <div class="row mt-1">
+                                <div class="col-md-6">
+                                    <small>
+                                        <i class="fas fa-share"></i>
+                                        Published: {{ notice.publish_date.strftime('%d %b %Y at %I:%M %p') }}
+                                    </small>
+                                </div>
+                                {% if notice.expiry_date %}
+                                <div class="col-md-6 text-md-end">
+                                    <small>
+                                        <i class="fas fa-clock"></i>
+                                        Expires: {{ notice.expiry_date.strftime('%d %b %Y at %I:%M %p') }}
+                                    </small>
+                                </div>
+                                {% endif %}
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="notice-content">
+                        <div class="formatted-text">
+                            {{ notice.content|nl2br }}
+                        </div>
+                    </div>
+                    
+                    {% if notice.requires_acknowledgment %}
+                    <div class="alert alert-info mt-3">
+                        <i class="fas fa-info-circle"></i>
+                        This notice requires acknowledgment from recipients.
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Attachments -->
+                    {% if notice.attachments %}
+                    <div class="attachments-section mt-4">
+                        <h6 class="mb-3">
+                            <i class="fas fa-paperclip"></i>
+                            Attachments ({{ notice.attachments.count() }})
+                        </h6>
+                        <div class="row">
+                            {% for attachment in notice.attachments %}
+                            <div class="col-md-6 mb-3">
+                                <div class="attachment-card">
+                                    <div class="attachment-icon">
+                                        {% if attachment.is_image() %}
+                                        <i class="fas fa-image text-primary"></i>
+                                        {% elif attachment.is_document() %}
+                                        <i class="fas fa-file-pdf text-danger"></i>
+                                        {% else %}
+                                        <i class="fas fa-file text-secondary"></i>
+                                        {% endif %}
+                                    </div>
+                                    <div class="attachment-info">
+                                        <h6 class="attachment-name">{{ attachment.original_filename }}</h6>
+                                        <small class="text-muted">
+                                            {{ attachment.get_file_size_formatted() }}
+                                            • Uploaded {{ attachment.uploaded_at|dateformat('%d %b %Y') }}
+                                        </small>
+                                    </div>
+                                    <div class="attachment-actions">
+                                        <a href="{{ url_for('notice.download_attachment', attachment_id=attachment.id) }}" 
+                                           class="btn btn-sm btn-outline-primary">
+                                            <i class="fas fa-download"></i>
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <!-- Notice Analytics -->
+        <div class="col-lg-4">
+            <!-- Quick Stats -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="card-title mb-0">
+                        <i class="fas fa-chart-bar"></i>
+                        Delivery Statistics
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <div class="stat-value">{{ analytics.total_recipients }}</div>
+                            <div class="stat-label">Total Recipients</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value text-success">{{ analytics.delivery_stats.delivered }}</div>
+                            <div class="stat-label">Delivered</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value text-info">{{ analytics.delivery_stats.read }}</div>
+                            <div class="stat-label">Read</div>
+                        </div>
+                        {% if notice.requires_acknowledgment %}
+                        <div class="stat-item">
+                            <div class="stat-value text-warning">{{ analytics.delivery_stats.acknowledged }}</div>
+                            <div class="stat-label">Acknowledged</div>
+                        </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="progress-section mt-3">
+                        <div class="progress-item mb-2">
+                            <div class="d-flex justify-content-between">
+                                <small>Delivery Rate</small>
+                                <small>{{ "%.1f"|format(analytics.delivery_stats.delivery_rate) }}%</small>
+                            </div>
+                            <div class="progress">
+                                <div class="progress-bar bg-success" style="width: {{ analytics.delivery_stats.delivery_rate }}%"></div>
+                            </div>
+                        </div>
+                        
+                        <div class="progress-item mb-2">
+                            <div class="d-flex justify-content-between">
+                                <small>Read Rate</small>
+                                <small>{{ "%.1f"|format(analytics.delivery_stats.read_rate) }}%</small>
+                            </div>
+                            <div class="progress">
+                                <div class="progress-bar bg-info" style="width: {{ analytics.delivery_stats.read_rate }}%"></div>
+                            </div>
+                        </div>
+                        
+                        {% if notice.requires_acknowledgment %}
+                        <div class="progress-item">
+                            <div class="d-flex justify-content-between">
+                                <small>Acknowledgment Rate</small>
+                                <small>{{ "%.1f"|format(analytics.delivery_stats.acknowledgment_rate) }}%</small>
+                            </div>
+                            <div class="progress">
+                                <div class="progress-bar bg-warning" style="width: {{ analytics.delivery_stats.acknowledgment_rate }}%"></div>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Target Audience -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="card-title mb-0">
+                        <i class="fas fa-users"></i>
+                        Target Audience
+                    </h6>
+                </div>
+                <div class="card-body">
+                    {% if notice.target_type == 'all' %}
+                    <div class="target-info">
+                        <i class="fas fa-globe text-primary"></i>
+                        <span>All Users</span>
+                    </div>
+                    {% elif notice.target_type == 'department' %}
+                    <div class="target-info">
+                        <i class="fas fa-building text-info"></i>
+                        <span>Specific Departments</span>
+                    </div>
+                    <ul class="list-unstyled mt-2">
+                        {% for dept_id in notice.get_target_departments() %}
+                        {% set dept = departments.query.get(dept_id) %}
+                        {% if dept %}
+                        <li><small>• {{ dept.name }}</small></li>
+                        {% endif %}
+                        {% endfor %}
+                    </ul>
+                    {% else %}
+                    <div class="target-info">
+                        <i class="fas fa-user text-success"></i>
+                        <span>{{ notice.get_target_users()|length }} Specific Users</span>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <!-- Quick Actions -->
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="card-title mb-0">
+                        <i class="fas fa-cog"></i>
+                        Quick Actions
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        {% if current_user.role in ['superadmin', 'admin'] or (current_user.role == 'coordinator' and notice.created_by == current_user.id) %}
+                        {% if not notice.is_published %}
+                        <button type="button" class="btn btn-success" onclick="publishNotice({{ notice.id }})">
+                            <i class="fas fa-share"></i>
+                            Publish Notice
+                        </button>
+                        {% endif %}
+                        
+                        <a href="{{ url_for('notice.edit_notice', notice_id=notice.id) }}" class="btn btn-outline-primary">
+                            <i class="fas fa-edit"></i>
+                            Edit Notice
+                        </a>
+                        
+                        <button type="button" class="btn btn-outline-danger" onclick="deleteNotice({{ notice.id }}, '{{ notice.title }}')">
+                            <i class="fas fa-trash"></i>
+                            Delete Notice
+                        </button>
+                        {% endif %}
+                        
+                        <button type="button" class="btn btn-outline-secondary" onclick="exportAnalytics()">
+                            <i class="fas fa-download"></i>
+                            Export Analytics
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Recipient Details -->
+    {% if analytics.recipients %}
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="card-title mb-0">
+                        <i class="fas fa-list"></i>
+                        Recipient Details
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Recipient</th>
+                                    <th>Role</th>
+                                    <th>Department</th>
+                                    <th>Delivered</th>
+                                    <th>Read</th>
+                                    {% if notice.requires_acknowledgment %}
+                                    <th>Acknowledged</th>
+                                    {% endif %}
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for recipient in analytics.recipients %}
+                                <tr>
+                                    <td>{{ recipient.user_name }}</td>
+                                    <td>
+                                        <span class="badge bg-secondary">{{ recipient.user_role.title() }}</span>
+                                    </td>
+                                    <td>{{ recipient.department or 'None' }}</td>
+                                    <td>
+                                        {% if recipient.delivered_at %}
+                                        <span class="text-success">
+                                            <i class="fas fa-check"></i>
+                                            {{ recipient.delivered_at|safe_date }}
+                                        </span>
+                                        {% else %}
+                                        <span class="text-muted">Not delivered</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if recipient.is_read %}
+                                        <span class="text-info">
+                                            <i class="fas fa-eye"></i>
+                                            {{ recipient.read_at|safe_date }}
+                                        </span>
+                                        {% else %}
+                                        <span class="text-muted">Unread</span>
+                                        {% endif %}
+                                    </td>
+                                    {% if notice.requires_acknowledgment %}
+                                    <td>
+                                        {% if recipient.is_acknowledged %}
+                                        <span class="text-warning">
+                                            <i class="fas fa-check-circle"></i>
+                                            {{ recipient.acknowledged_at|safe_date }}
+                                        </span>
+                                        {% else %}
+                                        <span class="text-muted">Pending</span>
+                                        {% endif %}
+                                    </td>
+                                    {% endif %}
+                                    <td>
+                                        {% if recipient.is_acknowledged %}
+                                        <span class="badge bg-success">Complete</span>
+                                        {% elif recipient.is_read %}
+                                        <span class="badge bg-info">Read</span>
+                                        {% elif recipient.delivered_at %}
+                                        <span class="badge bg-warning">Delivered</span>
+                                        {% else %}
+                                        <span class="badge bg-secondary">Pending</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<style>
+.badge-category-academic { background-color: #17a2b8; }
+.badge-category-administrative { background-color: #6c757d; }
+.badge-category-emergency { background-color: #dc3545; }
+.badge-category-celebration { background-color: #28a745; }
+
+.notice-title {
+    color: #495057;
+    margin-bottom: 0.5rem;
+}
+
+/* Formatted text styling for proper line breaks and spacing */
+.formatted-text {
+    line-height: 1.6;
+    word-wrap: break-word;
+    white-space: pre-wrap;
+    overflow-wrap: break-word;
+    text-align: left;
+    direction: ltr;
+}
+
+.formatted-text br {
+    line-height: 1.6;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+}
+
+.stat-item {
+    text-align: center;
+    padding: 1rem;
+    background-color: #f8f9fa;
+    border-radius: 0.375rem;
+}
+
+.stat-value {
+    font-size: 1.5rem;
+    font-weight: bold;
+    margin-bottom: 0.25rem;
+}
+
+.stat-label {
+    font-size: 0.875rem;
+    color: #6c757d;
+}
+
+.progress-item .progress {
+    height: 6px;
+}
+
+.attachment-card {
+    display: flex;
+    align-items: center;
+    padding: 0.75rem;
+    border: 1px solid #dee2e6;
+    border-radius: 0.375rem;
+    background-color: #f8f9fa;
+}
+
+.attachment-icon {
+    font-size: 1.5rem;
+    margin-right: 0.75rem;
+}
+
+.attachment-info {
+    flex-grow: 1;
+}
+
+.attachment-name {
+    margin-bottom: 0.25rem;
+    font-size: 0.875rem;
+}
+
+.target-info {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 500;
+}
+</style>
+
+<script>
+function publishNotice(noticeId) {
+    if (confirm('Are you sure you want to publish this notice?')) {
+        fetch(`/notice/admin/notices/${noticeId}/publish`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token() }}'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Notice published successfully');
+                location.reload();
+            } else {
+                alert('Error: ' + data.error);
+            }
+        });
+    }
+}
+
+function deleteNotice(noticeId, title) {
+    if (confirm(`Are you sure you want to delete the notice "${title}"?`)) {
+        window.location.href = `/notice/admin/notices/${noticeId}/delete`;
+    }
+}
+
+function exportAnalytics() {
+    // Create CSV content
+    let csvContent = "Recipient,Role,Department,Delivered,Read,";
+    {% if notice.requires_acknowledgment %}
+    csvContent += "Acknowledged,";
+    {% endif %}
+    csvContent += "Status\n";
+    
+    {% for recipient in analytics.recipients %}
+    csvContent += `"{{ recipient.user_name }}","{{ recipient.user_role }}","{{ recipient.department or 'None' }}",`;
+    csvContent += `"{{ recipient.delivered_at or 'Not delivered' }}","{{ 'Read' if recipient.is_read else 'Unread' }}",`;
+    {% if notice.requires_acknowledgment %}
+    csvContent += `"{{ 'Acknowledged' if recipient.is_acknowledged else 'Pending' }}",`;
+    {% endif %}
+    {% if recipient.is_acknowledged %}
+    csvContent += `"Complete"`;
+    {% elif recipient.is_read %}
+    csvContent += `"Read"`;
+    {% elif recipient.delivered_at %}
+    csvContent += `"Delivered"`;
+    {% else %}
+    csvContent += `"Pending"`;
+    {% endif %}
+    csvContent += "\n";
+    {% endfor %}
+    
+    // Download file
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `notice-analytics-{{ notice.id }}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+}
+</script>
+{% endblock %}

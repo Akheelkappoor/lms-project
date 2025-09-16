@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - {{ APP_NAME }}</title>
+    
+    <!-- Critical CSS - Inline for instant loading -->
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 1 !important;
+        }
+        
+        .login-container {
+            background: white;
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+            width: 100%;
+            max-width: 400px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .login-header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+        
+        .logo {
+            width: 64px;
+            height: 64px;
+            background: linear-gradient(135deg, #F1A150, #C86706);
+            border-radius: 12px;
+            margin: 0 auto 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 24px;
+            font-weight: bold;
+        }
+        
+        h1 {
+            font-size: 1.5rem;
+            color: #2c3e50;
+            margin-bottom: 0.5rem;
+        }
+        
+        .subtitle {
+            color: #6c757d;
+            font-size: 0.9rem;
+        }
+        
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: #495057;
+            font-weight: 500;
+            font-size: 0.9rem;
+        }
+        
+        input[type="text"], 
+        input[type="email"], 
+        input[type="password"] {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+            background: #f8f9fa;
+        }
+        
+        input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+            background: white;
+        }
+        
+        .form-check {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin: 1rem 0;
+        }
+        
+        .form-check input[type="checkbox"] {
+            width: auto;
+        }
+        
+        .form-check label {
+            margin: 0;
+            font-weight: normal;
+            font-size: 0.85rem;
+            color: #6c757d;
+        }
+        
+        .btn-login {
+            width: 100%;
+            padding: 0.75rem;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .btn-login:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+        }
+        
+        .btn-login:active {
+            transform: translateY(0);
+        }
+        
+        .btn-login:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .btn-login .spinner {
+            display: none;
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+        }
+        
+        .btn-login.loading .spinner {
+            display: block;
+        }
+        
+        .btn-login.loading .text {
+            opacity: 0;
+        }
+        
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s ease-in-out infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .alert {
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            font-size: 0.9rem;
+        }
+        
+        .alert-danger {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .perf-badge {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: #28a745;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: bold;
+        }
+        
+        .form-footer {
+            text-align: center;
+            margin-top: 1.5rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid #e9ecef;
+        }
+        
+        .form-footer a {
+            color: #667eea;
+            text-decoration: none;
+            font-size: 0.9rem;
+        }
+        
+        .form-footer a:hover {
+            text-decoration: underline;
+        }
+        
+        /* Responsive */
+        @media (max-width: 480px) {
+            .login-container {
+                margin: 1rem;
+                padding: 1.5rem;
+            }
+        }
+        
+        /* Form validation styles */
+        .field-error {
+            border-color: #dc3545 !important;
+            background: #fff5f5;
+        }
+        
+        .field-success {
+            border-color: #28a745 !important;
+            background: #f8fff8;
+        }
+        
+        .error-message {
+            color: #dc3545;
+            font-size: 0.8rem;
+            margin-top: 0.25rem;
+        }
+    </style>
+    
+    <!-- Preload critical resources -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="dns-prefetch" href="//cdnjs.cloudflare.com">
+</head>
+<body>
+    <div class="login-container">
+        <!-- Performance Badge -->
+        {% if load_time %}
+        <div class="perf-badge">⚡ {{ load_time }}ms</div>
+        {% endif %}
+        
+        <!-- Header -->
+        <div class="login-header">
+            <div class="logo">LMS</div>
+            <h1>Welcome Back</h1>
+            <p class="subtitle">Sign in to your account</p>
+        </div>
+        
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ 'danger' if category == 'error' else 'success' }}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+        
+        <!-- Login Form -->
+        <form method="POST" id="loginForm" novalidate>
+            {{ form.hidden_tag() }}
+            
+            <div class="form-group">
+                {{ form.username.label(class="form-label") }}
+                {{ form.username(class="form-control", placeholder="Enter your username or email", autocomplete="username", autofocus=true) }}
+                {% if form.username.errors %}
+                    <div class="error-message">{{ form.username.errors[0] }}</div>
+                {% endif %}
+            </div>
+            
+            <div class="form-group">
+                {{ form.password.label(class="form-label") }}
+                {{ form.password(class="form-control", placeholder="Enter your password", autocomplete="current-password") }}
+                {% if form.password.errors %}
+                    <div class="error-message">{{ form.password.errors[0] }}</div>
+                {% endif %}
+            </div>
+            
+            <div class="form-check">
+                {{ form.remember_me(class="form-check-input") }}
+                {{ form.remember_me.label(class="form-check-label") }}
+            </div>
+            
+            <button type="submit" class="btn-login" id="loginBtn">
+                <div class="spinner"></div>
+                <span class="text">Sign In</span>
+            </button>
+        </form>
+        
+        <!-- Footer -->
+        <div class="form-footer">
+            <a href="{{ url_for('auth.forgot_password') }}">Forgot your password?</a>
+        </div>
+    </div>
+    
+    <!-- Critical JavaScript - Inline for instant execution -->
+    <script>
+        // Ultra-fast form handling
+        class FastLogin {
+            constructor() {
+                this.form = document.getElementById('loginForm');
+                this.btn = document.getElementById('loginBtn');
+                this.startTime = performance.now();
+                this.init();
+            }
+            
+            init() {
+                this.setupFormValidation();
+                this.setupSubmitHandler();
+                this.setupKeyboardShortcuts();
+                this.focusFirstField();
+                
+                console.log(`🚀 Login form initialized in ${(performance.now() - this.startTime).toFixed(2)}ms`);
+            }
+            
+            setupFormValidation() {
+                const inputs = this.form.querySelectorAll('input[type="text"], input[type="email"], input[type="password"]');
+                
+                inputs.forEach(input => {
+                    // Real-time validation
+                    input.addEventListener('input', () => this.validateField(input));
+                    input.addEventListener('blur', () => this.validateField(input));
+                    
+                    // Remove error state on focus
+                    input.addEventListener('focus', () => {
+                        input.classList.remove('field-error');
+                    });
+                });
+            }
+            
+            validateField(field) {
+                const value = field.value.trim();
+                
+                if (field.type === 'password') {
+                    if (value.length < 3) {
+                        this.setFieldError(field, 'Password is too short');
+                        return false;
+                    }
+                } else {
+                    if (!value) {
+                        this.setFieldError(field, 'This field is required');
+                        return false;
+                    }
+                    
+                    // Basic email validation for email-like inputs
+                    if (value.includes('@') && !this.isValidEmail(value)) {
+                        this.setFieldError(field, 'Invalid email format');
+                        return false;
+                    }
+                }
+                
+                this.setFieldSuccess(field);
+                return true;
+            }
+            
+            setFieldError(field, message) {
+                field.classList.add('field-error');
+                field.classList.remove('field-success');
+                
+                // Show error message
+                let errorDiv = field.parentNode.querySelector('.error-message');
+                if (!errorDiv) {
+                    errorDiv = document.createElement('div');
+                    errorDiv.className = 'error-message';
+                    field.parentNode.appendChild(errorDiv);
+                }
+                errorDiv.textContent = message;
+            }
+            
+            setFieldSuccess(field) {
+                field.classList.add('field-success');
+                field.classList.remove('field-error');
+                
+                // Remove error message
+                const errorDiv = field.parentNode.querySelector('.error-message');
+                if (errorDiv) {
+                    errorDiv.remove();
+                }
+            }
+            
+            setupSubmitHandler() {
+                this.form.addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    this.handleSubmit();
+                });
+            }
+            
+            async handleSubmit() {
+                const submitStartTime = performance.now();
+                
+                // Validate all fields
+                const inputs = this.form.querySelectorAll('input[required], input[type="password"]');
+                let isValid = true;
+                
+                inputs.forEach(input => {
+                    if (!this.validateField(input)) {
+                        isValid = false;
+                    }
+                });
+                
+                if (!isValid) {
+                    return;
+                }
+                
+                // Show loading state
+                this.btn.classList.add('loading');
+                this.btn.disabled = true;
+                
+                try {
+                    // Submit form using fetch for better performance
+                    const formData = new FormData(this.form);
+                    
+                    const response = await fetch(this.form.action || window.location.pathname, {
+                        method: 'POST',
+                        body: formData,
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest'
+                        }
+                    });
+                    
+                    const submitTime = performance.now() - submitStartTime;
+                    console.log(`📊 Login submission took ${submitTime.toFixed(2)}ms`);
+                    
+                    if (response.redirected) {
+                        // Success - redirect
+                        window.location.href = response.url;
+                    } else {
+                        // Handle errors or reload page
+                        window.location.reload();
+                    }
+                    
+                } catch (error) {
+                    console.error('Login error:', error);
+                    this.btn.classList.remove('loading');
+                    this.btn.disabled = false;
+                    
+                    // Show error message
+                    this.showMessage('Login failed. Please try again.', 'error');
+                }
+            }
+            
+            setupKeyboardShortcuts() {
+                document.addEventListener('keydown', (e) => {
+                    // Enter key submits form
+                    if (e.key === 'Enter' && !this.btn.disabled) {
+                        this.handleSubmit();
+                    }
+                });
+            }
+            
+            focusFirstField() {
+                const firstInput = this.form.querySelector('input[type="text"], input[type="email"]');
+                if (firstInput && !firstInput.value) {
+                    firstInput.focus();
+                }
+            }
+            
+            isValidEmail(email) {
+                return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+            }
+            
+            showMessage(message, type = 'info') {
+                const alertDiv = document.createElement('div');
+                alertDiv.className = `alert alert-${type === 'error' ? 'danger' : 'success'}`;
+                alertDiv.textContent = message;
+                
+                const form = document.querySelector('.login-container');
+                form.insertBefore(alertDiv, form.querySelector('form'));
+                
+                // Auto-remove after 5 seconds
+                setTimeout(() => {
+                    if (alertDiv.parentNode) {
+                        alertDiv.remove();
+                    }
+                }, 5000);
+            }
+        }
+        
+        // Initialize when DOM is ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => new FastLogin());
+        } else {
+            new FastLogin();
+        }
+        
+        // Performance monitoring
+        window.addEventListener('load', () => {
+            const loadTime = Math.round(performance.now());
+            console.log(`🚀 Page fully loaded in ${loadTime}ms`);
+            
+            // Update performance badge if it exists
+            const perfBadge = document.querySelector('.perf-badge');
+            if (perfBadge && loadTime < 500) {
+                perfBadge.innerHTML = `⚡ ${loadTime}ms`;
+                perfBadge.style.background = '#28a745';
+            }
+        });
+    </script>
+</body>
+</html>

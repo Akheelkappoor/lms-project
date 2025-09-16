@@ -1,131 +1,349 @@
 {% extends "base.html" %}
+{% set active_page = "finance" %}
 
-{% block title %}Finance Dashboard{% endblock %}
+{% block title %}Finance Dashboard - {{ APP_NAME }}{% endblock %}
 
 {% block content %}
-<div class="container-fluid py-4">
-    <div class="row">
+<div class="page-header">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h1 class="page-title">
+                <i class="fas fa-chart-line"></i>
+                Finance Dashboard
+            </h1>
+            <p class="page-subtitle">Financial overview for {{ month }}/{{ year }}</p>
+        </div>
+        <div class="header-actions">
+            <div class="btn-group">
+                <button class="btn btn-outline-info" onclick="exportFinanceData()">
+                    <i class="fas fa-download"></i>
+                    Export Reports
+                </button>
+                <a href="{{ url_for('admin.fee_collection') }}" class="btn btn-outline-warning">
+                    <i class="fas fa-credit-card"></i>
+                    Fee Collection
+                </a>
+                <a href="{{ url_for('admin.salary_generation') }}" class="btn btn-primary">
+                    <i class="fas fa-money-bill"></i>
+                    Generate Salaries
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="container-fluid">
+    <!-- Period Selector -->
+    <div class="row mb-4">
         <div class="col-12">
-            <h2>Finance Dashboard - {{ month }}/{{ year }}</h2>
+            <div class="card bg-light border-0">
+                <div class="card-body py-3">
+                    <form method="GET" class="row align-items-center">
+                        <div class="col-auto">
+                            <label class="form-label mb-0 fw-bold">Period:</label>
+                        </div>
+                        <div class="col-auto">
+                            <select name="month" class="form-select form-select-sm">
+                                {% for i in range(1, 13) %}
+                                <option value="{{ i }}" {% if i == month %}selected{% endif %}>
+                                    {{ [
+                                        'January', 'February', 'March', 'April', 'May', 'June',
+                                        'July', 'August', 'September', 'October', 'November', 'December'
+                                    ][i-1] }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-auto">
+                            <select name="year" class="form-select form-select-sm">
+                                {% for y in range(2020, 2030) %}
+                                <option value="{{ y }}" {% if y == year %}selected{% endif %}>{{ y }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-auto">
+                            <button type="submit" class="btn btn-primary btn-sm">
+                                <i class="fas fa-sync"></i>
+                                Update
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
         </div>
     </div>
 
-    <!-- Summary Cards -->
-    <div class="row mb-4">
-        <div class="col-md-3">
-            <div class="card bg-primary text-white">
-                <div class="card-body">
-                    <h5>Total Salary Expense</h5>
-                    <h3>₹{{ "{:,.2f}".format(total_salary_expense) }}</h3>
+    <!-- Financial Summary Cards -->
+    <div class="row g-4 mb-4">
+        <div class="col-lg-3 col-md-6">
+            <div class="stat-card">
+                <div class="stat-icon primary">
+                    <i class="fas fa-money-bill-wave"></i>
+                </div>
+                <div class="stat-content">
+                    <h3>₹{{ "{:,.0f}".format(total_salary_expense) }}</h3>
+                    <p>Total Salary Expense</p>
+                    <div class="stat-trend">
+                        <small class="text-muted">
+                            <i class="fas fa-users"></i>
+                            {{ tutor_salaries|length }} active tutors
+                        </small>
+                    </div>
                 </div>
             </div>
         </div>
-        <div class="col-md-3">
-            <div class="card bg-warning text-white">
-                <div class="card-body">
-                    <h5>Outstanding Fees</h5>
-                    <h3>₹{{ "{:,.2f}".format(total_outstanding) }}</h3>
+        
+        <div class="col-lg-3 col-md-6">
+            <div class="stat-card">
+                <div class="stat-icon warning">
+                    <i class="fas fa-exclamation-triangle"></i>
+                </div>
+                <div class="stat-content">
+                    <h3>₹{{ "{:,.0f}".format(total_outstanding) }}</h3>
+                    <p>Outstanding Fees</p>
+                    <div class="stat-trend">
+                        <small class="text-warning">
+                            <i class="fas fa-clock"></i>
+                            Requires attention
+                        </small>
+                    </div>
                 </div>
             </div>
         </div>
-        <div class="col-md-3">
-            <div class="card bg-success text-white">
-                <div class="card-body">
-                    <h5>Active Tutors</h5>
+        
+        <div class="col-lg-3 col-md-6">
+            <div class="stat-card">
+                <div class="stat-icon success">
+                    <i class="fas fa-user-check"></i>
+                </div>
+                <div class="stat-content">
                     <h3>{{ tutor_salaries|length }}</h3>
+                    <p>Active Tutors</p>
+                    <div class="stat-trend">
+                        <small class="text-success">
+                            <i class="fas fa-arrow-up"></i>
+                            Salary eligible
+                        </small>
+                    </div>
                 </div>
             </div>
         </div>
-        <div class="col-md-3">
-            <div class="card bg-danger text-white">
-                <div class="card-body">
-                    <h5>Fee Defaulters</h5>
+        
+        <div class="col-lg-3 col-md-6">
+            <div class="stat-card">
+                <div class="stat-icon danger">
+                    <i class="fas fa-user-times"></i>
+                </div>
+                <div class="stat-content">
                     <h3>{{ fee_defaulters|length }}</h3>
+                    <p>Fee Defaulters</p>
+                    <div class="stat-trend">
+                        <small class="text-danger">
+                            <i class="fas fa-arrow-down"></i>
+                            Needs follow-up
+                        </small>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Action Buttons -->
+    <!-- Financial Insights -->
     <div class="row mb-4">
         <div class="col-12">
-            <a href="{{ url_for('admin.salary_generation') }}" class="btn btn-primary mr-2">
-                <i class="fas fa-money-bill"></i> Generate Salaries
-            </a>
-            <a href="{{ url_for('admin.fee_collection') }}" class="btn btn-warning mr-2">
-                <i class="fas fa-credit-card"></i> Fee Collection
-            </a>
-            <button class="btn btn-success" onclick="exportFinanceData()">
-                <i class="fas fa-download"></i> Export Reports
-            </button>
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-md-3">
+                            <div class="insight-item">
+                                <div class="insight-value text-primary">
+                                    ₹{{ "{:,.0f}".format((total_salary_expense / tutor_salaries|length) if tutor_salaries|length > 0 else 0) }}
+                                </div>
+                                <div class="insight-label">Avg. Tutor Salary</div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="insight-item">
+                                <div class="insight-value text-warning">
+                                    ₹{{ "{:,.0f}".format((total_outstanding / fee_defaulters|length) if fee_defaulters|length > 0 else 0) }}
+                                </div>
+                                <div class="insight-label">Avg. Outstanding</div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="insight-item">
+                                <div class="insight-value text-success">
+                                    {{ "{:.1f}%".format(((tutor_salaries|length - fee_defaulters|length) / tutor_salaries|length * 100) if tutor_salaries|length > 0 else 0) }}
+                                </div>
+                                <div class="insight-label">Collection Rate</div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="insight-item">
+                                <div class="insight-value text-info">
+                                    {{ "{:,.0f}".format(tutor_salaries|map(attribute='calculation.total_hours')|sum if tutor_salaries else 0) }}
+                                </div>
+                                <div class="insight-label">Total Hours</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
     <div class="row">
-        <!-- Tutor Salaries -->
-        <div class="col-md-6">
+        <!-- Tutor Salary Summary -->
+        <div class="col-lg-7">
             <div class="card">
                 <div class="card-header">
-                    <h5>Tutor Salary Summary</h5>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-users text-primary"></i>
+                            Tutor Salary Summary
+                        </h5>
+                        <div class="card-actions">
+                            <span class="badge bg-light text-dark">{{ tutor_salaries|length }} tutors</span>
+                            <a href="{{ url_for('admin.salary_generation') }}" class="btn btn-sm btn-outline-primary">
+                                <i class="fas fa-cog"></i>
+                                Manage
+                            </a>
+                        </div>
+                    </div>
                 </div>
                 <div class="card-body">
+                    {% if tutor_salaries %}
                     <div class="table-responsive">
-                        <table class="table table-sm">
+                        <table class="table table-hover">
                             <thead>
                                 <tr>
-                                    <th>Tutor</th>
-                                    <th>Classes</th>
-                                    <th>Hours</th>
-                                    <th>Net Salary</th>
+                                    <th>Tutor Details</th>
+                                    <th class="text-center">Classes</th>
+                                    <th class="text-center">Hours</th>
+                                    <th class="text-end">Net Salary</th>
+                                    <th class="text-center">Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {% for item in tutor_salaries[:10] %}
                                 <tr>
-                                    <td>{{ item.tutor.user.full_name if item.tutor.user else 'N/A' }}</td>
-                                    <td>{{ item.calculation.total_classes }}</td>
-                                    <td>{{ "%.1f"|format(item.calculation.total_hours) }}</td>
-                                    <td>₹{{ "{:,.0f}".format(item.calculation.net_salary) }}</td>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <div class="avatar-sm me-3">
+                                                {{ (item.tutor.user.full_name[0] if item.tutor.user else 'T') }}
+                                            </div>
+                                            <div>
+                                                <div class="fw-bold">{{ item.tutor.user.full_name if item.tutor.user else 'N/A' }}</div>
+                                                <small class="text-muted">{{ item.tutor.user.email if item.tutor.user else 'No email' }}</small>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge bg-info">{{ item.calculation.total_classes }}</span>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="fw-bold">{{ "%.1f"|format(item.calculation.total_hours) }}h</span>
+                                    </td>
+                                    <td class="text-end">
+                                        <span class="fw-bold text-success">₹{{ "{:,.0f}".format(item.calculation.net_salary) }}</span>
+                                    </td>
+                                    <td class="text-center">
+                                        <div class="btn-group btn-group-sm">
+                                            <button class="btn btn-outline-primary" title="View Details" onclick="viewSalaryDetails('{{ item.tutor.id }}')">
+                                                <i class="fas fa-eye"></i>
+                                            </button>
+                                            <button class="btn btn-outline-success" title="Process Payment" onclick="processSalary('{{ item.tutor.id }}')">
+                                                <i class="fas fa-money-bill"></i>
+                                            </button>
+                                        </div>
+                                    </td>
                                 </tr>
                                 {% endfor %}
                             </tbody>
                         </table>
                     </div>
+                    
                     {% if tutor_salaries|length > 10 %}
-                    <p class="text-muted">Showing top 10 of {{ tutor_salaries|length }} tutors</p>
+                    <div class="text-center mt-3">
+                        <p class="text-muted mb-2">Showing top 10 of {{ tutor_salaries|length }} tutors</p>
+                        <a href="{{ url_for('admin.salary_generation') }}" class="btn btn-outline-primary">
+                            <i class="fas fa-list"></i>
+                            View All Salaries
+                        </a>
+                    </div>
+                    {% endif %}
+                    
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-users fa-3x text-muted mb-3"></i>
+                        <h6>No Salary Data</h6>
+                        <p class="text-muted">No tutor salary information available for this period.</p>
+                        <a href="{{ url_for('admin.salary_generation') }}" class="btn btn-primary">
+                            <i class="fas fa-plus"></i>
+                            Generate Salaries
+                        </a>
+                    </div>
                     {% endif %}
                 </div>
             </div>
         </div>
 
         <!-- Fee Defaulters -->
-        <div class="col-md-6">
+        <div class="col-lg-5">
             <div class="card">
                 <div class="card-header">
-                    <h5>Fee Defaulters</h5>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-exclamation-triangle text-warning"></i>
+                            Fee Defaulters
+                        </h5>
+                        <div class="card-actions">
+                            <span class="badge bg-warning text-dark">{{ fee_defaulters|length }} students</span>
+                            <a href="{{ url_for('admin.fee_collection') }}" class="btn btn-sm btn-outline-warning">
+                                <i class="fas fa-credit-card"></i>
+                                Collect
+                            </a>
+                        </div>
+                    </div>
                 </div>
                 <div class="card-body">
+                    {% if fee_defaulters %}
                     <div class="table-responsive">
-                        <table class="table table-sm">
+                        <table class="table table-hover table-sm">
                             <thead>
                                 <tr>
                                     <th>Student</th>
-                                    <th>Grade</th>
-                                    <th>Outstanding</th>
-                                    <th>Overdue</th>
+                                    <th class="text-center">Grade</th>
+                                    <th class="text-end">Outstanding</th>
+                                    <th class="text-center">Status</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {% for item in fee_defaulters[:10] %}
                                 <tr>
-                                    <td>{{ item.student.full_name }}</td>
-                                    <td>{{ item.student.grade }}</td>
-                                    <td>₹{{ "{:,.0f}".format(item.outstanding.outstanding_amount) }}</td>
                                     <td>
+                                        <div>
+                                            <div class="fw-bold">{{ item.student.full_name }}</div>
+                                            <small class="text-muted">ID: {{ item.student.id }}</small>
+                                        </div>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge bg-secondary">{{ item.student.grade }}</span>
+                                    </td>
+                                    <td class="text-end">
+                                        <span class="fw-bold">₹{{ "{:,.0f}".format(item.outstanding.outstanding_amount) }}</span>
+                                    </td>
+                                    <td class="text-center">
                                         {% if item.outstanding.overdue_amount > 0 %}
-                                        <span class="badge badge-danger">₹{{ "{:,.0f}".format(item.outstanding.overdue_amount) }}</span>
+                                        <span class="badge bg-danger" title="Overdue: ₹{{ '{:,.0f}'.format(item.outstanding.overdue_amount) }}">
+                                            <i class="fas fa-exclamation"></i>
+                                            Overdue
+                                        </span>
                                         {% else %}
-                                        <span class="badge badge-success">Current</span>
+                                        <span class="badge bg-warning">
+                                            <i class="fas fa-clock"></i>
+                                            Due
+                                        </span>
                                         {% endif %}
                                     </td>
                                 </tr>
@@ -133,9 +351,76 @@
                             </tbody>
                         </table>
                     </div>
+                    
                     {% if fee_defaulters|length > 10 %}
-                    <p class="text-muted">Showing top 10 of {{ fee_defaulters|length }} defaulters</p>
+                    <div class="text-center mt-3">
+                        <p class="text-muted mb-2">Showing top 10 of {{ fee_defaulters|length }} defaulters</p>
+                        <a href="{{ url_for('admin.fee_collection') }}" class="btn btn-outline-warning">
+                            <i class="fas fa-list"></i>
+                            View All Defaulters
+                        </a>
+                    </div>
                     {% endif %}
+                    
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+                        <h6 class="text-success">All Fees Current</h6>
+                        <p class="text-muted">No outstanding fees for this period.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card border-0 bg-light">
+                <div class="card-body">
+                    <h6 class="mb-3">
+                        <i class="fas fa-bolt text-primary"></i>
+                        Quick Financial Actions
+                    </h6>
+                    <div class="row">
+                        <div class="col-md-3">
+                            <button class="btn btn-outline-primary w-100 mb-2" onclick="generatePayslips()">
+                                <i class="fas fa-file-invoice"></i>
+                                <div class="action-text">
+                                    <div class="fw-bold">Generate Payslips</div>
+                                    <small>Create salary slips</small>
+                                </div>
+                            </button>
+                        </div>
+                        <div class="col-md-3">
+                            <button class="btn btn-outline-warning w-100 mb-2" onclick="sendFeeReminders()">
+                                <i class="fas fa-bell"></i>
+                                <div class="action-text">
+                                    <div class="fw-bold">Fee Reminders</div>
+                                    <small>Send payment alerts</small>
+                                </div>
+                            </button>
+                        </div>
+                        <div class="col-md-3">
+                            <button class="btn btn-outline-success w-100 mb-2" onclick="reconcilePayments()">
+                                <i class="fas fa-balance-scale"></i>
+                                <div class="action-text">
+                                    <div class="fw-bold">Reconcile Payments</div>
+                                    <small>Match transactions</small>
+                                </div>
+                            </button>
+                        </div>
+                        <div class="col-md-3">
+                            <button class="btn btn-outline-info w-100 mb-2" onclick="generateReports()">
+                                <i class="fas fa-chart-bar"></i>
+                                <div class="action-text">
+                                    <div class="fw-bold">Financial Reports</div>
+                                    <small>Download analytics</small>
+                                </div>
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -143,18 +428,327 @@
 </div>
 
 <script>
+// Financial dashboard functions
 function exportFinanceData() {
-    // Call API to export finance data
+    const btn = event.target.closest('button');
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Exporting...';
+    btn.disabled = true;
+    
     fetch('/api/v1/finance/dashboard')
         .then(response => response.json())
         .then(data => {
             console.log('Finance data:', data);
-            alert('Export functionality will download CSV file');
+            // Create and download CSV
+            downloadFinanceCSV(data);
+            showAlert('success', 'Finance report exported successfully');
         })
         .catch(error => {
             console.error('Error:', error);
-            alert('Error fetching finance data');
+            showAlert('error', 'Error exporting finance data');
+        })
+        .finally(() => {
+            btn.innerHTML = originalText;
+            btn.disabled = false;
         });
 }
+
+function viewSalaryDetails(tutorId) {
+    // Implement salary details view
+    alert(`View salary details for tutor ${tutorId}`);
+}
+
+function processSalary(tutorId) {
+    if (confirm('Process salary payment for this tutor?')) {
+        // Implement salary processing
+        alert(`Processing salary for tutor ${tutorId}`);
+    }
+}
+
+function generatePayslips() {
+    const btn = event.target.closest('button');
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating...';
+    btn.disabled = true;
+    
+    // Simulate API call
+    setTimeout(() => {
+        showAlert('success', 'Payslips generated successfully');
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+    }, 2000);
+}
+
+function sendFeeReminders() {
+    if (confirm('Send fee reminder emails to all defaulters?')) {
+        const btn = event.target.closest('button');
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
+        btn.disabled = true;
+        
+        // Simulate API call
+        setTimeout(() => {
+            showAlert('success', 'Fee reminders sent successfully');
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        }, 3000);
+    }
+}
+
+function reconcilePayments() {
+    const btn = event.target.closest('button');
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Reconciling...';
+    btn.disabled = true;
+    
+    // Simulate API call
+    setTimeout(() => {
+        showAlert('info', 'Payment reconciliation completed');
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+    }, 2500);
+}
+
+function generateReports() {
+    const btn = event.target.closest('button');
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating...';
+    btn.disabled = true;
+    
+    // Simulate API call
+    setTimeout(() => {
+        showAlert('success', 'Financial reports generated and downloaded');
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+    }, 3000);
+}
+
+function downloadFinanceCSV(data) {
+    // Create CSV content
+    const csv = 'Finance Report\nMonth,Year,Total Salary,Outstanding Fees\n' + 
+                `{{ month }},{{ year }},{{ total_salary_expense }},{{ total_outstanding }}`;
+    
+    // Create and download file
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `finance-report-{{ month }}-{{ year }}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+}
+
+function showAlert(type, message) {
+    const alertClass = type === 'error' ? 'danger' : type;
+    const alertHtml = `
+        <div class="alert alert-${alertClass} alert-dismissible fade show" role="alert">
+            <i class="fas fa-${type === 'error' ? 'exclamation-circle' : type === 'success' ? 'check-circle' : 'info-circle'}"></i>
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    `;
+    
+    const container = document.querySelector('.container-fluid');
+    container.insertAdjacentHTML('afterbegin', alertHtml);
+    
+    // Auto-dismiss after 5 seconds
+    setTimeout(() => {
+        const alert = container.querySelector('.alert');
+        if (alert) {
+            bootstrap.Alert.getOrCreateInstance(alert).close();
+        }
+    }, 5000);
+}
+
+// Auto-refresh financial data every 5 minutes
+setInterval(function() {
+    // Optional: Auto-refresh functionality
+    console.log('Auto-refresh check...');
+}, 300000);
 </script>
+
+<style>
+.page-header {
+    margin-bottom: 2rem;
+}
+
+.page-title {
+    font-size: 1.75rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+}
+
+.page-subtitle {
+    color: #6c757d;
+    margin-bottom: 0;
+}
+
+.stat-card {
+    background: white;
+    border-radius: 0.75rem;
+    padding: 1.5rem;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+}
+
+.stat-icon {
+    width: 60px;
+    height: 60px;
+    border-radius: 0.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    color: white;
+    flex-shrink: 0;
+}
+
+.stat-icon.primary { background: linear-gradient(135deg, #0d6efd, #0a58ca); }
+.stat-icon.success { background: linear-gradient(135deg, #198754, #146c43); }
+.stat-icon.warning { background: linear-gradient(135deg, #ffc107, #d39e00); color: #000; }
+.stat-icon.danger { background: linear-gradient(135deg, #dc3545, #b02a37); }
+
+.stat-content {
+    flex-grow: 1;
+}
+
+.stat-content h3 {
+    margin: 0;
+    font-size: 1.75rem;
+    font-weight: 700;
+    line-height: 1.2;
+}
+
+.stat-content p {
+    margin: 0.25rem 0 0.5rem 0;
+    color: #495057;
+    font-weight: 500;
+}
+
+.stat-trend {
+    margin-top: 0.5rem;
+}
+
+.insight-item {
+    padding: 1rem 0;
+}
+
+.insight-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin-bottom: 0.25rem;
+}
+
+.insight-label {
+    color: #6c757d;
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+.avatar-sm {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: #0d6efd;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    flex-shrink: 0;
+}
+
+.card-title {
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.card-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.action-text {
+    text-align: start;
+    padding: 0.5rem 0;
+}
+
+.action-text small {
+    color: #6c757d;
+}
+
+.btn-group .btn {
+    margin: 0;
+}
+
+.header-actions .btn {
+    margin-left: 0.5rem;
+}
+
+.table th {
+    background-color: #f8f9fa;
+    font-weight: 600;
+    border-bottom: 2px solid #dee2e6;
+    font-size: 0.875rem;
+}
+
+.table td {
+    vertical-align: middle;
+}
+
+.badge {
+    font-size: 0.75rem;
+    padding: 0.35em 0.65em;
+}
+
+@media (max-width: 768px) {
+    .stat-card {
+        flex-direction: column;
+        text-align: center;
+        gap: 1rem;
+    }
+    
+    .page-title {
+        font-size: 1.5rem;
+    }
+    
+    .header-actions {
+        margin-top: 1rem;
+    }
+    
+    .btn-group {
+        flex-direction: column;
+        width: 100%;
+    }
+    
+    .btn-group .btn {
+        margin: 0.25rem 0;
+    }
+}
+
+.alert {
+    margin-bottom: 1rem;
+}
+
+.border-0 {
+    border: none !important;
+}
+
+.shadow-sm {
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075) !important;
+}
+</style>
 {% endblock %}

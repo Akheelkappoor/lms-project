@@ -1,0 +1,293 @@
+{% extends "base.html" %}
+
+{% block title %}Notification Details{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <h1 class="h3 mb-0 text-gray-800">
+                    <i class="fas fa-envelope-open"></i> Notification Details
+                </h1>
+                <a href="{{ url_for('system_notifications.user_notifications') }}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left"></i> Back to Inbox
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification Card -->
+    <div class="card shadow mb-4">
+        <div class="card-header py-3 
+            {% if notification.priority == 'critical' %}bg-danger text-white
+            {% elif notification.priority == 'urgent' %}bg-warning text-dark
+            {% elif notification.priority == 'high' %}bg-info text-white
+            {% else %}bg-primary text-white{% endif %}">
+            <div class="d-flex align-items-center">
+                <!-- Notification Icon -->
+                {% if notification.type == 'emergency' %}
+                    <i class="fas fa-exclamation-triangle fa-2x mr-3 animated-pulse"></i>
+                {% elif notification.type == 'holiday' %}
+                    <i class="fas fa-calendar-day fa-2x mr-3"></i>
+                {% elif notification.type == 'academic' %}
+                    <i class="fas fa-graduation-cap fa-2x mr-3"></i>
+                {% elif notification.type == 'maintenance' %}
+                    <i class="fas fa-tools fa-2x mr-3"></i>
+                {% else %}
+                    <i class="fas fa-bullhorn fa-2x mr-3"></i>
+                {% endif %}
+                
+                <div class="flex-grow-1">
+                    <h4 class="mb-0">{{ notification.title }}</h4>
+                    <div class="mt-2">
+                        <!-- Priority Badge -->
+                        {% if notification.priority == 'critical' %}
+                            <span class="badge badge-light mr-2 animated-pulse">CRITICAL</span>
+                        {% elif notification.priority == 'urgent' %}
+                            <span class="badge badge-dark mr-2">URGENT</span>
+                        {% elif notification.priority == 'high' %}
+                            <span class="badge badge-light mr-2">HIGH</span>
+                        {% endif %}
+                        
+                        <!-- Type Badge -->
+                        <span class="badge badge-light">{{ notification.type|title }}</span>
+                    </div>
+                </div>
+                
+                <!-- Actions -->
+                <div class="ml-3">
+                    {% if not user_notification.is_read %}
+                        <button class="btn btn-light btn-sm mr-2" onclick="markAsRead({{ notification.id }})">
+                            <i class="fas fa-check"></i> Mark as Read
+                        </button>
+                    {% endif %}
+                    <button class="btn btn-light btn-sm" onclick="dismissNotification({{ notification.id }})">
+                        <i class="fas fa-times"></i> Dismiss
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card-body">
+            <!-- Notification Message -->
+            <div class="mb-4">
+                <div class="notification-content">
+                    {{ notification.message|nl2br|safe }}
+                </div>
+            </div>
+            
+            <!-- Metadata -->
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="d-flex align-items-center mb-2">
+                        <i class="fas fa-user text-muted mr-2"></i>
+                        <strong class="mr-2">From:</strong>
+                        <span>{{ notification.author.full_name }}</span>
+                    </div>
+                    <div class="d-flex align-items-center mb-2">
+                        <i class="fas fa-clock text-muted mr-2"></i>
+                        <strong class="mr-2">Sent:</strong>
+                        <span>{{ notification.created_at.strftime('%B %d, %Y at %I:%M %p') }}</span>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="d-flex align-items-center mb-2">
+                        <i class="fas fa-envelope text-muted mr-2"></i>
+                        <strong class="mr-2">Email Status:</strong>
+                        <span class="{% if user_notification.email_sent %}text-success{% else %}text-muted{% endif %}">
+                            {% if user_notification.email_sent %}
+                                <i class="fas fa-check-circle mr-1"></i>Sent
+                            {% else %}
+                                <i class="fas fa-clock mr-1"></i>Pending
+                            {% endif %}
+                        </span>
+                    </div>
+                    <div class="d-flex align-items-center mb-2">
+                        <i class="fas fa-eye text-muted mr-2"></i>
+                        <strong class="mr-2">Read Status:</strong>
+                        <span class="{% if user_notification.is_read %}text-success{% else %}text-warning{% endif %}">
+                            {% if user_notification.is_read %}
+                                <i class="fas fa-check-circle mr-1"></i>Read on {{ user_notification.read_at.strftime('%b %d at %I:%M %p') if user_notification.read_at }}
+                            {% else %}
+                                <i class="fas fa-circle mr-1"></i>Unread
+                            {% endif %}
+                        </span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Delivery Information -->
+            {% if notification.type == 'emergency' or notification.type == 'holiday' %}
+            <div class="mt-4">
+                <h6 class="text-muted">Delivery Information:</h6>
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="text-center">
+                            <i class="fas fa-envelope fa-2x text-primary mb-2"></i>
+                            <div class="font-weight-bold">{{ notification.email_sent_count or 0 }}</div>
+                            <small class="text-muted">Emails Sent</small>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="text-center">
+                            <i class="fas fa-bell fa-2x text-warning mb-2"></i>
+                            <div class="font-weight-bold">{{ notification.popup_delivered_count or 0 }}</div>
+                            <small class="text-muted">Popups Delivered</small>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="text-center">
+                            <i class="fas fa-users fa-2x text-info mb-2"></i>
+                            <div class="font-weight-bold">{{ notification.target_users.split(',')|length if notification.target_users else 'All' }}</div>
+                            <small class="text-muted">Target Recipients</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+            
+            <!-- Holiday Special Features -->
+            {% if notification.type == 'holiday' %}
+            <div class="mt-4 p-3 bg-light rounded">
+                <h6 class="text-primary">
+                    <i class="fas fa-star mr-2"></i>Holiday Notification Features
+                </h6>
+                <ul class="list-unstyled mb-0">
+                    <li><i class="fas fa-check text-success mr-2"></i> Special holiday email template used</li>
+                    {% if notification.include_parents %}
+                    <li><i class="fas fa-check text-success mr-2"></i> Parent emails included automatically</li>
+                    {% endif %}
+                    <li><i class="fas fa-check text-success mr-2"></i> High priority delivery</li>
+                    <li><i class="fas fa-check text-success mr-2"></i> Popup notification enabled</li>
+                </ul>
+            </div>
+            {% endif %}
+            
+            <!-- Emergency Special Features -->
+            {% if notification.type == 'emergency' %}
+            <div class="mt-4 p-3 bg-danger text-white rounded">
+                <h6 class="text-white">
+                    <i class="fas fa-exclamation-triangle mr-2"></i>Emergency Alert Features
+                </h6>
+                <ul class="list-unstyled mb-0">
+                    <li><i class="fas fa-check mr-2"></i> Critical priority - immediate delivery</li>
+                    <li><i class="fas fa-check mr-2"></i> Instant popup alerts with sound</li>
+                    <li><i class="fas fa-check mr-2"></i> Emergency email template</li>
+                    {% if notification.include_parents %}
+                    <li><i class="fas fa-check mr-2"></i> Parents notified immediately</li>
+                    {% endif %}
+                    <li><i class="fas fa-check mr-2"></i> Real-time delivery tracking</li>
+                </ul>
+            </div>
+            {% endif %}
+        </div>
+        
+        <div class="card-footer bg-light">
+            <div class="d-flex justify-content-between align-items-center">
+                <div class="text-muted">
+                    <small>
+                        <i class="fas fa-info-circle mr-1"></i>
+                        This notification was sent to 
+                        {% if notification.target_type == 'all' %}all users
+                        {% elif notification.target_type == 'role' %}specific roles
+                        {% elif notification.target_type == 'department' %}specific departments
+                        {% else %}selected users{% endif %}
+                    </small>
+                </div>
+                <div>
+                    {% if not user_notification.is_read %}
+                        <button class="btn btn-success btn-sm" onclick="markAsRead({{ notification.id }})">
+                            <i class="fas fa-check"></i> Mark as Read
+                        </button>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.animated-pulse {
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.5; }
+    100% { opacity: 1; }
+}
+
+.notification-content {
+    font-size: 16px;
+    line-height: 1.6;
+    white-space: pre-line;
+}
+
+.card-header {
+    border-bottom: none;
+}
+
+.card-footer {
+    border-top: 1px solid rgba(255,255,255,0.2);
+}
+</style>
+
+<script>
+function markAsRead(notificationId) {
+    fetch(`/api/notifications/${notificationId}/read`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('meta[name=csrf-token]').content
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('Error marking notification as read');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error marking notification as read');
+    });
+}
+
+function dismissNotification(notificationId) {
+    if (confirm('Are you sure you want to dismiss this notification?')) {
+        fetch(`/api/notifications/${notificationId}/dismiss`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('meta[name=csrf-token]').content
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                window.location.href = '/notifications';
+            } else {
+                alert('Error dismissing notification');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error dismissing notification');
+        });
+    }
+}
+
+// Mark as read when page loads (if not already read)
+document.addEventListener('DOMContentLoaded', function() {
+    {% if not user_notification.is_read %}
+    setTimeout(function() {
+        markAsRead({{ notification.id }});
+    }, 2000); // Mark as read after 2 seconds of viewing
+    {% endif %}
+});
+</script>
+{% endblock %}

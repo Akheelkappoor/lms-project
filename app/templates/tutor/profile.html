@@ -1,0 +1,400 @@
+{% extends "base.html" %}
+
+{% block title %}{{ tutor.user.full_name }} - Tutor Profile - {{ APP_NAME }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h1 class="page-title">
+                <i class="fas fa-chalkboard-teacher"></i>
+                {{ tutor.user.full_name }}
+            </h1>
+            <p class="page-subtitle">Tutor Profile Overview</p>
+        </div>
+        <div class="header-actions">
+            {% if current_user.id == tutor.user_id or current_user.role in ['superadmin', 'admin'] %}
+            <a href="{{ url_for('profile.edit_tutor_profile') }}" class="btn btn-outline-primary">
+                <i class="fas fa-edit"></i>
+                Edit Profile
+            </a>
+            {% endif %}
+            <a href="{{ url_for('admin.tutors') }}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i>
+                Back to Tutors
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="container-fluid">
+    <div class="row">
+        <!-- Main Profile Information -->
+        <div class="col-lg-8">
+            <!-- Basic Information -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="card-title mb-0">
+                        <i class="fas fa-user"></i>
+                        Basic Information
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="info-item">
+                                <label>Full Name:</label>
+                                <span>{{ tutor.user.full_name }}</span>
+                            </div>
+                            <div class="info-item">
+                                <label>Email:</label>
+                                <span>{{ tutor.user.email }}</span>
+                            </div>
+                            <div class="info-item">
+                                <label>Phone:</label>
+                                <span>{{ tutor.user.phone or 'Not provided' }}</span>
+                            </div>
+                            <div class="info-item">
+                                <label>Date of Birth:</label>
+                                <span>{{ tutor.date_of_birth.strftime('%d %b %Y') if tutor.date_of_birth else 'Not provided' }}</span>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="info-item">
+                                <label>Department:</label>
+                                <span>{{ tutor.user.department.name if tutor.user.department else 'Not assigned' }}</span>
+                            </div>
+                            <div class="info-item">
+                                <label>Employee ID:</label>
+                                <span>{{ tutor.employee_id or 'Not assigned' }}</span>
+                            </div>
+                            <div class="info-item">
+                                <label>Joining Date:</label>
+                                <span>{{ tutor.user.joining_date.strftime('%d %b %Y') if tutor.user.joining_date else 'Not provided' }}</span>
+                            </div>
+                            <div class="info-item">
+                                <label>Working Hours:</label>
+                                <span>{{ tutor.user.working_hours or 'Not specified' }}</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    {% if tutor.user.address %}
+                    <div class="info-item mt-3">
+                        <label>Address:</label>
+                        <span>{{ tutor.user.address }}</span>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Professional Information -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="card-title mb-0">
+                        <i class="fas fa-graduation-cap"></i>
+                        Professional Information
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="info-item">
+                                <label>Qualification:</label>
+                                <span>{{ tutor.qualification or 'Not provided' }}</span>
+                            </div>
+                            <div class="info-item">
+                                <label>Subjects:</label>
+                                <span>{{ tutor.subjects or 'Not specified' }}</span>
+                            </div>
+                            <div class="info-item">
+                                <label>Grades:</label>
+                                <span>{{ tutor.grades or 'Not specified' }}</span>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="info-item">
+                                <label>Boards:</label>
+                                <span>{{ tutor.boards or 'Not specified' }}</span>
+                            </div>
+                            <div class="info-item">
+                                <label>Test Score:</label>
+                                <span>{{ tutor.test_score or 'Not available' }}{% if tutor.test_score %}/100{% endif %}</span>
+                            </div>
+                            <div class="info-item">
+                                <label>Test Date:</label>
+                                <span>{{ tutor.test_date.strftime('%d %b %Y') if tutor.test_date else 'Not available' }}</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    {% if tutor.experience %}
+                    <div class="info-item mt-3">
+                        <label>Experience:</label>
+                        <span>{{ tutor.experience }}</span>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Salary Information -->
+            {% if tutor.salary_type %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="card-title mb-0">
+                        <i class="fas fa-money-bill-wave"></i>
+                        Salary Information
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="info-item">
+                                <label>Salary Type:</label>
+                                <span class="badge bg-info">{{ tutor.salary_type.title() }}</span>
+                            </div>
+                            {% if tutor.salary_type == 'monthly' and tutor.monthly_salary %}
+                            <div class="info-item">
+                                <label>Monthly Salary:</label>
+                                <span class="text-success">₹{{ "{:,.2f}".format(tutor.monthly_salary) }}</span>
+                            </div>
+                            {% elif tutor.salary_type == 'hourly' and tutor.hourly_rate %}
+                            <div class="info-item">
+                                <label>Hourly Rate:</label>
+                                <span class="text-success">₹{{ "{:,.2f}".format(tutor.hourly_rate) }}</span>
+                            </div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6">
+                            {% if current_user.role in ['superadmin', 'admin'] %}
+                            <a href="{{ url_for('admin.tutor_salary_details', tutor_id=tutor.id) }}" class="btn btn-outline-primary">
+                                <i class="fas fa-chart-line"></i>
+                                View Salary Details
+                            </a>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Recent Classes -->
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h6 class="card-title mb-0">
+                        <i class="fas fa-calendar"></i>
+                        Recent Classes
+                    </h6>
+                    <a href="{{ url_for('tutor.my_classes') }}" class="btn btn-sm btn-outline-primary">
+                        View All Classes
+                    </a>
+                </div>
+                <div class="card-body">
+                    <!-- This would be populated with recent classes data -->
+                    <div class="text-center text-muted py-3">
+                        <p>Recent classes information will be displayed here</p>
+                        <a href="{{ url_for('tutor.my_classes') }}" class="btn btn-outline-primary">
+                            <i class="fas fa-calendar"></i>
+                            View Classes
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="col-lg-4">
+            <!-- Status Card -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="card-title mb-0">
+                        <i class="fas fa-info-circle"></i>
+                        Status Information
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="status-item">
+                        <label>Tutor Status:</label>
+                        <span class="badge bg-{{ 'success' if tutor.status == 'active' else 'warning' if tutor.status == 'pending' else 'danger' }}">
+                            {{ tutor.status.title() if tutor.status else 'Pending' }}
+                        </span>
+                    </div>
+                    <div class="status-item">
+                        <label>Account Status:</label>
+                        <span class="badge bg-{{ 'success' if tutor.user.is_active else 'danger' }}">
+                            {{ 'Active' if tutor.user.is_active else 'Inactive' }}
+                        </span>
+                    </div>
+                    <div class="status-item">
+                        <label>Registration Date:</label>
+                        <span>{{ tutor.user.created_at.strftime('%d %b %Y') if tutor.user.created_at else 'Not available' }}</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Contact Information -->
+            {% if tutor.emergency_contact %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="card-title mb-0">
+                        <i class="fas fa-phone"></i>
+                        Emergency Contact
+                    </h6>
+                </div>
+                <div class="card-body">
+                    {% set emergency = tutor.get_emergency_contact() %}
+                    {% if emergency %}
+                    <div class="info-item">
+                        <label>Name:</label>
+                        <span>{{ emergency.get('name', 'Not provided') }}</span>
+                    </div>
+                    <div class="info-item">
+                        <label>Phone:</label>
+                        <span>{{ emergency.get('phone', 'Not provided') }}</span>
+                    </div>
+                    <div class="info-item">
+                        <label>Relationship:</label>
+                        <span>{{ emergency.get('relationship', 'Not specified') }}</span>
+                    </div>
+                    {% if emergency.get('email') %}
+                    <div class="info-item">
+                        <label>Email:</label>
+                        <span>{{ emergency.get('email') }}</span>
+                    </div>
+                    {% endif %}
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Quick Actions -->
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="card-title mb-0">
+                        <i class="fas fa-bolt"></i>
+                        Quick Actions
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        {% if current_user.id == tutor.user_id %}
+                        <a href="{{ url_for('tutor.my_classes') }}" class="btn btn-primary">
+                            <i class="fas fa-calendar"></i>
+                            My Classes
+                        </a>
+                        <a href="{{ url_for('tutor.today_classes') }}" class="btn btn-outline-info">
+                            <i class="fas fa-clock"></i>
+                            Today's Classes
+                        </a>
+                        <a href="{{ url_for('tutor.my_students') }}" class="btn btn-outline-success">
+                            <i class="fas fa-users"></i>
+                            My Students
+                        </a>
+                        <a href="{{ url_for('tutor.salary') }}" class="btn btn-outline-warning">
+                            <i class="fas fa-money-bill"></i>
+                            Salary Details
+                        </a>
+                        {% endif %}
+                        
+                        {% if current_user.role in ['superadmin', 'admin'] %}
+                        <a href="{{ url_for('admin.tutor_details', tutor_id=tutor.id) }}" class="btn btn-outline-primary">
+                            <i class="fas fa-eye"></i>
+                            Admin View
+                        </a>
+                        <button class="btn btn-outline-{{ 'danger' if tutor.status == 'active' else 'success' }}" 
+                                onclick="toggleTutorStatus({{ tutor.id }}, '{{ tutor.status }}')">
+                            <i class="fas fa-{{ 'pause' if tutor.status == 'active' else 'play' }}"></i>
+                            {{ 'Suspend' if tutor.status == 'active' else 'Activate' }} Tutor
+                        </button>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Profile Picture -->
+            {% if tutor.profile_picture_url %}
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="card-title mb-0">
+                        <i class="fas fa-image"></i>
+                        Profile Picture
+                    </h6>
+                </div>
+                <div class="card-body text-center">
+                    <img src="{{ tutor.profile_picture_url }}" alt="Profile Picture" 
+                         class="img-fluid rounded" style="max-width: 200px;">
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<style>
+.info-item {
+    margin-bottom: 1rem;
+}
+
+.info-item label {
+    font-weight: 600;
+    color: var(--text-secondary);
+    display: inline-block;
+    min-width: 120px;
+}
+
+.status-item {
+    margin-bottom: 0.75rem;
+}
+
+.status-item label {
+    font-weight: 500;
+    color: var(--text-secondary);
+    display: block;
+    margin-bottom: 0.25rem;
+}
+
+/* Bootstrap 5 uses built-in bg-* classes */
+
+.badge-info {
+    background-color: var(--info-color);
+}
+
+.text-success {
+    color: var(--success-color) !important;
+    font-weight: 600;
+}
+</style>
+
+<script>
+function toggleTutorStatus(tutorId, currentStatus) {
+    const action = currentStatus === 'active' ? 'suspend' : 'activate';
+    const confirmMessage = currentStatus === 'active' 
+        ? 'Are you sure you want to suspend this tutor?' 
+        : 'Are you sure you want to activate this tutor?';
+    
+    if (confirm(confirmMessage)) {
+        const url = `/admin/tutors/${tutorId}/${action}`;
+        
+        fetch(url, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': document.querySelector('meta[name=csrf-token]').getAttribute('content'),
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Error: ' + (data.error || 'Unknown error occurred'));
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred while updating tutor status');
+        });
+    }
+}
+</script>
+{% endblock %}

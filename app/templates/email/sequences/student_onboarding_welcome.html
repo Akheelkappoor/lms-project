@@ -1,0 +1,185 @@
+{% extends "email/base_email.html" %}
+
+{% block title %}Welcome to LMS - Your Learning Journey Begins!{% endblock %}
+{% block email_title %}🎉 Welcome to LMS!{% endblock %}
+{% block email_subtitle %}Your Learning Journey Begins Today{% endblock %}
+
+{% block extra_styles %}
+<style>
+    .welcome-banner {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 10px;
+        padding: 30px 20px;
+        text-align: center;
+        margin: 20px 0;
+    }
+    
+    .journey-step {
+        background: #f8f9fa;
+        border-left: 4px solid #28a745;
+        border-radius: 0 8px 8px 0;
+        padding: 15px;
+        margin: 15px 0;
+        display: flex;
+        align-items: center;
+    }
+    
+    .step-number {
+        background: #28a745;
+        color: white;
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        margin-right: 15px;
+        flex-shrink: 0;
+    }
+</style>
+{% endblock %}
+
+{% block recipient_name %}{{ trigger_data.student.full_name if trigger_data.student else 'New Student' }}{% endblock %}
+
+{% block email_content %}
+<div class="welcome-banner">
+    <h1 style="margin: 0 0 15px 0; color: white; font-size: 28px;">🌟 Welcome to LMS! 🌟</h1>
+    <p style="margin: 0; font-size: 18px; opacity: 0.9;">Your personalized learning journey starts now</p>
+</div>
+
+<div class="alert-box alert-success">
+    <strong>🎯 Congratulations!</strong> You've taken the first step towards achieving your academic goals. We're thrilled to have you as part of our learning community!
+</div>
+
+<div class="content-section">
+    <h2>What Makes LMS Special?</h2>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin: 20px 0;">
+        <div style="background: white; border: 2px solid #e3f2fd; border-radius: 8px; padding: 20px; text-align: center;">
+            <div style="font-size: 32px; margin-bottom: 10px;">👨‍🏫</div>
+            <h3 style="color: #1976d2; margin: 10px 0;">Expert Tutors</h3>
+            <p style="font-size: 14px; color: #666; margin: 0;">Qualified and experienced teachers</p>
+        </div>
+        <div style="background: white; border: 2px solid #e8f5e8; border-radius: 8px; padding: 20px; text-align: center;">
+            <div style="font-size: 32px; margin-bottom: 10px;">📚</div>
+            <h3 style="color: #388e3c; margin: 10px 0;">Personalized Learning</h3>
+            <p style="font-size: 14px; color: #666; margin: 0;">Customized approach for each student</p>
+        </div>
+        <div style="background: white; border: 2px solid #fff3e0; border-radius: 8px; padding: 20px; text-align: center;">
+            <div style="font-size: 32px; margin-bottom: 10px;">💻</div>
+            <h3 style="color: #f57c00; margin: 10px 0;">Modern Technology</h3>
+            <p style="font-size: 14px; color: #666; margin: 0;">Interactive online platform</p>
+        </div>
+    </div>
+</div>
+
+<div class="content-section">
+    <h2>Your Next Steps</h2>
+    <div class="journey-step">
+        <div class="step-number">1</div>
+        <div>
+            <h3 style="margin: 0 0 5px 0; color: #2c3e50;">Complete Your Profile</h3>
+            <p style="margin: 0; color: #666; font-size: 14px;">Add your details to get better tutor matches (within 24 hours)</p>
+        </div>
+    </div>
+    
+    <div class="journey-step">
+        <div class="step-number">2</div>
+        <div>
+            <h3 style="margin: 0 0 5px 0; color: #2c3e50;">Meet Your Tutor</h3>
+            <p style="margin: 0; color: #666; font-size: 14px;">We'll assign the perfect tutor based on your needs (within 48 hours)</p>
+        </div>
+    </div>
+    
+    <div class="journey-step">
+        <div class="step-number">3</div>
+        <div>
+            <h3 style="margin: 0 0 5px 0; color: #2c3e50;">Start Learning</h3>
+            <p style="margin: 0; color: #666; font-size: 14px;">Begin your first class and experience personalized education</p>
+        </div>
+    </div>
+</div>
+
+{% if trigger_data.student %}
+<div class="content-section">
+    <h2>Your Learning Profile</h2>
+    <div class="info-grid">
+        <div class="info-row">
+            <div class="info-label">Name:</div>
+            <div class="info-value"><strong>{{ trigger_data.student.full_name }}</strong></div>
+        </div>
+        {% if trigger_data.student.grade %}
+        <div class="info-row">
+            <div class="info-label">Grade/Class:</div>
+            <div class="info-value">{{ trigger_data.student.grade }} {{ trigger_data.student.board or '' }}</div>
+        </div>
+        {% endif %}
+        {% if trigger_data.student.department %}
+        <div class="info-row">
+            <div class="info-label">Department:</div>
+            <div class="info-value">{{ trigger_data.student.department.name }}</div>
+        </div>
+        {% endif %}
+        <div class="info-row">
+            <div class="info-label">Student ID:</div>
+            <div class="info-value">{{ trigger_data.student.student_id or trigger_data.student.id }}</div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<div class="content-section">
+    <h2>What to Expect This Week</h2>
+    <ul class="action-list">
+        <li><strong>Today:</strong> Complete your profile and preferences</li>
+        <li><strong>Tomorrow:</strong> Receive tutor assignment notification</li>
+        <li><strong>Day 3:</strong> First class scheduling and preparation</li>
+        <li><strong>Throughout:</strong> 24/7 support from our team</li>
+        <li><strong>Weekly:</strong> Progress updates and feedback</li>
+    </ul>
+</div>
+
+<div class="alert-box alert-info">
+    <strong>💡 Pro Tip:</strong> The more information you provide in your profile, the better we can match you with the perfect tutor for your learning style and goals!
+</div>
+
+<div class="content-section">
+    <h2>Need Help Getting Started?</h2>
+    <p>Our support team is here to help you every step of the way:</p>
+    <ul style="list-style: none; padding: 0;">
+        <li style="padding: 8px 0; display: flex; align-items: center;">
+            <span style="margin-right: 10px;">📞</span>
+            <strong>Call us:</strong> +1-XXX-XXX-XXXX (Mon-Sat, 9 AM - 8 PM)
+        </li>
+        <li style="padding: 8px 0; display: flex; align-items: center;">
+            <span style="margin-right: 10px;">📧</span>
+            <strong>Email us:</strong> support@lms.com
+        </li>
+        <li style="padding: 8px 0; display: flex; align-items: center;">
+            <span style="margin-right: 10px;">💬</span>
+            <strong>Live Chat:</strong> Available on our website
+        </li>
+    </ul>
+</div>
+{% endblock %}
+
+{% block email_actions %}
+<div class="text-center">
+    <a href="#" class="button button-success">Complete Your Profile</a>
+    <a href="#" class="button button-secondary">Explore Learning Resources</a>
+    <a href="#" class="button button-secondary">Contact Support</a>
+</div>
+{% endblock %}
+
+{% block email_closing %}
+<div class="mt-20" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white; padding: 25px; border-radius: 10px; text-align: center;">
+    <h3 style="margin: 0 0 15px 0; color: white;">🚀 Ready to Transform Your Learning?</h3>
+    <p style="margin: 0; font-size: 16px; opacity: 0.95;">
+        You're now part of a community of thousands of successful learners. We're excited to be part of your educational journey and can't wait to see you achieve your goals!
+    </p>
+    <p style="margin: 15px 0 0 0; font-weight: bold; font-size: 18px;">
+        Welcome to the LMS Family! 🎓
+    </p>
+</div>
+{% endblock %}

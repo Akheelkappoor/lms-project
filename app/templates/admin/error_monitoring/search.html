@@ -1,0 +1,364 @@
+{% extends "base.html" %}
+
+{% block title %}Error Search{% endblock %}
+
+{% block extra_css %}
+<style>
+    .search-filters {
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+    
+    .error-card {
+        border-left: 4px solid #dc3545;
+        margin-bottom: 15px;
+        transition: transform 0.2s;
+    }
+    
+    .error-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+    
+    .severity-critical { border-left-color: #dc3545; }
+    .severity-high { border-left-color: #fd7e14; }
+    .severity-medium { border-left-color: #ffc107; }
+    .severity-low { border-left-color: #28a745; }
+    
+    .search-results-header {
+        border-bottom: 2px solid #dee2e6;
+        padding-bottom: 10px;
+        margin-bottom: 20px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-12">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{{ url_for('dashboard.admin_dashboard') }}">Dashboard</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('error_monitoring.dashboard') }}">Error Monitoring</a></li>
+                    <li class="breadcrumb-item active">Search</li>
+                </ol>
+            </nav>
+        </div>
+    </div>
+
+    <!-- Search Filters -->
+    <div class="row">
+        <div class="col-12">
+            <div class="search-filters">
+                <h5 class="mb-3"><i class="fas fa-search"></i> Search & Filter Errors</h5>
+                <form method="GET" action="{{ url_for('error_monitoring.search_errors') }}">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label>Search Query</label>
+                                <input type="text" class="form-control" name="q" 
+                                       value="{{ current_filters.q }}" 
+                                       placeholder="Search in error messages...">
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <div class="form-group">
+                                <label>Error Type</label>
+                                <select class="form-control" name="type">
+                                    <option value="">All Types</option>
+                                    {% for error_type in filter_options.error_types %}
+                                    <option value="{{ error_type }}" 
+                                            {{ 'selected' if current_filters.type == error_type }}>
+                                        {{ error_type|title }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <div class="form-group">
+                                <label>Severity</label>
+                                <select class="form-control" name="severity">
+                                    <option value="">All Severities</option>
+                                    {% for severity in filter_options.severities %}
+                                    <option value="{{ severity }}" 
+                                            {{ 'selected' if current_filters.severity == severity }}>
+                                        {{ severity|title }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <div class="form-group">
+                                <label>Category</label>
+                                <select class="form-control" name="category">
+                                    <option value="">All Categories</option>
+                                    {% for category in filter_options.categories %}
+                                    <option value="{{ category }}" 
+                                            {{ 'selected' if current_filters.category == category }}>
+                                        {{ category|title }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <div class="form-group">
+                                <label>Status</label>
+                                <select class="form-control" name="status">
+                                    <option value="">All Statuses</option>
+                                    {% for status in filter_options.statuses %}
+                                    <option value="{{ status }}" 
+                                            {{ 'selected' if current_filters.status == status }}>
+                                        {{ status|title }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-2">
+                            <div class="form-group">
+                                <label>User Role</label>
+                                <select class="form-control" name="user_role">
+                                    <option value="">All Roles</option>
+                                    {% for role in filter_options.user_roles %}
+                                    <option value="{{ role }}" 
+                                            {{ 'selected' if current_filters.user_role == role }}>
+                                        {{ role|title }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="form-group">
+                                <label>Date From</label>
+                                <input type="date" class="form-control" name="date_from" 
+                                       value="{{ current_filters.date_from }}">
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="form-group">
+                                <label>Date To</label>
+                                <input type="date" class="form-control" name="date_to" 
+                                       value="{{ current_filters.date_to }}">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label>&nbsp;</label><br>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-search"></i> Search
+                                </button>
+                                <a href="{{ url_for('error_monitoring.search_errors') }}" class="btn btn-secondary">
+                                    <i class="fas fa-times"></i> Clear
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Search Results -->
+    <div class="row">
+        <div class="col-12">
+            <div class="search-results-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    Search Results 
+                    <span class="text-muted">({{ errors.total }} found)</span>
+                </h5>
+                <div class="btn-group btn-group-sm">
+                    <button class="btn btn-outline-secondary">
+                        <i class="fas fa-download"></i> Export
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Results List -->
+    <div class="row">
+        <div class="col-12">
+            {% if errors.items %}
+                {% for error in errors.items %}
+                <div class="card error-card severity-{{ error.severity }}">
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-8">
+                                <h6 class="card-title">
+                                    <a href="{{ url_for('error_monitoring.error_detail', error_id=error.error_id) }}" class="text-decoration-none">
+                                        {{ error.error_type|title }}
+                                    </a>
+                                    <span class="badge badge-{{ 'danger' if error.severity in ['critical', 'high'] else 'warning' if error.severity == 'medium' else 'success' }} ml-2">
+                                        {{ error.severity|title }}
+                                    </span>
+                                </h6>
+                                <p class="card-text text-truncate">{{ error.error_message }}</p>
+                                <small class="text-muted">
+                                    <i class="fas fa-clock"></i> {{ error.created_at|datetime }}
+                                    {% if error.user %}
+                                    | <i class="fas fa-user"></i> {{ error.user.first_name }} {{ error.user.last_name }}
+                                    {% endif %}
+                                    {% if error.request_url %}
+                                    | <i class="fas fa-link"></i> {{ error.request_url|truncate(50) }}
+                                    {% endif %}
+                                </small>
+                            </div>
+                            <div class="col-md-4 text-right">
+                                <span class="badge badge-outline-{{ 'success' if error.status == 'resolved' else 'warning' if error.status == 'investigating' else 'secondary' }}">
+                                    {{ error.status|title }}
+                                </span>
+                                <br><br>
+                                <div class="btn-group btn-group-sm">
+                                    <a href="{{ url_for('error_monitoring.error_detail', error_id=error.error_id) }}" 
+                                       class="btn btn-outline-primary btn-sm">
+                                        <i class="fas fa-eye"></i> View
+                                    </a>
+                                    {% if error.status == 'open' %}
+                                    <button class="btn btn-outline-success btn-sm" 
+                                            onclick="quickResolve('{{ error.error_id }}')">
+                                        <i class="fas fa-check"></i> Resolve
+                                    </button>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+
+                <!-- Pagination -->
+                {% if errors.pages > 1 %}
+                <nav aria-label="Search results pagination">
+                    <ul class="pagination justify-content-center">
+                        {% if errors.has_prev %}
+                        <li class="page-item">
+                            <a class="page-link" href="{{ url_for('error_monitoring.search_errors', page=errors.prev_num, **current_filters) }}">Previous</a>
+                        </li>
+                        {% endif %}
+                        
+                        {% for page_num in errors.iter_pages() %}
+                            {% if page_num %}
+                                {% if page_num != errors.page %}
+                                <li class="page-item">
+                                    <a class="page-link" href="{{ url_for('error_monitoring.search_errors', page=page_num, **current_filters) }}">{{ page_num }}</a>
+                                </li>
+                                {% else %}
+                                <li class="page-item active">
+                                    <span class="page-link">{{ page_num }}</span>
+                                </li>
+                                {% endif %}
+                            {% else %}
+                            <li class="page-item disabled">
+                                <span class="page-link">...</span>
+                            </li>
+                            {% endif %}
+                        {% endfor %}
+                        
+                        {% if errors.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="{{ url_for('error_monitoring.search_errors', page=errors.next_num, **current_filters) }}">Next</a>
+                        </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+                {% endif %}
+            {% else %}
+                <div class="text-center py-5">
+                    <i class="fas fa-search fa-3x text-muted mb-3"></i>
+                    <h4 class="text-muted">No Errors Found</h4>
+                    <p class="text-muted">Try adjusting your search criteria or date range.</p>
+                    <a href="{{ url_for('error_monitoring.search_errors') }}" class="btn btn-primary">Clear Filters</a>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Quick Resolve Modal -->
+<div class="modal fade" id="quickResolveModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Quick Resolve</h5>
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <textarea class="form-control" id="quickResolutionText" placeholder="Brief resolution note..." rows="3"></textarea>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-success" onclick="submitQuickResolution()">Resolve</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let currentQuickResolveId = null;
+
+function quickResolve(errorId) {
+    currentQuickResolveId = errorId;
+    const modal = document.getElementById('quickResolveModal');
+    if (modal) {
+        if (typeof bootstrap !== 'undefined') {
+            new bootstrap.Modal(modal).show();
+        } else if (window.jQuery && window.jQuery.fn.modal) {
+            window.jQuery(modal).modal('show');
+        } else {
+            modal.style.display = 'block';
+            modal.classList.add('show');
+        }
+    }
+}
+
+function submitQuickResolution() {
+    const resolution = document.getElementById('quickResolutionText').value || 'Resolved from search page';
+    
+    fetch(`/admin/errors/resolve/${currentQuickResolveId}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token() }}'
+        },
+        body: JSON.stringify({
+            resolution: resolution
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const modal = document.getElementById('quickResolveModal');
+            if (modal) {
+                if (typeof bootstrap !== 'undefined') {
+                    bootstrap.Modal.getInstance(modal).hide();
+                } else if (window.jQuery && window.jQuery.fn.modal) {
+                    window.jQuery(modal).modal('hide');
+                } else {
+                    modal.style.display = 'none';
+                    modal.classList.remove('show');
+                }
+            }
+            location.reload();
+        } else {
+            alert('Error resolving: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error resolving the issue');
+    });
+}
+</script>
+{% endblock %}

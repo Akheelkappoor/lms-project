@@ -1,0 +1,472 @@
+{% extends "base.html" %}
+
+{% block title %}System Notifications{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <h1 class="h3 mb-0 text-gray-800">
+                    <i class="fas fa-bell"></i> System Notifications
+                </h1>
+                <div class="btn-group">
+                    <a href="{{ url_for('system_notifications.test_create_notification') }}" class="btn btn-success">
+                        <i class="fas fa-plus"></i> Create Notification
+                    </a>
+                    <a href="{{ url_for('system_notifications.quick_announcement') }}" class="btn btn-info">
+                        <i class="fas fa-bullhorn"></i> Quick Announcement
+                    </a>
+                    <div class="btn-group">
+                        <button type="button" class="btn btn-primary dropdown-toggle" data-toggle="dropdown">
+                            <i class="fas fa-star"></i> Special Types
+                        </button>
+                        <div class="dropdown-menu">
+                            <a class="dropdown-item" href="{{ url_for('system_notifications.create_holiday_notification') }}">
+                                <i class="fas fa-calendar-day text-warning"></i> Holiday Notice
+                            </a>
+                            <a class="dropdown-item" href="{{ url_for('system_notifications.create_emergency_notification') }}">
+                                <i class="fas fa-exclamation-triangle text-danger"></i> Emergency Alert
+                            </a>
+                            <div class="dropdown-divider"></div>
+                            <a class="dropdown-item" href="{{ url_for('system_notifications.test_create_notification') }}">
+                                <i class="fas fa-flask text-success"></i> Test Interface
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-primary shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                                Total Notifications
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ stats.total }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-bell fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-success shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                                Active
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ stats.active }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-check-circle fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-warning shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                                Urgent/Critical
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ stats.urgent }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-exclamation-triangle fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-info shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                                Sent Today
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ stats.sent_today }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-paper-plane fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Search and Filter Form -->
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">Search & Filter</h6>
+        </div>
+        <div class="card-body">
+            <form method="GET" class="row">
+                <div class="col-md-3 mb-2">
+                    {{ form.search(class="form-control", placeholder="Search notifications...") }}
+                </div>
+                <div class="col-md-2 mb-2">
+                    {{ form.type(class="form-control") }}
+                </div>
+                <div class="col-md-2 mb-2">
+                    {{ form.priority(class="form-control") }}
+                </div>
+                <div class="col-md-2 mb-2">
+                    {{ form.status(class="form-control") }}
+                </div>
+                <div class="col-md-2 mb-2">
+                    {{ form.department(class="form-control") }}
+                </div>
+                <div class="col-md-1 mb-2">
+                    <button type="submit" class="btn btn-primary btn-block">
+                        <i class="fas fa-search"></i>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Notifications Table -->
+    <div class="card shadow mb-4">
+        <div class="card-header py-3 d-flex justify-content-between align-items-center">
+            <h6 class="m-0 font-weight-bold text-primary">Notifications</h6>
+            <div>
+                <button class="btn btn-sm btn-secondary" onclick="selectAllNotifications()">
+                    <i class="fas fa-check-square"></i> Select All
+                </button>
+                <div class="btn-group">
+                    <button type="button" class="btn btn-sm btn-outline-primary dropdown-toggle" data-toggle="dropdown">
+                        <i class="fas fa-cog"></i> Bulk Actions
+                    </button>
+                    <div class="dropdown-menu">
+                        <a class="dropdown-item" href="#" onclick="bulkAction('activate')">
+                            <i class="fas fa-check"></i> Activate Selected
+                        </a>
+                        <a class="dropdown-item" href="#" onclick="bulkAction('deactivate')">
+                            <i class="fas fa-times"></i> Deactivate Selected
+                        </a>
+                        <div class="dropdown-divider"></div>
+                        <a class="dropdown-item text-danger" href="#" onclick="bulkAction('delete')">
+                            <i class="fas fa-trash"></i> Delete Selected
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="card-body">
+            {% if notifications.items %}
+            <div class="table-responsive">
+                <table class="table table-bordered" width="100%" cellspacing="0">
+                    <thead>
+                        <tr>
+                            <th width="3%">
+                                <input type="checkbox" id="select-all-checkbox" onchange="toggleAllCheckboxes()">
+                            </th>
+                            <th width="5%">Priority</th>
+                            <th width="25%">Title</th>
+                            <th width="15%">Type</th>
+                            <th width="15%">Target</th>
+                            <th width="10%">Status</th>
+                            <th width="12%">Created</th>
+                            <th width="10%">Stats</th>
+                            <th width="5%">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for notification in notifications.items %}
+                        <tr>
+                            <td>
+                                <input type="checkbox" class="notification-checkbox" value="{{ notification.id }}">
+                            </td>
+                            <td>
+                                {% if notification.priority == 'critical' %}
+                                    <span class="badge badge-danger">
+                                        <i class="fas fa-exclamation-triangle"></i> Critical
+                                    </span>
+                                {% elif notification.priority == 'urgent' %}
+                                    <span class="badge badge-warning">
+                                        <i class="fas fa-exclamation"></i> Urgent
+                                    </span>
+                                {% elif notification.priority == 'high' %}
+                                    <span class="badge badge-info">
+                                        <i class="fas fa-arrow-up"></i> High
+                                    </span>
+                                {% else %}
+                                    <span class="badge badge-secondary">Normal</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <a href="{{ url_for('system_notifications.view_notification', notification_id=notification.id) }}" 
+                                   class="text-decoration-none">
+                                    <strong>{{ notification.title }}</strong>
+                                </a>
+                                <br>
+                                <small class="text-muted">{{ notification.message[:100] }}{% if notification.message|length > 100 %}...{% endif %}</small>
+                            </td>
+                            <td>
+                                {% if notification.type == 'holiday' %}
+                                    <i class="fas fa-calendar-day text-warning"></i> Holiday
+                                {% elif notification.type == 'emergency' %}
+                                    <i class="fas fa-exclamation-triangle text-danger"></i> Emergency
+                                {% elif notification.type == 'academic' %}
+                                    <i class="fas fa-graduation-cap text-primary"></i> Academic
+                                {% elif notification.type == 'administrative' %}
+                                    <i class="fas fa-cog text-info"></i> Administrative
+                                {% elif notification.type == 'maintenance' %}
+                                    <i class="fas fa-tools text-secondary"></i> Maintenance
+                                {% else %}
+                                    <i class="fas fa-bullhorn text-primary"></i> General
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if notification.target_type == 'all' %}
+                                    <i class="fas fa-globe"></i> Everyone
+                                {% elif notification.target_type == 'department' %}
+                                    <i class="fas fa-building"></i> Departments
+                                {% elif notification.target_type == 'role' %}
+                                    <i class="fas fa-users"></i> Roles
+                                {% else %}
+                                    <i class="fas fa-user"></i> Individuals
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if notification.is_active %}
+                                    {% if notification.is_expired() %}
+                                        <span class="badge badge-secondary">Expired</span>
+                                    {% elif notification.sent_at %}
+                                        <span class="badge badge-success">Sent</span>
+                                    {% elif not notification.send_immediately %}
+                                        <span class="badge badge-info">Scheduled</span>
+                                    {% else %}
+                                        <span class="badge badge-primary">Active</span>
+                                    {% endif %}
+                                {% else %}
+                                    <span class="badge badge-secondary">Inactive</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <small>{{ notification.created_at.strftime('%Y-%m-%d %H:%M') }}</small>
+                                <br>
+                                <small class="text-muted">by {{ notification.author.full_name }}</small>
+                            </td>
+                            <td>
+                                {% set stats = notification.get_delivery_stats() %}
+                                <small>
+                                    <i class="fas fa-paper-plane text-primary"></i> {{ stats.email_sent_count or 0 }}<br>
+                                    <i class="fas fa-eye text-info"></i> {{ stats.read_count }}<br>
+                                    <i class="fas fa-percentage text-success"></i> {{ "%.0f"|format(stats.read_rate) }}%
+                                </small>
+                            </td>
+                            <td>
+                                <div class="btn-group">
+                                    <button type="button" class="btn btn-sm btn-outline-primary dropdown-toggle" data-toggle="dropdown">
+                                        <i class="fas fa-cog"></i>
+                                    </button>
+                                    <div class="dropdown-menu">
+                                        <a class="dropdown-item" href="{{ url_for('system_notifications.view_notification', notification_id=notification.id) }}">
+                                            <i class="fas fa-eye"></i> View Details
+                                        </a>
+                                        {% if not notification.sent_at and notification.can_be_sent() %}
+                                        <a class="dropdown-item" href="#" onclick="sendNotification({{ notification.id }})">
+                                            <i class="fas fa-paper-plane"></i> Send Now
+                                        </a>
+                                        {% endif %}
+                                        <div class="dropdown-divider"></div>
+                                        <a class="dropdown-item text-danger" href="#" onclick="deleteNotification({{ notification.id }})">
+                                            <i class="fas fa-trash"></i> Delete
+                                        </a>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pagination -->
+            {% if notifications.pages > 1 %}
+            <nav aria-label="Notifications pagination">
+                <ul class="pagination justify-content-center">
+                    {% if notifications.has_prev %}
+                        <li class="page-item">
+                            <a class="page-link" href="{{ url_for('system_notifications.admin_notifications', page=notifications.prev_num, **request.args.to_dict(flat=False)) }}">Previous</a>
+                        </li>
+                    {% endif %}
+                    
+                    {% for page_num in notifications.iter_pages() %}
+                        {% if page_num %}
+                            {% if page_num != notifications.page %}
+                                <li class="page-item">
+                                    <a class="page-link" href="{{ url_for('system_notifications.admin_notifications', page=page_num, **request.args.to_dict(flat=False)) }}">{{ page_num }}</a>
+                                </li>
+                            {% else %}
+                                <li class="page-item active">
+                                    <span class="page-link">{{ page_num }}</span>
+                                </li>
+                            {% endif %}
+                        {% else %}
+                            <li class="page-item disabled">
+                                <span class="page-link">...</span>
+                            </li>
+                        {% endif %}
+                    {% endfor %}
+                    
+                    {% if notifications.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="{{ url_for('system_notifications.admin_notifications', page=notifications.next_num, **request.args.to_dict(flat=False)) }}">Next</a>
+                        </li>
+                    {% endif %}
+                </ul>
+            </nav>
+            {% endif %}
+            {% else %}
+            <div class="text-center py-5">
+                <i class="fas fa-bell fa-3x text-gray-300 mb-3"></i>
+                <h5 class="text-gray-500">No notifications found</h5>
+                <p class="text-gray-400">Create your first system notification to get started.</p>
+                <a href="{{ url_for('system_notifications.create_notification') }}" class="btn btn-primary">
+                    <i class="fas fa-plus"></i> Create Notification
+                </a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+function toggleAllCheckboxes() {
+    const masterCheckbox = document.getElementById('select-all-checkbox');
+    const checkboxes = document.querySelectorAll('.notification-checkbox');
+    
+    checkboxes.forEach(checkbox => {
+        checkbox.checked = masterCheckbox.checked;
+    });
+}
+
+function selectAllNotifications() {
+    const checkboxes = document.querySelectorAll('.notification-checkbox');
+    const masterCheckbox = document.getElementById('select-all-checkbox');
+    
+    checkboxes.forEach(checkbox => {
+        checkbox.checked = true;
+    });
+    masterCheckbox.checked = true;
+}
+
+function bulkAction(action) {
+    const selectedIds = [];
+    document.querySelectorAll('.notification-checkbox:checked').forEach(checkbox => {
+        selectedIds.push(checkbox.value);
+    });
+    
+    if (selectedIds.length === 0) {
+        alert('Please select at least one notification.');
+        return;
+    }
+    
+    if (action === 'delete') {
+        if (!confirm(`Are you sure you want to delete ${selectedIds.length} notification(s)?`)) {
+            return;
+        }
+    }
+    
+    // Create form and submit
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = '/api/admin/notifications/bulk-action';
+    
+    const csrfToken = document.querySelector('meta[name=csrf-token]');
+    if (csrfToken) {
+        const csrfField = document.createElement('input');
+        csrfField.type = 'hidden';
+        csrfField.name = 'csrf_token';
+        csrfField.value = csrfToken.content;
+        form.appendChild(csrfField);
+    }
+    
+    const actionField = document.createElement('input');
+    actionField.type = 'hidden';
+    actionField.name = 'action';
+    actionField.value = action;
+    form.appendChild(actionField);
+    
+    const idsField = document.createElement('input');
+    idsField.type = 'hidden';
+    idsField.name = 'notification_ids';
+    idsField.value = selectedIds.join(',');
+    form.appendChild(idsField);
+    
+    document.body.appendChild(form);
+    form.submit();
+}
+
+function sendNotification(notificationId) {
+    if (!confirm('Are you sure you want to send this notification now?')) {
+        return;
+    }
+    
+    fetch(`/admin/notifications/${notificationId}/send`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('meta[name=csrf-token]').content
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('Notification sent successfully!');
+            location.reload();
+        } else {
+            alert('Error sending notification: ' + data.error);
+        }
+    })
+    .catch(error => {
+        alert('Error sending notification: ' + error);
+    });
+}
+
+function deleteNotification(notificationId) {
+    if (!confirm('Are you sure you want to delete this notification? This action cannot be undone.')) {
+        return;
+    }
+    
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = `/admin/notifications/${notificationId}/delete`;
+    
+    const csrfToken = document.querySelector('meta[name=csrf-token]');
+    if (csrfToken) {
+        const csrfField = document.createElement('input');
+        csrfField.type = 'hidden';
+        csrfField.name = 'csrf_token';
+        csrfField.value = csrfToken.content;
+        form.appendChild(csrfField);
+    }
+    
+    document.body.appendChild(form);
+    form.submit();
+}
+</script>
+{% endblock %}

@@ -1,0 +1,153 @@
+{% extends "email/base_email.html" %}
+
+{% block title %}New Class Assignment - {{ class.subject }}{% endblock %}
+{% block email_title %}New Class Assigned{% endblock %}
+{% block email_subtitle %}{{ class.subject }} - {{ class.scheduled_date.strftime('%B %d, %Y') }}{% endblock %}
+
+{% block recipient_name %}{{ user.full_name }}{% endblock %}
+
+{% block email_content %}
+<div class="alert-box alert-success">
+    <strong>📚 New Assignment!</strong> You have been assigned a new {{ class.class_type }} class. Please review the details below and prepare accordingly.
+</div>
+
+<div class="content-section">
+    <h2>Class Details</h2>
+    <div class="info-grid">
+        <div class="info-row">
+            <div class="info-label">Subject:</div>
+            <div class="info-value"><strong>{{ class.subject }}</strong></div>
+        </div>
+        <div class="info-row">
+            <div class="info-label">Class Type:</div>
+            <div class="info-value">{{ class.class_type.title() }}</div>
+        </div>
+        <div class="info-row">
+            <div class="info-label">Date:</div>
+            <div class="info-value">{{ class.scheduled_date.strftime('%A, %B %d, %Y') }}</div>
+        </div>
+        <div class="info-row">
+            <div class="info-label">Time:</div>
+            <div class="info-value">{{ class.scheduled_time.strftime('%I:%M %p') if class.scheduled_time else 'To be confirmed' }}</div>
+        </div>
+        <div class="info-row">
+            <div class="info-label">Duration:</div>
+            <div class="info-value">{{ class.duration or '60' }} minutes</div>
+        </div>
+        <div class="info-row">
+            <div class="info-label">Class ID:</div>
+            <div class="info-value">{{ class.id }}</div>
+        </div>
+    </div>
+</div>
+
+{% if students %}
+<div class="content-section">
+    <h2>Student Information</h2>
+    <p style="margin-bottom: 15px;"><strong>Number of Students:</strong> {{ students|length }}</p>
+    
+    {% for student in students %}
+    <div style="background: white; border: 1px solid #ddd; border-radius: 6px; padding: 15px; margin: 10px 0;">
+        <div class="info-grid">
+            <div class="info-row">
+                <div class="info-label">Name:</div>
+                <div class="info-value"><strong>{{ student.name }}</strong></div>
+            </div>
+            <div class="info-row">
+                <div class="info-label">Grade/Board:</div>
+                <div class="info-value">{{ student.grade }} {{ student.board }}</div>
+            </div>
+            {% if student.subjects %}
+            <div class="info-row">
+                <div class="info-label">Enrolled Subjects:</div>
+                <div class="info-value">{{ student.subjects|join(', ') }}</div>
+            </div>
+            {% endif %}
+            {% if student.phone %}
+            <div class="info-row">
+                <div class="info-label">Contact:</div>
+                <div class="info-value">{{ student.phone }}</div>
+            </div>
+            {% endif %}
+            {% if student.email %}
+            <div class="info-row">
+                <div class="info-label">Email:</div>
+                <div class="info-value">{{ student.email }}</div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+<div class="content-section">
+    <h2>Preparation Time</h2>
+    {% if preparation_time and preparation_time > 0 %}
+        <div class="alert-box alert-info">
+            <strong>⏰ Time to prepare:</strong> {{ "%.1f"|format(preparation_time) }} hours until class begins.
+        </div>
+    {% else %}
+        <div class="alert-box alert-warning">
+            <strong>⚠️ Immediate preparation required:</strong> This class is starting soon or may have already begun.
+        </div>
+    {% endif %}
+</div>
+
+{% if class_guidelines %}
+<div class="content-section">
+    <h2>{{ class.class_type.title() }} Class Guidelines</h2>
+    <ul class="action-list">
+        {% for guideline in class_guidelines %}
+        <li>{{ guideline }}</li>
+        {% endfor %}
+    </ul>
+</div>
+{% endif %}
+
+<div class="content-section">
+    <h2>Pre-Class Checklist</h2>
+    <ul class="action-list">
+        <li>Review student profiles and learning objectives</li>
+        <li>Prepare lesson plan and teaching materials</li>
+        <li>Test your video conferencing setup (camera, microphone, internet)</li>
+        <li>Prepare backup activities in case of technical issues</li>
+        <li>Set up your teaching environment (quiet space, good lighting)</li>
+        <li>Have contact information for technical support ready</li>
+        <li>Join the virtual classroom 10 minutes early</li>
+    </ul>
+</div>
+
+<div class="content-section">
+    <h2>Post-Class Requirements</h2>
+    <ul class="action-list">
+        <li>Mark student attendance within 2 hours</li>
+        <li>Upload class recording/materials within 4 hours</li>
+        <li>Provide feedback on student performance</li>
+        <li>Report any issues or concerns to coordination team</li>
+        <li>Update lesson progress in your tutor dashboard</li>
+    </ul>
+</div>
+
+{% if emergency_contact %}
+<div class="alert-box alert-info">
+    <strong>Emergency Contact:</strong> If you encounter any issues or need immediate assistance, contact {{ emergency_contact }}.
+</div>
+{% endif %}
+{% endblock %}
+
+{% block email_actions %}
+<div class="text-center">
+    <a href="#" class="button button-success">Accept Assignment</a>
+    <a href="#" class="button button-secondary">View Class Details</a>
+    <a href="#" class="button button-secondary">Contact Coordinator</a>
+</div>
+{% endblock %}
+
+{% block email_closing %}
+<div class="mt-20">
+    <p>Thank you for being part of our teaching team! Your expertise and dedication make a real difference in our students' learning journey.</p>
+    <p>If you have any questions about this assignment or need any support, please don't hesitate to reach out.</p>
+    <p>Best of luck with your class!<br>Academic Coordination Team</p>
+</div>
+{% endblock %}

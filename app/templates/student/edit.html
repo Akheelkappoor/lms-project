@@ -1,0 +1,474 @@
+{% extends "base.html" %}
+
+{% block title %}Edit {{ student.full_name }} - Student Management - {{ APP_NAME }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h1 class="page-title">
+                <i class="fas fa-user-edit"></i>
+                Edit Student Profile
+            </h1>
+            <p class="page-subtitle">Update {{ student.full_name }}'s information</p>
+        </div>
+        <div class="header-actions">
+            <a href="{{ url_for('student.student_profile', student_id=student.id) }}" class="btn btn-outline-info">
+                <i class="fas fa-eye"></i>
+                View Profile
+            </a>
+            <a href="{{ url_for('admin.students') }}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i>
+                Back to Students
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="card-title mb-0">
+                        <i class="fas fa-user"></i>
+                        Student Information
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <form method="POST">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                        
+                        <!-- Basic Information -->
+                        <h6 class="mb-3">
+                            <i class="fas fa-info-circle"></i>
+                            Basic Information
+                        </h6>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label for="full_name" class="form-label">Full Name <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" id="full_name" name="full_name" 
+                                           value="{{ student.full_name }}" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label for="email" class="form-label">Email <span class="text-danger">*</span></label>
+                                    <input type="email" class="form-control" id="email" name="email" 
+                                           value="{{ student.email }}" required>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label for="phone" class="form-label">Phone Number</label>
+                                    <input type="tel" class="form-control" id="phone" name="phone" 
+                                           value="{{ student.phone or '' }}">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label for="date_of_birth" class="form-label">Date of Birth</label>
+                                    <input type="date" class="form-control" id="date_of_birth" name="date_of_birth" 
+                                           value="{{ student.date_of_birth.strftime('%Y-%m-%d') if student.date_of_birth else '' }}">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Academic Information -->
+                        <h6 class="mb-3 mt-4">
+                            <i class="fas fa-graduation-cap"></i>
+                            Academic Information
+                        </h6>
+
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="form-group mb-3">
+                                    <label for="grade" class="form-label">Grade <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" id="grade" name="grade" 
+                                           value="{{ student.grade }}" required>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-group mb-3">
+                                    <label for="board" class="form-label">Board <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" id="board" name="board" 
+                                           value="{{ student.board }}" required>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-group mb-3">
+                                    <label for="school_name" class="form-label">School Name</label>
+                                    <input type="text" class="form-control" id="school_name" name="school_name" 
+                                           value="{{ student.school_name or '' }}">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-group mb-3">
+                            <label for="subjects_enrolled" class="form-label">Subjects Enrolled</label>
+                            <input type="text" class="form-control" id="subjects_enrolled" name="subjects_enrolled" 
+                                   value="{{ student.get_subjects_enrolled()|join(', ') if student.get_subjects_enrolled else '' }}"
+                                   placeholder="Enter subjects separated by commas">
+                            <small class="form-text text-muted">Enter subjects separated by commas (e.g., Mathematics, Physics, Chemistry)</small>
+                        </div>
+
+                        <!-- Parent Information -->
+                        <h6 class="mb-3 mt-4">
+                            <i class="fas fa-users"></i>
+                            Parent Information
+                        </h6>
+
+                        <!-- Father Details -->
+                        <div class="row">
+                            <div class="col-12">
+                                <h6 class="text-muted mb-2">Father's Details</h6>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label for="father_name" class="form-label">Father's Name</label>
+                                    <input type="text" class="form-control" id="father_name" name="father_name" 
+                                           value="{{ student.get_parent_details().get('father', {}).get('name', '') if student.get_parent_details() else '' }}">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label for="father_phone" class="form-label">Father's Phone</label>
+                                    <input type="tel" class="form-control" id="father_phone" name="father_phone" 
+                                           value="{{ student.get_parent_details().get('father', {}).get('phone', '') if student.get_parent_details() else '' }}">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label for="father_email" class="form-label">Father's Email</label>
+                                    <input type="email" class="form-control" id="father_email" name="father_email" 
+                                           value="{{ student.get_parent_details().get('father', {}).get('email', '') if student.get_parent_details() else '' }}">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label for="father_profession" class="form-label">Father's Profession</label>
+                                    <input type="text" class="form-control" id="father_profession" name="father_profession" 
+                                           value="{{ student.get_parent_details().get('father', {}).get('profession', '') if student.get_parent_details() else '' }}">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-group mb-3">
+                            <label for="father_workplace" class="form-label">Father's Workplace</label>
+                            <input type="text" class="form-control" id="father_workplace" name="father_workplace" 
+                                   value="{{ student.get_parent_details().get('father', {}).get('workplace', '') if student.get_parent_details() else '' }}">
+                        </div>
+
+                        <!-- Mother Details -->
+                        <div class="row">
+                            <div class="col-12">
+                                <h6 class="text-muted mb-2">Mother's Details</h6>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label for="mother_name" class="form-label">Mother's Name</label>
+                                    <input type="text" class="form-control" id="mother_name" name="mother_name" 
+                                           value="{{ student.get_parent_details().get('mother', {}).get('name', '') if student.get_parent_details() else '' }}">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label for="mother_phone" class="form-label">Mother's Phone</label>
+                                    <input type="tel" class="form-control" id="mother_phone" name="mother_phone" 
+                                           value="{{ student.get_parent_details().get('mother', {}).get('phone', '') if student.get_parent_details() else '' }}">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label for="mother_email" class="form-label">Mother's Email</label>
+                                    <input type="email" class="form-control" id="mother_email" name="mother_email" 
+                                           value="{{ student.get_parent_details().get('mother', {}).get('email', '') if student.get_parent_details() else '' }}">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label for="mother_profession" class="form-label">Mother's Profession</label>
+                                    <input type="text" class="form-control" id="mother_profession" name="mother_profession" 
+                                           value="{{ student.get_parent_details().get('mother', {}).get('profession', '') if student.get_parent_details() else '' }}">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-group mb-3">
+                            <label for="mother_workplace" class="form-label">Mother's Workplace</label>
+                            <input type="text" class="form-control" id="mother_workplace" name="mother_workplace" 
+                                   value="{{ student.get_parent_details().get('mother', {}).get('workplace', '') if student.get_parent_details() else '' }}">
+                        </div>
+
+                        <!-- Fee Structure -->
+                        <h6 class="mb-3 mt-4">
+                            <i class="fas fa-money-bill-wave"></i>
+                            Fee Structure
+                        </h6>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label for="total_fee" class="form-label">Total Fee (₹)</label>
+                                    <input type="number" step="0.01" class="form-control" id="total_fee" name="total_fee" 
+                                           value="{{ student.get_fee_structure().get('total_fee', 0) if student.get_fee_structure() else 0 }}">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label for="amount_paid" class="form-label">Amount Paid (₹)</label>
+                                    <input type="number" step="0.01" class="form-control" id="amount_paid" name="amount_paid" 
+                                           value="{{ student.get_fee_structure().get('amount_paid', 0) if student.get_fee_structure() else 0 }}">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label for="payment_mode" class="form-label">Payment Mode</label>
+                                    <select class="form-select" id="payment_mode" name="payment_mode">
+                                        <option value="">Select Payment Mode</option>
+                                        <option value="cash" {{ 'selected' if student.get_fee_structure().get('payment_mode') == 'cash' else '' }}>Cash</option>
+                                        <option value="online" {{ 'selected' if student.get_fee_structure().get('payment_mode') == 'online' else '' }}>Online</option>
+                                        <option value="bank_transfer" {{ 'selected' if student.get_fee_structure().get('payment_mode') == 'bank_transfer' else '' }}>Bank Transfer</option>
+                                        <option value="cheque" {{ 'selected' if student.get_fee_structure().get('payment_mode') == 'cheque' else '' }}>Cheque</option>
+                                        <option value="upi" {{ 'selected' if student.get_fee_structure().get('payment_mode') == 'upi' else '' }}>UPI</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label for="payment_schedule" class="form-label">Payment Schedule</label>
+                                    <select class="form-select" id="payment_schedule" name="payment_schedule">
+                                        <option value="">Select Payment Schedule</option>
+                                        <option value="monthly" {{ 'selected' if student.get_fee_structure().get('payment_schedule') == 'monthly' else '' }}>Monthly</option>
+                                        <option value="quarterly" {{ 'selected' if student.get_fee_structure().get('payment_schedule') == 'quarterly' else '' }}>Quarterly</option>
+                                        <option value="half_yearly" {{ 'selected' if student.get_fee_structure().get('payment_schedule') == 'half_yearly' else '' }}>Half Yearly</option>
+                                        <option value="yearly" {{ 'selected' if student.get_fee_structure().get('payment_schedule') == 'yearly' else '' }}>Yearly</option>
+                                        <option value="one_time" {{ 'selected' if student.get_fee_structure().get('payment_schedule') == 'one_time' else '' }}>One Time</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Status Information -->
+                        <h6 class="mb-3 mt-4">
+                            <i class="fas fa-info-circle"></i>
+                            Status Information
+                        </h6>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label for="enrollment_status" class="form-label">Enrollment Status</label>
+                                    <select class="form-select" id="enrollment_status" name="enrollment_status">
+                                        <option value="active" {{ 'selected' if student.enrollment_status == 'active' else '' }}>Active</option>
+                                        <option value="paused" {{ 'selected' if student.enrollment_status == 'paused' else '' }}>Paused</option>
+                                        <option value="completed" {{ 'selected' if student.enrollment_status == 'completed' else '' }}>Completed</option>
+                                        <option value="dropped" {{ 'selected' if student.enrollment_status == 'dropped' else '' }}>Dropped</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label class="form-label">Account Status</label>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="is_active" name="is_active" 
+                                               {{ 'checked' if student.is_active else '' }}>
+                                        <label class="form-check-label" for="is_active">
+                                            Active Account
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <div class="form-actions pt-4 border-top">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save"></i>
+                                Update Student
+                            </button>
+                            <a href="{{ url_for('student.student_profile', student_id=student.id) }}" class="btn btn-secondary">
+                                <i class="fas fa-times"></i>
+                                Cancel
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar with Student Info -->
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="card-title mb-0">
+                        <i class="fas fa-user-circle"></i>
+                        Student Overview
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="student-overview">
+                        <div class="text-center mb-3">
+                            {% if student.profile_picture_url %}
+                            <img src="{{ student.profile_picture_url }}" alt="Profile Picture" 
+                                 class="rounded-circle" width="80" height="80">
+                            {% else %}
+                            <div class="avatar-placeholder">
+                                <i class="fas fa-user-circle fa-4x text-muted"></i>
+                            </div>
+                            {% endif %}
+                            <h6 class="mt-2 mb-0">{{ student.full_name }}</h6>
+                            <small class="text-muted">{{ student.grade }} - {{ student.board }}</small>
+                        </div>
+
+                        <div class="student-stats">
+                            <div class="stat-item">
+                                <label>Student ID:</label>
+                                <span>#{{ student.id }}</span>
+                            </div>
+                            <div class="stat-item">
+                                <label>Registration Date:</label>
+                                <span>{{ student.created_at.strftime('%d %b %Y') if student.created_at else 'N/A' }}</span>
+                            </div>
+                            <div class="stat-item">
+                                <label>Department:</label>
+                                <span>{{ student.department.name if student.department else 'Not assigned' }}</span>
+                            </div>
+                            <div class="stat-item">
+                                <label>Balance Amount:</label>
+                                <span class="text-warning">₹{{ "{:,.2f}".format(student.get_fee_structure().get('balance_amount', 0) if student.get_fee_structure() else 0) }}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="card mt-3">
+                <div class="card-header">
+                    <h6 class="card-title mb-0">
+                        <i class="fas fa-bolt"></i>
+                        Quick Actions
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <a href="{{ url_for('student.student_classes', student_id=student.id) }}" class="btn btn-outline-primary btn-sm">
+                            <i class="fas fa-calendar"></i>
+                            View Classes
+                        </a>
+                        <a href="{{ url_for('student.student_attendance', student_id=student.id) }}" class="btn btn-outline-success btn-sm">
+                            <i class="fas fa-chart-line"></i>
+                            Attendance Report
+                        </a>
+                        <a href="{{ url_for('student.student_fees', student_id=student.id) }}" class="btn btn-outline-warning btn-sm">
+                            <i class="fas fa-money-bill"></i>
+                            Fee Details
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.form-actions {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+}
+
+.student-overview {
+    text-align: center;
+}
+
+.avatar-placeholder {
+    margin-bottom: 1rem;
+}
+
+.student-stats {
+    text-align: left;
+}
+
+.stat-item {
+    margin-bottom: 0.75rem;
+    display: flex;
+    justify-content: space-between;
+}
+
+.stat-item label {
+    font-weight: 500;
+    color: var(--text-secondary);
+}
+
+.stat-item span {
+    font-weight: 600;
+}
+
+.text-warning {
+    color: var(--warning-color) !important;
+}
+</style>
+
+<script>
+// Auto-calculate balance when fee amounts change
+document.addEventListener('DOMContentLoaded', function() {
+    const totalFeeInput = document.getElementById('total_fee');
+    const amountPaidInput = document.getElementById('amount_paid');
+    
+    function updateBalance() {
+        const totalFee = parseFloat(totalFeeInput.value) || 0;
+        const amountPaid = parseFloat(amountPaidInput.value) || 0;
+        const balance = totalFee - amountPaid;
+        
+        // Update the sidebar balance display
+        const balanceDisplay = document.querySelector('.stat-item .text-warning');
+        if (balanceDisplay) {
+            balanceDisplay.textContent = '₹' + balance.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+        }
+    }
+    
+    if (totalFeeInput && amountPaidInput) {
+        totalFeeInput.addEventListener('input', updateBalance);
+        amountPaidInput.addEventListener('input', updateBalance);
+    }
+});
+
+// Form validation
+document.querySelector('form').addEventListener('submit', function(e) {
+    const requiredFields = ['full_name', 'email', 'grade', 'board'];
+    let isValid = true;
+    
+    requiredFields.forEach(fieldName => {
+        const field = document.getElementById(fieldName);
+        if (field && !field.value.trim()) {
+            isValid = false;
+            field.classList.add('is-invalid');
+            field.focus();
+        } else if (field) {
+            field.classList.remove('is-invalid');
+        }
+    });
+    
+    if (!isValid) {
+        e.preventDefault();
+        alert('Please fill in all required fields.');
+    }
+});
+</script>
+{% endblock %}

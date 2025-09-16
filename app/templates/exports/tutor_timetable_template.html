@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ tutor_info.name }} - Teaching Schedule</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: white;
+            color: #333;
+            line-height: 1.4;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border: 2px solid #dee2e6;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        
+        /* Header */
+        .header {
+            background: #f8f9fa;
+            padding: 30px 20px;
+            text-align: center;
+            border-bottom: 2px solid #dee2e6;
+        }
+        
+        .header h1 {
+            font-size: 28px;
+            font-weight: bold;
+            color: #2c3e50;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .tutor-name {
+            font-size: 22px;
+            font-weight: 600;
+            color: #495057;
+            margin-bottom: 15px;
+        }
+        
+        .header-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        
+        .info-item {
+            background: white;
+            padding: 12px;
+            border-radius: 6px;
+            border: 1px solid #dee2e6;
+            text-align: center;
+        }
+        
+        .info-label {
+            font-size: 12px;
+            color: #6c757d;
+            font-weight: 500;
+            margin-bottom: 4px;
+            text-transform: uppercase;
+        }
+        
+        .info-value {
+            font-size: 14px;
+            font-weight: bold;
+            color: #2c3e50;
+            word-break: break-word;
+        }
+        
+        /* Summary Statistics */
+        .summary-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 15px;
+            padding: 20px;
+            background: white;
+            border-bottom: 1px solid #dee2e6;
+        }
+        
+        .stat-card {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+            border: 1px solid #dee2e6;
+        }
+        
+        .stat-number {
+            font-size: 28px;
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: #495057;
+        }
+        
+        .stat-label {
+            font-size: 12px;
+            color: #6c757d;
+            font-weight: 500;
+            text-transform: uppercase;
+        }
+        
+        /* Schedule Section */
+        .schedule-section {
+            padding: 20px;
+            background: white;
+        }
+        
+        .schedule-title {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 20px;
+            color: #2c3e50;
+            text-align: center;
+            text-transform: uppercase;
+        }
+        
+        .date-section {
+            margin-bottom: 25px;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            overflow: hidden;
+            background: white;
+        }
+        
+        .date-header {
+            background: #495057;
+            color: white;
+            padding: 15px 20px;
+            font-weight: bold;
+            font-size: 16px;
+            border-bottom: 2px solid #6c757d;
+        }
+        
+        .classes-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+        }
+        
+        .classes-table th {
+            background: #f8f9fa;
+            padding: 12px 10px;
+            text-align: left;
+            border-bottom: 2px solid #dee2e6;
+            font-weight: bold;
+            color: #495057;
+            font-size: 13px;
+            text-transform: uppercase;
+        }
+        
+        .classes-table td {
+            padding: 12px 10px;
+            border-bottom: 1px solid #dee2e6;
+            font-size: 12px;
+            vertical-align: top;
+        }
+        
+        .classes-table tr:nth-child(even) {
+            background: #f8f9fa;
+        }
+        
+        .classes-table tr:hover {
+            background: #e9ecef;
+        }
+        
+        .time-cell {
+            font-weight: bold;
+            color: #495057;
+            white-space: nowrap;
+            min-width: 120px;
+        }
+        
+        .subject-cell {
+            font-weight: bold;
+            color: #2c3e50;
+            min-width: 150px;
+        }
+        
+        .students-cell {
+            max-width: 250px;
+            word-wrap: break-word;
+            line-height: 1.4;
+        }
+        
+        .student-name {
+            display: inline-block;
+            background: #e9ecef;
+            padding: 2px 8px;
+            border-radius: 12px;
+            margin: 1px;
+            font-size: 11px;
+            color: #495057;
+        }
+        
+        .status-cell {
+            text-align: center;
+            min-width: 100px;
+        }
+        
+        .status-badge {
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 10px;
+            font-weight: bold;
+            text-transform: uppercase;
+            display: inline-block;
+        }
+        
+        .status-scheduled {
+            background: #cfe2ff;
+            color: #0a58ca;
+            border: 1px solid #9ec5fe;
+        }
+        
+        .status-completed {
+            background: #d1e7dd;
+            color: #0f5132;
+            border: 1px solid #badbcc;
+        }
+        
+        .status-cancelled {
+            background: #f8d7da;
+            color: #842029;
+            border: 1px solid #f5c2c7;
+        }
+        
+        .status-ongoing {
+            background: #fff3cd;
+            color: #664d03;
+            border: 1px solid #ffecb5;
+        }
+        
+        .platform-cell {
+            font-size: 11px;
+            color: #6c757d;
+        }
+        
+        .meeting-link {
+            color: #495057;
+            text-decoration: none;
+            font-size: 11px;
+            word-break: break-all;
+        }
+        
+        .meeting-link:hover {
+            text-decoration: underline;
+            color: #2c3e50;
+        }
+        
+        /* No classes message */
+        .no-classes {
+            text-align: center;
+            padding: 40px;
+            color: #6c757d;
+            font-style: italic;
+            background: #f8f9fa;
+            border-radius: 6px;
+        }
+        
+        .no-classes-icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+            opacity: 0.5;
+        }
+        
+        /* Footer */
+        .footer {
+            background: #495057;
+            color: white;
+            padding: 20px;
+            text-align: center;
+            margin-top: 0;
+        }
+        
+        .footer p {
+            font-size: 14px;
+            margin: 0;
+        }
+        
+        /* Print Styles */
+        @media print {
+            body {
+                padding: 10px;
+                background: white;
+            }
+            
+            .container {
+                border: 1px solid #000;
+                box-shadow: none;
+            }
+            
+            .stat-card {
+                background: #f8f9fa !important;
+                color: black !important;
+                border: 1px solid #dee2e6;
+            }
+            
+            .date-header {
+                background: #f8f9fa !important;
+                color: black !important;
+                border: 1px solid #dee2e6;
+            }
+            
+            .classes-table th {
+                background: #f8f9fa !important;
+                color: black !important;
+            }
+            
+            .classes-table tr:nth-child(even) {
+                background: #f8f9fa !important;
+            }
+        }
+        
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .header-info {
+                grid-template-columns: 1fr;
+            }
+            
+            .summary-stats {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .classes-table {
+                font-size: 11px;
+            }
+            
+            .classes-table th,
+            .classes-table td {
+                padding: 8px 6px;
+            }
+            
+            .students-cell {
+                max-width: 150px;
+            }
+            
+            .time-cell {
+                min-width: 100px;
+            }
+            
+            .subject-cell {
+                min-width: 120px;
+            }
+        }
+    </style>
+    <script>
+        // Function to extract and simplify subject names
+        function simplifySubjectName(fullName) {
+            // Extract subject from names like "HARSHINI-GRD10-CBSE-HINDI"
+            if (fullName.includes('-')) {
+                const parts = fullName.split('-');
+                // Get the last part which should be the subject
+                return parts[parts.length - 1];
+            }
+            return fullName;
+        }
+        
+        // Simplify all subject names when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            const subjects = document.querySelectorAll('.subject-cell');
+            subjects.forEach(function(element) {
+                const originalText = element.textContent.trim();
+                const simplifiedText = simplifySubjectName(originalText);
+                element.textContent = simplifiedText;
+            });
+        });
+    </script>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>📚 Teaching Schedule</h1>
+            <div class="tutor-name">{{ tutor_info.name }}</div>
+            <div class="header-info">
+                <div class="info-item">
+                    <div class="info-label">Email</div>
+                    <div class="info-value">{{ tutor_info.email }}</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Phone</div>
+                    <div class="info-value">{{ tutor_info.phone or 'N/A' }}</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Department</div>
+                    <div class="info-value">{{ tutor_info.department }}</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Period</div>
+                    <div class="info-value">{{ date_range }}</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Summary Statistics -->
+        <div class="summary-stats">
+            <div class="stat-card">
+                <div class="stat-number">{{ total_classes or 0 }}</div>
+                <div class="stat-label">Total Classes</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">{{ unique_subjects|length or 0 }}</div>
+                <div class="stat-label">Subjects</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">{{ total_students or 0 }}</div>
+                <div class="stat-label">Students</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">{{ total_hours or 0 }}</div>
+                <div class="stat-label">Hours</div>
+            </div>
+        </div>
+        
+        <!-- Schedule Section -->
+        <div class="schedule-section">
+            <div class="schedule-title">Class Schedule</div>
+            
+            {% if schedule_by_date %}
+                {% for date, classes in schedule_by_date.items() %}
+                <div class="date-section">
+                    <div class="date-header">
+                        📅 {{ date }} ({{ classes|length }} classes)
+                    </div>
+                    
+                    {% if classes %}
+                    <table class="classes-table">
+                        <thead>
+                            <tr>
+                                <th>Time</th>
+                                <th>Subject</th>
+                                <th>Students</th>
+                                <th>Status</th>
+                                <th>Platform</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for class_info in classes %}
+                            <tr>
+                                <td class="time-cell">
+                                    {{ class_info.start_time }} - {{ class_info.end_time }}
+                                </td>
+                                <td class="subject-cell">
+                                    {{ class_info.subject }}
+                                </td>
+                                <td class="students-cell">
+                                    {% if class_info.students %}
+                                        {% for student in class_info.students %}
+                                        <span class="student-name">{{ student }}</span>
+                                        {% endfor %}
+                                    {% else %}
+                                        <em style="color: #6c757d;">No students assigned</em>
+                                    {% endif %}
+                                </td>
+                                <td class="status-cell">
+                                    <span class="status-badge status-{{ class_info.status|lower }}">
+                                        {{ class_info.status }}
+                                    </span>
+                                </td>
+                                <td class="platform-cell">
+                                    {{ class_info.platform or 'N/A' }}
+                                    {% if class_info.meeting_link %}
+                                    <br>
+                                    <a href="{{ class_info.meeting_link }}" class="meeting-link" target="_blank">
+                                        Join Link
+                                    </a>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            {% else %}
+            <div class="no-classes">
+                <div class="no-classes-icon">📅</div>
+                <h3>No Classes Scheduled</h3>
+                <p>No classes found for the selected date range.</p>
+            </div>
+            {% endif %}
+        </div>
+        
+        <!-- Footer -->
+        <div class="footer">
+            <p>📚 Generated by i2Global Learning Management System | {{ current_date }}</p>
+        </div>
+    </div>
+</body>
+</html>

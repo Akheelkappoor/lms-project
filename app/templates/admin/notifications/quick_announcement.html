@@ -1,0 +1,202 @@
+{% extends "base.html" %}
+
+{% block title %}Quick Announcement{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <h1 class="h3 mb-0 text-gray-800">
+                    <i class="fas fa-bullhorn"></i> Quick Announcement
+                </h1>
+                <a href="{{ url_for('system_notifications.admin_notifications') }}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left"></i> Back to Notifications
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Announcement Card -->
+    <div class="card shadow mb-4">
+        <div class="card-header py-3 bg-success text-white">
+            <h6 class="m-0 font-weight-bold">
+                <i class="fas fa-rocket"></i> Send Quick Announcement
+            </h6>
+        </div>
+        <div class="card-body">
+            <p class="text-muted mb-4">
+                Send a quick announcement to your selected audience. Perfect for urgent updates, general information, or quick reminders.
+            </p>
+            
+            <form method="POST">
+                {{ form.hidden_tag() }}
+                
+                <!-- Title -->
+                <div class="form-group">
+                    {{ form.title.label(class="font-weight-bold") }}
+                    {{ form.title(class="form-control form-control-lg", placeholder="e.g., Library Hours Extended, New Course Available") }}
+                    {% if form.title.errors %}
+                        <small class="text-danger">{{ form.title.errors[0] }}</small>
+                    {% endif %}
+                </div>
+                
+                <!-- Message -->
+                <div class="form-group">
+                    {{ form.message.label(class="font-weight-bold") }}
+                    {{ form.message(class="form-control", placeholder="Write your announcement here...") }}
+                    <small class="form-text text-muted">Keep it concise and clear. You can use **bold** and *italic* formatting.</small>
+                    {% if form.message.errors %}
+                        <small class="text-danger">{{ form.message.errors[0] }}</small>
+                    {% endif %}
+                </div>
+                
+                <!-- Target Audience -->
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            {{ form.target_type.label(class="font-weight-bold") }}
+                            {{ form.target_type(class="form-control") }}
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Delivery Options -->
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-check">
+                            {{ form.include_email(class="form-check-input") }}
+                            {{ form.include_email.label(class="form-check-label font-weight-bold") }}
+                        </div>
+                        <small class="form-text text-muted">Recommended for important announcements</small>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <div class="form-check">
+                            {{ form.include_popup(class="form-check-input") }}
+                            {{ form.include_popup.label(class="form-check-label font-weight-bold") }}
+                        </div>
+                        <small class="form-text text-muted">For urgent announcements that need immediate attention</small>
+                    </div>
+                </div>
+                
+                <!-- Preview -->
+                <div class="mt-4">
+                    <h6 class="font-weight-bold">Preview:</h6>
+                    <div class="border p-3 bg-light rounded" id="preview-box">
+                        <div class="d-flex align-items-center mb-2">
+                            <i class="fas fa-bullhorn text-primary mr-2"></i>
+                            <strong id="preview-title">Your title will appear here</strong>
+                        </div>
+                        <div id="preview-message" class="text-muted">Your message will appear here</div>
+                        <div class="mt-2">
+                            <small class="text-muted">
+                                <i class="fas fa-user"></i> From: {{ current_user.full_name }} | 
+                                <i class="fas fa-clock"></i> Now
+                            </small>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Submit -->
+                <div class="mt-4">
+                    <hr>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <a href="{{ url_for('system_notifications.admin_notifications') }}" class="btn btn-secondary">
+                            <i class="fas fa-times"></i> Cancel
+                        </a>
+                        <button type="submit" class="btn btn-success btn-lg">
+                            <i class="fas fa-paper-plane"></i> Send Announcement Now
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Tips Card -->
+    <div class="card shadow">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-info">
+                <i class="fas fa-lightbulb"></i> Quick Tips
+            </h6>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <h6 class="font-weight-bold">Best Practices:</h6>
+                    <ul class="list-unstyled">
+                        <li><i class="fas fa-check text-success mr-2"></i> Keep messages under 200 characters</li>
+                        <li><i class="fas fa-check text-success mr-2"></i> Use clear, actionable language</li>
+                        <li><i class="fas fa-check text-success mr-2"></i> Include relevant dates/deadlines</li>
+                        <li><i class="fas fa-check text-success mr-2"></i> Test with a small group first</li>
+                    </ul>
+                </div>
+                <div class="col-md-6">
+                    <h6 class="font-weight-bold">Example Announcements:</h6>
+                    <ul class="list-unstyled text-muted">
+                        <li><em>"Library extended hours: Now open until 10 PM on weekdays!"</em></li>
+                        <li><em>"New online course: Introduction to Data Science - Enroll now!"</em></li>
+                        <li><em>"Reminder: Assignment submissions due tomorrow at midnight."</em></li>
+                        <li><em>"Cafeteria menu updated with new healthy options."</em></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Live preview functionality
+function updatePreview() {
+    const title = document.getElementById('title').value || 'Your title will appear here';
+    const message = document.getElementById('message').value || 'Your message will appear here';
+    
+    document.getElementById('preview-title').textContent = title;
+    document.getElementById('preview-message').textContent = message;
+}
+
+// Add event listeners for live preview
+document.addEventListener('DOMContentLoaded', function() {
+    document.getElementById('title').addEventListener('input', updatePreview);
+    document.getElementById('message').addEventListener('input', updatePreview);
+    
+    // Character counter
+    const messageField = document.getElementById('message');
+    const maxLength = 500;
+    
+    messageField.addEventListener('input', function() {
+        const remaining = maxLength - this.value.length;
+        const color = remaining < 50 ? 'text-danger' : remaining < 100 ? 'text-warning' : 'text-muted';
+        
+        // Find or create character counter
+        let counter = document.getElementById('char-counter');
+        if (!counter) {
+            counter = document.createElement('small');
+            counter.id = 'char-counter';
+            counter.className = 'form-text';
+            messageField.parentNode.appendChild(counter);
+        }
+        
+        counter.className = `form-text ${color}`;
+        counter.textContent = `${remaining} characters remaining`;
+    });
+});
+
+// Auto-suggestion for target audience based on message content
+document.getElementById('message').addEventListener('input', function() {
+    const message = this.value.toLowerCase();
+    const targetType = document.getElementById('target_type');
+    
+    // Auto-suggest target based on keywords
+    if (message.includes('student') && !message.includes('tutor')) {
+        targetType.value = 'students';
+    } else if (message.includes('tutor') && !message.includes('student')) {
+        targetType.value = 'tutors';
+    } else if (message.includes('class') || message.includes('assignment')) {
+        // Could be relevant to both, keep current selection
+    }
+});
+</script>
+{% endblock %}

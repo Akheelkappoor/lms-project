@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}LMS Notification{% endblock %}</title>
+    <style>
+        /* Reset and base styles */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Arial', sans-serif;
+            line-height: 1.6;
+            color: #333333;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 0;
+        }
+        
+        .email-container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .email-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px 20px;
+            text-align: center;
+        }
+        
+        .email-header h1 {
+            font-size: 24px;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+        
+        .email-header .subtitle {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+        
+        .email-body {
+            padding: 30px 20px;
+        }
+        
+        .greeting {
+            font-size: 16px;
+            margin-bottom: 20px;
+            color: #2c3e50;
+        }
+        
+        .content-section {
+            margin-bottom: 25px;
+            padding: 20px;
+            background-color: #f8f9fa;
+            border-radius: 6px;
+            border-left: 4px solid #667eea;
+        }
+        
+        .content-section h2 {
+            color: #2c3e50;
+            font-size: 18px;
+            margin-bottom: 12px;
+        }
+        
+        .content-section h3 {
+            color: #34495e;
+            font-size: 16px;
+            margin-bottom: 10px;
+            margin-top: 15px;
+        }
+        
+        .info-grid {
+            display: table;
+            width: 100%;
+            margin: 15px 0;
+        }
+        
+        .info-row {
+            display: table-row;
+        }
+        
+        .info-label {
+            display: table-cell;
+            padding: 8px 15px 8px 0;
+            font-weight: 600;
+            color: #555;
+            width: 30%;
+        }
+        
+        .info-value {
+            display: table-cell;
+            padding: 8px 0;
+            color: #333;
+        }
+        
+        .action-list {
+            list-style: none;
+            padding: 0;
+        }
+        
+        .action-list li {
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+            position: relative;
+            padding-left: 25px;
+        }
+        
+        .action-list li:before {
+            content: "✓";
+            position: absolute;
+            left: 0;
+            color: #27ae60;
+            font-weight: bold;
+        }
+        
+        .action-list li:last-child {
+            border-bottom: none;
+        }
+        
+        .alert-box {
+            padding: 15px;
+            border-radius: 6px;
+            margin: 20px 0;
+        }
+        
+        .alert-success {
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        
+        .alert-warning {
+            background-color: #fff3cd;
+            border: 1px solid #ffeaa7;
+            color: #856404;
+        }
+        
+        .alert-danger {
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        
+        .alert-info {
+            background-color: #cce7ff;
+            border: 1px solid #b8daff;
+            color: #004085;
+        }
+        
+        .button {
+            display: inline-block;
+            padding: 12px 24px;
+            background-color: #667eea;
+            color: white;
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+            margin: 10px 5px;
+            text-align: center;
+        }
+        
+        .button:hover {
+            background-color: #5a6fd8;
+        }
+        
+        .button-secondary {
+            background-color: #6c757d;
+        }
+        
+        .button-secondary:hover {
+            background-color: #5a6268;
+        }
+        
+        .button-success {
+            background-color: #28a745;
+        }
+        
+        .button-success:hover {
+            background-color: #218838;
+        }
+        
+        .button-danger {
+            background-color: #dc3545;
+        }
+        
+        .button-danger:hover {
+            background-color: #c82333;
+        }
+        
+        .email-footer {
+            background-color: #2c3e50;
+            color: white;
+            padding: 25px 20px;
+            text-align: center;
+            font-size: 14px;
+        }
+        
+        .email-footer a {
+            color: #74b9ff;
+            text-decoration: none;
+        }
+        
+        .email-footer a:hover {
+            text-decoration: underline;
+        }
+        
+        .footer-links {
+            margin: 15px 0 10px 0;
+        }
+        
+        .footer-links a {
+            margin: 0 15px;
+        }
+        
+        .social-links {
+            margin-top: 15px;
+        }
+        
+        .social-links a {
+            margin: 0 10px;
+            font-size: 18px;
+        }
+        
+        .priority-high {
+            border-left-color: #e74c3c;
+        }
+        
+        .priority-immediate {
+            border-left-color: #c0392b;
+            background-color: #ffeaa7;
+        }
+        
+        .priority-medium {
+            border-left-color: #f39c12;
+        }
+        
+        .priority-low {
+            border-left-color: #27ae60;
+        }
+        
+        .text-center {
+            text-align: center;
+        }
+        
+        .text-right {
+            text-align: right;
+        }
+        
+        .text-muted {
+            color: #6c757d;
+        }
+        
+        .text-small {
+            font-size: 12px;
+        }
+        
+        .mt-20 {
+            margin-top: 20px;
+        }
+        
+        .mb-20 {
+            margin-bottom: 20px;
+        }
+        
+        /* Responsive design */
+        @media only screen and (max-width: 600px) {
+            .email-container {
+                margin: 10px;
+                max-width: calc(100% - 20px);
+            }
+            
+            .email-header,
+            .email-body,
+            .email-footer {
+                padding: 20px 15px;
+            }
+            
+            .email-header h1 {
+                font-size: 20px;
+            }
+            
+            .info-label,
+            .info-value {
+                display: block;
+                width: 100%;
+                padding: 4px 0;
+            }
+            
+            .info-label {
+                font-weight: bold;
+                color: #333;
+            }
+            
+            .button {
+                display: block;
+                width: 100%;
+                margin: 10px 0;
+                text-align: center;
+            }
+        }
+    </style>
+    {% block extra_styles %}{% endblock %}
+</head>
+<body>
+    <div class="email-container">
+        <div class="email-header">
+            <h1>{% block email_title %}LMS Notification{% endblock %}</h1>
+            <div class="subtitle">{% block email_subtitle %}Learning Management System{% endblock %}</div>
+        </div>
+        
+        <div class="email-body">
+            {% block email_greeting %}
+            <div class="greeting">
+                Dear {% block recipient_name %}User{% endblock %},
+            </div>
+            {% endblock %}
+            
+            {% block email_content %}
+            <!-- Email content goes here -->
+            {% endblock %}
+            
+            {% block email_actions %}
+            <!-- Action buttons or links go here -->
+            {% endblock %}
+            
+            {% block email_closing %}
+            <div class="mt-20">
+                <p>If you have any questions or need assistance, please don't hesitate to contact us.</p>
+                <p>Best regards,<br>The LMS Team</p>
+            </div>
+            {% endblock %}
+        </div>
+        
+        <div class="email-footer">
+            <div>
+                <strong>Learning Management System</strong><br>
+                {% block contact_info %}
+                Email: support@lms.com | Phone: +1-XXX-XXX-XXXX<br>
+                Visit: www.lms.com
+                {% endblock %}
+            </div>
+            
+            <div class="footer-links">
+                <a href="#">Help Center</a>
+                <a href="#">Privacy Policy</a>
+                <a href="#">Terms of Service</a>
+            </div>
+            
+            <div class="text-small text-muted">
+                © {{ "now"|strftime("%Y") }} LMS. All rights reserved.<br>
+                You received this email because you are registered with our Learning Management System.
+            </div>
+            
+            {% block unsubscribe %}
+            <div class="text-small" style="margin-top: 10px;">
+                <a href="#" style="color: #95a5a6;">Unsubscribe</a> | 
+                <a href="#" style="color: #95a5a6;">Update Preferences</a>
+            </div>
+            {% endblock %}
+        </div>
+    </div>
+</body>
+</html>

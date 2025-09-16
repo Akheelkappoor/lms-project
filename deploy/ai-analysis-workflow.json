@@ -1,0 +1,183 @@
+{
+  "name": "LMS AI Data Analysis",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "start-trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT \n  u.id,\n  u.name,\n  u.email,\n  COUNT(e.id) as enrollments,\n  AVG(p.completion_percentage) as avg_progress,\n  COUNT(CASE WHEN p.completion_percentage = 100 THEN 1 END) as completed_courses\nFROM users u\nLEFT JOIN enrollments e ON u.id = e.user_id\nLEFT JOIN progress p ON e.id = p.enrollment_id\nGROUP BY u.id, u.name, u.email\nORDER BY enrollments DESC\nLIMIT 100;"
+      },
+      "id": "fetch-user-data",
+      "name": "Fetch User Analytics",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [460, 300],
+      "credentials": {
+        "postgres": {
+          "id": "lms-database",
+          "name": "LMS Database"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT \n  c.id,\n  c.title,\n  c.category,\n  COUNT(e.id) as total_enrollments,\n  AVG(p.completion_percentage) as avg_completion,\n  COUNT(CASE WHEN p.completion_percentage = 100 THEN 1 END) as completions,\n  AVG(r.rating) as avg_rating\nFROM courses c\nLEFT JOIN enrollments e ON c.id = e.course_id\nLEFT JOIN progress p ON e.id = p.enrollment_id\nLEFT JOIN ratings r ON c.id = r.course_id\nGROUP BY c.id, c.title, c.category\nORDER BY total_enrollments DESC;"
+      },
+      "id": "fetch-course-data",
+      "name": "Fetch Course Analytics",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [460, 480],
+      "credentials": {
+        "postgres": {
+          "id": "lms-database",
+          "name": "LMS Database"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const userData = $input.first().json;\nconst courseData = $input.all()[1].json;\n\n// AI Analysis Function\nfunction analyzeUserEngagement(users) {\n  const analysis = {\n    totalUsers: users.length,\n    averageEnrollments: users.reduce((sum, user) => sum + parseInt(user.enrollments || 0), 0) / users.length,\n    averageProgress: users.reduce((sum, user) => sum + parseFloat(user.avg_progress || 0), 0) / users.length,\n    completionRate: users.reduce((sum, user) => sum + parseInt(user.completed_courses || 0), 0) / users.reduce((sum, user) => sum + parseInt(user.enrollments || 0), 0) * 100,\n    \n    // Segment users\n    segments: {\n      highEngagers: users.filter(u => parseInt(u.enrollments) > 5).length,\n      lowEngagers: users.filter(u => parseInt(u.enrollments) <= 2).length,\n      completionChampions: users.filter(u => parseFloat(u.avg_progress) > 80).length\n    },\n    \n    // Identify patterns\n    insights: []\n  };\n  \n  // Generate insights\n  if (analysis.completionRate < 30) {\n    analysis.insights.push(\"Low completion rate detected. Consider improving course engagement strategies.\");\n  }\n  \n  if (analysis.segments.lowEngagers > analysis.totalUsers * 0.5) {\n    analysis.insights.push(\"High number of low-engagement users. Implement retention campaigns.\");\n  }\n  \n  return analysis;\n}\n\nfunction analyzeCoursePerformance(courses) {\n  const analysis = {\n    totalCourses: courses.length,\n    averageEnrollment: courses.reduce((sum, course) => sum + parseInt(course.total_enrollments || 0), 0) / courses.length,\n    averageCompletion: courses.reduce((sum, course) => sum + parseFloat(course.avg_completion || 0), 0) / courses.length,\n    averageRating: courses.reduce((sum, course) => sum + parseFloat(course.avg_rating || 0), 0) / courses.length,\n    \n    // Top performers\n    topCourses: courses\n      .sort((a, b) => parseInt(b.total_enrollments) - parseInt(a.total_enrollments))\n      .slice(0, 5)\n      .map(c => ({ title: c.title, enrollments: c.total_enrollments, completion: c.avg_completion })),\n    \n    // Underperformers\n    underperformers: courses\n      .filter(c => parseInt(c.total_enrollments) < 10 || parseFloat(c.avg_completion) < 30)\n      .map(c => ({ title: c.title, enrollments: c.total_enrollments, completion: c.avg_completion })),\n      \n    // Category analysis\n    categoryPerformance: {},\n    \n    insights: []\n  };\n  \n  // Analyze by category\n  const categories = [...new Set(courses.map(c => c.category))];\n  categories.forEach(cat => {\n    const categoryCourses = courses.filter(c => c.category === cat);\n    analysis.categoryPerformance[cat] = {\n      totalCourses: categoryCourses.length,\n      avgEnrollments: categoryCourses.reduce((sum, c) => sum + parseInt(c.total_enrollments || 0), 0) / categoryCourses.length,\n      avgCompletion: categoryCourses.reduce((sum, c) => sum + parseFloat(c.avg_completion || 0), 0) / categoryCourses.length\n    };\n  });\n  \n  // Generate insights\n  if (analysis.underperformers.length > analysis.totalCourses * 0.3) {\n    analysis.insights.push(\"High number of underperforming courses. Review content quality and marketing.\");\n  }\n  \n  const bestCategory = Object.entries(analysis.categoryPerformance)\n    .sort(([,a], [,b]) => b.avgEnrollments - a.avgEnrollments)[0];\n  analysis.insights.push(`${bestCategory[0]} is the top-performing category with ${bestCategory[1].avgEnrollments.toFixed(1)} avg enrollments.`);\n  \n  return analysis;\n}\n\n// Generate comprehensive report\nconst userAnalysis = analyzeUserEngagement(userData);\nconst courseAnalysis = analyzeCoursePerformance(courseData);\n\nconst report = {\n  timestamp: new Date().toISOString(),\n  userAnalysis,\n  courseAnalysis,\n  recommendations: [\n    ...userAnalysis.insights,\n    ...courseAnalysis.insights,\n    \"Implement personalized course recommendations based on user engagement patterns.\",\n    \"Create targeted email campaigns for low-engagement users.\",\n    \"Consider offering incentives for course completion.\"\n  ],\n  summary: {\n    totalUsers: userAnalysis.totalUsers,\n    totalCourses: courseAnalysis.totalCourses,\n    overallEngagement: userAnalysis.averageProgress.toFixed(2) + '%',\n    platformHealth: userAnalysis.completionRate > 50 && courseAnalysis.averageCompletion > 60 ? 'Healthy' : 'Needs Attention'\n  }\n};\n\nreturn { json: report };"
+      },
+      "id": "ai-analysis",
+      "name": "AI Analysis Engine",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "table": "ai_analysis_reports",
+        "columns": "report_data, created_at",
+        "additionalFields": {
+          "mode": "transaction"
+        }
+      },
+      "id": "save-report",
+      "name": "Save Analysis Report",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [900, 300],
+      "credentials": {
+        "postgres": {
+          "id": "lms-database",
+          "name": "LMS Database"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "ai-analysis-webhook",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [240, 480]
+    },
+    {
+      "parameters": {
+        "recipients": "admin@yourdomain.com",
+        "subject": "LMS AI Analysis Report - {{ $json.timestamp }}",
+        "message": "=New LMS Analysis Report Generated\\n\\n📊 Platform Summary:\\n- Total Users: {{ $json.summary.totalUsers }}\\n- Total Courses: {{ $json.summary.totalCourses }}\\n- Overall Engagement: {{ $json.summary.overallEngagement }}\\n- Platform Health: {{ $json.summary.platformHealth }}\\n\\n🎯 Key Insights:\\n{{ $json.recommendations.join('\\n') }}\\n\\n📈 User Analysis:\\n- Average Enrollments per User: {{ $json.userAnalysis.averageEnrollments.toFixed(2) }}\\n- Average Progress: {{ $json.userAnalysis.averageProgress.toFixed(2) }}%\\n- Completion Rate: {{ $json.userAnalysis.completionRate.toFixed(2) }}%\\n\\n📚 Course Analysis:\\n- Average Course Rating: {{ $json.courseAnalysis.averageRating.toFixed(2) }}/5\\n- Average Completion Rate: {{ $json.courseAnalysis.averageCompletion.toFixed(2) }}%\\n\\nFull report available in the database.\\n\\nGenerated by n8n AI Analysis Workflow"
+      },
+      "id": "email-notification",
+      "name": "Email Report",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [1120, 300]
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Fetch User Analytics",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Fetch Course Analytics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch User Analytics": {
+      "main": [
+        [
+          {
+            "node": "AI Analysis Engine",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Course Analytics": {
+      "main": [
+        [
+          {
+            "node": "AI Analysis Engine",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Analysis Engine": {
+      "main": [
+        [
+          {
+            "node": "Save Analysis Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Analysis Report": {
+      "main": [
+        [
+          {
+            "node": "Email Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Fetch User Analytics",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Fetch Course Analytics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

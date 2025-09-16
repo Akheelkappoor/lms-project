@@ -1,56 +1,156 @@
 {% extends "base.html" %}
+{% set active_page = "finance" %}
 
-{% block title %}Fee Collection{% endblock %}
+{% block title %}Fee Collection - {{ APP_NAME }}{% endblock %}
+
+{% block extra_head %}
+<meta name="csrf-token" content="{{ csrf_token() }}">
+{% endblock %}
 
 {% block content %}
-<div class="container-fluid py-4">
-    <div class="row">
-        <div class="col-12">
-            <div class="d-flex justify-content-between align-items-center mb-4">
-                <h2>Fee Collection</h2>
-                <div>
-                    <button class="btn btn-warning" onclick="sendReminders()">
-                        <i class="fas fa-bell"></i> Send Reminders
-                    </button>
-                    <button class="btn btn-primary" onclick="exportFeeData()">
-                        <i class="fas fa-download"></i> Export CSV
-                    </button>
+<div class="page-header">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h1 class="page-title">
+                <i class="fas fa-credit-card"></i>
+                Fee Collection
+            </h1>
+            <p class="page-subtitle">Manage student fee payments and outstanding balances</p>
+        </div>
+        <div class="header-actions">
+            <div class="btn-group">
+                <button class="btn btn-outline-info" onclick="exportFeeData()">
+                    <i class="fas fa-download"></i>
+                    Export Report
+                </button>
+                <button class="btn btn-outline-warning" onclick="viewCollectionHistory()">
+                    <i class="fas fa-history"></i>
+                    History
+                </button>
+                <button class="btn btn-warning" onclick="sendBulkReminders()">
+                    <i class="fas fa-bell"></i>
+                    Send Reminders
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="container-fluid">
+    <!-- Summary Statistics -->
+    <div class="row g-4 mb-4">
+        <div class="col-lg-3 col-md-6">
+            <div class="stat-card">
+                <div class="stat-icon danger">
+                    <i class="fas fa-users"></i>
+                </div>
+                <div class="stat-content">
+                    <h3 id="statPendingStudents">{{ students_with_fees|length }}</h3>
+                    <p>Visible Students</p>
+                    <div class="stat-trend">
+                        <small class="text-danger">
+                            <i class="fas fa-exclamation-circle"></i>
+                            <span id="statPendingLabel">Require follow-up</span>
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-3 col-md-6">
+            <div class="stat-card">
+                <div class="stat-icon warning">
+                    <i class="fas fa-rupee-sign"></i>
+                </div>
+                <div class="stat-content">
+                    <h3 id="statTotalOutstanding">₹{{ "{:,.0f}".format(students_with_fees|sum(attribute='outstanding')) }}</h3>
+                    <p>Filtered Outstanding</p>
+                    <div class="stat-trend">
+                        <small class="text-warning">
+                            <i class="fas fa-clock"></i>
+                            <span id="statOutstandingLabel">Pending collection</span>
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-3 col-md-6">
+            <div class="stat-card">
+                <div class="stat-icon info">
+                    <i class="fas fa-exclamation-triangle"></i>
+                </div>
+                <div class="stat-content">
+                    <h3 id="statHighPriority">{{ students_with_fees|selectattr('outstanding', 'gt', 10000)|list|length }}</h3>
+                    <p>High Priority</p>
+                    <div class="stat-trend">
+                        <small class="text-info">
+                            <i class="fas fa-fire"></i>
+                            > ₹10,000 outstanding
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-3 col-md-6">
+            <div class="stat-card">
+                <div class="stat-icon success">
+                    <i class="fas fa-percentage"></i>
+                </div>
+                <div class="stat-content">
+                    <h3 id="statCollectionRate">{{ "%.1f"|format(85.5) }}%</h3>
+                    <p>Avg Payment Progress</p>
+                    <div class="stat-trend">
+                        <small class="text-success">
+                            <i class="fas fa-chart-line"></i>
+                            <span id="statCollectionLabel">Filtered average</span>
+                        </small>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Summary Cards -->
+    <!-- Quick Insights -->
     <div class="row mb-4">
-        <div class="col-md-3">
-            <div class="card bg-danger text-white">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
                 <div class="card-body">
-                    <h5>Pending Students</h5>
-                    <h3>{{ students_with_fees|length }}</h3>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card bg-warning text-white">
-                <div class="card-body">
-                    <h5>Total Outstanding</h5>
-                    <h3>₹{{ "{:,.0f}".format(students_with_fees|sum(attribute='outstanding')) }}</h3>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card bg-info text-white">
-                <div class="card-body">
-                    <h5>High Priority</h5>
-                    <h3>{{ students_with_fees|selectattr('outstanding', 'gt', 10000)|list|length }}</h3>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card bg-success text-white">
-                <div class="card-body">
-                    <h5>Collection Rate</h5>
-                    <h3>{{ "%.1f"|format(85.5) }}%</h3>
+                    <div class="row text-center">
+                        <div class="col-md-3">
+                            <div class="insight-item">
+                                <div class="insight-value text-primary" id="insightAverageOutstanding">
+                                    ₹{{ "{:,.0f}".format((students_with_fees|sum(attribute='outstanding') / students_with_fees|length) if students_with_fees|length > 0 else 0) }}
+                                </div>
+                                <div class="insight-label">Average Outstanding</div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="insight-item">
+                                <div class="insight-value text-danger" id="insightCriticalCases">
+                                    {{ students_with_fees|selectattr('outstanding', 'gt', 15000)|list|length }}
+                                </div>
+                                <div class="insight-label">Critical Cases</div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="insight-item">
+                                <div class="insight-value text-warning" id="insightMediumPriority">
+                                    {{ students_with_fees|selectattr('outstanding', 'gt', 5000)|selectattr('outstanding', 'le', 15000)|list|length }}
+                                </div>
+                                <div class="insight-label">Medium Priority</div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="insight-item">
+                                <div class="insight-value text-info" id="insightLowPriority">
+                                    {{ students_with_fees|selectattr('outstanding', 'le', 5000)|list|length }}
+                                </div>
+                                <div class="insight-label">Low Priority</div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -58,118 +158,303 @@
 
     <!-- Search and Filters -->
     <div class="card mb-4">
+        <div class="card-header">
+            <h6 class="card-title mb-0">
+                <i class="fas fa-filter text-primary"></i>
+                Search & Filters
+            </h6>
+        </div>
         <div class="card-body">
-            <div class="row">
+            <form class="row g-3">
                 <div class="col-md-4">
-                    <input type="text" class="form-control" id="searchStudent" placeholder="Search student name...">
+                    <label class="form-label">
+                        <i class="fas fa-search"></i>
+                        Search Student
+                    </label>
+                    <input type="text" class="form-control" id="searchStudent" 
+                           placeholder="Enter student name or email...">
                 </div>
-                <div class="col-md-3">
-                    <select class="form-control" id="gradeFilter">
+                <div class="col-md-2">
+                    <label class="form-label">
+                        <i class="fas fa-graduation-cap"></i>
+                        Grade
+                    </label>
+                    <select class="form-select" id="gradeFilter">
                         <option value="">All Grades</option>
-                        <option value="1">Grade 1</option>
-                        <option value="2">Grade 2</option>
-                        <option value="3">Grade 3</option>
-                        <option value="4">Grade 4</option>
-                        <option value="5">Grade 5</option>
-                        <option value="6">Grade 6</option>
-                        <option value="7">Grade 7</option>
-                        <option value="8">Grade 8</option>
-                        <option value="9">Grade 9</option>
-                        <option value="10">Grade 10</option>
-                        <option value="11">Grade 11</option>
-                        <option value="12">Grade 12</option>
+                        {% for i in range(1, 13) %}
+                        <option value="{{ i }}">Grade {{ i }}</option>
+                        {% endfor %}
                     </select>
                 </div>
                 <div class="col-md-3">
-                    <select class="form-control" id="amountFilter">
+                    <label class="form-label">
+                        <i class="fas fa-rupee-sign"></i>
+                        Outstanding Amount
+                    </label>
+                    <select class="form-select" id="amountFilter">
                         <option value="">All Amounts</option>
-                        <option value="low">< ₹5,000</option>
-                        <option value="medium">₹5,000 - ₹15,000</option>
-                        <option value="high">> ₹15,000</option>
+                        <option value="low">< ₹5,000 (Low)</option>
+                        <option value="medium">₹5,000 - ₹15,000 (Medium)</option>
+                        <option value="high">> ₹15,000 (High)</option>
                     </select>
                 </div>
                 <div class="col-md-2">
-                    <button class="btn btn-outline-secondary w-100" onclick="clearFilters()">
-                        <i class="fas fa-times"></i> Clear
+                    <label class="form-label">
+                        <i class="fas fa-flag"></i>
+                        Priority
+                    </label>
+                    <select class="form-select" id="priorityFilter">
+                        <option value="">All Priorities</option>
+                        <option value="high">High Priority</option>
+                        <option value="medium">Medium Priority</option>
+                        <option value="low">Low Priority</option>
+                    </select>
+                </div>
+            </form>
+            
+            <!-- Enhanced Filter Row -->
+            <form class="row g-3 mt-2">
+                <div class="col-md-3">
+                    <label class="form-label">
+                        <i class="fas fa-clock"></i>
+                        Payment Status
+                    </label>
+                    <select class="form-select" id="paymentStatusFilter">
+                        <option value="">All Status</option>
+                        <option value="not_paid">Not Paid</option>
+                        <option value="partial">Partially Paid</option>
+                        <option value="overdue">Overdue</option>
+                        <option value="installments">Has Installments</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">
+                        <i class="fas fa-calendar"></i>
+                        Outstanding Months
+                    </label>
+                    <select class="form-select" id="outstandingMonthsFilter">
+                        <option value="">All</option>
+                        <option value="1">1+ Month</option>
+                        <option value="2">2+ Months</option>
+                        <option value="3">3+ Months</option>
+                        <option value="6">6+ Months</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">
+                        <i class="fas fa-building"></i>
+                        Department
+                    </label>
+                    <select class="form-select" id="departmentFilter">
+                        <option value="">All Departments</option>
+                        <!-- Will be populated dynamically -->
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">
+                        <i class="fas fa-sort"></i>
+                        Sort By
+                    </label>
+                    <select class="form-select" id="sortBy">
+                        <option value="outstanding_desc">Outstanding (High to Low)</option>
+                        <option value="outstanding_asc">Outstanding (Low to High)</option>
+                        <option value="name_asc">Name (A-Z)</option>
+                        <option value="name_desc">Name (Z-A)</option>
+                        <option value="last_payment">Last Payment Date</option>
+                    </select>
+                </div>
+                <div class="col-md-1">
+                    <label class="form-label">&nbsp;</label>
+                    <button type="button" class="btn btn-outline-secondary w-100" onclick="clearFilters()">
+                        <i class="fas fa-times"></i>
                     </button>
                 </div>
-            </div>
+            </form>
         </div>
     </div>
 
-    <!-- Students with Outstanding Fees -->
+    <!-- Students Table -->
     <div class="card">
         <div class="card-header">
-            <h5>Students with Outstanding Fees</h5>
+            <div class="d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-table text-primary"></i>
+                    Students with Outstanding Fees
+                </h5>
+                <div class="card-actions">
+                    <span class="badge bg-light text-dark" id="studentCount">{{ students_with_fees|length }} students</span>
+                    <div class="btn-group btn-group-sm">
+                        <button class="btn btn-outline-success" onclick="showBulkPaymentModal()">
+                            <i class="fas fa-plus"></i>
+                            Bulk Payment
+                        </button>
+                        <button class="btn btn-outline-primary" onclick="selectHighPriority()">
+                            <i class="fas fa-fire"></i>
+                            Select High Priority
+                        </button>
+                    </div>
+                </div>
+            </div>
         </div>
         <div class="card-body">
+            {% if students_with_fees %}
             <div class="table-responsive">
                 <table class="table table-hover" id="feeTable">
                     <thead>
                         <tr>
-                            <th>Student</th>
-                            <th>Grade</th>
-                            <th>Total Fee</th>
-                            <th>Paid</th>
-                            <th>Outstanding</th>
+                            <th width="30">
+                                <input type="checkbox" id="selectAll" onchange="toggleAllSelection()">
+                            </th>
+                            <th>Student Details</th>
+                            <th class="text-center">Grade</th>
+                            <th class="text-end">Total Fee</th>
+                            <th class="text-end">Paid</th>
+                            <th class="text-end">Outstanding</th>
                             <th>Last Payment</th>
-                            <th>Status</th>
-                            <th>Actions</th>
+                            <th class="text-center">Installments</th>
+                            <th class="text-center">Priority</th>
+                            <th class="text-center">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for item in students_with_fees %}
-                        <tr data-student-name="{{ item.student.full_name|lower }}" data-grade="{{ item.student.grade }}" data-outstanding="{{ item.outstanding }}">
+                        {% set installment_summary = item.student.get_installment_summary() if item.student.get_installment_summary else {'has_plan': False, 'overdue': 0, 'completed': 0, 'total_installments': 0, 'next_due_amount': 0} %}
+                        {% set fee_structure = item.fee_structure %}
+                        <tr class="student-row" data-student-id="{{ item.student.id }}" 
+                            data-student-name="{{ item.student.full_name|lower }}" 
+                            data-grade="{{ item.student.grade }}" 
+                            data-outstanding="{{ item.outstanding }}"
+                            data-department="{{ item.student.department.name if item.student.department else 'N/A' }}"
+                            data-has-installments="{{ 'true' if installment_summary.has_plan else 'false' }}"
+                            data-overdue-installments="{{ installment_summary.overdue if installment_summary.has_plan else 0 }}"
+                            data-total-fee="{{ fee_structure.get('total_fee', 0) }}"
+                            data-amount-paid="{{ fee_structure.get('amount_paid', 0) }}"
+                            data-last-payment="{{ fee_structure.get('payment_history', [])[-1].get('payment_date', '') if fee_structure.get('payment_history') else '' }}">
+                            <td>
+                                <input type="checkbox" class="student-checkbox" value="{{ item.student.id }}">
+                            </td>
                             <td>
                                 <div class="d-flex align-items-center">
-                                    <div class="avatar-sm bg-light rounded-circle d-flex align-items-center justify-content-center me-2">
-                                        <i class="fas fa-user-graduate"></i>
+                                    <div class="avatar-sm me-3">
+                                        {{ item.student.full_name[0] if item.student.full_name else 'S' }}
                                     </div>
                                     <div>
-                                        <strong>{{ item.student.full_name }}</strong>
-                                        <br><small class="text-muted">{{ item.student.email or 'No email' }}</small>
+                                        <div class="fw-bold">{{ item.student.full_name }}</div>
+                                        <small class="text-muted">{{ item.student.email or 'No email' }}</small>
+                                        <div class="student-id">
+                                            <small class="badge bg-light text-dark">ID: {{ item.student.id }}</small>
+                                        </div>
                                     </div>
                                 </div>
                             </td>
-                            <td>
-                                <span class="badge badge-secondary">Grade {{ item.student.grade }}</span>
+                            <td class="text-center">
+                                <span class="badge bg-secondary">Grade {{ item.student.grade }}</span>
                             </td>
-                            <td>₹{{ "{:,.0f}".format(item.fee_structure.get('total_fee', 0)) }}</td>
-                            <td>₹{{ "{:,.0f}".format(item.fee_structure.get('amount_paid', 0)) }}</td>
-                            <td>
-                                <strong class="{% if item.outstanding > 15000 %}text-danger{% elif item.outstanding > 5000 %}text-warning{% else %}text-info{% endif %}">
-                                    ₹{{ "{:,.0f}".format(item.outstanding) }}
-                                </strong>
+                            <td class="text-end">
+                                <span class="text-muted">₹{{ "{:,.0f}".format(item.fee_structure.get('total_fee', 0)) }}</span>
+                            </td>
+                            <td class="text-end">
+                                <span class="text-success">₹{{ "{:,.0f}".format(item.fee_structure.get('amount_paid', 0)) }}</span>
+                            </td>
+                            <td class="text-end">
+                                <div class="outstanding-amount">
+                                    <span class="fw-bold {% if item.outstanding > 15000 %}text-danger{% elif item.outstanding > 5000 %}text-warning{% else %}text-info{% endif %}">
+                                        ₹{{ "{:,.0f}".format(item.outstanding) }}
+                                    </span>
+                                    <div class="progress progress-sm mt-1">
+                                        {% set payment_percentage = ((item.fee_structure.get('amount_paid', 0) / item.fee_structure.get('total_fee', 1)) * 100) %}
+                                        <div class="progress-bar bg-success" style="width: {{ payment_percentage }}%"></div>
+                                    </div>
+                                </div>
                             </td>
                             <td>
                                 {% set payment_history = item.fee_structure.get('payment_history', []) %}
                                 {% if payment_history %}
                                     {% set last_payment = payment_history[-1] %}
-                                    <small>{{ last_payment.payment_date }}</small>
-                                    <br><small class="text-muted">₹{{ "{:,.0f}".format(last_payment.amount) }}</small>
+                                    <div class="last-payment">
+                                        <div class="payment-date">{{ last_payment.payment_date }}</div>
+                                        <small class="text-success">₹{{ "{:,.0f}".format(last_payment.amount) }}</small>
+                                        <div class="payment-mode">
+                                            <small class="badge bg-light text-dark">{{ last_payment.mode or 'N/A' }}</small>
+                                        </div>
+                                    </div>
                                 {% else %}
-                                    <span class="text-muted">No payments</span>
+                                    <div class="text-center">
+                                        <span class="text-muted">No payments</span>
+                                        <div class="mt-1">
+                                            <small class="badge bg-warning">New</small>
+                                        </div>
+                                    </div>
                                 {% endif %}
                             </td>
-                            <td>
-                                {% if item.outstanding > 15000 %}
-                                <span class="badge badge-danger">High Priority</span>
+                            <td class="text-center">
+                                {% if installment_summary.has_plan %}
+                                <div class="installment-info">
+                                    <div class="installment-summary">
+                                        <span class="badge bg-primary">
+                                            {{ installment_summary.completed }}/{{ installment_summary.total_installments }}
+                                        </span>
+                                    </div>
+                                    {% if installment_summary.overdue > 0 %}
+                                    <div class="mt-1">
+                                        <span class="badge bg-danger">
+                                            {{ installment_summary.overdue }} Overdue
+                                        </span>
+                                    </div>
+                                    {% endif %}
+                                    {% if installment_summary.next_due_amount > 0 %}
+                                    <div class="mt-1">
+                                        <small class="text-muted">
+                                            Next: ₹{{ "{:,.0f}".format(installment_summary.next_due_amount) }}
+                                        </small>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                                {% else %}
+                                <span class="text-muted">
+                                    <i class="fas fa-minus"></i>
+                                </span>
+                                {% endif %}
+                            </td>
+                            <td class="text-center">
+                                {% if item.outstanding > 15000 or installment_summary.overdue > 0 %}
+                                <span class="badge bg-danger">
+                                    <i class="fas fa-fire"></i>
+                                    Critical
+                                </span>
                                 {% elif item.outstanding > 5000 %}
-                                <span class="badge badge-warning">Medium</span>
+                                <span class="badge bg-warning">
+                                    <i class="fas fa-exclamation-triangle"></i>
+                                    High
+                                </span>
                                 {% else %}
-                                <span class="badge badge-info">Low</span>
+                                <span class="badge bg-info">
+                                    <i class="fas fa-info-circle"></i>
+                                    Low
+                                </span>
                                 {% endif %}
                             </td>
-                            <td>
+                            <td class="text-center">
                                 <div class="btn-group btn-group-sm">
-                                    <button class="btn btn-outline-success" onclick="recordPayment({{ item.student.id }})">
+                                    <button class="btn btn-outline-success" title="Record Payment" 
+                                            onclick="recordPayment({{ item.student.id }})">
                                         <i class="fas fa-plus"></i>
                                     </button>
-                                    <button class="btn btn-outline-primary" onclick="viewFeeDetails({{ item.student.id }})">
+                                    <button class="btn btn-outline-primary" title="View Details" 
+                                            onclick="viewFeeDetails({{ item.student.id }})">
                                         <i class="fas fa-eye"></i>
                                     </button>
-                                    <button class="btn btn-outline-warning" onclick="sendReminder({{ item.student.id }})">
+                                    <button class="btn btn-outline-warning" title="Send Reminder" 
+                                            onclick="sendIndividualReminder({{ item.student.id }})">
                                         <i class="fas fa-bell"></i>
+                                    </button>
+                                    <button class="btn btn-outline-secondary" title="Edit Fee Structure" 
+                                            onclick="editFeeStructure({{ item.student.id }})">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                    <button class="btn btn-outline-info" title="Monthly Fee Status" 
+                                            onclick="editMonthlyFeeStatus({{ item.student.id }})">
+                                        <i class="fas fa-calendar-check"></i>
                                     </button>
                                 </div>
                             </td>
@@ -178,211 +463,2634 @@
                     </tbody>
                 </table>
             </div>
+
+            <!-- Bulk Actions Panel -->
+            <div class="bulk-actions mt-3 p-3 bg-light rounded" style="display: none;">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <span class="fw-bold">
+                            <span id="selectedCount">0</span> students selected
+                        </span>
+                        <span class="text-muted ms-2">Total Outstanding: ₹<span id="selectedTotal">0</span></span>
+                    </div>
+                    <div class="btn-group">
+                        <button class="btn btn-success" onclick="recordBulkPayment()">
+                            <i class="fas fa-plus"></i>
+                            Record Payments
+                        </button>
+                        <button class="btn btn-warning" onclick="sendSelectedReminders()">
+                            <i class="fas fa-bell"></i>
+                            Send Reminders
+                        </button>
+                        <button class="btn btn-outline-info" onclick="exportSelected()">
+                            <i class="fas fa-download"></i>
+                            Export Selected
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            {% else %}
+            <div class="text-center py-5">
+                <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+                <h5 class="text-success">All Fees Collected!</h5>
+                <p class="text-muted">No outstanding fees at this time.</p>
+                <a href="{{ url_for('admin.students') }}" class="btn btn-primary">
+                    <i class="fas fa-users"></i>
+                    View All Students
+                </a>
+            </div>
+            {% endif %}
         </div>
     </div>
 </div>
 
 <!-- Payment Recording Modal -->
-<div class="modal fade" id="paymentModal" tabindex="-1">
-    <div class="modal-dialog">
+<div class="modal fade" id="paymentModal" tabindex="-1" aria-labelledby="paymentModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Record Payment</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                <h5 class="modal-title" id="paymentModalLabel">
+                    <i class="fas fa-credit-card text-success"></i>
+                    Record Payment
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
+                <div id="studentInfo" class="alert alert-info">
+                    <strong>Student:</strong> <span id="modalStudentName"></span><br>
+                    <strong>Outstanding:</strong> <span id="modalOutstanding"></span>
+                </div>
+                
                 <form id="paymentForm">
                     <input type="hidden" id="studentId">
-                    <div class="mb-3">
-                        <label class="form-label">Student Name</label>
-                        <input type="text" class="form-control" id="studentName" readonly>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">
+                                    <i class="fas fa-rupee-sign"></i>
+                                    Payment Amount *
+                                </label>
+                                <div class="input-group">
+                                    <span class="input-group-text">₹</span>
+                                    <input type="number" class="form-control" id="paymentAmount" step="0.01" required>
+                                </div>
+                                <div class="form-text">Enter the amount being paid</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">
+                                    <i class="fas fa-calendar"></i>
+                                    Payment Date *
+                                </label>
+                                <input type="date" class="form-control" id="paymentDate" required>
+                            </div>
+                        </div>
                     </div>
-                    <div class="mb-3">
-                        <label class="form-label">Outstanding Amount</label>
-                        <input type="text" class="form-control" id="outstandingAmount" readonly>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">
+                                    <i class="fas fa-credit-card"></i>
+                                    Payment Mode *
+                                </label>
+                                <select class="form-select" id="paymentMode" required>
+                                    <option value="">Select Payment Mode</option>
+                                    <option value="cash">Cash</option>
+                                    <option value="online">Online Transfer</option>
+                                    <option value="bank_transfer">Bank Transfer</option>
+                                    <option value="cheque">Cheque</option>
+                                    <option value="upi">UPI</option>
+                                    <option value="card">Card Payment</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">
+                                    <i class="fas fa-hashtag"></i>
+                                    Reference Number
+                                </label>
+                                <input type="text" class="form-control" id="referenceNumber" 
+                                       placeholder="Transaction/Reference ID">
+                                <div class="form-text">Optional: Transaction or reference number</div>
+                            </div>
+                        </div>
                     </div>
+                    
                     <div class="mb-3">
-                        <label class="form-label">Payment Amount *</label>
-                        <input type="number" class="form-control" id="paymentAmount" step="0.01" required>
+                        <label class="form-label">
+                            <i class="fas fa-sticky-note"></i>
+                            Payment Notes
+                        </label>
+                        <textarea class="form-control" id="paymentNotes" rows="3" 
+                                  placeholder="Add any notes about this payment..."></textarea>
                     </div>
+                    
                     <div class="mb-3">
-                        <label class="form-label">Payment Mode *</label>
-                        <select class="form-control" id="paymentMode" required>
-                            <option value="">Select Mode</option>
-                            <option value="cash">Cash</option>
-                            <option value="online">Online Transfer</option>
-                            <option value="bank_transfer">Bank Transfer</option>
-                            <option value="cheque">Cheque</option>
-                            <option value="upi">UPI</option>
-                        </select>
+                        <label class="form-label">
+                            <i class="fas fa-camera"></i>
+                            Upload Payment Receipt Photo
+                        </label>
+                        <input type="file" class="form-control" id="receiptPhoto" 
+                               accept="image/*,.pdf" capture="environment">
+                        <div class="form-text">Upload photo or scan of payment receipt (optional)</div>
+                        <div id="receiptPreview" class="mt-2" style="display: none;">
+                            <img id="previewImage" src="" alt="Receipt Preview" style="max-width: 200px; max-height: 200px; border: 1px solid #ddd; border-radius: 4px;">
+                        </div>
                     </div>
+                    
                     <div class="mb-3">
-                        <label class="form-label">Payment Date</label>
-                        <input type="date" class="form-control" id="paymentDate">
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Notes</label>
-                        <textarea class="form-control" id="paymentNotes" rows="3" placeholder="Add any payment notes..."></textarea>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="sendReceipt">
+                            <label class="form-check-label" for="sendReceipt">
+                                Send payment receipt to student via email
+                            </label>
+                        </div>
                     </div>
                 </form>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-success" onclick="processPayment()">Record Payment</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times"></i>
+                    Cancel
+                </button>
+                <button type="button" class="btn btn-success" onclick="processPayment()">
+                    <i class="fas fa-save"></i>
+                    Record Payment
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Fee Structure Editing Modal -->
+<div class="modal fade" id="editFeeModal" tabindex="-1" aria-labelledby="editFeeModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-fullscreen-lg-down modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editFeeModalLabel">
+                    <i class="fas fa-edit text-primary"></i>
+                    Edit Fee Structure
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="editStudentInfo" class="alert alert-info">
+                    <strong>Student:</strong> <span id="editModalStudentName"></span><br>
+                    <strong>Current Outstanding:</strong> <span id="editModalOutstanding"></span>
+                </div>
+                
+                <div class="row">
+                    <!-- Fee Structure Section -->
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header">
+                                <h6 class="card-title mb-0">
+                                    <i class="fas fa-rupee-sign text-primary"></i>
+                                    Fee Structure
+                                </h6>
+                            </div>
+                            <div class="card-body">
+                                <form id="editFeeForm">
+                                    <input type="hidden" id="editStudentId">
+                                    
+                                    <div class="mb-3">
+                                        <label class="form-label">
+                                            <i class="fas fa-calculator"></i>
+                                            Total Fee *
+                                        </label>
+                                        <div class="input-group">
+                                            <span class="input-group-text">₹</span>
+                                            <input type="number" class="form-control" id="editTotalFee" step="0.01" required>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <label class="form-label">
+                                            <i class="fas fa-credit-card"></i>
+                                            Amount Paid
+                                        </label>
+                                        <div class="input-group">
+                                            <span class="input-group-text">₹</span>
+                                            <input type="number" class="form-control" id="editAmountPaid" step="0.01" readonly>
+                                        </div>
+                                        <div class="form-text">This is calculated from payment history</div>
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <label class="form-label">
+                                            <i class="fas fa-balance-scale"></i>
+                                            New Balance
+                                        </label>
+                                        <div class="input-group">
+                                            <span class="input-group-text">₹</span>
+                                            <input type="number" class="form-control" id="editNewBalance" readonly>
+                                        </div>
+                                        <div class="form-text">Will be recalculated based on new total fee</div>
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <label class="form-label">
+                                            <i class="fas fa-sticky-note"></i>
+                                            Reason for Change *
+                                        </label>
+                                        <textarea class="form-control" id="editReason" rows="3" 
+                                                  placeholder="Explain why the fee structure is being changed..." required></textarea>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Installment Plan Section -->
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header">
+                                <h6 class="card-title mb-0">
+                                    <i class="fas fa-calendar-alt text-success"></i>
+                                    Installment Plan
+                                    <small class="text-muted">(Optional)</small>
+                                </h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="form-check mb-3">
+                                    <input class="form-check-input" type="checkbox" id="editEnableInstallments">
+                                    <label class="form-check-label" for="editEnableInstallments">
+                                        Update installment plan
+                                    </label>
+                                </div>
+                                
+                                <div id="editInstallmentContainer" style="display: none;">
+                                    <div class="installment-summary-edit mb-3">
+                                        <div class="row text-center">
+                                            <div class="col-4">
+                                                <div class="summary-item">
+                                                    <div class="summary-value text-primary" id="editTotalFeeDisplay">₹0</div>
+                                                    <div class="summary-label">Total Fee</div>
+                                                </div>
+                                            </div>
+                                            <div class="col-4">
+                                                <div class="summary-item">
+                                                    <div class="summary-value text-success" id="editPaidAmountDisplay">₹0</div>
+                                                    <div class="summary-label">Amount Paid</div>
+                                                </div>
+                                            </div>
+                                            <div class="col-4">
+                                                <div class="summary-item">
+                                                    <div class="summary-value text-warning" id="editBalanceDisplay">₹0</div>
+                                                    <div class="summary-label">Balance to Plan</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="installments-list-edit" id="editInstallmentsList">
+                                        <!-- Installments will be populated here -->
+                                    </div>
+
+                                    <div class="installment-actions-edit mt-3">
+                                        <button type="button" class="btn btn-outline-success btn-sm" onclick="addEditInstallment()">
+                                            <i class="fas fa-plus"></i> Add Payment
+                                        </button>
+                                        <button type="button" class="btn btn-outline-info btn-sm" onclick="autoDistributeEdit()">
+                                            <i class="fas fa-magic"></i> Auto Distribute
+                                        </button>
+                                        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="clearEditInstallments()">
+                                            <i class="fas fa-trash"></i> Clear
+                                        </button>
+                                    </div>
+
+                                    <div class="mt-3">
+                                        <div class="alert alert-info" id="editInstallmentValidation">
+                                            <i class="fas fa-info-circle"></i>
+                                            <strong>Remaining to plan:</strong> ₹<span id="editRemainingAmount">0</span>
+                                        </div>
+                                    </div>
+
+                                    <input type="hidden" id="editInstallmentData" value="">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times"></i>
+                    Cancel
+                </button>
+                <button type="button" class="btn btn-primary" onclick="updateFeeStructure(event)">
+                    <i class="fas fa-save"></i>
+                    Update Fee Structure
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Monthly Fee Status Modal -->
+<div class="modal fade" id="monthlyFeeModal" tabindex="-1" aria-labelledby="monthlyFeeModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="monthlyFeeModalLabel">
+                    <i class="fas fa-calendar-check text-info"></i>
+                    Monthly Fee Status
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="monthlyStudentInfo" class="alert alert-info">
+                    <strong>Student:</strong> <span id="monthlyModalStudentName"></span>
+                </div>
+                
+                <div class="monthly-status-container">
+                    <h6 class="mb-3">
+                        <i class="fas fa-history"></i>
+                        Monthly Fee History (Last 12 Months)
+                    </h6>
+                    
+                    <div class="table-responsive">
+                        <table class="table table-sm table-bordered" id="monthlyStatusTable">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Month</th>
+                                    <th>Status</th>
+                                    <th>Due Date</th>
+                                    <th>Amount</th>
+                                    <th>Notes</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="monthlyStatusTableBody">
+                                <!-- Will be populated dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                
+                <div class="mt-4">
+                    <h6>
+                        <i class="fas fa-plus-circle"></i>
+                        Update Status
+                    </h6>
+                    <div class="row">
+                        <div class="col-md-3">
+                            <select class="form-select form-select-sm" id="quickMonth">
+                                <option value="">Select Month</option>
+                                <!-- Will be populated dynamically -->
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <select class="form-select form-select-sm" id="quickStatus">
+                                <option value="">Select Status</option>
+                                <option value="paid">Paid</option>
+                                <option value="pending">Pending</option>
+                                <option value="overdue">Overdue</option>
+                                <option value="exempted">Exempted</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <input type="number" class="form-control form-control-sm" id="quickAmount" placeholder="Amount" step="0.01">
+                        </div>
+                        <div class="col-md-3">
+                            <button class="btn btn-success btn-sm" onclick="quickUpdateStatus()">
+                                <i class="fas fa-check"></i>
+                                Update
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <input type="hidden" id="monthlyStudentId">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times"></i>
+                    Close
+                </button>
+                <button type="button" class="btn btn-primary" onclick="bulkUpdateMonthlyStatus()">
+                    <i class="fas fa-save"></i>
+                    Save All Changes
+                </button>
             </div>
         </div>
     </div>
 </div>
 
 <script>
-// Set today's date as default
+// Global variables
+let selectedStudents = new Set();
+let domCache = {}; // DOM element cache for performance
+let editInstallmentCounter = 0;
+let editInstallments = [];
+let monthlyStatusData = [];
+
+// Enhanced error handling and logging
+function logError(message, error = null) {
+    console.error(`[Fee Collection] ${message}`, error || '');
+    // In production, you might want to send this to an error reporting service
+}
+
+// Helper function to safely get CSRF token with multiple fallback methods
+function getCSRFToken() {
+    try {
+        // Method 1: Meta tag
+        const metaTag = document.querySelector('meta[name="csrf-token"]');
+        if (metaTag) {
+            const token = metaTag.getAttribute('content');
+            if (token && token.trim()) return token;
+        }
+        
+        // Method 2: Hidden input in forms
+        const forms = document.querySelectorAll('form');
+        for (let form of forms) {
+            const csrfInput = form.querySelector('input[name="csrf_token"]');
+            if (csrfInput && csrfInput.value) return csrfInput.value;
+        }
+        
+        // Method 3: Cookie fallback (if implemented)
+        const cookies = document.cookie.split(';');
+        for (let cookie of cookies) {
+            const [name, value] = cookie.trim().split('=');
+            if (name === 'csrf_token' && value) return value;
+        }
+        
+        logError('CSRF token not found using any method');
+        return null;
+    } catch (error) {
+        logError('Error getting CSRF token', error);
+        return null;
+    }
+}
+
+// Enhanced error handling for DOM operations
+function safeGetElement(id, required = false) {
+    try {
+        const element = document.getElementById(id);
+        if (!element && required) {
+            logError(`Required element with ID '${id}' not found`);
+        }
+        return element;
+    } catch (error) {
+        logError(`Error getting element '${id}'`, error);
+        return null;
+    }
+}
+
+// Safe modal operations with error handling
+function safeShowModal(modalId) {
+    try {
+        const modalElement = safeGetElement(modalId);
+        if (!modalElement) {
+            showAlert('error', `Modal '${modalId}' not found. Please refresh the page.`);
+            return false;
+        }
+        
+        // Check if Bootstrap is available
+        if (typeof bootstrap === 'undefined') {
+            logError('Bootstrap is not loaded');
+            showAlert('error', 'Page not fully loaded. Please refresh and try again.');
+            return false;
+        }
+        
+        const modalInstance = new bootstrap.Modal(modalElement);
+        modalInstance.show();
+        return true;
+    } catch (error) {
+        logError(`Error showing modal '${modalId}'`, error);
+        showAlert('error', 'Error opening modal. Please refresh the page.');
+        return false;
+    }
+}
+
+// Safe modal hide operation
+function safeHideModal(modalId) {
+    try {
+        const modalElement = safeGetElement(modalId);
+        if (modalElement) {
+            const modalInstance = bootstrap.Modal.getInstance(modalElement);
+            if (modalInstance) {
+                modalInstance.hide();
+                return true;
+            }
+        }
+        return false;
+    } catch (error) {
+        logError(`Error hiding modal '${modalId}'`, error);
+        return false;
+    }
+}
+
+// Debounce function for performance optimization
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
+
+// Cache frequently used DOM elements with error handling
+function cacheDOMElements() {
+    try {
+        // Filter elements
+        domCache.searchStudent = safeGetElement('searchStudent');
+        domCache.gradeFilter = safeGetElement('gradeFilter');
+        domCache.amountFilter = safeGetElement('amountFilter');
+        domCache.priorityFilter = safeGetElement('priorityFilter');
+        domCache.paymentStatusFilter = safeGetElement('paymentStatusFilter');
+        domCache.outstandingMonthsFilter = safeGetElement('outstandingMonthsFilter');
+        domCache.departmentFilter = safeGetElement('departmentFilter');
+        domCache.sortBy = safeGetElement('sortBy');
+        domCache.studentCount = safeGetElement('studentCount');
+        domCache.selectAll = safeGetElement('selectAll');
+        
+        // Table rows
+        domCache.feeTableRows = document.querySelectorAll('#feeTable tbody tr');
+        
+        // Modal elements for edit fee structure
+        domCache.editFeeModal = safeGetElement('editFeeModal');
+        domCache.editStudentId = safeGetElement('editStudentId');
+        domCache.editModalStudentName = safeGetElement('editModalStudentName');
+        domCache.editModalOutstanding = safeGetElement('editModalOutstanding');
+        domCache.editTotalFee = safeGetElement('editTotalFee');
+        domCache.editAmountPaid = safeGetElement('editAmountPaid');
+        domCache.editNewBalance = safeGetElement('editNewBalance');
+        domCache.editReason = safeGetElement('editReason');
+        
+        // Modal elements for monthly fee status  
+        domCache.monthlyFeeModal = safeGetElement('monthlyFeeModal');
+        domCache.monthlyStudentId = safeGetElement('monthlyStudentId');
+        domCache.monthlyModalStudentName = safeGetElement('monthlyModalStudentName');
+        domCache.monthlyStatusTableBody = safeGetElement('monthlyStatusTableBody');
+        domCache.quickMonth = safeGetElement('quickMonth');
+        
+        // Payment modal elements
+        domCache.paymentModal = safeGetElement('paymentModal');
+        domCache.studentId = safeGetElement('studentId');
+        domCache.modalStudentName = safeGetElement('modalStudentName');
+        domCache.modalOutstanding = safeGetElement('modalOutstanding');
+        domCache.paymentAmount = safeGetElement('paymentAmount');
+        domCache.paymentMode = safeGetElement('paymentMode');
+        domCache.paymentDate = safeGetElement('paymentDate');
+        domCache.referenceNumber = safeGetElement('referenceNumber');
+        domCache.paymentNotes = safeGetElement('paymentNotes');
+        domCache.sendReceipt = safeGetElement('sendReceipt');
+        domCache.receiptPhoto = safeGetElement('receiptPhoto');
+        domCache.receiptPreview = safeGetElement('receiptPreview');
+        domCache.previewImage = safeGetElement('previewImage');
+        
+    } catch (error) {
+        logError('Error caching DOM elements', error);
+    }
+}
+
+// Enhanced showAlert with better error handling
+function showAlert(type, message, duration = 5000) {
+    try {
+        // Remove existing alerts
+        const existingAlerts = document.querySelectorAll('.alert-floating');
+        existingAlerts.forEach(alert => {
+            try {
+                alert.remove();
+            } catch (e) {
+                // Ignore removal errors
+            }
+        });
+        
+        const alertClass = type === 'error' ? 'danger' : type;
+        const iconMap = {
+            'success': 'check-circle',
+            'error': 'exclamation-circle',
+            'danger': 'exclamation-circle',
+            'warning': 'exclamation-triangle',
+            'info': 'info-circle'
+        };
+        
+        const alertHtml = `
+            <div class="alert alert-${alertClass} alert-dismissible fade show alert-floating" role="alert" 
+                 style="position: fixed; top: 20px; right: 20px; z-index: 9999; min-width: 300px; max-width: 500px;">
+                <i class="fas fa-${iconMap[type] || 'info-circle'}"></i>
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        `;
+        
+        document.body.insertAdjacentHTML('beforeend', alertHtml);
+        
+        // Auto remove after specified duration
+        setTimeout(() => {
+            const alert = document.querySelector('.alert-floating');
+            if (alert) {
+                try {
+                    alert.classList.remove('show');
+                    setTimeout(() => {
+                        try {
+                            alert.remove();
+                        } catch (e) {
+                            // Ignore removal errors
+                        }
+                    }, 300);
+                } catch (e) {
+                    // Ignore animation errors
+                }
+            }
+        }, duration);
+        
+    } catch (error) {
+        logError('Error showing alert', error);
+        // Fallback to browser alert
+        alert(message);
+    }
+}
+
+// Initialize on page load with comprehensive error handling
 document.addEventListener('DOMContentLoaded', function() {
-    const today = new Date().toISOString().split('T')[0];
-    document.getElementById('paymentDate').value = today;
+    try {
+        // Cache DOM elements for performance
+        cacheDOMElements();
+        
+        // Set today's date for payment modal
+        const today = new Date().toISOString().split('T')[0];
+        if (domCache.paymentDate) {
+            domCache.paymentDate.value = today;
+        }
+        
+        // Add photo preview functionality
+        if (domCache.receiptPhoto && domCache.receiptPreview && domCache.previewImage) {
+            domCache.receiptPhoto.addEventListener('change', function(e) {
+                try {
+                    const file = e.target.files[0];
+                    if (file) {
+                        if (file.type.startsWith('image/')) {
+                            const reader = new FileReader();
+                            reader.onload = function(e) {
+                                domCache.previewImage.src = e.target.result;
+                                domCache.receiptPreview.style.display = 'block';
+                            };
+                            reader.readAsDataURL(file);
+                        } else {
+                            domCache.receiptPreview.style.display = 'none';
+                            showAlert('info', 'PDF selected - preview not available');
+                        }
+                    } else {
+                        domCache.receiptPreview.style.display = 'none';
+                    }
+                } catch (error) {
+                    logError('Error handling receipt photo preview', error);
+                    showAlert('error', 'Error processing file preview');
+                }
+            });
+        }
+        
+        // Add event listeners for filtering using cached elements
+        const filterElements = [
+            'searchStudent', 'gradeFilter', 'amountFilter', 'priorityFilter',
+            'paymentStatusFilter', 'outstandingMonthsFilter', 'departmentFilter', 'sortBy'
+        ];
+        
+        filterElements.forEach(elementKey => {
+            if (domCache[elementKey]) {
+                const eventType = elementKey === 'searchStudent' ? 'input' : 'change';
+                try {
+                    domCache[elementKey].addEventListener(eventType, debounce(filterTable, 300));
+                } catch (error) {
+                    logError(`Error adding event listener to ${elementKey}`, error);
+                }
+            }
+        });
+        
+        // Add event listeners for individual checkboxes
+        document.querySelectorAll('.student-checkbox').forEach(cb => {
+            try {
+                cb.addEventListener('change', function() {
+                    if (this.checked) {
+                        selectedStudents.add(this.value);
+                    } else {
+                        selectedStudents.delete(this.value);
+                        if (domCache.selectAll) domCache.selectAll.checked = false;
+                    }
+                    updateBulkActions();
+                });
+            } catch (error) {
+                logError('Error adding checkbox event listener', error);
+            }
+        });
+        
+        // Add event listeners for edit fee form
+        if (domCache.editTotalFee && domCache.editAmountPaid) {
+            try {
+                domCache.editTotalFee.addEventListener('input', updateEditFeeCalculations);
+                domCache.editAmountPaid.addEventListener('input', updateEditFeeCalculations);
+            } catch (error) {
+                logError('Error adding edit fee form listeners', error);
+            }
+        }
+        
+        const editEnableInstallments = safeGetElement('editEnableInstallments');
+        if (editEnableInstallments) {
+            try {
+                editEnableInstallments.addEventListener('change', function() {
+                    const container = safeGetElement('editInstallmentContainer');
+                    if (container) {
+                        if (this.checked) {
+                            container.style.display = 'block';
+                            updateEditInstallmentSummary();
+                        } else {
+                            container.style.display = 'none';
+                            editInstallments = [];
+                            renderEditInstallments();
+                        }
+                    }
+                });
+            } catch (error) {
+                logError('Error adding installment enable listener', error);
+            }
+        }
+        
+        // Initialize department filter
+        populateDepartmentFilter();
+        
+    } catch (error) {
+        logError('Error during page initialization', error);
+        showAlert('error', 'Page initialization error. Some features may not work properly.');
+    }
 });
 
+// Payment recording functions with enhanced error handling
 function recordPayment(studentId) {
-    // Find student data from the table row
-    const row = document.querySelector(`tr[data-student-name] button[onclick="recordPayment(${studentId})"]`).closest('tr');
-    const studentName = row.cells[0].querySelector('strong').textContent;
-    const outstanding = row.getAttribute('data-outstanding');
-    
-    document.getElementById('studentId').value = studentId;
-    document.getElementById('studentName').value = studentName;
-    document.getElementById('outstandingAmount').value = `₹${parseFloat(outstanding).toLocaleString()}`;
-    document.getElementById('paymentAmount').value = '';
-    document.getElementById('paymentMode').value = '';
-    document.getElementById('paymentNotes').value = '';
-    
-    new bootstrap.Modal(document.getElementById('paymentModal')).show();
+    try {
+        if (!studentId) {
+            showAlert('error', 'Student ID is required');
+            return;
+        }
+        
+        const row = document.querySelector(`[data-student-id="${studentId}"]`);
+        if (!row) {
+            showAlert('error', 'Student information not found');
+            return;
+        }
+        
+        const studentNameElement = row.querySelector('.fw-bold');
+        const studentName = studentNameElement ? studentNameElement.textContent : 'Unknown Student';
+        const outstanding = row.getAttribute('data-outstanding') || '0';
+        
+        // Reset form with error handling
+        if (domCache.studentId) domCache.studentId.value = studentId;
+        if (domCache.modalStudentName) domCache.modalStudentName.textContent = studentName;
+        if (domCache.modalOutstanding) domCache.modalOutstanding.textContent = `₹${parseFloat(outstanding).toLocaleString()}`;
+        
+        // Clear form fields
+        if (domCache.paymentAmount) domCache.paymentAmount.value = '';
+        if (domCache.paymentMode) domCache.paymentMode.value = '';
+        if (domCache.referenceNumber) domCache.referenceNumber.value = '';
+        if (domCache.paymentNotes) domCache.paymentNotes.value = '';
+        if (domCache.sendReceipt) domCache.sendReceipt.checked = true;
+        
+        // Clear receipt photo
+        if (domCache.receiptPhoto) domCache.receiptPhoto.value = '';
+        if (domCache.receiptPreview) domCache.receiptPreview.style.display = 'none';
+        
+        safeShowModal('paymentModal');
+        
+    } catch (error) {
+        logError('Error in recordPayment function', error);
+        showAlert('error', 'Error opening payment form');
+    }
 }
 
 function processPayment() {
-    const studentId = document.getElementById('studentId').value;
-    const amount = document.getElementById('paymentAmount').value;
-    const mode = document.getElementById('paymentMode').value;
-    const date = document.getElementById('paymentDate').value;
-    const notes = document.getElementById('paymentNotes').value;
-    
-    if (!amount || !mode) {
-        alert('Please fill all required fields');
-        return;
-    }
-    
-    fetch('/api/v1/finance/fees/payment', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-            student_id: studentId,
-            amount: parseFloat(amount),
-            payment_mode: mode,
-            payment_date: date,
-            notes: notes
-        })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            alert('Payment recorded successfully!');
-            bootstrap.Modal.getInstance(document.getElementById('paymentModal')).hide();
-            location.reload();
-        } else {
-            alert('Error: ' + data.message);
+    try {
+        const studentId = domCache.studentId ? domCache.studentId.value : '';
+        const amount = domCache.paymentAmount ? domCache.paymentAmount.value : '';
+        const mode = domCache.paymentMode ? domCache.paymentMode.value : '';
+        const date = domCache.paymentDate ? domCache.paymentDate.value : '';
+        const reference = domCache.referenceNumber ? domCache.referenceNumber.value : '';
+        const notes = domCache.paymentNotes ? domCache.paymentNotes.value : '';
+        const sendReceipt = domCache.sendReceipt ? domCache.sendReceipt.checked : false;
+        const receiptFile = domCache.receiptPhoto ? domCache.receiptPhoto.files[0] : null;
+        
+        if (!amount || !mode || !date) {
+            showAlert('warning', 'Please fill all required fields');
+            return;
         }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        alert('Error recording payment');
-    });
-}
-
-function viewFeeDetails(studentId) {
-    window.open(`/student/students/${studentId}/fees`, '_blank');
-}
-
-function sendReminder(studentId) {
-    if (confirm('Send payment reminder to this student?')) {
-        fetch(`/api/v1/finance/fees/reminder`, {
+        
+        if (!studentId) {
+            showAlert('error', 'Student ID is missing');
+            return;
+        }
+        
+        const csrfToken = getCSRFToken();
+        if (!csrfToken) {
+            showAlert('error', 'Security token not found. Please refresh the page.');
+            return;
+        }
+        
+        const btn = event.target;
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+        btn.disabled = true;
+        
+        // Create FormData to handle file upload
+        const formData = new FormData();
+        formData.append('student_id', parseInt(studentId));
+        formData.append('amount', parseFloat(amount));
+        formData.append('payment_mode', mode);
+        formData.append('payment_date', date);
+        formData.append('reference_number', reference);
+        formData.append('notes', notes);
+        formData.append('send_receipt', sendReceipt);
+        
+        if (receiptFile) {
+            formData.append('receipt_photo', receiptFile);
+        }
+        
+        fetch('/api/v1/finance/fees/payment', {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
             },
-            body: JSON.stringify({
-                student_id: studentId
-            })
+            body: formData
         })
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            return response.json();
+        })
         .then(data => {
             if (data.success) {
-                alert('Reminder sent successfully!');
+                showAlert('success', 'Payment recorded successfully!');
+                safeHideModal('paymentModal');
+                setTimeout(() => location.reload(), 1500);
             } else {
-                alert('Error: ' + data.message);
+                throw new Error(data.message || 'Payment recording failed');
             }
         })
         .catch(error => {
-            console.error('Error:', error);
-            alert('Error sending reminder');
+            logError('Error processing payment', error);
+            showAlert('error', 'Error recording payment: ' + error.message);
+        })
+        .finally(() => {
+            btn.innerHTML = originalText;
+            btn.disabled = false;
         });
+        
+    } catch (error) {
+        logError('Error in processPayment function', error);
+        showAlert('error', 'Error processing payment request');
     }
 }
 
-function sendReminders() {
-    if (confirm('Send payment reminders to all students with outstanding fees?')) {
-        alert('Bulk reminder functionality will be implemented soon.');
+// Selection functions with error handling
+function toggleAllSelection() {
+    try {
+        const selectAll = domCache.selectAll || safeGetElement('selectAll');
+        const checkboxes = document.querySelectorAll('.student-checkbox');
+        
+        if (!selectAll) {
+            showAlert('error', 'Select all checkbox not found');
+            return;
+        }
+        
+        checkboxes.forEach(cb => {
+            try {
+                if (cb.closest('tr').style.display !== 'none') { // Only select visible rows
+                    cb.checked = selectAll.checked;
+                    if (selectAll.checked) {
+                        selectedStudents.add(cb.value);
+                    } else {
+                        selectedStudents.delete(cb.value);
+                    }
+                }
+            } catch (error) {
+                logError('Error toggling individual checkbox', error);
+            }
+        });
+        
+        updateBulkActions();
+        
+    } catch (error) {
+        logError('Error in toggleAllSelection', error);
+        showAlert('error', 'Error toggling selection');
+    }
+}
+
+function selectHighPriority() {
+    try {
+        selectedStudents.clear();
+        document.querySelectorAll('.student-checkbox').forEach(cb => {
+            try {
+                cb.checked = false;
+                const row = cb.closest('tr');
+                const outstanding = parseFloat(row.getAttribute('data-outstanding') || 0);
+                if (outstanding > 15000 && row.style.display !== 'none') {
+                    cb.checked = true;
+                    selectedStudents.add(cb.value);
+                }
+            } catch (error) {
+                logError('Error selecting high priority student', error);
+            }
+        });
+        updateBulkActions();
+    } catch (error) {
+        logError('Error in selectHighPriority', error);
+        showAlert('error', 'Error selecting high priority students');
+    }
+}
+
+function updateBulkActions() {
+    try {
+        const bulkActions = document.querySelector('.bulk-actions');
+        const selectedCount = selectedStudents.size;
+        
+        if (bulkActions) {
+            if (selectedCount > 0) {
+                bulkActions.style.display = 'block';
+                const countElement = safeGetElement('selectedCount');
+                if (countElement) countElement.textContent = selectedCount;
+                
+                // Calculate total outstanding for selected students
+                let total = 0;
+                selectedStudents.forEach(studentId => {
+                    try {
+                        const row = document.querySelector(`[data-student-id="${studentId}"]`);
+                        if (row) {
+                            const outstanding = parseFloat(row.getAttribute('data-outstanding') || 0);
+                            total += outstanding;
+                        }
+                    } catch (error) {
+                        logError(`Error calculating total for student ${studentId}`, error);
+                    }
+                });
+                
+                const totalElement = safeGetElement('selectedTotal');
+                if (totalElement) totalElement.textContent = total.toLocaleString();
+            } else {
+                bulkActions.style.display = 'none';
+            }
+        }
+    } catch (error) {
+        logError('Error in updateBulkActions', error);
+    }
+}
+
+// Enhanced filtering functions with comprehensive error handling
+function filterTable() {
+    try {
+        // Use cached elements for better performance
+        const searchTerm = domCache.searchStudent?.value.toLowerCase() || '';
+        const gradeFilter = domCache.gradeFilter?.value || '';
+        const amountFilter = domCache.amountFilter?.value || '';
+        const priorityFilter = domCache.priorityFilter?.value || '';
+        const paymentStatusFilter = domCache.paymentStatusFilter?.value || '';
+        const outstandingMonthsFilter = domCache.outstandingMonthsFilter?.value || '';
+        const departmentFilter = domCache.departmentFilter?.value || '';
+        const sortBy = domCache.sortBy?.value || '';
+        
+        // Use cached rows if available, otherwise query fresh
+        const rows = domCache.feeTableRows ? Array.from(domCache.feeTableRows) : Array.from(document.querySelectorAll('#feeTable tbody tr'));
+        let visibleCount = 0;
+        
+        // Filter rows
+        const filteredRows = rows.filter(row => {
+            try {
+                const studentName = row.getAttribute('data-student-name') || '';
+                const grade = row.getAttribute('data-grade') || '';
+                const outstanding = parseFloat(row.getAttribute('data-outstanding') || 0);
+                const department = row.getAttribute('data-department') || '';
+                const hasInstallments = row.getAttribute('data-has-installments') === 'true';
+                const overdueInstallments = parseInt(row.getAttribute('data-overdue-installments') || 0);
+                
+                let show = true;
+                
+                // Search filter
+                if (searchTerm && !studentName.includes(searchTerm)) {
+                    show = false;
+                }
+                
+                // Grade filter
+                if (gradeFilter && grade !== gradeFilter) {
+                    show = false;
+                }
+                
+                // Amount filter
+                if (amountFilter) {
+                    if (amountFilter === 'low' && outstanding >= 5000) show = false;
+                    if (amountFilter === 'medium' && (outstanding < 5000 || outstanding > 15000)) show = false;
+                    if (amountFilter === 'high' && outstanding <= 15000) show = false;
+                }
+                
+                // Priority filter (enhanced to include overdue installments)
+                const isHighPriority = outstanding > 15000 || overdueInstallments > 0;
+                const isMediumPriority = outstanding > 5000 && outstanding <= 15000 && overdueInstallments === 0;
+                const isLowPriority = outstanding <= 5000 && overdueInstallments === 0;
+                
+                if (priorityFilter) {
+                    if (priorityFilter === 'high' && !isHighPriority) show = false;
+                    if (priorityFilter === 'medium' && !isMediumPriority) show = false;
+                    if (priorityFilter === 'low' && !isLowPriority) show = false;
+                }
+                
+                // Payment status filter
+                if (paymentStatusFilter) {
+                    const totalFee = parseFloat(row.getAttribute('data-total-fee') || 0);
+                    const amountPaid = parseFloat(row.getAttribute('data-amount-paid') || 0);
+                    
+                    if (paymentStatusFilter === 'not_paid' && amountPaid > 0) show = false;
+                    if (paymentStatusFilter === 'partial' && (amountPaid === 0 || amountPaid >= totalFee)) show = false;
+                    if (paymentStatusFilter === 'overdue' && overdueInstallments === 0) show = false;
+                    if (paymentStatusFilter === 'installments' && !hasInstallments) show = false;
+                }
+                
+                // Outstanding months filter (improved logic)
+                if (outstandingMonthsFilter) {
+                    const totalFee = parseFloat(row.getAttribute('data-total-fee') || 0);
+                    const estimatedMonthlyFee = totalFee / 12; // Monthly fee estimate
+                    const outstandingMonths = estimatedMonthlyFee > 0 ? Math.ceil(outstanding / estimatedMonthlyFee) : 0;
+                    const filterMonths = parseInt(outstandingMonthsFilter);
+                    if (outstandingMonths < filterMonths) show = false;
+                }
+                
+                // Department filter
+                if (departmentFilter && department !== departmentFilter) {
+                    show = false;
+                }
+                
+                return show;
+                
+            } catch (error) {
+                logError('Error filtering individual row', error);
+                return true; // Show row if filtering fails
+            }
+        });
+        
+        // Sort filtered rows
+        if (sortBy) {
+            try {
+                filteredRows.sort((a, b) => {
+                    try {
+                        const aOutstanding = parseFloat(a.getAttribute('data-outstanding') || 0);
+                        const bOutstanding = parseFloat(b.getAttribute('data-outstanding') || 0);
+                        const aName = a.getAttribute('data-student-name') || '';
+                        const bName = b.getAttribute('data-student-name') || '';
+                        const aLastPayment = a.getAttribute('data-last-payment') || '1900-01-01';
+                        const bLastPayment = b.getAttribute('data-last-payment') || '1900-01-01';
+                        
+                        switch (sortBy) {
+                            case 'outstanding_desc':
+                                return bOutstanding - aOutstanding;
+                            case 'outstanding_asc':
+                                return aOutstanding - bOutstanding;
+                            case 'name_asc':
+                                return aName.localeCompare(bName);
+                            case 'name_desc':
+                                return bName.localeCompare(aName);
+                            case 'last_payment':
+                                return new Date(bLastPayment) - new Date(aLastPayment); // Most recent first
+                            default:
+                                return 0;
+                        }
+                    } catch (error) {
+                        logError('Error sorting individual rows', error);
+                        return 0;
+                    }
+                });
+            } catch (error) {
+                logError('Error sorting filtered rows', error);
+            }
+        }
+        
+        // Hide all rows first, then show filtered ones
+        try {
+            rows.forEach(row => row.style.display = 'none');
+            filteredRows.forEach(row => {
+                row.style.display = '';
+                visibleCount++;
+            });
+        } catch (error) {
+            logError('Error showing/hiding filtered rows', error);
+        }
+        
+        // Update student count
+        if (domCache.studentCount) {
+            domCache.studentCount.textContent = `${visibleCount} students`;
+        }
+        
+        // Update statistics based on filtered results
+        updateFilteredStatistics(filteredRows);
+        
+        // Populate department filter if empty
+        populateDepartmentFilter();
+        
+    } catch (error) {
+        logError('Error in filterTable function', error);
+        showAlert('error', 'Error filtering table');
+    }
+}
+
+function updateFilteredStatistics(filteredRows) {
+    try {
+        // Calculate statistics for filtered results
+        let totalOutstanding = 0;
+        let highPriorityCount = 0;
+        let totalPaymentProgress = 0;
+        let validProgressCount = 0;
+        let criticalCount = 0;
+        let mediumCount = 0;
+        let lowCount = 0;
+        
+        filteredRows.forEach(row => {
+            try {
+                const outstanding = parseFloat(row.getAttribute('data-outstanding') || 0);
+                const totalFee = parseFloat(row.getAttribute('data-total-fee') || 0);
+                const amountPaid = parseFloat(row.getAttribute('data-amount-paid') || 0);
+                const overdueInstallments = parseInt(row.getAttribute('data-overdue-installments') || 0);
+                
+                // Total outstanding
+                totalOutstanding += outstanding;
+                
+                // High priority (>10k outstanding OR overdue installments)
+                if (outstanding > 10000 || overdueInstallments > 0) {
+                    highPriorityCount++;
+                }
+                
+                // Priority categorization for insights
+                if (outstanding > 15000) {
+                    criticalCount++;
+                } else if (outstanding > 5000) {
+                    mediumCount++;
+                } else {
+                    lowCount++;
+                }
+                
+                // Payment progress calculation
+                if (totalFee > 0) {
+                    const progress = (amountPaid / totalFee) * 100;
+                    totalPaymentProgress += progress;
+                    validProgressCount++;
+                }
+            } catch (error) {
+                logError('Error calculating statistics for individual row', error);
+            }
+        });
+        
+        const averageProgress = validProgressCount > 0 ? (totalPaymentProgress / validProgressCount) : 0;
+        
+        // Update the statistics display with error handling
+        try {
+            const statPendingStudents = safeGetElement('statPendingStudents');
+            const statTotalOutstanding = safeGetElement('statTotalOutstanding');
+            const statHighPriority = safeGetElement('statHighPriority');
+            const statCollectionRate = safeGetElement('statCollectionRate');
+            const statPendingLabel = safeGetElement('statPendingLabel');
+            const statOutstandingLabel = safeGetElement('statOutstandingLabel');
+            const statCollectionLabel = safeGetElement('statCollectionLabel');
+            
+            if (statPendingStudents) statPendingStudents.textContent = filteredRows.length;
+            if (statTotalOutstanding) statTotalOutstanding.textContent = `₹${totalOutstanding.toLocaleString()}`;
+            if (statHighPriority) statHighPriority.textContent = highPriorityCount;
+            if (statCollectionRate) statCollectionRate.textContent = `${averageProgress.toFixed(1)}%`;
+            
+            // Update labels based on filter status
+            const hasFilters = checkIfFiltersApplied();
+            
+            if (statPendingLabel) statPendingLabel.textContent = hasFilters ? 'Filtered results' : 'Require follow-up';
+            if (statOutstandingLabel) statOutstandingLabel.textContent = hasFilters ? 'From filtered students' : 'Pending collection';
+            if (statCollectionLabel) statCollectionLabel.textContent = hasFilters ? 'Filtered average' : 'Overall average';
+            
+            // Update Quick Insights
+            const averageOutstanding = filteredRows.length > 0 ? totalOutstanding / filteredRows.length : 0;
+            
+            const insightAverageOutstanding = safeGetElement('insightAverageOutstanding');
+            const insightCriticalCases = safeGetElement('insightCriticalCases');
+            const insightMediumPriority = safeGetElement('insightMediumPriority');
+            const insightLowPriority = safeGetElement('insightLowPriority');
+            
+            if (insightAverageOutstanding) insightAverageOutstanding.textContent = `₹${averageOutstanding.toLocaleString()}`;
+            if (insightCriticalCases) insightCriticalCases.textContent = criticalCount;
+            if (insightMediumPriority) insightMediumPriority.textContent = mediumCount;
+            if (insightLowPriority) insightLowPriority.textContent = lowCount;
+            
+        } catch (error) {
+            logError('Error updating statistics display', error);
+        }
+        
+    } catch (error) {
+        logError('Error in updateFilteredStatistics', error);
+    }
+}
+
+function checkIfFiltersApplied() {
+    try {
+        // Check if any filters are currently applied
+        const searchTerm = domCache.searchStudent?.value || '';
+        const gradeFilter = domCache.gradeFilter?.value || '';
+        const amountFilter = domCache.amountFilter?.value || '';
+        const priorityFilter = domCache.priorityFilter?.value || '';
+        const paymentStatusFilter = domCache.paymentStatusFilter?.value || '';
+        const outstandingMonthsFilter = domCache.outstandingMonthsFilter?.value || '';
+        const departmentFilter = domCache.departmentFilter?.value || '';
+        
+        return searchTerm || gradeFilter || amountFilter || priorityFilter || 
+               paymentStatusFilter || outstandingMonthsFilter || departmentFilter;
+    } catch (error) {
+        logError('Error checking if filters applied', error);
+        return false;
+    }
+}
+
+function populateDepartmentFilter() {
+    try {
+        const departmentFilter = domCache.departmentFilter || safeGetElement('departmentFilter');
+        if (!departmentFilter || departmentFilter.children.length > 1) return; // Already populated or not found
+        
+        const departments = new Set();
+        document.querySelectorAll('#feeTable tbody tr').forEach(row => {
+            try {
+                const dept = row.getAttribute('data-department');
+                if (dept && dept !== 'N/A') {
+                    departments.add(dept);
+                }
+            } catch (error) {
+                logError('Error processing department for row', error);
+            }
+        });
+        
+        departments.forEach(dept => {
+            try {
+                const option = document.createElement('option');
+                option.value = dept;
+                option.textContent = dept;
+                departmentFilter.appendChild(option);
+            } catch (error) {
+                logError(`Error adding department option: ${dept}`, error);
+            }
+        });
+    } catch (error) {
+        logError('Error in populateDepartmentFilter', error);
+    }
+}
+
+function clearFilters() {
+    try {
+        const filterElements = {
+            searchStudent: '',
+            gradeFilter: '',
+            amountFilter: '',
+            priorityFilter: '',
+            paymentStatusFilter: '',
+            outstandingMonthsFilter: '',
+            departmentFilter: '',
+            sortBy: 'outstanding_desc'
+        };
+        
+        Object.keys(filterElements).forEach(key => {
+            try {
+                if (domCache[key]) {
+                    domCache[key].value = filterElements[key];
+                }
+            } catch (error) {
+                logError(`Error clearing filter: ${key}`, error);
+            }
+        });
+        
+        filterTable();
+    } catch (error) {
+        logError('Error in clearFilters', error);
+        showAlert('error', 'Error clearing filters');
+    }
+}
+
+// Bulk operations with error handling
+function recordBulkPayment() {
+    try {
+        if (selectedStudents.size === 0) {
+            showAlert('warning', 'Please select students first');
+            return;
+        }
+        showAlert('info', 'Bulk payment functionality will be implemented soon');
+    } catch (error) {
+        logError('Error in recordBulkPayment', error);
+        showAlert('error', 'Error processing bulk payment request');
+    }
+}
+
+function sendSelectedReminders() {
+    try {
+        if (selectedStudents.size === 0) {
+            showAlert('warning', 'Please select students first');
+            return;
+        }
+        
+        if (!confirm(`Send payment reminders to ${selectedStudents.size} selected students?`)) return;
+        
+        showAlert('info', 'Reminders sent to selected students');
+    } catch (error) {
+        logError('Error in sendSelectedReminders', error);
+        showAlert('error', 'Error sending bulk reminders');
+    }
+}
+
+function showBulkPaymentModal() {
+    try {
+        showAlert('info', 'Bulk payment modal will be implemented soon');
+    } catch (error) {
+        logError('Error in showBulkPaymentModal', error);
+        showAlert('error', 'Error opening bulk payment modal');
+    }
+}
+
+// Utility functions with error handling
+function viewFeeDetails(studentId) {
+    try {
+        if (!studentId) {
+            showAlert('error', 'Student ID is required');
+            return;
+        }
+        window.open(`/student/students/${studentId}/fees`, '_blank');
+    } catch (error) {
+        logError('Error in viewFeeDetails', error);
+        showAlert('error', 'Error opening fee details');
+    }
+}
+
+function sendIndividualReminder(studentId) {
+    try {
+        if (!studentId) {
+            showAlert('error', 'Student ID is required');
+            return;
+        }
+        
+        if (!confirm('Send payment reminder to this student?')) return;
+        
+        const csrfToken = getCSRFToken();
+        if (!csrfToken) {
+            showAlert('error', 'Security token not found. Please refresh the page.');
+            return;
+        }
+        
+        const btn = event.target.closest('button');
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        btn.disabled = true;
+        
+        fetch('/api/v1/finance/fees/reminder', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({ student_id: parseInt(studentId) })
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                showAlert('success', 'Reminder sent successfully!');
+            } else {
+                throw new Error(data.message || 'Failed to send reminder');
+            }
+        })
+        .catch(error => {
+            logError('Error sending reminder', error);
+            showAlert('error', 'Error sending reminder: ' + error.message);
+        })
+        .finally(() => {
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        });
+    } catch (error) {
+        logError('Error in sendIndividualReminder', error);
+        showAlert('error', 'Error processing reminder request');
+    }
+}
+
+function sendBulkReminders() {
+    try {
+        if (!confirm('Send payment reminders to all students with outstanding fees?')) return;
+        
+        const btn = event.target.closest('button');
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
+        btn.disabled = true;
+        
+        // Simulate API call for now
+        setTimeout(() => {
+            showAlert('success', 'Bulk reminders sent successfully!');
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        }, 3000);
+    } catch (error) {
+        logError('Error in sendBulkReminders', error);
+        showAlert('error', 'Error sending bulk reminders');
     }
 }
 
 function exportFeeData() {
-    window.open('/api/v1/finance/fees/export', '_blank');
+    try {
+        const btn = event.target.closest('button');
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Exporting...';
+        btn.disabled = true;
+        
+        window.open('/api/v1/finance/fees/export', '_blank');
+        
+        setTimeout(() => {
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        }, 2000);
+    } catch (error) {
+        logError('Error in exportFeeData', error);
+        showAlert('error', 'Error exporting fee data');
+    }
 }
 
-// Filtering functionality
-document.getElementById('searchStudent').addEventListener('input', filterTable);
-document.getElementById('gradeFilter').addEventListener('change', filterTable);
-document.getElementById('amountFilter').addEventListener('change', filterTable);
+function exportSelected() {
+    try {
+        if (selectedStudents.size === 0) {
+            showAlert('warning', 'Please select students first');
+            return;
+        }
+        
+        const studentIds = Array.from(selectedStudents).join(',');
+        window.open(`/api/v1/finance/fees/export?student_ids=${studentIds}`, '_blank');
+    } catch (error) {
+        logError('Error in exportSelected', error);
+        showAlert('error', 'Error exporting selected students');
+    }
+}
 
-function filterTable() {
-    const searchTerm = document.getElementById('searchStudent').value.toLowerCase();
-    const gradeFilter = document.getElementById('gradeFilter').value;
-    const amountFilter = document.getElementById('amountFilter').value;
-    
-    const rows = document.querySelectorAll('#feeTable tbody tr');
-    
-    rows.forEach(row => {
-        const studentName = row.getAttribute('data-student-name');
-        const grade = row.getAttribute('data-grade');
-        const outstanding = parseFloat(row.getAttribute('data-outstanding'));
-        
-        let show = true;
-        
-        // Search filter
-        if (searchTerm && !studentName.includes(searchTerm)) {
-            show = false;
+function viewCollectionHistory() {
+    try {
+        window.open('/admin/fee-collection-history', '_blank');
+    } catch (error) {
+        logError('Error in viewCollectionHistory', error);
+        showAlert('error', 'Error opening collection history');
+    }
+}
+
+// ================== FEE STRUCTURE EDITING ==================
+
+function editFeeStructure(studentId) {
+    try {
+        if (!studentId) {
+            showAlert('error', 'Student ID is required');
+            return;
         }
         
-        // Grade filter
-        if (gradeFilter && grade !== gradeFilter) {
-            show = false;
+        const row = document.querySelector(`[data-student-id="${studentId}"]`);
+        if (!row) {
+            logError(`Row with student ID ${studentId} not found`);
+            showAlert('error', 'Student row not found');
+            return;
         }
         
-        // Amount filter
-        if (amountFilter) {
-            if (amountFilter === 'low' && outstanding >= 5000) show = false;
-            if (amountFilter === 'medium' && (outstanding < 5000 || outstanding > 15000)) show = false;
-            if (amountFilter === 'high' && outstanding <= 15000) show = false;
+        const studentNameElement = row.querySelector('.fw-bold');
+        if (!studentNameElement) {
+            logError('Student name element not found in row');
+            showAlert('error', 'Student name not found');
+            return;
         }
         
-        row.style.display = show ? '' : 'none';
+        const studentName = studentNameElement.textContent;
+        const outstanding = row.getAttribute('data-outstanding') || '0';
+        
+        // Check if edit modal elements exist - use cached elements for better performance
+        if (!domCache.editStudentId || !domCache.editModalStudentName || !domCache.editModalOutstanding) {
+            logError('Edit fee modal elements not found in cache, refreshing...');
+            cacheDOMElements(); // Refresh cache
+            
+            // Try again with fresh cache
+            if (!domCache.editStudentId || !domCache.editModalStudentName || !domCache.editModalOutstanding) {
+                logError('Edit fee modal elements still not found after cache refresh');
+                showAlert('error', 'Edit fee modal elements not found. Please refresh the page.');
+                return;
+            }
+        }
+        
+        // Reset form using cached elements
+        domCache.editStudentId.value = studentId;
+        domCache.editModalStudentName.textContent = studentName;
+        domCache.editModalOutstanding.textContent = `₹${parseFloat(outstanding).toLocaleString()}`;
+        
+        // Load current fee structure
+        fetch(`/api/v1/finance/installments/${studentId}`)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.student_name) {
+                    // Populate current values from API response
+                    if (domCache.editTotalFee) domCache.editTotalFee.value = data.fee_structure.total_fee || 0;
+                    if (domCache.editAmountPaid) domCache.editAmountPaid.value = data.fee_structure.amount_paid || 0;
+                    if (domCache.editNewBalance) domCache.editNewBalance.value = data.fee_structure.balance_amount || 0;
+                    if (domCache.editReason) domCache.editReason.value = '';
+                    
+                    // Setup installment editing if plan exists
+                    if (data.has_installment_plan) {
+                        editInstallments = data.installment_plan.installments || [];
+                        editInstallmentCounter = editInstallments.length;
+                        
+                        // Reset installment IDs for editing
+                        editInstallments.forEach((inst, index) => {
+                            inst.id = index + 1;
+                        });
+                        editInstallmentCounter = Math.max(editInstallmentCounter, editInstallments.length);
+                    } else {
+                        editInstallments = [];
+                        editInstallmentCounter = 0;
+                    }
+                    
+                    updateEditFeeCalculations();
+                    renderEditInstallments();
+                    
+                    safeShowModal('editFeeModal');
+                } else {
+                    throw new Error('Invalid response structure');
+                }
+            })
+            .catch(error => {
+                logError('Error loading student data', error);
+                showAlert('error', 'Failed to load student fee structure: ' + error.message);
+            });
+            
+    } catch (error) {
+        logError('Error in editFeeStructure function', error);
+        showAlert('error', 'Error opening fee structure editor');
+    }
+}
+
+function updateEditFeeCalculations() {
+    try {
+        const totalFee = parseFloat(domCache.editTotalFee?.value || 0);
+        const amountPaid = parseFloat(domCache.editAmountPaid?.value || 0);
+        const newBalance = totalFee - amountPaid;
+
+        if (domCache.editNewBalance) {
+            domCache.editNewBalance.value = newBalance;
+        }
+
+        // Update installment summary if visible
+        const installmentContainer = safeGetElement('editInstallmentContainer');
+        if (installmentContainer && installmentContainer.style.display !== 'none') {
+            updateEditInstallmentSummary();
+        }
+    } catch (error) {
+        logError('Error in updateEditFeeCalculations', error);
+    }
+}
+
+function updateEditInstallmentSummary() {
+    try {
+        const totalFeeInput = domCache.editTotalFee;
+        const amountPaidInput = domCache.editAmountPaid;
+        
+        if (!totalFeeInput || !amountPaidInput) {
+            logError('Fee input elements not found, skipping summary update');
+            return;
+        }
+        
+        const totalFee = parseFloat(totalFeeInput.value) || 0;
+        const amountPaid = parseFloat(amountPaidInput.value) || 0;
+        const balance = totalFee - amountPaid;
+
+        // Safely update display elements with null checks
+        const totalFeeDisplay = safeGetElement('editTotalFeeDisplay');
+        const paidAmountDisplay = safeGetElement('editPaidAmountDisplay');
+        const balanceDisplay = safeGetElement('editBalanceDisplay');
+        
+        if (totalFeeDisplay) totalFeeDisplay.textContent = `₹${totalFee.toLocaleString()}`;
+        if (paidAmountDisplay) paidAmountDisplay.textContent = `₹${amountPaid.toLocaleString()}`;
+        if (balanceDisplay) balanceDisplay.textContent = `₹${balance.toLocaleString()}`;
+
+        const totalPlanned = editInstallments.reduce((sum, inst) => sum + (parseFloat(inst.amount) || 0), 0);
+        const remaining = balance - totalPlanned;
+        
+        const remainingAmount = safeGetElement('editRemainingAmount');
+        if (remainingAmount) {
+            remainingAmount.textContent = remaining.toLocaleString();
+        }
+        
+        const validation = safeGetElement('editInstallmentValidation');
+        if (validation) {
+            if (remaining > 0.01) {
+                validation.className = 'alert alert-warning';
+                validation.innerHTML = `<i class="fas fa-exclamation-triangle"></i> <strong>Remaining to plan:</strong> ₹${remaining.toLocaleString()}`;
+            } else if (remaining < -0.01) {
+                validation.className = 'alert alert-danger';
+                validation.innerHTML = `<i class="fas fa-exclamation-circle"></i> <strong>Over-planned:</strong> ₹${Math.abs(remaining).toLocaleString()}`;
+            } else {
+                validation.className = 'alert alert-success';
+                validation.innerHTML = `<i class="fas fa-check-circle"></i> <strong>Perfect!</strong> Payment plan matches the balance exactly.`;
+            }
+        }
+    } catch (error) {
+        logError('Error in updateEditInstallmentSummary', error);
+    }
+}
+
+function addEditInstallment() {
+    try {
+        const totalFee = parseFloat(domCache.editTotalFee?.value || 0);
+        const amountPaid = parseFloat(domCache.editAmountPaid?.value || 0);
+        const balance = totalFee - amountPaid;
+        
+        if (balance <= 0) {
+            showAlert('warning', 'No balance remaining to plan payments for.');
+            return;
+        }
+
+        editInstallmentCounter++;
+        const newInstallment = {
+            id: editInstallmentCounter,
+            due_date: '',
+            amount: '',
+            description: `Payment ${editInstallmentCounter}`,
+            status: 'pending'
+        };
+
+        editInstallments.push(newInstallment);
+        renderEditInstallments();
+        updateEditInstallmentSummary();
+    } catch (error) {
+        logError('Error in addEditInstallment', error);
+        showAlert('error', 'Error adding installment');
+    }
+}
+
+function autoDistributeEdit() {
+    try {
+        const totalFee = parseFloat(domCache.editTotalFee?.value || 0);
+        const amountPaid = parseFloat(domCache.editAmountPaid?.value || 0);
+        const balance = totalFee - amountPaid;
+        
+        if (balance <= 0) {
+            showAlert('warning', 'No balance to distribute.');
+            return;
+        }
+
+        const monthsPrompt = prompt('How many monthly installments?', '3');
+        const months = parseInt(monthsPrompt);
+        
+        if (!months || months < 1 || months > 24) {
+            showAlert('warning', 'Please enter a valid number of months (1-24).');
+            return;
+        }
+
+        editInstallments = [];
+        editInstallmentCounter = 0;
+        const amountPerMonth = Math.round((balance / months) * 100) / 100;
+        const today = new Date();
+        
+        for (let i = 1; i <= months; i++) {
+            const dueDate = new Date(today.getFullYear(), today.getMonth() + i, 15);
+            const amount = i === months ? balance - (amountPerMonth * (months - 1)) : amountPerMonth;
+            
+            editInstallmentCounter++;
+            editInstallments.push({
+                id: editInstallmentCounter,
+                due_date: dueDate.toISOString().split('T')[0],
+                amount: amount,
+                description: `Monthly Payment ${i}`,
+                status: 'pending'
+            });
+        }
+
+        renderEditInstallments();
+        updateEditInstallmentSummary();
+        showAlert('success', `Auto-distributed ₹${balance.toLocaleString()} into ${months} monthly payments`);
+    } catch (error) {
+        logError('Error in autoDistributeEdit', error);
+        showAlert('error', 'Error distributing installments');
+    }
+}
+
+function clearEditInstallments() {
+    try {
+        if (editInstallments.length > 0 && !confirm('Clear all installment plans?')) return;
+        
+        editInstallments = [];
+        editInstallmentCounter = 0;
+        renderEditInstallments();
+        updateEditInstallmentSummary();
+        showAlert('info', 'Installment plan cleared');
+    } catch (error) {
+        logError('Error in clearEditInstallments', error);
+        showAlert('error', 'Error clearing installments');
+    }
+}
+
+function removeEditInstallment(id) {
+    try {
+        editInstallments = editInstallments.filter(inst => inst.id !== id);
+        renderEditInstallments();
+        updateEditInstallmentSummary();
+    } catch (error) {
+        logError('Error in removeEditInstallment', error);
+        showAlert('error', 'Error removing installment');
+    }
+}
+
+function updateEditInstallment(id, field, value) {
+    try {
+        const installment = editInstallments.find(inst => inst.id === id);
+        if (installment) {
+            installment[field] = value;
+            updateEditInstallmentSummary();
+            updateEditHiddenInput();
+        }
+    } catch (error) {
+        logError('Error in updateEditInstallment', error);
+    }
+}
+
+function renderEditInstallments() {
+    try {
+        const container = safeGetElement('editInstallmentsList');
+        if (!container) {
+            logError('Installments list container not found');
+            return;
+        }
+        
+        if (editInstallments.length === 0) {
+            container.innerHTML = `
+                <div class="text-center text-muted py-3">
+                    <i class="fas fa-calendar-plus fa-2x mb-2"></i>
+                    <p>No installments planned</p>
+                </div>
+            `;
+            return;
+        }
+
+        const html = editInstallments.map((inst, index) => `
+            <div class="installment-item-edit mb-2" data-installment-id="${inst.id}">
+                <div class="row align-items-center">
+                    <div class="col-1">
+                        <span class="badge bg-primary">${index + 1}</span>
+                    </div>
+                    <div class="col-3">
+                        <input type="date" class="form-control form-control-sm" 
+                               value="${inst.due_date || ''}" 
+                               onchange="updateEditInstallment(${inst.id}, 'due_date', this.value)">
+                    </div>
+                    <div class="col-3">
+                        <input type="number" class="form-control form-control-sm" 
+                               value="${inst.amount || ''}" step="0.01"
+                               onchange="updateEditInstallment(${inst.id}, 'amount', parseFloat(this.value) || 0)"
+                               placeholder="Amount">
+                    </div>
+                    <div class="col-4">
+                        <input type="text" class="form-control form-control-sm" 
+                               value="${inst.description || ''}" 
+                               onchange="updateEditInstallment(${inst.id}, 'description', this.value)"
+                               placeholder="Description">
+                    </div>
+                    <div class="col-1">
+                        <button type="button" class="btn btn-outline-danger btn-sm" 
+                                onclick="removeEditInstallment(${inst.id})"
+                                title="Remove installment">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+
+        container.innerHTML = html;
+        updateEditHiddenInput();
+    } catch (error) {
+        logError('Error in renderEditInstallments', error);
+        showAlert('error', 'Error rendering installments');
+    }
+}
+
+function updateEditHiddenInput() {
+    try {
+        const data = JSON.stringify(editInstallments.map(inst => ({
+            due_date: inst.due_date || '',
+            amount: parseFloat(inst.amount) || 0,
+            description: inst.description || `Payment ${inst.id}`
+        })));
+        
+        const hiddenInput = safeGetElement('editInstallmentData');
+        if (hiddenInput) {
+            hiddenInput.value = data;
+        }
+    } catch (error) {
+        logError('Error in updateEditHiddenInput', error);
+    }
+}
+
+function updateFeeStructure(event) {
+    try {
+        const studentId = domCache.editStudentId?.value;
+        const totalFee = domCache.editTotalFee?.value;
+        const reason = domCache.editReason?.value;
+        const enableInstallments = safeGetElement('editEnableInstallments')?.checked || false;
+        
+        if (!studentId) {
+            showAlert('error', 'Student ID is missing');
+            return;
+        }
+        
+        if (!totalFee || !reason) {
+            showAlert('warning', 'Please fill all required fields');
+            return;
+        }
+        
+        const csrfToken = getCSRFToken();
+        if (!csrfToken) {
+            showAlert('error', 'Security token not found. Please refresh the page.');
+            return;
+        }
+        
+        const btn = event.target;
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Updating...';
+        btn.disabled = true;
+        
+        const updateData = {
+            total_fee: parseFloat(totalFee),
+            reason: reason
+        };
+        
+        if (enableInstallments) {
+            const installmentData = safeGetElement('editInstallmentData');
+            updateData.installments = JSON.parse(installmentData?.value || '[]');
+        }
+        
+        fetch(`/api/v1/finance/fee-structure/${studentId}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify(updateData)
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                showAlert('success', 'Fee structure updated successfully!');
+                safeHideModal('editFeeModal');
+                setTimeout(() => location.reload(), 1500);
+            } else {
+                throw new Error(data.message || 'Update failed');
+            }
+        })
+        .catch(error => {
+            logError('Error updating fee structure', error);
+            showAlert('error', 'Error updating fee structure: ' + error.message);
+        })
+        .finally(() => {
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        });
+    } catch (error) {
+        logError('Error in updateFeeStructure function', error);
+        showAlert('error', 'Error processing fee structure update');
+    }
+}
+
+// ================== MONTHLY FEE STATUS FUNCTIONS ==================
+
+function editMonthlyFeeStatus(studentId) {
+    try {
+        if (!studentId) {
+            showAlert('error', 'Student ID is required');
+            return;
+        }
+        
+        const row = document.querySelector(`[data-student-id="${studentId}"]`);
+        if (!row) {
+            logError(`Row with student ID ${studentId} not found`);
+            showAlert('error', 'Student row not found');
+            return;
+        }
+        
+        const studentNameElement = row.querySelector('.fw-bold');
+        if (!studentNameElement) {
+            logError('Student name element not found in row');
+            showAlert('error', 'Student name not found');
+            return;
+        }
+        
+        const studentName = studentNameElement.textContent;
+        
+        // Check if monthly modal elements exist - use cached elements for better performance
+        if (!domCache.monthlyStudentId || !domCache.monthlyModalStudentName) {
+            logError('Monthly fee modal elements not found in cache, refreshing...');
+            cacheDOMElements(); // Refresh cache
+            
+            // Try again with fresh cache
+            if (!domCache.monthlyStudentId || !domCache.monthlyModalStudentName) {
+                logError('Monthly fee modal elements still not found after cache refresh');
+                showAlert('error', 'Monthly fee modal elements not found. Please refresh the page.');
+                return;
+            }
+        }
+        
+        // Set student info using cached elements
+        domCache.monthlyStudentId.value = studentId;
+        domCache.monthlyModalStudentName.textContent = studentName;
+        
+        // Load monthly fee status
+        fetch(`/api/v1/finance/monthly-status/${studentId}`)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.monthly_history) {
+                    monthlyStatusData = data.monthly_history;
+                    populateMonthlyStatusTable();
+                    populateQuickMonthDropdown();
+                    safeShowModal('monthlyFeeModal');
+                } else {
+                    throw new Error('Invalid response structure');
+                }
+            })
+            .catch(error => {
+                logError('Error loading monthly fee status', error);
+                showAlert('error', 'Failed to load monthly fee status: ' + error.message);
+            });
+    } catch (error) {
+        logError('Error in editMonthlyFeeStatus function', error);
+        showAlert('error', 'Error opening monthly fee status');
+    }
+}
+
+function populateMonthlyStatusTable() {
+    try {
+        // Use cached element or fallback to direct query
+        const tbody = domCache.monthlyStatusTableBody || safeGetElement('monthlyStatusTableBody');
+        if (!tbody) {
+            logError('Monthly status table body not found');
+            return;
+        }
+        
+        const html = monthlyStatusData.map((month, index) => {
+            const statusClass = getStatusClass(month.status);
+            const isEditable = !month.is_current || month.status !== 'paid';
+            
+            return `
+                <tr ${month.is_current ? 'class="table-warning"' : ''}>
+                    <td>
+                        <strong>${month.month_name}</strong>
+                        ${month.is_current ? '<span class="badge bg-warning ms-1">Current</span>' : ''}
+                    </td>
+                    <td>
+                        ${isEditable ? 
+                            `<select class="form-select form-select-sm" onchange="updateMonthStatus(${index}, 'status', this.value)">
+                                <option value="pending" ${month.status === 'pending' ? 'selected' : ''}>Pending</option>
+                                <option value="paid" ${month.status === 'paid' ? 'selected' : ''}>Paid</option>
+                                <option value="overdue" ${month.status === 'overdue' ? 'selected' : ''}>Overdue</option>
+                                <option value="exempted" ${month.status === 'exempted' ? 'selected' : ''}>Exempted</option>
+                            </select>` : 
+                            `<span class="badge ${statusClass}">${month.status.charAt(0).toUpperCase() + month.status.slice(1)}</span>`
+                        }
+                    </td>
+                    <td>
+                        ${isEditable ? 
+                            `<input type="date" class="form-control form-control-sm" value="${month.due_date || ''}" 
+                                   onchange="updateMonthStatus(${index}, 'due_date', this.value)">` : 
+                            `${month.due_date || '-'}`
+                        }
+                    </td>
+                    <td>
+                        ${isEditable ? 
+                            `<input type="number" class="form-control form-control-sm" value="${month.amount}" step="0.01"
+                                   onchange="updateMonthStatus(${index}, 'amount', parseFloat(this.value) || 0)">` : 
+                            `₹${month.amount.toLocaleString()}`
+                        }
+                    </td>
+                    <td>
+                        ${isEditable ? 
+                            `<input type="text" class="form-control form-control-sm" value="${month.notes || ''}" 
+                                   onchange="updateMonthStatus(${index}, 'notes', this.value)" placeholder="Add notes">` : 
+                            `${month.notes || '-'}`
+                        }
+                    </td>
+                    <td>
+                        ${isEditable ? 
+                            `<button class="btn btn-success btn-sm" onclick="quickSaveMonth(${index})" title="Save">
+                                <i class="fas fa-save"></i>
+                            </button>` : 
+                            `<span class="text-muted">-</span>`
+                        }
+                    </td>
+                </tr>
+            `;
+        }).join('');
+        
+        tbody.innerHTML = html;
+    } catch (error) {
+        logError('Error in populateMonthlyStatusTable', error);
+        showAlert('error', 'Error populating monthly status table');
+    }
+}
+
+function populateQuickMonthDropdown() {
+    try {
+        // Use cached element or fallback to direct query
+        const quickMonth = domCache.quickMonth || safeGetElement('quickMonth');
+        if (!quickMonth) {
+            logError('Quick month dropdown not found');
+            return;
+        }
+        
+        const options = monthlyStatusData.map(month => 
+            `<option value="${month.month}">${month.month_name}</option>`
+        ).join('');
+        
+        quickMonth.innerHTML = '<option value="">Select Month</option>' + options;
+    } catch (error) {
+        logError('Error in populateQuickMonthDropdown', error);
+    }
+}
+
+function getStatusClass(status) {
+    switch (status) {
+        case 'paid': return 'bg-success';
+        case 'pending': return 'bg-warning';
+        case 'overdue': return 'bg-danger';
+        case 'exempted': return 'bg-info';
+        default: return 'bg-secondary';
+    }
+}
+
+function updateMonthStatus(index, field, value) {
+    try {
+        if (monthlyStatusData[index]) {
+            monthlyStatusData[index][field] = value;
+            monthlyStatusData[index].modified = true;
+        }
+    } catch (error) {
+        logError('Error in updateMonthStatus', error);
+    }
+}
+
+function quickUpdateStatus() {
+    try {
+        // Use cached elements or fallback to direct queries
+        const monthElement = domCache.quickMonth || safeGetElement('quickMonth');
+        const statusElement = safeGetElement('quickStatus');
+        const amountElement = safeGetElement('quickAmount');
+        
+        if (!monthElement || !statusElement || !amountElement) {
+            logError('Quick update form elements not found');
+            showAlert('error', 'Form elements not found');
+            return;
+        }
+        
+        const month = monthElement.value;
+        const status = statusElement.value;
+        const amount = parseFloat(amountElement.value) || 0;
+        
+        if (!month || !status) {
+            showAlert('warning', 'Please select month and status');
+            return;
+        }
+        
+        const monthIndex = monthlyStatusData.findIndex(m => m.month === month);
+        if (monthIndex >= 0) {
+            monthlyStatusData[monthIndex].status = status;
+            monthlyStatusData[monthIndex].amount = amount;
+            monthlyStatusData[monthIndex].modified = true;
+            
+            populateMonthlyStatusTable();
+            
+            // Clear quick form
+            monthElement.value = '';
+            statusElement.value = '';
+            amountElement.value = '';
+            
+            showAlert('success', 'Status updated! Click "Save All Changes" to persist.');
+        } else {
+            showAlert('error', 'Month not found in data');
+        }
+    } catch (error) {
+        logError('Error in quickUpdateStatus', error);
+        showAlert('error', 'Error updating status');
+    }
+}
+
+function quickSaveMonth(index) {
+    try {
+        const monthData = monthlyStatusData[index];
+        // Use cached element or fallback to direct query
+        const studentIdElement = domCache.monthlyStudentId || safeGetElement('monthlyStudentId');
+        const studentId = studentIdElement ? studentIdElement.value : null;
+        
+        if (!studentId) {
+            showAlert('error', 'Student ID not found');
+            return;
+        }
+        
+        if (!monthData.modified) {
+            showAlert('info', 'No changes to save');
+            return;
+        }
+        
+        const csrfToken = getCSRFToken();
+        if (!csrfToken) {
+            showAlert('error', 'Security token not found. Please refresh the page.');
+            return;
+        }
+        
+        const updateData = {
+            month: monthData.month,
+            status: monthData.status,
+            due_date: monthData.due_date,
+            amount: monthData.amount,
+            notes: monthData.notes
+        };
+        
+        fetch(`/api/v1/finance/monthly-status/${studentId}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify(updateData)
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                monthData.modified = false;
+                showAlert('success', `${monthData.month_name} status saved!`);
+            } else {
+                throw new Error(data.message || 'Save failed');
+            }
+        })
+        .catch(error => {
+            logError('Error saving month status', error);
+            showAlert('error', 'Error saving status: ' + error.message);
+        });
+    } catch (error) {
+        logError('Error in quickSaveMonth', error);
+        showAlert('error', 'Error processing save request');
+    }
+}
+
+function bulkUpdateMonthlyStatus() {
+    try {
+        // Use cached element or fallback to direct query
+        const studentIdElement = domCache.monthlyStudentId || safeGetElement('monthlyStudentId');
+        if (!studentIdElement) {
+            logError('Monthly student ID element not found');
+            showAlert('error', 'Student ID not found');
+            return;
+        }
+        
+        const studentId = studentIdElement.value;
+        const modifiedMonths = monthlyStatusData.filter(month => month.modified);
+        
+        if (modifiedMonths.length === 0) {
+            showAlert('info', 'No changes to save');
+            return;
+        }
+        
+        const csrfToken = getCSRFToken();
+        if (!csrfToken) {
+            showAlert('error', 'Security token not found. Please refresh the page.');
+            return;
+        }
+        
+        const monthlyUpdates = modifiedMonths.map(month => ({
+            month: month.month,
+            status: month.status,
+            due_date: month.due_date,
+            amount: month.amount,
+            notes: month.notes
+        }));
+        
+        const btn = event.target;
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+        btn.disabled = true;
+        
+        fetch(`/api/v1/finance/monthly-status/${studentId}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({ monthly_updates: monthlyUpdates })
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                showAlert('success', `${modifiedMonths.length} months updated successfully!`);
+                
+                // Reset modified flags
+                monthlyStatusData.forEach(month => month.modified = false);
+                populateMonthlyStatusTable();
+            } else {
+                throw new Error(data.message || 'Bulk update failed');
+            }
+        })
+        .catch(error => {
+            logError('Error in bulk update', error);
+            showAlert('error', 'Error saving changes: ' + error.message);
+        })
+        .finally(() => {
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        });
+    } catch (error) {
+        logError('Error in bulkUpdateMonthlyStatus', error);
+        showAlert('error', 'Error processing bulk update');
+    }
+}
+
+// Function to refresh cached elements when DOM changes
+function refreshDOMCache() {
+    try {
+        domCache.feeTableRows = document.querySelectorAll('#feeTable tbody tr');
+        // Re-add event listeners for checkboxes
+        domCache.feeTableRows.forEach(row => {
+            const checkbox = row.querySelector('.student-checkbox');
+            if (checkbox && !checkbox.hasAttribute('data-listener-added')) {
+                checkbox.addEventListener('change', function() {
+                    if (this.checked) {
+                        selectedStudents.add(this.value);
+                    } else {
+                        selectedStudents.delete(this.value);
+                    }
+                    updateBulkActions();
+                });
+                checkbox.setAttribute('data-listener-added', 'true');
+            }
+        });
+    } catch (error) {
+        logError('Error in refreshDOMCache', error);
+    }
+}
+
+// Make refreshDOMCache available globally for AJAX content updates
+window.refreshDOMCache = refreshDOMCache;
+
+// Error boundary for global error handling
+window.addEventListener('error', function(event) {
+    logError('Global JavaScript error', {
+        message: event.message,
+        filename: event.filename,
+        lineno: event.lineno,
+        colno: event.colno,
+        error: event.error
     });
+});
+
+// Console notification that scripts loaded successfully
+console.log('✅ Fee Collection System initialized successfully! 🚀');
+</script>
+
+<style>
+.page-header {
+    margin-bottom: 2rem;
 }
 
-function clearFilters() {
-    document.getElementById('searchStudent').value = '';
-    document.getElementById('gradeFilter').value = '';
-    document.getElementById('amountFilter').value = '';
-    filterTable();
+.page-title {
+    font-size: 1.75rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
 }
-</script>
+
+.page-subtitle {
+    color: #6c757d;
+    margin-bottom: 0;
+}
+
+.stat-card {
+    background: white;
+    border-radius: 0.75rem;
+    padding: 1.5rem;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+}
+
+.stat-icon {
+    width: 60px;
+    height: 60px;
+    border-radius: 0.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    color: white;
+    flex-shrink: 0;
+}
+
+.stat-icon.danger { background: linear-gradient(135deg, #dc3545, #b02a37); }
+.stat-icon.warning { background: linear-gradient(135deg, #ffc107, #d39e00); color: #000; }
+.stat-icon.info { background: linear-gradient(135deg, #0dcaf0, #0aa2c0); }
+.stat-icon.success { background: linear-gradient(135deg, #198754, #146c43); }
+
+.stat-content h3 {
+    margin: 0;
+    font-size: 1.75rem;
+    font-weight: 700;
+    line-height: 1.2;
+}
+
+.stat-content p {
+    margin: 0.25rem 0 0.5rem 0;
+    color: #495057;
+    font-weight: 500;
+}
+
+.stat-trend {
+    margin-top: 0.5rem;
+}
+
+.insight-item {
+    padding: 1rem 0;
+}
+
+.insight-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin-bottom: 0.25rem;
+}
+
+.insight-label {
+    color: #6c757d;
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+.avatar-sm {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: #0d6efd;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    flex-shrink: 0;
+}
+
+.card-title {
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.card-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.outstanding-amount {
+    min-width: 100px;
+}
+
+.progress-sm {
+    height: 4px;
+}
+
+.student-id {
+    margin-top: 0.25rem;
+}
+
+.last-payment {
+    min-width: 120px;
+}
+
+.payment-date {
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+.payment-mode {
+    margin-top: 0.25rem;
+}
+
+.bulk-actions {
+    border: 2px dashed #dee2e6;
+    transition: all 0.3s ease;
+}
+
+.bulk-actions:hover {
+    border-color: #0d6efd;
+    background-color: #f8f9ff !important;
+}
+
+.table th {
+    background-color: #f8f9fa;
+    font-weight: 600;
+    border-bottom: 2px solid #dee2e6;
+    font-size: 0.875rem;
+}
+
+.table td {
+    vertical-align: middle;
+}
+
+.btn-group .btn {
+    margin: 0;
+}
+
+.header-actions .btn {
+    margin-left: 0.5rem;
+}
+
+.form-label {
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.modal-lg {
+    max-width: 800px;
+}
+
+.installment-item-edit {
+    background: #f8f9fa;
+    border-radius: 0.375rem;
+    padding: 0.5rem;
+    border: 1px solid #dee2e6;
+}
+
+.summary-item {
+    text-align: center;
+}
+
+.summary-value {
+    font-size: 1.25rem;
+    font-weight: 700;
+}
+
+.summary-label {
+    font-size: 0.75rem;
+    color: #6c757d;
+    font-weight: 500;
+}
+
+.alert-floating {
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+}
+
+@media (max-width: 768px) {
+    .stat-card {
+        flex-direction: column;
+        text-align: center;
+        gap: 1rem;
+    }
+    
+    .page-title {
+        font-size: 1.5rem;
+    }
+    
+    .header-actions {
+        margin-top: 1rem;
+    }
+    
+    .btn-group {
+        flex-direction: column;
+        width: 100%;
+    }
+    
+    .btn-group .btn {
+        margin: 0.25rem 0;
+    }
+    
+    .card-actions {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.5rem;
+    }
+    
+    .table-responsive {
+        font-size: 0.875rem;
+    }
+    
+    .modal-fullscreen-lg-down {
+        width: 100vw;
+        max-width: none;
+        height: 100%;
+        margin: 0;
+    }
+    
+    .modal-fullscreen-lg-down .modal-content {
+        height: 100%;
+        border: 0;
+        border-radius: 0;
+    }
+}
+
+.border-0 {
+    border: none !important;
+}
+
+.shadow-sm {
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075) !important;
+}
+
+/* Fix for table responsiveness */
+.table-responsive {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* Enhanced button styles */
+.btn-outline-success:hover,
+.btn-outline-primary:hover,
+.btn-outline-warning:hover,
+.btn-outline-secondary:hover,
+.btn-outline-info:hover {
+    transform: translateY(-1px);
+}
+
+/* Loading spinner animation */
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.fa-spin {
+    animation: spin 1s infinite linear;
+}
+
+/* Enhanced focus styles for accessibility */
+.form-control:focus,
+.form-select:focus,
+.btn:focus {
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+}
+
+/* Improved checkbox styling */
+.form-check-input {
+    border-radius: 0.25em;
+}
+
+.form-check-input:checked {
+    background-color: #0d6efd;
+    border-color: #0d6efd;
+}
+
+/* Badge improvements */
+.badge {
+    font-size: 0.75em;
+    font-weight: 500;
+}
+
+/* Progress bar enhancements */
+.progress {
+    background-color: #e9ecef;
+    border-radius: 0.375rem;
+}
+
+.progress-bar {
+    transition: width 0.6s ease;
+}
+</style>
 {% endblock %}

@@ -1,0 +1,35 @@
+{% extends "email/base_email.html" %}
+
+{% block title %}Profile Updated Successfully{% endblock %}
+{% block email_title %}Profile Updated{% endblock %}
+{% block email_subtitle %}Your information has been successfully updated{% endblock %}
+
+{% block recipient_name %}{{ student.full_name }}{% endblock %}
+
+{% block email_content %}
+<div class="alert-box alert-success">
+    <strong>✅ Profile Updated!</strong> Your profile information has been successfully updated on {{ updated_at.strftime('%B %d, %Y at %I:%M %p') }}.
+</div>
+
+<div class="content-section">
+    <h2>Changes Made</h2>
+    {% for field, change in changes.items() %}
+    <div style="background: #f8f9fa; border-left: 4px solid #28a745; padding: 15px; margin: 10px 0; border-radius: 0 6px 6px 0;">
+        <strong>{{ field.replace('_', ' ').title() }}:</strong><br>
+        <span style="color: #dc3545; text-decoration: line-through;">{{ change.old_value or 'Not set' }}</span><br>
+        <span style="color: #28a745; font-weight: 600;">{{ change.new_value }}</span>
+    </div>
+    {% endfor %}
+</div>
+
+<div class="alert-box alert-info">
+    <strong>Note:</strong> These changes have been saved to your profile and are now active across all systems.
+</div>
+{% endblock %}
+
+{% block email_actions %}
+<div class="text-center">
+    <a href="#" class="button button-success">View Updated Profile</a>
+    <a href="#" class="button button-secondary">Make More Changes</a>
+</div>
+{% endblock %}

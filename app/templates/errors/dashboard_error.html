@@ -1,0 +1,231 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard Error - {{ APP_NAME }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card border-danger">
+                <div class="card-header bg-danger text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        Dashboard Loading Error
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-danger" role="alert">
+                        <h6 class="alert-heading">
+                            <i class="fas fa-bug"></i>
+                            Something went wrong while loading the dashboard
+                        </h6>
+                        <p class="mb-2">
+                            We encountered an error while loading your dashboard data. This could be due to:
+                        </p>
+                        <ul class="mb-3">
+                            <li>Temporary database connectivity issues</li>
+                            <li>High server load</li>
+                            <li>Data synchronization problems</li>
+                        </ul>
+                        
+                        {% if error %}
+                        <details class="mb-3">
+                            <summary class="text-muted">Technical Details (for administrators)</summary>
+                            <code class="d-block mt-2 p-2 bg-light border rounded">{{ error }}</code>
+                        </details>
+                        {% endif %}
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>What you can do:</h6>
+                            <div class="list-group list-group-flush">
+                                <div class="list-group-item border-0 px-0">
+                                    <i class="fas fa-redo text-primary"></i>
+                                    <strong>Refresh the page</strong> - The issue might be temporary
+                                </div>
+                                <div class="list-group-item border-0 px-0">
+                                    <i class="fas fa-clock text-info"></i>
+                                    <strong>Wait a few minutes</strong> - Server might be under high load
+                                </div>
+                                <div class="list-group-item border-0 px-0">
+                                    <i class="fas fa-sign-out-alt text-warning"></i>
+                                    <strong>Re-login</strong> - Your session might have expired
+                                </div>
+                                <div class="list-group-item border-0 px-0">
+                                    <i class="fas fa-envelope text-success"></i>
+                                    <strong>Contact support</strong> - If the problem persists
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Quick Actions:</h6>
+                            <div class="d-grid gap-2">
+                                <button onclick="window.location.reload()" class="btn btn-primary">
+                                    <i class="fas fa-redo"></i>
+                                    Refresh Dashboard
+                                </button>
+                                <a href="{{ url_for('auth.logout') }}" class="btn btn-warning">
+                                    <i class="fas fa-sign-out-alt"></i>
+                                    Re-login
+                                </a>
+                                <a href="{{ url_for('dashboard.index') }}" class="btn btn-secondary">
+                                    <i class="fas fa-home"></i>
+                                    Go to Home
+                                </a>
+                                {% if current_user.role in ['superadmin', 'admin'] %}
+                                <a href="mailto:{{ COMPANY_EMAIL or 'support@company.com' }}" class="btn btn-success">
+                                    <i class="fas fa-envelope"></i>
+                                    Contact Support
+                                </a>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Error Monitoring (for admins) -->
+            {% if current_user.role in ['superadmin', 'admin'] %}
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-chart-line"></i>
+                        System Status (Admin Only)
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="d-flex align-items-center">
+                                <div class="status-indicator bg-warning rounded-circle me-2" style="width: 12px; height: 12px;"></div>
+                                <span class="text-muted">Database Status</span>
+                                <span class="badge bg-warning ms-auto" id="dbStatus">Checking...</span>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="d-flex align-items-center">
+                                <div class="status-indicator bg-info rounded-circle me-2" style="width: 12px; height: 12px;"></div>
+                                <span class="text-muted">Server Load</span>
+                                <span class="badge bg-info ms-auto" id="serverLoad">Checking...</span>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="d-flex align-items-center">
+                                <div class="status-indicator bg-success rounded-circle me-2" style="width: 12px; height: 12px;"></div>
+                                <span class="text-muted">Last Update</span>
+                                <span class="badge bg-success ms-auto" id="lastUpdate">{{ moment().format('HH:mm') }}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+// Auto-refresh functionality
+let refreshTimer;
+let autoRefreshEnabled = false;
+
+function enableAutoRefresh() {
+    if (autoRefreshEnabled) return;
+    
+    autoRefreshEnabled = true;
+    refreshTimer = setTimeout(() => {
+        window.location.reload();
+    }, 30000); // Auto-refresh after 30 seconds
+    
+    // Show countdown
+    let countdown = 30;
+    const countdownInterval = setInterval(() => {
+        countdown--;
+        const refreshBtn = document.querySelector('button[onclick="window.location.reload()"]');
+        if (refreshBtn) {
+            refreshBtn.innerHTML = `<i class="fas fa-redo"></i> Auto-refresh in ${countdown}s`;
+        }
+        
+        if (countdown <= 0) {
+            clearInterval(countdownInterval);
+        }
+    }, 1000);
+}
+
+// Error reporting for admins
+{% if current_user.role in ['superadmin', 'admin'] %}
+function checkSystemStatus() {
+    // Database status check
+    fetch('/api/health-check')
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('dbStatus').textContent = data.database ? 'OK' : 'Error';
+            document.getElementById('dbStatus').className = data.database ? 'badge bg-success' : 'badge bg-danger';
+            
+            document.getElementById('serverLoad').textContent = data.load || 'Unknown';
+            document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString();
+        })
+        .catch(error => {
+            document.getElementById('dbStatus').textContent = 'Error';
+            document.getElementById('dbStatus').className = 'badge bg-danger';
+        });
+}
+
+// Check status immediately and then every 10 seconds
+checkSystemStatus();
+setInterval(checkSystemStatus, 10000);
+{% endif %}
+
+// Enable auto-refresh after 10 seconds
+setTimeout(enableAutoRefresh, 10000);
+
+// Global error handler
+window.addEventListener('error', function(e) {
+    console.error('Dashboard Error:', e.error);
+    
+    // Send error report to server (for admin users)
+    {% if current_user.role in ['superadmin', 'admin'] %}
+    fetch('/api/error-report', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token() }}'
+        },
+        body: JSON.stringify({
+            error: e.error.message,
+            stack: e.error.stack,
+            url: window.location.href,
+            timestamp: new Date().toISOString()
+        })
+    }).catch(err => console.error('Failed to send error report:', err));
+    {% endif %}
+});
+</script>
+
+<style>
+.status-indicator {
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.5; }
+    100% { opacity: 1; }
+}
+
+.list-group-item i {
+    width: 20px;
+    margin-right: 10px;
+}
+
+details summary {
+    cursor: pointer;
+    user-select: none;
+}
+
+details summary:hover {
+    color: #007bff;
+}
+</style>
+{% endblock %}

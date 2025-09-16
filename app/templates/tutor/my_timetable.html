@@ -1,0 +1,524 @@
+{% extends "base.html" %}
+
+{% block title %}My Timetable{% endblock %}
+
+{% block extra_css %}
+<style>
+    .timetable-container {
+        background: var(--bg-white);
+        border-radius: var(--border-radius);
+        box-shadow: var(--shadow-lg);
+        overflow: hidden;
+    }
+    
+    .week-navigation {
+        background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
+        color: white;
+        padding: 20px;
+    }
+    
+    .week-nav-btn {
+        background: rgba(255,255,255,0.2);
+        border: none;
+        color: white;
+        padding: 8px 15px;
+        border-radius: var(--border-radius);
+        cursor: pointer;
+        transition: var(--transition);
+    }
+    
+    .week-nav-btn:hover {
+        background: rgba(255,255,255,0.3);
+        color: white;
+        transform: translateY(-1px);
+    }
+    
+    .week-title {
+        font-size: 1.5rem;
+        font-weight: 600;
+        margin: 0;
+    }
+    
+    .calendar-grid {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 0;
+        background: var(--bg-light);
+    }
+    
+    .day-column {
+        background: var(--bg-white);
+        border-right: 1px solid var(--border-color);
+        min-height: 500px;
+        position: relative;
+    }
+    
+    .day-column:last-child {
+        border-right: none;
+    }
+    
+    .day-header {
+        background: var(--secondary-color);
+        color: white;
+        padding: 15px 10px;
+        text-align: center;
+        font-weight: 600;
+        position: sticky;
+        top: 0;
+        z-index: 10;
+    }
+    
+    .day-date {
+        font-size: 0.9rem;
+        opacity: 0.9;
+        margin-top: 2px;
+    }
+    
+    .day-content {
+        padding: 10px;
+        max-height: 500px;
+        overflow-y: auto;
+    }
+    
+    .class-item {
+        background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
+        color: white;
+        padding: 12px;
+        margin-bottom: 8px;
+        border-radius: var(--border-radius);
+        cursor: pointer;
+        transition: var(--transition);
+        border-left: 4px solid var(--primary-light);
+        box-shadow: var(--shadow);
+    }
+    
+    .class-item:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-lg);
+    }
+    
+    .class-item.completed {
+        background: linear-gradient(135deg, var(--success-color) 0%, #20c997 100%);
+        border-left-color: #fff;
+    }
+    
+    .class-item.cancelled {
+        background: linear-gradient(135deg, var(--danger-color) 0%, #e83e8c 100%);
+        border-left-color: #fff;
+    }
+    
+    .class-item.ongoing {
+        background: linear-gradient(135deg, var(--warning-color) 0%, #fd7e14 100%);
+        border-left-color: #fff;
+        animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+        0% { opacity: 1; }
+        50% { opacity: 0.8; }
+        100% { opacity: 1; }
+    }
+    
+    .class-time {
+        font-weight: 600;
+        font-size: 0.95rem;
+        margin-bottom: 5px;
+    }
+    
+    .class-subject {
+        font-size: 1rem;
+        font-weight: 500;
+        margin-bottom: 3px;
+    }
+    
+    .class-student {
+        font-size: 0.85rem;
+        opacity: 0.9;
+        margin-bottom: 3px;
+    }
+    
+    .class-details {
+        font-size: 0.8rem;
+        opacity: 0.8;
+    }
+    
+    .no-classes {
+        color: var(--text-secondary);
+        text-align: center;
+        padding: 40px 10px;
+        font-style: italic;
+    }
+    
+    .loading-spinner {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 200px;
+    }
+    
+    .spinner-border {
+        width: 3rem;
+        height: 3rem;
+        color: var(--primary-color);
+    }
+    
+    .stats-row {
+        background: var(--bg-light);
+        padding: 20px;
+        border-top: 1px solid var(--border-color);
+    }
+    
+    .stat-item {
+        text-align: center;
+    }
+    
+    .stat-number {
+        font-size: 2rem;
+        font-weight: 600;
+        color: var(--primary-color);
+    }
+    
+    .stat-label {
+        color: var(--text-secondary);
+        font-size: 0.9rem;
+    }
+    
+    /* Enhanced visual improvements */
+    .day-column:nth-child(6), .day-column:nth-child(7) {
+        background: rgba(241, 161, 80, 0.02);
+    }
+    
+    .class-item.demo {
+        background: linear-gradient(135deg, var(--info-color) 0%, #007bff 100%);
+        border-left-color: #fff;
+    }
+    
+    .today-highlight {
+        background: rgba(241, 161, 80, 0.05) !important;
+        border: 2px solid var(--primary-light);
+    }
+    
+    @media (max-width: 768px) {
+        .calendar-grid {
+            grid-template-columns: 1fr;
+            gap: 10px;
+            padding: 10px;
+        }
+        
+        .day-column {
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius);
+        }
+        
+        .week-navigation {
+            padding: 15px;
+        }
+        
+        .week-title {
+            font-size: 1.2rem;
+        }
+        
+        .class-item {
+            margin-bottom: 12px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="timetable-container">
+        <!-- Week Navigation -->
+        <div class="week-navigation">
+            <div class="row align-items-center">
+                <div class="col-md-3">
+                    <button class="week-nav-btn" onclick="changeWeek(-1)">
+                        <i class="fas fa-chevron-left me-2"></i>Previous Week
+                    </button>
+                </div>
+                <div class="col-md-6 text-center">
+                    <h2 class="week-title" id="weekTitle">Loading...</h2>
+                </div>
+                <div class="col-md-3 text-end">
+                    <button class="week-nav-btn" onclick="changeWeek(1)">
+                        Next Week<i class="fas fa-chevron-right ms-2"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Calendar Grid -->
+        <div id="calendarGrid" class="calendar-grid">
+            <div class="loading-spinner">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Statistics -->
+        <div class="stats-row">
+            <div class="row">
+                <div class="col-md-3">
+                    <div class="stat-item">
+                        <div class="stat-number" id="totalClasses">0</div>
+                        <div class="stat-label">Classes This Week</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stat-item">
+                        <div class="stat-number" id="todayClasses">0</div>
+                        <div class="stat-label">Classes Today</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stat-item">
+                        <div class="stat-number" id="completedClasses">0</div>
+                        <div class="stat-label">Completed</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stat-item">
+                        <div class="stat-number" id="upcomingClasses">0</div>
+                        <div class="stat-label">Upcoming</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Class Details Modal -->
+<div class="modal fade" id="classModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalTitle">Class Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="modalBody">
+                <!-- Class details will be loaded here -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" id="joinClassBtn" style="display: none;">
+                    <i class="fas fa-video me-2"></i>Join Class
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let currentWeekOffset = 0;
+let currentData = null;
+
+document.addEventListener('DOMContentLoaded', function() {
+    loadTimetable();
+});
+
+function changeWeek(offset) {
+    currentWeekOffset += offset;
+    loadTimetable();
+}
+
+function loadTimetable() {
+    // Show loading
+    document.getElementById('calendarGrid').innerHTML = `
+        <div class="loading-spinner">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+        </div>
+    `;
+    
+    // Fetch timetable data
+    fetch(`/tutor/api/weekly-timetable?week_offset=${currentWeekOffset}`, {
+        method: 'GET',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token() }}'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            currentData = data.data;
+            renderTimetable(data.data);
+            updateStats(data.data);
+        } else {
+            showError('Failed to load timetable: ' + (data.error || 'Unknown error'));
+        }
+    })
+    .catch(error => {
+        console.error('Error loading timetable:', error);
+        showError('Failed to load timetable. Please try again.');
+    });
+}
+
+function renderTimetable(data) {
+    const grid = document.getElementById('calendarGrid');
+    const weekTitle = document.getElementById('weekTitle');
+    
+    // Update week title
+    weekTitle.textContent = data.week_title;
+    
+    // Clear grid
+    grid.innerHTML = '';
+    
+    // Create day columns
+    data.week_dates.forEach((dayData, index) => {
+        const dayClasses = data.schedule[dayData.day] || [];
+        
+        const dayColumn = document.createElement('div');
+        dayColumn.className = 'day-column';
+        
+        // Highlight today's column
+        const today = new Date().toISOString().split('T')[0];
+        if (dayData.date === today) {
+            dayColumn.classList.add('today-highlight');
+        }
+        
+        // Day header
+        const dayHeader = document.createElement('div');
+        dayHeader.className = 'day-header';
+        dayHeader.innerHTML = `
+            <div class="day-name">${dayData.day_short}</div>
+            <div class="day-date">${dayData.formatted}</div>
+        `;
+        dayColumn.appendChild(dayHeader);
+        
+        // Day content
+        const dayContent = document.createElement('div');
+        dayContent.className = 'day-content';
+        
+        if (dayClasses.length === 0) {
+            dayContent.innerHTML = '<div class="no-classes">No classes</div>';
+        } else {
+            dayClasses.forEach(cls => {
+                const classItem = document.createElement('div');
+                let statusClass = cls.status;
+                if (cls.class_type === 'demo') {
+                    statusClass += ' demo';
+                }
+                classItem.className = `class-item ${statusClass}`;
+                classItem.onclick = () => showClassDetails(cls);
+                
+                classItem.innerHTML = `
+                    <div class="class-time">${cls.time} - ${cls.end_time}</div>
+                    <div class="class-subject">${cls.subject}</div>
+                    <div class="class-student">${cls.student}</div>
+                    <div class="class-details">
+                        ${cls.grade ? cls.grade + ' • ' : ''}${cls.class_type.replace('_', ' ').toUpperCase()}
+                        ${cls.duration ? ' • ' + cls.duration + ' min' : ''}
+                    </div>
+                `;
+                
+                dayContent.appendChild(classItem);
+            });
+        }
+        
+        dayColumn.appendChild(dayContent);
+        grid.appendChild(dayColumn);
+    });
+}
+
+function updateStats(data) {
+    const today = new Date().toISOString().split('T')[0];
+    let totalClasses = 0;
+    let todayClasses = 0;
+    let completedClasses = 0;
+    let upcomingClasses = 0;
+    
+    Object.keys(data.schedule).forEach(day => {
+        const dayClasses = data.schedule[day];
+        totalClasses += dayClasses.length;
+        
+        dayClasses.forEach(cls => {
+            if (cls.date === today) {
+                todayClasses++;
+            }
+            if (cls.status === 'completed') {
+                completedClasses++;
+            } else {
+                upcomingClasses++;
+            }
+        });
+    });
+    
+    document.getElementById('totalClasses').textContent = totalClasses;
+    document.getElementById('todayClasses').textContent = todayClasses;
+    document.getElementById('completedClasses').textContent = completedClasses;
+    document.getElementById('upcomingClasses').textContent = upcomingClasses;
+}
+
+function showClassDetails(cls) {
+    const modal = new bootstrap.Modal(document.getElementById('classModal'));
+    const modalTitle = document.getElementById('modalTitle');
+    const modalBody = document.getElementById('modalBody');
+    const joinBtn = document.getElementById('joinClassBtn');
+    
+    modalTitle.textContent = cls.subject + ' - ' + cls.student;
+    
+    let statusBadge = '';
+    switch(cls.status) {
+        case 'completed':
+            statusBadge = '<span class="badge bg-success">Completed</span>';
+            break;
+        case 'ongoing':
+            statusBadge = '<span class="badge bg-warning">Ongoing</span>';
+            break;
+        case 'cancelled':
+            statusBadge = '<span class="badge bg-danger">Cancelled</span>';
+            break;
+        default:
+            statusBadge = '<span class="badge bg-primary">Scheduled</span>';
+    }
+    
+    modalBody.innerHTML = `
+        <div class="row">
+            <div class="col-md-6">
+                <p><strong>Time:</strong> ${cls.time} - ${cls.end_time}</p>
+                <p><strong>Duration:</strong> ${cls.duration} minutes</p>
+                <p><strong>Subject:</strong> ${cls.subject}</p>
+                <p><strong>Student:</strong> ${cls.student}</p>
+            </div>
+            <div class="col-md-6">
+                <p><strong>Class Type:</strong> ${cls.class_type.replace('_', ' ').toUpperCase()}</p>
+                <p><strong>Grade:</strong> ${cls.grade || 'Not specified'}</p>
+                <p><strong>Board:</strong> ${cls.board || 'Not specified'}</p>
+                <p><strong>Status:</strong> ${statusBadge}</p>
+            </div>
+        </div>
+        ${cls.platform ? `<p><strong>Platform:</strong> ${cls.platform.toUpperCase()}</p>` : ''}
+    `;
+    
+    // Show/hide join button based on meeting link and status
+    if (cls.meeting_link && cls.status === 'scheduled') {
+        joinBtn.style.display = 'inline-block';
+        joinBtn.onclick = () => {
+            window.open(cls.meeting_link, '_blank');
+        };
+    } else {
+        joinBtn.style.display = 'none';
+    }
+    
+    modal.show();
+}
+
+function showError(message) {
+    document.getElementById('calendarGrid').innerHTML = `
+        <div class="text-center py-5">
+            <div class="alert alert-danger" role="alert">
+                <i class="fas fa-exclamation-triangle me-2"></i>${message}
+            </div>
+            <button class="btn btn-primary" onclick="loadTimetable()">
+                <i class="fas fa-refresh me-2"></i>Retry
+            </button>
+        </div>
+    `;
+}
+</script>
+{% endblock %}

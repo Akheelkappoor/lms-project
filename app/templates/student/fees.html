@@ -2,6 +2,10 @@
 
 {% block title %}Student Fees - {{ student.full_name }}{% endblock %}
 
+{% block extra_head %}
+<meta name="csrf-token" content="{{ csrf_token() }}">
+{% endblock %}
+
 {% block content %}
 <div class="container-fluid py-4">
     <!-- Page Header -->
@@ -12,7 +16,7 @@
                     <i class="fas fa-money-bill-wave"></i>
                     Fee Details - {{ student.full_name }}
                 </h1>
-                <p class="page-subtitle">Manage and track student fee payments</p>
+                <p class="page-subtitle">View and manage student fee payments</p>
             </div>
             <div>
                 <a href="{{ url_for('admin.students') }}" class="btn btn-secondary">
@@ -125,6 +129,66 @@
                 </div>
             </div>
 
+            <!-- Upcoming Payments -->
+            {% if next_payment_info and next_payment_info.next_due_amount > 0 %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="card-title mb-0">
+                        <i class="fas fa-calendar-check text-warning"></i>
+                        Next Payment Due
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="text-center">
+                        <div class="bg-light rounded p-3 mb-3">
+                            <h4 class="text-danger mb-1">₹{{ "{:,.0f}".format(next_payment_info.next_due_amount) }}</h4>
+                            <small class="text-muted">
+                                {% if next_payment_info.next_due_date %}
+                                Due: {{ next_payment_info.next_due_date }}
+                                {% else %}
+                                No due date set
+                                {% endif %}
+                            </small>
+                        </div>
+                        {% if current_user.has_permission('student_management') %}
+                        <button class="btn btn-success btn-sm w-100" onclick="recordNewPayment({{ next_payment_info.next_due_amount }})">
+                            <i class="fas fa-credit-card"></i>
+                            Pay Now
+                        </button>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Upcoming Installments -->
+            {% if upcoming_installments %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="card-title mb-0">
+                        <i class="fas fa-clock text-info"></i>
+                        Upcoming Payments
+                    </h6>
+                </div>
+                <div class="card-body">
+                    {% for installment in upcoming_installments %}
+                    <div class="d-flex justify-content-between align-items-center py-2 {% if not loop.last %}border-bottom{% endif %}">
+                        <div>
+                            <small class="text-muted">{{ installment.description or "Payment " + loop.index|string }}</small>
+                            <div class="fw-bold">₹{{ "{:,.0f}".format(installment.amount - installment.get('paid_amount', 0)) }}</div>
+                        </div>
+                        <div class="text-end">
+                            <small class="text-muted">{{ installment.due_date }}</small>
+                            {% if installment.get('is_overdue') %}
+                            <div><span class="badge badge-danger">Overdue</span></div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
             <!-- Quick Actions -->
             {% if current_user.has_permission('student_management') %}
             <div class="card">
@@ -145,17 +209,46 @@
                         <button class="btn btn-info btn-sm" onclick="downloadStatement()">
                             <i class="fas fa-download"></i> Download Statement
                         </button>
-                        <button class="btn btn-secondary btn-sm" onclick="editFeeStructure()">
-                            <i class="fas fa-edit"></i> Edit Fee Structure
-                        </button>
+                        <a href="/admin/fee-collection" class="btn btn-outline-secondary btn-sm">
+                            <i class="fas fa-edit"></i> Manage in Fee Collection
+                        </a>
                     </div>
                 </div>
             </div>
             {% endif %}
         </div>
 
-        <!-- Payment History -->
+        <!-- Main Content -->
         <div class="col-lg-8">
+            <!-- Installment Status (Uses Same Data as Fee Collection) -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h6 class="card-title mb-0">
+                            <i class="fas fa-calendar-check"></i>
+                            Payment Schedule & Status
+                        </h6>
+                        <div>
+                            <button class="btn btn-outline-primary btn-sm" onclick="loadPaymentSchedule()">
+                                <i class="fas fa-sync"></i> Refresh
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div id="paymentScheduleContainer">
+                        <!-- Payment schedule will be loaded here via JavaScript -->
+                        <div class="text-center py-4">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <p class="text-muted mt-2">Loading payment schedule...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Payment History -->
             <div class="card">
                 <div class="card-header">
                     <div class="d-flex justify-content-between align-items-center">
@@ -184,6 +277,7 @@
                                     <th>Date</th>
                                     <th>Amount</th>
                                     <th>Mode</th>
+                                    <th>Installment</th>
                                     <th>Notes</th>
                                     <th>Recorded By</th>
                                     <th>Actions</th>
@@ -210,6 +304,13 @@
                                         </span>
                                     </td>
                                     <td>
+                                        {% if payment.get('installment_id') %}
+                                        <span class="badge badge-info">Installment #{{ payment.installment_id }}</span>
+                                        {% else %}
+                                        <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
                                         <div class="text-truncate" style="max-width: 150px;" title="{{ payment.notes or 'No notes' }}">
                                             {{ payment.notes or '-' }}
                                         </div>
@@ -228,11 +329,6 @@
                                             <button class="btn btn-outline-success" onclick="downloadReceipt({{ loop.index }})">
                                                 <i class="fas fa-receipt"></i>
                                             </button>
-                                            {% if current_user.has_permission('student_management') %}
-                                            <button class="btn btn-outline-warning" onclick="editPayment({{ loop.index }})">
-                                                <i class="fas fa-edit"></i>
-                                            </button>
-                                            {% endif %}
                                         </div>
                                     </td>
                                 </tr>
@@ -295,7 +391,7 @@
     </div>
 </div>
 
-<!-- Payment Recording Modal -->
+<!-- Simple Payment Recording Modal -->
 {% if current_user.has_permission('student_management') %}
 <div class="modal fade" id="paymentModal" tabindex="-1">
     <div class="modal-dialog modal-lg">
@@ -377,6 +473,12 @@
 {% endif %}
 
 <script>
+// Helper function to get CSRF token
+function getCSRFToken() {
+    const metaTag = document.querySelector('meta[name="csrf-token"]');
+    return metaTag ? metaTag.getAttribute('content') : '';
+}
+
 // Set today's date as default
 document.addEventListener('DOMContentLoaded', function() {
     const today = new Date().toISOString().split('T')[0];
@@ -384,23 +486,33 @@ document.addEventListener('DOMContentLoaded', function() {
     if (paymentDate) {
         paymentDate.value = today;
     }
+    
+    // Load payment schedule on page load
+    loadPaymentSchedule();
 });
 
 // Filter payments by mode
-document.getElementById('filterPayments').addEventListener('change', function() {
-    const filterValue = this.value;
-    const rows = document.querySelectorAll('#paymentHistoryTable tr');
-    
-    rows.forEach(row => {
-        if (!filterValue || row.getAttribute('data-payment-mode') === filterValue) {
-            row.style.display = '';
-        } else {
-            row.style.display = 'none';
-        }
+const filterPayments = document.getElementById('filterPayments');
+if (filterPayments) {
+    filterPayments.addEventListener('change', function() {
+        const filterValue = this.value;
+        const rows = document.querySelectorAll('#paymentHistoryTable tr');
+        
+        rows.forEach(row => {
+            if (!filterValue || row.getAttribute('data-payment-mode') === filterValue) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+        });
     });
-});
+}
 
-function recordNewPayment() {
+// Payment recording functions
+function recordNewPayment(suggestedAmount = null) {
+    if (suggestedAmount) {
+        document.getElementById('paymentAmount').value = suggestedAmount;
+    }
     new bootstrap.Modal(document.getElementById('paymentModal')).show();
 }
 
@@ -421,18 +533,29 @@ function processPayment() {
         return;
     }
     
-    const notesWithRef = reference ? `${notes} [Ref: ${reference}]` : notes;
+    const btn = event.target;
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+    btn.disabled = true;
     
-    fetch('/student/students/{{ student.id }}/fees/payment', {
+    const csrfToken = getCSRFToken();
+    const headers = {
+        'Content-Type': 'application/json'
+    };
+    if (csrfToken) {
+        headers['X-CSRFToken'] = csrfToken;
+    }
+    
+    fetch('/api/v1/finance/fees/payment', {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
+        headers: headers,
         body: JSON.stringify({
+            student_id: {{ student.id }},
             amount: parseFloat(amount),
             payment_mode: mode,
             payment_date: date,
-            notes: notesWithRef
+            notes: notes,
+            reference_number: reference
         })
     })
     .then(response => response.json())
@@ -448,9 +571,14 @@ function processPayment() {
     .catch(error => {
         console.error('Error:', error);
         alert('Error recording payment');
+    })
+    .finally(() => {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
     });
 }
 
+// Payment history functions
 function viewPaymentDetails(paymentIndex) {
     alert(`Viewing details for payment #${paymentIndex}`);
 }
@@ -459,17 +587,20 @@ function downloadReceipt(paymentIndex) {
     alert(`Downloading receipt for payment #${paymentIndex}`);
 }
 
-function editPayment(paymentIndex) {
-    alert(`Editing payment #${paymentIndex}`);
-}
-
+// Quick action functions
 function sendReminder() {
     if (confirm('Send payment reminder to this student?')) {
+        const csrfToken = getCSRFToken();
+        const headers = {
+            'Content-Type': 'application/json'
+        };
+        if (csrfToken) {
+            headers['X-CSRFToken'] = csrfToken;
+        }
+        
         fetch('/api/v1/finance/fees/reminder', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
+            headers: headers,
             body: JSON.stringify({
                 student_id: {{ student.id }}
             })
@@ -493,8 +624,160 @@ function downloadStatement() {
     window.open(`/student/students/{{ student.id }}/fees/statement`, '_blank');
 }
 
-function editFeeStructure() {
-    alert('Fee structure editing functionality will be implemented soon.');
+// Payment Schedule Functions (Uses Same API as Fee Collection)
+function loadPaymentSchedule() {
+    const studentId = {{ student.id }};
+    const container = document.getElementById('paymentScheduleContainer');
+    
+    // Show loading
+    container.innerHTML = `
+        <div class="text-center py-4">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="text-muted mt-2">Loading payment schedule...</p>
+        </div>
+    `;
+    
+    // Use the same API endpoint as fee collection
+    fetch(`/api/v1/finance/installments/${studentId}`)
+        .then(response => response.json())
+        .then(data => {
+            displayPaymentSchedule(data);
+        })
+        .catch(error => {
+            console.error('Error loading payment schedule:', error);
+            container.innerHTML = `
+                <div class="text-center py-4">
+                    <i class="fas fa-info-circle fa-2x text-info mb-3"></i>
+                    <h6 class="text-muted">No Payment Schedule</h6>
+                    <p class="text-muted small">This student doesn't have a payment schedule yet.</p>
+                    <small class="text-muted">Payment schedules can be created from the <a href="/admin/fee-collection">Fee Collection</a> page.</small>
+                </div>
+            `;
+        });
+}
+
+function displayPaymentSchedule(data) {
+    const container = document.getElementById('paymentScheduleContainer');
+    
+    if (!data.has_installment_plan) {
+        container.innerHTML = `
+            <div class="text-center py-4">
+                <i class="fas fa-info-circle fa-2x text-info mb-3"></i>
+                <h6 class="text-muted">No Payment Schedule</h6>
+                <p class="text-muted small">This student doesn't have a payment schedule yet.</p>
+                <small class="text-muted">Payment schedules can be created from the <a href="/admin/fee-collection">Fee Collection</a> page.</small>
+            </div>
+        `;
+        return;
+    }
+    
+    let html = `
+        <div class="row mb-3">
+            <div class="col-md-12">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div>
+                        <h6 class="mb-1">Payment Schedule Overview</h6>
+                        <small class="text-muted">Total: ₹${data.fee_structure.total_fee.toLocaleString()} | 
+                        Paid: ₹${data.fee_structure.amount_paid.toLocaleString()} | 
+                        Outstanding: ₹${data.fee_structure.balance_amount.toLocaleString()}</small>
+                    </div>
+                    <div>
+                        <span class="badge ${data.summary.overdue > 0 ? 'badge-danger' : 'badge-success'}">
+                            ${data.summary.completed}/${data.summary.total_installments} Completed
+                            ${data.summary.overdue > 0 ? ` | ${data.summary.overdue} Overdue` : ''}
+                        </span>
+                    </div>
+                </div>
+                
+                <!-- Progress Bar -->
+                <div class="mb-4">
+                    <div class="d-flex justify-content-between small mb-1">
+                        <span>Payment Progress</span>
+                        <span>${((data.paid_amount / data.total_amount) * 100).toFixed(1)}%</span>
+                    </div>
+                    <div class="progress" style="height: 8px;">
+                        <div class="progress-bar bg-success" style="width: ${(data.paid_amount / data.total_amount) * 100}%"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row">
+    `;
+    
+    // Display installments - simplified view
+    data.installment_plan.installments.forEach((installment, index) => {
+        const isOverdue = new Date(installment.due_date) < new Date() && installment.status === 'pending';
+        const statusClass = getInstallmentStatusClass(installment.status, isOverdue);
+        const statusIcon = getInstallmentStatusIcon(installment.status, isOverdue);
+        
+        html += `
+            <div class="col-md-4 col-sm-6 mb-3">
+                <div class="card ${statusClass}">
+                    <div class="card-body p-3">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <h6 class="mb-0">${installment.description || `Payment ${index + 1}`}</h6>
+                            <i class="fas ${statusIcon}"></i>
+                        </div>
+                        <div class="mb-2">
+                            <div class="fw-bold">₹${installment.amount.toLocaleString()}</div>
+                            <small class="text-muted">Due: ${installment.due_date}</small>
+                            ${installment.paid_date ? `<br><small class="text-success">Paid: ${installment.paid_date}</small>` : ''}
+                            ${isOverdue ? `<br><small class="text-danger">Overdue by ${Math.ceil((new Date() - new Date(installment.due_date)) / (1000 * 60 * 60 * 24))} days</small>` : ''}
+                        </div>
+                        <span class="badge ${getInstallmentStatusBadge(installment.status, isOverdue)} w-100">
+                            ${installment.status.replace('_', ' ').toUpperCase()}
+                            ${isOverdue ? ' - OVERDUE' : ''}
+                        </span>
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+    
+    html += `
+        </div>
+        <div class="text-center mt-3">
+            <small class="text-muted">
+                <i class="fas fa-info-circle"></i>
+                For advanced management, visit <a href="/admin/fee-collection">Fee Collection</a> page
+            </small>
+        </div>
+    `;
+    
+    container.innerHTML = html;
+}
+
+function getInstallmentStatusClass(status, isOverdue) {
+    if (isOverdue) return 'border-danger';
+    switch(status) {
+        case 'paid': return 'border-success';
+        case 'pending': return 'border-warning';
+        case 'cancelled': return 'border-secondary';
+        default: return 'border-secondary';
+    }
+}
+
+function getInstallmentStatusIcon(status, isOverdue) {
+    if (isOverdue) return 'fa-exclamation-triangle text-danger';
+    switch(status) {
+        case 'paid': return 'fa-check-circle text-success';
+        case 'pending': return 'fa-clock text-warning';
+        case 'cancelled': return 'fa-ban text-secondary';
+        default: return 'fa-question-circle text-secondary';
+    }
+}
+
+function getInstallmentStatusBadge(status, isOverdue) {
+    if (isOverdue) return 'badge-danger';
+    switch(status) {
+        case 'paid': return 'badge-success';
+        case 'pending': return 'badge-warning';
+        case 'cancelled': return 'badge-secondary';
+        default: return 'badge-secondary';
+    }
 }
 </script>
 
@@ -518,7 +801,16 @@ function editFeeStructure() {
     height: 50px;
     font-size: 1.5rem;
     margin: 0 auto 1rem;
+    border-radius: 0.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
 }
+
+.stat-icon.success { background: linear-gradient(135deg, #198754, #146c43); }
+.stat-icon.primary { background: linear-gradient(135deg, #0d6efd, #0a58ca); }
+.stat-icon.danger { background: linear-gradient(135deg, #dc3545, #b02a37); }
 
 .stat-card h3 {
     font-size: 1.5rem;
@@ -537,6 +829,45 @@ function editFeeStructure() {
 .form-text {
     color: #6c757d;
     font-size: 0.875rem;
+}
+
+.badge-success { background-color: #198754; }
+.badge-warning { background-color: #ffc107; color: #000; }
+.badge-danger { background-color: #dc3545; }
+.badge-info { background-color: #0dcaf0; color: #000; }
+.badge-secondary { background-color: #6c757d; }
+.badge-primary { background-color: #0d6efd; }
+
+.border-success { border-color: #198754 !important; }
+.border-warning { border-color: #ffc107 !important; }
+.border-danger { border-color: #dc3545 !important; }
+.border-secondary { border-color: #6c757d !important; }
+
+.text-success { color: #198754 !important; }
+.text-warning { color: #ffc107 !important; }
+.text-danger { color: #dc3545 !important; }
+.text-info { color: #0dcaf0 !important; }
+.text-secondary { color: #6c757d !important; }
+
+/* Enhanced cards */
+.card {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+}
+
+/* Responsive improvements */
+@media (max-width: 768px) {
+    .stat-card {
+        margin-bottom: 1rem;
+    }
+    
+    .page-title {
+        font-size: 1.5rem;
+    }
 }
 </style>
 {% endblock %}

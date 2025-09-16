@@ -1,0 +1,320 @@
+{% extends "email/base_email.html" %}
+
+{% block title %}Monthly Progress Report - {{ student.full_name }}{% endblock %}
+{% block email_title %}Monthly Progress Report{% endblock %}
+{% block email_subtitle %}{{ month }} - Academic Performance Summary{% endblock %}
+
+{% block extra_styles %}
+<style>
+    .progress-bar {
+        width: 100%;
+        height: 20px;
+        background-color: #ecf0f1;
+        border-radius: 10px;
+        overflow: hidden;
+        margin: 5px 0;
+    }
+    
+    .progress-fill {
+        height: 100%;
+        transition: width 0.3s ease;
+        border-radius: 10px;
+    }
+    
+    .progress-excellent { background: linear-gradient(45deg, #27ae60, #2ecc71); }
+    .progress-good { background: linear-gradient(45deg, #2980b9, #3498db); }
+    .progress-average { background: linear-gradient(45deg, #f39c12, #f1c40f); }
+    .progress-poor { background: linear-gradient(45deg, #e74c3c, #ec7063); }
+    
+    .metric-card {
+        background: white;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        padding: 20px;
+        margin: 10px 0;
+        text-align: center;
+        flex: 1;
+        min-width: 150px;
+    }
+    
+    .metric-number {
+        font-size: 28px;
+        font-weight: bold;
+        margin-bottom: 8px;
+    }
+    
+    .metric-label {
+        font-size: 14px;
+        color: #666;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .subject-performance {
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 15px;
+        margin: 10px 0;
+        border-left: 4px solid #3498db;
+    }
+    
+    .grade-a { color: #27ae60; }
+    .grade-b { color: #2980b9; }
+    .grade-c { color: #f39c12; }
+    .grade-d { color: #e67e22; }
+    .grade-f { color: #e74c3c; }
+    
+    .recommendations {
+        background: #e8f4fd;
+        border: 1px solid #bee5eb;
+        border-radius: 8px;
+        padding: 15px;
+        margin: 15px 0;
+    }
+    
+    .goals {
+        background: #f0f8e7;
+        border: 1px solid #c3e6cb;
+        border-radius: 8px;
+        padding: 15px;
+        margin: 15px 0;
+    }
+</style>
+{% endblock %}
+
+{% block recipient_name %}{{ student.full_name }}{% endblock %}
+
+{% block email_content %}
+<div class="alert-box alert-info">
+    <strong>📊 Monthly Report Ready!</strong> Here's a comprehensive overview of {{ student.full_name }}'s academic progress for {{ month }}.
+</div>
+
+<div class="content-section">
+    <h2>Overall Performance Summary</h2>
+    <div style="display: flex; justify-content: space-around; flex-wrap: wrap; margin: 20px 0;">
+        <div class="metric-card">
+            <div class="metric-number grade-{{ attendance_summary.grade.lower() if attendance_summary.grade else 'c' }}">
+                {{ "%.1f"|format(attendance_summary.percentage) }}%
+            </div>
+            <div class="metric-label">Attendance Rate</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-number grade-{{ performance_metrics.overall_grade.lower() if performance_metrics.overall_grade else 'c' }}">
+                {{ performance_metrics.overall_score or 'N/A' }}
+            </div>
+            <div class="metric-label">Overall Score</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-number" style="color: #2980b9;">
+                {{ progress_data.total_classes or 0 }}
+            </div>
+            <div class="metric-label">Classes Completed</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-number" style="color: #8e44ad;">
+                {{ progress_data.assignments_completed or 0 }}
+            </div>
+            <div class="metric-label">Assignments Done</div>
+        </div>
+    </div>
+</div>
+
+{% if attendance_summary %}
+<div class="content-section">
+    <h2>Attendance Analysis</h2>
+    <div class="info-grid">
+        <div class="info-row">
+            <div class="info-label">Total Classes:</div>
+            <div class="info-value">{{ attendance_summary.total_classes }}</div>
+        </div>
+        <div class="info-row">
+            <div class="info-label">Classes Attended:</div>
+            <div class="info-value">{{ attendance_summary.attended_classes }}</div>
+        </div>
+        <div class="info-row">
+            <div class="info-label">Classes Missed:</div>
+            <div class="info-value">{{ attendance_summary.total_classes - attendance_summary.attended_classes }}</div>
+        </div>
+    </div>
+    
+    <div style="margin: 15px 0;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+            <span>Attendance Progress</span>
+            <span style="font-weight: bold;">{{ "%.1f"|format(attendance_summary.percentage) }}%</span>
+        </div>
+        <div class="progress-bar">
+            {% set progress_class = 'progress-excellent' if attendance_summary.percentage >= 90 else 'progress-good' if attendance_summary.percentage >= 80 else 'progress-average' if attendance_summary.percentage >= 70 else 'progress-poor' %}
+            <div class="progress-fill {{ progress_class }}" style="width: {{ attendance_summary.percentage }}%;"></div>
+        </div>
+        <div style="display: flex; justify-content: space-between; font-size: 12px; color: #666; margin-top: 5px;">
+            <span>0%</span>
+            <span style="color: #e74c3c;">Min: 75%</span>
+            <span style="color: #27ae60;">Target: 90%</span>
+            <span>100%</span>
+        </div>
+    </div>
+    
+    {% if attendance_summary.percentage < 75 %}
+    <div class="alert-box alert-danger">
+        <strong>⚠️ Attendance Below Minimum:</strong> Current attendance is below the required 75%. Immediate improvement needed.
+    </div>
+    {% elif attendance_summary.percentage < 85 %}
+    <div class="alert-box alert-warning">
+        <strong>⚡ Room for Improvement:</strong> Attendance is acceptable but could be better. Aim for 90%+.
+    </div>
+    {% else %}
+    <div class="alert-box alert-success">
+        <strong>✅ Excellent Attendance:</strong> Keep up the great work! Your consistent attendance contributes to better learning.
+    </div>
+    {% endif %}
+</div>
+{% endif %}
+
+{% if subjects_progress %}
+<div class="content-section">
+    <h2>Subject-Wise Performance</h2>
+    {% for subject in subjects_progress %}
+    <div class="subject-performance">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+            <h3 style="margin: 0; color: #2c3e50;">{{ subject.name }}</h3>
+            <span class="grade-{{ subject.grade.lower() if subject.grade else 'c' }}" style="font-size: 18px; font-weight: bold;">
+                Grade: {{ subject.grade or 'N/A' }}
+            </span>
+        </div>
+        
+        <div class="info-grid">
+            <div class="info-row">
+                <div class="info-label">Classes Completed:</div>
+                <div class="info-value">{{ subject.classes_completed }}</div>
+            </div>
+            <div class="info-row">
+                <div class="info-label">Average Score:</div>
+                <div class="info-value">{{ subject.average_score }}%</div>
+            </div>
+            <div class="info-row">
+                <div class="info-label">Progress:</div>
+                <div class="info-value">{{ subject.completion_percentage }}% Complete</div>
+            </div>
+        </div>
+        
+        <div style="margin: 10px 0;">
+            <div class="progress-bar">
+                {% set progress_class = 'progress-excellent' if subject.average_score >= 90 else 'progress-good' if subject.average_score >= 80 else 'progress-average' if subject.average_score >= 70 else 'progress-poor' %}
+                <div class="progress-fill {{ progress_class }}" style="width: {{ subject.average_score }}%;"></div>
+            </div>
+        </div>
+        
+        {% if subject.tutor_feedback %}
+        <div style="background: white; padding: 10px; border-radius: 4px; margin-top: 10px;">
+            <strong>Tutor Feedback:</strong> {{ subject.tutor_feedback }}
+        </div>
+        {% endif %}
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+{% if performance_metrics %}
+<div class="content-section">
+    <h2>Performance Metrics</h2>
+    <div class="info-grid">
+        <div class="info-row">
+            <div class="info-label">Overall Grade:</div>
+            <div class="info-value">
+                <span class="grade-{{ performance_metrics.overall_grade.lower() if performance_metrics.overall_grade else 'c' }}">
+                    {{ performance_metrics.overall_grade or 'Not Assigned' }}
+                </span>
+            </div>
+        </div>
+        <div class="info-row">
+            <div class="info-label">Improvement Trend:</div>
+            <div class="info-value">
+                {% if performance_metrics.trend == 'improving' %}
+                    <span style="color: #27ae60;">📈 Improving</span>
+                {% elif performance_metrics.trend == 'declining' %}
+                    <span style="color: #e74c3c;">📉 Declining</span>
+                {% else %}
+                    <span style="color: #f39c12;">➡️ Stable</span>
+                {% endif %}
+            </div>
+        </div>
+        <div class="info-row">
+            <div class="info-label">Participation Level:</div>
+            <div class="info-value">{{ performance_metrics.participation or 'Good' }}</div>
+        </div>
+        <div class="info-row">
+            <div class="info-label">Assignment Submission:</div>
+            <div class="info-value">{{ performance_metrics.assignment_completion }}%</div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% if recommendations %}
+<div class="recommendations">
+    <h2 style="color: #2980b9; margin-bottom: 15px;">📋 Teacher Recommendations</h2>
+    <ul class="action-list">
+        {% for recommendation in recommendations %}
+        <li>{{ recommendation }}</li>
+        {% endfor %}
+    </ul>
+</div>
+{% endif %}
+
+{% if next_month_goals %}
+<div class="goals">
+    <h2 style="color: #27ae60; margin-bottom: 15px;">🎯 Goals for Next Month</h2>
+    <ul class="action-list">
+        {% for goal in next_month_goals %}
+        <li>{{ goal }}</li>
+        {% endfor %}
+    </ul>
+</div>
+{% endif %}
+
+<div class="content-section">
+    <h2>Areas of Excellence</h2>
+    {% if performance_metrics.strengths %}
+    <ul style="list-style: none; padding: 0;">
+        {% for strength in performance_metrics.strengths %}
+        <li style="padding: 5px 0; color: #27ae60;">✨ {{ strength }}</li>
+        {% endfor %}
+    </ul>
+    {% else %}
+    <p style="color: #666; font-style: italic;">Continue working hard to identify your strengths!</p>
+    {% endif %}
+</div>
+
+<div class="content-section">
+    <h2>Areas for Improvement</h2>
+    {% if performance_metrics.improvement_areas %}
+    <ul style="list-style: none; padding: 0;">
+        {% for area in performance_metrics.improvement_areas %}
+        <li style="padding: 5px 0; color: #e67e22;">🔄 {{ area }}</li>
+        {% endfor %}
+    </ul>
+    {% else %}
+    <p style="color: #666; font-style: italic;">Keep up the excellent work across all areas!</p>
+    {% endif %}
+</div>
+
+<div class="alert-box alert-info">
+    <strong>💡 Next Steps:</strong> Schedule a review meeting with your coordinator to discuss this report and plan for continued success.
+</div>
+{% endblock %}
+
+{% block email_actions %}
+<div class="text-center">
+    <a href="#" class="button button-success">View Detailed Report</a>
+    <a href="#" class="button button-secondary">Schedule Review Meeting</a>
+    <a href="#" class="button button-secondary">Contact Coordinator</a>
+</div>
+{% endblock %}
+
+{% block email_closing %}
+<div class="mt-20">
+    <p>This report reflects {{ student.full_name }}'s progress throughout {{ month }}. We're proud of the effort shown and are committed to supporting continued growth and success.</p>
+    <p>If you have any questions about this report or would like to discuss academic progress, please feel free to contact our academic team.</p>
+    <p>Keep up the great work!<br>Academic Team</p>
+</div>
+{% endblock %}

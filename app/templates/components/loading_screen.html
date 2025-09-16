@@ -1,0 +1,221 @@
+<!-- Loading Screen Component -->
+<div id="dashboardLoader" class="dashboard-loader">
+    <div class="loader-backdrop">
+        <div class="loader-content">
+            <div class="loader-spinner">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+            </div>
+            <div class="loader-text">
+                <h5 class="mb-2">Loading Dashboard</h5>
+                <p class="text-muted mb-3" id="loadingMessage">Preparing your data...</p>
+                <div class="progress" style="height: 4px;">
+                    <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                         id="loadingProgress" style="width: 0%"></div>
+                </div>
+                <small class="text-muted mt-2" id="loadingStage">Initializing...</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.dashboard-loader {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 9999;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(2px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.loader-backdrop {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+    padding: 2rem;
+    text-align: center;
+    min-width: 300px;
+}
+
+.loader-spinner {
+    margin-bottom: 1.5rem;
+}
+
+.loader-spinner .spinner-border {
+    width: 3rem;
+    height: 3rem;
+}
+
+.loader-text h5 {
+    color: #495057;
+    font-weight: 600;
+}
+
+.progress {
+    max-width: 200px;
+    margin: 0 auto;
+}
+
+#loadingStage {
+    display: block;
+    margin-top: 0.5rem;
+    font-size: 0.75rem;
+    color: #6c757d;
+}
+
+/* Hide loader by default */
+.dashboard-loader.hidden {
+    display: none;
+}
+
+/* Fade out animation */
+.dashboard-loader.fade-out {
+    opacity: 0;
+    transition: opacity 0.3s ease-out;
+}
+</style>
+
+<script>
+// Dashboard Loading Manager
+class DashboardLoader {
+    constructor() {
+        this.loader = document.getElementById('dashboardLoader');
+        this.progressBar = document.getElementById('loadingProgress');
+        this.messageEl = document.getElementById('loadingMessage');
+        this.stageEl = document.getElementById('loadingStage');
+        this.currentProgress = 0;
+        this.stages = [
+            { message: 'Connecting to database...', duration: 500 },
+            { message: 'Loading user data...', duration: 300 },
+            { message: 'Fetching statistics...', duration: 400 },
+            { message: 'Preparing dashboard...', duration: 300 },
+            { message: 'Almost ready...', duration: 200 }
+        ];
+    }
+
+    show() {
+        if (this.loader) {
+            this.loader.classList.remove('hidden', 'fade-out');
+            this.simulateLoading();
+        }
+    }
+
+    hide() {
+        if (this.loader) {
+            this.loader.classList.add('fade-out');
+            setTimeout(() => {
+                this.loader.classList.add('hidden');
+            }, 300);
+        }
+    }
+
+    updateProgress(percent, message = null, stage = null) {
+        if (this.progressBar) {
+            this.progressBar.style.width = percent + '%';
+        }
+        if (message && this.messageEl) {
+            this.messageEl.textContent = message;
+        }
+        if (stage && this.stageEl) {
+            this.stageEl.textContent = stage;
+        }
+    }
+
+    simulateLoading() {
+        let currentStage = 0;
+        let progress = 0;
+        const totalStages = this.stages.length;
+
+        const runStage = () => {
+            if (currentStage >= totalStages) {
+                this.updateProgress(100, 'Ready!', 'Complete');
+                setTimeout(() => this.hide(), 200);
+                return;
+            }
+
+            const stage = this.stages[currentStage];
+            const targetProgress = ((currentStage + 1) / totalStages) * 100;
+            
+            this.updateProgress(progress, stage.message, `Step ${currentStage + 1} of ${totalStages}`);
+            
+            // Animate progress
+            const progressStep = (targetProgress - progress) / 10;
+            const animate = () => {
+                progress += progressStep;
+                this.updateProgress(Math.min(progress, targetProgress));
+                
+                if (progress < targetProgress) {
+                    setTimeout(animate, 20);
+                } else {
+                    setTimeout(() => {
+                        currentStage++;
+                        runStage();
+                    }, stage.duration);
+                }
+            };
+            
+            animate();
+        };
+
+        runStage();
+    }
+}
+
+// Initialize loader
+const dashboardLoader = new DashboardLoader();
+
+// Show loader on page load
+document.addEventListener('DOMContentLoaded', function() {
+    // Show loader immediately
+    dashboardLoader.show();
+    
+    // Hide loader when page is fully loaded
+    window.addEventListener('load', function() {
+        setTimeout(() => {
+            dashboardLoader.hide();
+        }, 500);
+    });
+    
+    // Auto-hide loader after 5 seconds (fallback)
+    setTimeout(() => {
+        dashboardLoader.hide();
+    }, 5000);
+});
+
+// Error handling for slow loading
+let slowLoadingWarning;
+setTimeout(() => {
+    if (!dashboardLoader.loader.classList.contains('hidden')) {
+        dashboardLoader.updateProgress(70, 'Taking longer than expected...', 'Please wait');
+        
+        // Show additional help after 10 seconds
+        slowLoadingWarning = setTimeout(() => {
+            dashboardLoader.updateProgress(85, 'Still loading... Check your connection', 'Almost there');
+        }, 3000);
+    }
+}, 3000);
+
+// Clear warnings when loader is hidden
+document.addEventListener('DOMContentLoaded', function() {
+    const observer = new MutationObserver((mutations) => {
+        mutations.forEach((mutation) => {
+            if (mutation.target.classList.contains('hidden')) {
+                if (slowLoadingWarning) {
+                    clearTimeout(slowLoadingWarning);
+                }
+            }
+        });
+    });
+    
+    if (dashboardLoader.loader) {
+        observer.observe(dashboardLoader.loader, { attributes: true, attributeFilter: ['class'] });
+    }
+});
+</script>

@@ -1,0 +1,394 @@
+{% extends "base.html" %}
+
+{% block title %}Demo Class Feedback - {{ APP_NAME }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h1 class="page-title">
+                <i class="fas fa-comments"></i>
+                Demo Class Feedback
+            </h1>
+            <p class="page-subtitle">Provide feedback for the demo class</p>
+        </div>
+        <div class="header-actions">
+            <a href="{{ url_for('demo.demo_class_details', demo_class_id=demo_class.id) }}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i>
+                Back to Class Details
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <!-- Class Information -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="card-title mb-0">
+                        <i class="fas fa-info-circle"></i>
+                        Demo Class Information
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="info-item">
+                                <label>Student Name:</label>
+                                <span>{{ demo_class.demo_student.full_name }}</span>
+                            </div>
+                            <div class="info-item">
+                                <label>Subject:</label>
+                                <span>{{ demo_class.subject }}</span>
+                            </div>
+                            <div class="info-item">
+                                <label>Date & Time:</label>
+                                <span>{{ demo_class.scheduled_date.strftime('%d %b %Y') }} at {{ demo_class.scheduled_time.strftime('%I:%M %p') }}</span>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="info-item">
+                                <label>Tutor:</label>
+                                <span>{{ demo_class.tutor.user.full_name if demo_class.tutor else 'Not assigned' }}</span>
+                            </div>
+                            <div class="info-item">
+                                <label>Duration:</label>
+                                <span>{{ demo_class.duration or 45 }} minutes</span>
+                            </div>
+                            <div class="info-item">
+                                <label>Status:</label>
+                                <span class="badge badge-{{ 'success' if demo_class.status == 'completed' else 'primary' }}">
+                                    {{ demo_class.status.title() }}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Feedback Form -->
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="card-title mb-0">
+                        <i class="fas fa-star"></i>
+                        Demo Class Feedback
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <form method="POST">
+                        {{ form.hidden_tag() }}
+                        
+                        <!-- Overall Rating -->
+                        <div class="form-group mb-4">
+                            <label class="form-label">
+                                <i class="fas fa-star text-warning"></i>
+                                Overall Rating
+                            </label>
+                            <div class="rating-stars mb-2" id="overall-rating">
+                                {% for i in range(1, 6) %}
+                                <span class="star" data-rating="{{ i }}">
+                                    <i class="far fa-star"></i>
+                                </span>
+                                {% endfor %}
+                            </div>
+                            <input type="hidden" name="overall_rating" id="overall_rating_value">
+                            <small class="form-text text-muted">Click on stars to rate the demo class</small>
+                        </div>
+
+                        <!-- Tutor Performance -->
+                        <div class="form-group mb-4">
+                            <label class="form-label">
+                                <i class="fas fa-chalkboard-teacher"></i>
+                                Tutor Performance Rating
+                            </label>
+                            <div class="rating-stars mb-2" id="tutor-rating">
+                                {% for i in range(1, 6) %}
+                                <span class="star" data-rating="{{ i }}">
+                                    <i class="far fa-star"></i>
+                                </span>
+                                {% endfor %}
+                            </div>
+                            <input type="hidden" name="tutor_rating" id="tutor_rating_value">
+                        </div>
+
+                        <!-- Student Engagement -->
+                        <div class="form-group mb-4">
+                            <label class="form-label">
+                                <i class="fas fa-user-graduate"></i>
+                                Student Engagement Level
+                            </label>
+                            <div class="btn-group w-100" role="group" data-toggle="buttons">
+                                <input type="radio" class="btn-check" name="student_engagement" id="engagement_low" value="low">
+                                <label class="btn btn-outline-danger" for="engagement_low">
+                                    <i class="fas fa-frown"></i>
+                                    Low
+                                </label>
+
+                                <input type="radio" class="btn-check" name="student_engagement" id="engagement_medium" value="medium">
+                                <label class="btn btn-outline-warning" for="engagement_medium">
+                                    <i class="fas fa-meh"></i>
+                                    Medium
+                                </label>
+
+                                <input type="radio" class="btn-check" name="student_engagement" id="engagement_high" value="high">
+                                <label class="btn btn-outline-success" for="engagement_high">
+                                    <i class="fas fa-smile"></i>
+                                    High
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Content Understanding -->
+                        <div class="form-group mb-4">
+                            <label class="form-label">
+                                <i class="fas fa-brain"></i>
+                                Content Understanding
+                            </label>
+                            {{ form.content_understanding(class="form-select") }}
+                            {% if form.content_understanding.errors %}
+                                <div class="text-danger mt-1">
+                                    {% for error in form.content_understanding.errors %}
+                                        <small>{{ error }}</small>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Interaction Quality -->
+                        <div class="form-group mb-4">
+                            <label class="form-label">
+                                <i class="fas fa-comments"></i>
+                                Interaction Quality
+                            </label>
+                            {{ form.interaction_quality(class="form-select") }}
+                            {% if form.interaction_quality.errors %}
+                                <div class="text-danger mt-1">
+                                    {% for error in form.interaction_quality.errors %}
+                                        <small>{{ error }}</small>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Areas of Improvement -->
+                        <div class="form-group mb-4">
+                            <label class="form-label">
+                                <i class="fas fa-arrow-up"></i>
+                                Areas of Improvement
+                            </label>
+                            {{ form.improvement_areas(class="form-control", rows="3", placeholder="Describe areas where the student can improve...") }}
+                            {% if form.improvement_areas.errors %}
+                                <div class="text-danger mt-1">
+                                    {% for error in form.improvement_areas.errors %}
+                                        <small>{{ error }}</small>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Strengths -->
+                        <div class="form-group mb-4">
+                            <label class="form-label">
+                                <i class="fas fa-thumbs-up"></i>
+                                Student Strengths
+                            </label>
+                            {{ form.strengths(class="form-control", rows="3", placeholder="Describe the student's strengths and positive aspects...") }}
+                            {% if form.strengths.errors %}
+                                <div class="text-danger mt-1">
+                                    {% for error in form.strengths.errors %}
+                                        <small>{{ error }}</small>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Additional Comments -->
+                        <div class="form-group mb-4">
+                            <label class="form-label">
+                                <i class="fas fa-comment-alt"></i>
+                                Additional Comments
+                            </label>
+                            {{ form.additional_comments(class="form-control", rows="4", placeholder="Any additional feedback or observations...") }}
+                            {% if form.additional_comments.errors %}
+                                <div class="text-danger mt-1">
+                                    {% for error in form.additional_comments.errors %}
+                                        <small>{{ error }}</small>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Recommendation -->
+                        <div class="form-group mb-4">
+                            <label class="form-label">
+                                <i class="fas fa-lightbulb"></i>
+                                Recommendation for Regular Classes
+                            </label>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="recommendation" 
+                                               id="recommend_yes" value="yes">
+                                        <label class="form-check-label text-success" for="recommend_yes">
+                                            <i class="fas fa-check-circle"></i>
+                                            Recommended for regular classes
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="recommendation" 
+                                               id="recommend_no" value="no">
+                                        <label class="form-check-label text-warning" for="recommend_no">
+                                            <i class="fas fa-exclamation-triangle"></i>
+                                            Needs more evaluation
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <div class="form-actions pt-3 border-top">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save"></i>
+                                Submit Feedback
+                            </button>
+                            <a href="{{ url_for('demo.demo_class_details', demo_class_id=demo_class.id) }}" 
+                               class="btn btn-secondary">
+                                <i class="fas fa-times"></i>
+                                Cancel
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.info-item {
+    margin-bottom: 1rem;
+}
+
+.info-item label {
+    font-weight: 600;
+    color: var(--text-secondary);
+    display: inline-block;
+    min-width: 120px;
+}
+
+.rating-stars {
+    display: flex;
+    gap: 0.25rem;
+}
+
+.rating-stars .star {
+    font-size: 1.5rem;
+    color: #ddd;
+    cursor: pointer;
+    transition: color 0.2s;
+}
+
+.rating-stars .star:hover,
+.rating-stars .star.active {
+    color: #ffc107;
+}
+
+.rating-stars .star i {
+    transition: all 0.2s;
+}
+
+.rating-stars .star:hover i,
+.rating-stars .star.active i {
+    transform: scale(1.1);
+}
+
+.btn-group .btn {
+    flex: 1;
+}
+
+.form-actions {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+}
+
+.badge-success {
+    background-color: var(--success-color);
+}
+
+.badge-primary {
+    background-color: var(--primary-color);
+}
+</style>
+
+<script>
+// Star Rating Functionality
+document.querySelectorAll('.rating-stars').forEach(ratingContainer => {
+    const stars = ratingContainer.querySelectorAll('.star');
+    const hiddenInput = ratingContainer.parentElement.querySelector('input[type="hidden"]');
+    
+    stars.forEach((star, index) => {
+        star.addEventListener('click', () => {
+            const rating = index + 1;
+            hiddenInput.value = rating;
+            
+            // Update star display
+            stars.forEach((s, i) => {
+                if (i < rating) {
+                    s.classList.add('active');
+                    s.querySelector('i').className = 'fas fa-star';
+                } else {
+                    s.classList.remove('active');
+                    s.querySelector('i').className = 'far fa-star';
+                }
+            });
+        });
+        
+        star.addEventListener('mouseenter', () => {
+            const rating = index + 1;
+            stars.forEach((s, i) => {
+                if (i < rating) {
+                    s.querySelector('i').className = 'fas fa-star';
+                } else {
+                    s.querySelector('i').className = 'far fa-star';
+                }
+            });
+        });
+    });
+    
+    ratingContainer.addEventListener('mouseleave', () => {
+        const currentRating = parseInt(hiddenInput.value) || 0;
+        stars.forEach((s, i) => {
+            if (i < currentRating) {
+                s.querySelector('i').className = 'fas fa-star';
+            } else {
+                s.querySelector('i').className = 'far fa-star';
+            }
+        });
+    });
+});
+
+// Form validation
+document.querySelector('form').addEventListener('submit', function(e) {
+    const overallRating = document.getElementById('overall_rating_value').value;
+    const tutorRating = document.getElementById('tutor_rating_value').value;
+    
+    if (!overallRating || !tutorRating) {
+        e.preventDefault();
+        alert('Please provide both overall and tutor performance ratings.');
+        return false;
+    }
+    
+    if (parseInt(overallRating) < 1 || parseInt(tutorRating) < 1) {
+        e.preventDefault();
+        alert('Please provide valid ratings (1-5 stars).');
+        return false;
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,238 @@
+{% extends "email/base_email.html" %}
+
+{% block title %}Monthly Finance Summary - {{ month }} {{ year }}{% endblock %}
+{% block email_title %}Monthly Finance Report{% endblock %}
+{% block email_subtitle %}{{ month }} {{ year }} - Financial Performance Overview{% endblock %}
+
+{% block extra_styles %}
+<style>
+    .finance-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 10px;
+        padding: 20px;
+        margin: 15px 0;
+        text-align: center;
+    }
+    
+    .metric-row {
+        display: flex;
+        justify-content: space-around;
+        flex-wrap: wrap;
+        margin: 20px 0;
+    }
+    
+    .metric-box {
+        background: white;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        padding: 20px;
+        margin: 5px;
+        text-align: center;
+        flex: 1;
+        min-width: 150px;
+    }
+    
+    .metric-value {
+        font-size: 24px;
+        font-weight: bold;
+        margin-bottom: 8px;
+    }
+    
+    .metric-label {
+        font-size: 12px;
+        color: #666;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .positive { color: #28a745; }
+    .negative { color: #dc3545; }
+    .neutral { color: #17a2b8; }
+    
+    .trend-up::before { content: "📈 "; }
+    .trend-down::before { content: "📉 "; }
+    .trend-stable::before { content: "➡️ "; }
+</style>
+{% endblock %}
+
+{% block recipient_name %}Finance Team{% endblock %}
+
+{% block email_content %}
+<div class="finance-card">
+    <h2 style="margin: 0 0 15px 0; color: white;">Total Revenue</h2>
+    <div style="font-size: 42px; font-weight: bold; margin: 15px 0;">
+        ₹{{ "%.2f"|format(financial_data.total_revenue) }}
+    </div>
+    <div style="opacity: 0.9; font-size: 16px;">
+        {% if financial_data.growth_rate > 0 %}
+        <span class="trend-up">{{ "%.1f"|format(financial_data.growth_rate) }}% growth from last month</span>
+        {% elif financial_data.growth_rate < 0 %}
+        <span class="trend-down">{{ "%.1f"|format(financial_data.growth_rate|abs) }}% decline from last month</span>
+        {% else %}
+        <span class="trend-stable">No change from last month</span>
+        {% endif %}
+    </div>
+</div>
+
+<div class="content-section">
+    <h2>Revenue Breakdown</h2>
+    <div class="metric-row">
+        <div class="metric-box">
+            <div class="metric-value positive">₹{{ "%.2f"|format(revenue.student_fees) }}</div>
+            <div class="metric-label">Student Fees</div>
+        </div>
+        <div class="metric-box">
+            <div class="metric-value neutral">₹{{ "%.2f"|format(revenue.demo_conversions) }}</div>
+            <div class="metric-label">Demo Conversions</div>
+        </div>
+        <div class="metric-box">
+            <div class="metric-value neutral">₹{{ "%.2f"|format(revenue.other_income) }}</div>
+            <div class="metric-label">Other Income</div>
+        </div>
+    </div>
+</div>
+
+<div class="content-section">
+    <h2>Expenses Overview</h2>
+    <div class="metric-row">
+        <div class="metric-box">
+            <div class="metric-value negative">₹{{ "%.2f"|format(expenses.tutor_payouts) }}</div>
+            <div class="metric-label">Tutor Payouts</div>
+        </div>
+        <div class="metric-box">
+            <div class="metric-value negative">₹{{ "%.2f"|format(expenses.operational_costs) }}</div>
+            <div class="metric-label">Operational Costs</div>
+        </div>
+        <div class="metric-box">
+            <div class="metric-value negative">₹{{ "%.2f"|format(expenses.marketing_spend) }}</div>
+            <div class="metric-label">Marketing</div>
+        </div>
+        <div class="metric-box">
+            <div class="metric-value negative">₹{{ "%.2f"|format(expenses.platform_costs) }}</div>
+            <div class="metric-label">Platform Costs</div>
+        </div>
+    </div>
+</div>
+
+<div class="content-section">
+    <h2>Key Performance Metrics</h2>
+    <div class="info-grid">
+        <div class="info-row">
+            <div class="info-label">Gross Profit:</div>
+            <div class="info-value">
+                <span class="{% if metrics.gross_profit > 0 %}positive{% else %}negative{% endif %}">
+                    ₹{{ "%.2f"|format(metrics.gross_profit) }}
+                </span>
+            </div>
+        </div>
+        <div class="info-row">
+            <div class="info-label">Profit Margin:</div>
+            <div class="info-value">
+                <span class="{% if metrics.profit_margin > 20 %}positive{% elif metrics.profit_margin > 10 %}neutral{% else %}negative{% endif %}">
+                    {{ "%.1f"|format(metrics.profit_margin) }}%
+                </span>
+            </div>
+        </div>
+        <div class="info-row">
+            <div class="info-label">Growth Rate:</div>
+            <div class="info-value">
+                <span class="{% if metrics.growth_rate > 0 %}positive{% elif metrics.growth_rate < 0 %}negative{% else %}neutral{% endif %}">
+                    {{ "%.1f"|format(metrics.growth_rate) }}%
+                </span>
+            </div>
+        </div>
+        <div class="info-row">
+            <div class="info-label">Student LTV:</div>
+            <div class="info-value">₹{{ "%.2f"|format(metrics.student_ltv) }}</div>
+        </div>
+    </div>
+</div>
+
+<div class="content-section">
+    <h2>Outstanding Amounts</h2>
+    <div class="alert-box {% if outstanding_amounts.pending_student_fees > 50000 %}alert-danger{% elif outstanding_amounts.pending_student_fees > 25000 %}alert-warning{% else %}alert-info{% endif %}">
+        <div class="info-grid">
+            <div class="info-row">
+                <div class="info-label">Pending Student Fees:</div>
+                <div class="info-value"><strong>₹{{ "%.2f"|format(outstanding_amounts.pending_student_fees) }}</strong></div>
+            </div>
+            <div class="info-row">
+                <div class="info-label">Pending Tutor Payouts:</div>
+                <div class="info-value"><strong>₹{{ "%.2f"|format(outstanding_amounts.pending_tutor_payouts) }}</strong></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if trends %}
+<div class="content-section">
+    <h2>Financial Trends</h2>
+    {% for trend_key, trend_data in trends.items() %}
+    <div style="background: #f8f9fa; border-radius: 6px; padding: 15px; margin: 10px 0;">
+        <h3 style="color: #495057; margin-bottom: 10px;">{{ trend_key.replace('_', ' ').title() }}</h3>
+        <div class="info-grid">
+            <div class="info-row">
+                <div class="info-label">Current Month:</div>
+                <div class="info-value">{{ trend_data.current }}</div>
+            </div>
+            <div class="info-row">
+                <div class="info-label">Previous Month:</div>
+                <div class="info-value">{{ trend_data.previous }}</div>
+            </div>
+            <div class="info-row">
+                <div class="info-label">Change:</div>
+                <div class="info-value">
+                    <span class="{% if trend_data.change > 0 %}positive{% elif trend_data.change < 0 %}negative{% else %}neutral{% endif %}">
+                        {% if trend_data.change > 0 %}+{% endif %}{{ "%.1f"|format(trend_data.change) }}%
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+{% if recommendations %}
+<div class="content-section">
+    <h2>Strategic Recommendations</h2>
+    <ul class="action-list">
+        {% for recommendation in recommendations %}
+        <li>{{ recommendation }}</li>
+        {% endfor %}
+    </ul>
+</div>
+{% endif %}
+
+<div class="content-section">
+    <h2>Action Items</h2>
+    <ul class="action-list">
+        <li>Review and follow up on pending student fee collections</li>
+        <li>Process pending tutor payouts within SLA</li>
+        <li>Analyze expense categories for optimization opportunities</li>
+        <li>Monitor profit margins and implement cost control measures</li>
+        <li>Track revenue growth targets for next month</li>
+    </ul>
+</div>
+
+<div class="alert-box alert-info">
+    <strong>Report Generation:</strong> This report was automatically generated on {{ "now"|strftime("%B %d, %Y at %I:%M %p") }} from live financial data.
+</div>
+{% endblock %}
+
+{% block email_actions %}
+<div class="text-center">
+    <a href="#" class="button button-success">View Detailed Report</a>
+    <a href="#" class="button button-secondary">Download Excel Export</a>
+    <a href="#" class="button button-secondary">Schedule Review Meeting</a>
+</div>
+{% endblock %}
+
+{% block email_closing %}
+<div class="mt-20">
+    <p>This monthly finance summary provides a comprehensive overview of our financial performance. Please review the metrics and recommendations for strategic decision-making.</p>
+    <p>For detailed analysis or questions about specific data points, please contact the finance team.</p>
+    <p>Best regards,<br>Financial Reporting System</p>
+</div>
+{% endblock %}

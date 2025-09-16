@@ -5,33 +5,95 @@ from app import db
 from app.models.user import User
 from app.forms.auth import LoginForm, ForgotPasswordForm, ResetPasswordForm, ChangePasswordForm
 from app.utils.email import send_password_reset_email
+from werkzeug.security import check_password_hash
+try:
+    from app.utils.error_tracker import ErrorTracker, track_errors, track_login_attempts
+    from app.utils.alert_system import send_error_alert
+except ImportError:
+    # Fallback to simple tracker
+    from app.utils.simple_error_tracker import ErrorTracker, simple_track_errors as track_errors
+    track_login_attempts = track_errors
+    def send_error_alert(error_log):
+        pass  # Skip alerts if not available
 
 
 bp = Blueprint('auth', __name__)
 
 @bp.route('/login', methods=['GET', 'POST'])
+@track_login_attempts
 def login():
     if current_user.is_authenticated:
         return redirect(url_for('dashboard.index'))
     
     form = LoginForm()
     if form.validate_on_submit():
-        # Check if username or email
+        username_or_email = form.username.data
+        password = form.password.data
+        
+        # Check if username or email (case-insensitive)
         user = User.query.filter(
-            (User.username == form.username.data) | 
-            (User.email == form.username.data)
+            (User.username.ilike(username_or_email)) | 
+            (User.email.ilike(username_or_email))
         ).first()
         
-        if user is None or not user.check_password(form.password.data):
+        # Log authentication attempt
+        if user is None:
+            # User not found
+            error_log = ErrorTracker.capture_error(
+                error_type='login_error',
+                error_message=f'Login attempt with non-existent user: {username_or_email}',
+                error_category='authentication',
+                severity='medium',
+                action_attempted='login'
+            )
+            send_error_alert(error_log)
+            flash('Invalid username/email or password', 'error')
+            return redirect(url_for('auth.login'))
+        
+        if not user.check_password(password):
+            # Invalid password
+            error_log = ErrorTracker.capture_error(
+                error_type='login_error',
+                error_message=f'Invalid password attempt for user: {user.username}',
+                error_category='authentication',
+                severity='medium',
+                user_id=user.id,
+                user_role=user.role,
+                action_attempted='login'
+            )
+            send_error_alert(error_log)
             flash('Invalid username/email or password', 'error')
             return redirect(url_for('auth.login'))
         
         if not user.is_active:
+            # Account deactivated
+            error_log = ErrorTracker.capture_error(
+                error_type='login_error',
+                error_message=f'Login attempt on deactivated account: {user.username}',
+                error_category='authentication',
+                severity='high',
+                user_id=user.id,
+                user_role=user.role,
+                action_attempted='login'
+            )
+            send_error_alert(error_log)
             flash('Your account has been deactivated. Please contact administrator.', 'error')
             return redirect(url_for('auth.login'))
         
+        # Successful login
         login_user(user, remember=form.remember_me.data)
         user.update_last_login()
+        
+        # Log successful login
+        ErrorTracker.capture_error(
+            error_type='successful_login',
+            error_message=f'User {user.username} logged in successfully',
+            error_category='authentication',
+            severity='low',
+            user_id=user.id,
+            user_role=user.role,
+            action_attempted='login'
+        )
         
         # Redirect to appropriate dashboard based on role
         next_page = request.args.get('next')
@@ -64,7 +126,7 @@ def forgot_password():
     
     form = ForgotPasswordForm()
     if form.validate_on_submit():
-        user = User.query.filter_by(email=form.email.data).first()
+        user = User.query.filter(User.email.ilike(form.email.data)).first()
         if user:
             token = user.get_reset_password_token()
             send_password_reset_email(user, token)
@@ -102,7 +164,7 @@ def change_password():
     
     if form.validate_on_submit():
         # Verify current password
-        if not check_password_hash(current_user.password_hash, form.current_password.data):
+        if not current_user.check_password(form.current_password.data):
             flash('Current password is incorrect.', 'error')
             return render_template('auth/change_password.html', form=form)
         

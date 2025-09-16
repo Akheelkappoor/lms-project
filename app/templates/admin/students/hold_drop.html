@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+
+{% block title %}Protect from Drop - {{ student.full_name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="page-header mb-4">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h1 class="page-title">
+                    <i class="fas fa-shield-alt text-info"></i>
+                    Protect from Drop
+                </h1>
+                <p class="page-subtitle">Prevent {{ student.full_name }} from being dropped</p>
+            </div>
+            <div>
+                <a href="{{ url_for('admin.student_details', student_id=student.id) }}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left"></i>
+                    Back to Student Details
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-user-graduate text-primary me-3"></i>
+                        <div>
+                            <h5 class="card-title mb-0">{{ student.full_name }}</h5>
+                            <small class="text-muted">Student ID: #{{ student.id }} | Grade: {{ student.grade }} | {{ student.department.name if student.department else 'No Department' }}</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <i class="fas fa-shield-alt"></i>
+                        <strong>Drop Protection Process</strong><br>
+                        This will prevent the student from being dropped until the protection is removed. Use this when retention efforts are in progress or when you need to prevent accidental drops.
+                    </div>
+
+                    <form method="POST">
+                        {{ form.hidden_tag() }}
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    {{ form.hold_reason.label(class="form-label") }}
+                                    {{ form.hold_reason(class="form-select") }}
+                                    {% if form.hold_reason.errors %}
+                                        <div class="text-danger">
+                                            {% for error in form.hold_reason.errors %}
+                                                <small>{{ error }}</small>
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-4">
+                            {{ form.notes.label(class="form-label") }}
+                            {{ form.notes(class="form-control") }}
+                            {% if form.notes.errors %}
+                                <div class="text-danger">
+                                    {% for error in form.notes.errors %}
+                                        <small>{{ error }}</small>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="alert alert-success">
+                            <h6><i class="fas fa-info-circle"></i> What happens when drop protection is applied?</h6>
+                            <ul class="mb-0">
+                                <li>Student status will change to "Drop Protection Active"</li>
+                                <li>Student cannot be dropped until protection is removed</li>
+                                <li>All drop attempts will be blocked (unless manual override is used)</li>
+                                <li>Status change will be logged with full audit trail</li>
+                                <li>Protection can be removed by authorized personnel</li>
+                                <li>Use this for retention efforts, counseling, or appeal processes</li>
+                            </ul>
+                        </div>
+
+                        <div class="d-flex justify-content-between">
+                            <a href="{{ url_for('admin.student_details', student_id=student.id) }}" class="btn btn-outline-secondary">
+                                <i class="fas fa-times"></i> Cancel
+                            </a>
+                            <button type="submit" class="btn btn-info">
+                                <i class="fas fa-shield-alt"></i> Apply Drop Protection
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,604 @@
+{% extends "base.html" %}
+{% set active_page = "escalations" %}
+
+{% block title %}Create Escalation - {{ APP_NAME }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h1 class="page-title">
+                <i class="fas fa-plus-circle"></i>
+                Create New Escalation
+            </h1>
+            <p class="page-subtitle">Report and track issues that need attention</p>
+        </div>
+        <div class="header-actions">
+            <a href="{{ url_for('escalation.list_escalations') }}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left"></i>
+                Back to List
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="container-fluid">
+    <!-- Access Level Info -->
+    {% if current_user.role == 'coordinator' %}
+    <div class="alert alert-info mb-4">
+        <i class="fas fa-info-circle"></i>
+        <strong>Department Scope:</strong> You are creating an escalation for {{ current_user.department.name }} department.
+    </div>
+    {% endif %}
+
+    <div class="row">
+        <div class="col-lg-8">
+            <!-- Main Form Card -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-edit"></i>
+                        Escalation Details
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('escalation.create_escalation') }}" id="escalationForm">
+                        {% if csrf_token %}
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        {% endif %}
+                        
+                        <!-- Title -->
+                        <div class="mb-4">
+                            <label for="title" class="form-label">
+                                <i class="fas fa-heading text-primary"></i>
+                                Title <span class="text-danger">*</span>
+                            </label>
+                            <input type="text" class="form-control form-control-lg" id="title" name="title" required maxlength="200"
+                                   placeholder="Brief summary of the issue">
+                            <div class="form-text">Provide a clear, concise title for the escalation</div>
+                        </div>
+
+                        <!-- Category and Priority Row -->
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-4">
+                                    <label for="category" class="form-label">
+                                        <i class="fas fa-tags text-primary"></i>
+                                        Category <span class="text-danger">*</span>
+                                    </label>
+                                    <select class="form-select" id="category" name="category" required>
+                                        <option value="">Select Category</option>
+                                        {% for value, label in categories %}
+                                            <option value="{{ value }}">{{ label }}</option>
+                                        {% endfor %}
+                                    </select>
+                                    <div class="form-text">Choose the most appropriate category</div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-4">
+                                    <label for="priority" class="form-label">
+                                        <i class="fas fa-exclamation-circle text-primary"></i>
+                                        Priority
+                                    </label>
+                                    <select class="form-select" id="priority" name="priority">
+                                        {% for value, label in priorities %}
+                                            <option value="{{ value }}" {% if value == 'medium' %}selected{% endif %}>{{ label }}</option>
+                                        {% endfor %}
+                                    </select>
+                                    <div class="form-text">Priority determines response time expectations</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Description -->
+                        <div class="mb-4">
+                            <label for="description" class="form-label">
+                                <i class="fas fa-align-left text-primary"></i>
+                                Description <span class="text-danger">*</span>
+                            </label>
+                            <textarea class="form-control" id="description" name="description" rows="6" required
+                                      placeholder="Detailed description of the issue, including steps to reproduce, expected vs actual behavior, etc."></textarea>
+                            <div class="form-text">Provide as much detail as possible to help resolve the issue quickly</div>
+                        </div>
+
+                        <!-- Related Records Section -->
+                        <div class="card bg-light border-0 mb-4">
+                            <div class="card-header bg-transparent border-bottom">
+                                <h6 class="mb-0">
+                                    <i class="fas fa-link text-primary"></i>
+                                    Related Records (Optional)
+                                </h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="student_id" class="form-label">Related Student</label>
+                                            <select class="form-select" id="student_id" name="student_id">
+                                                <option value="">Select Student (if applicable)</option>
+                                                {% for student in students %}
+                                                    <option value="{{ student.id }}">{{ student.full_name }} ({{ student.student_id }})</option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="tutor_id" class="form-label">Related Tutor</label>
+                                            <select class="form-select" id="tutor_id" name="tutor_id">
+                                                <option value="">Select Tutor (if applicable)</option>
+                                                {% for tutor in tutors %}
+                                                    <option value="{{ tutor.id }}">{{ tutor.user.full_name }} ({{ tutor.employee_id }})</option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="form-text">
+                                    <i class="fas fa-info-circle"></i>
+                                    Link this escalation to specific students or tutors if relevant
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Submit Buttons -->
+                        <div class="d-flex justify-content-end gap-3">
+                            <a href="{% if current_user.role == 'tutor' %}{{ url_for('escalation.my_escalations') }}{% else %}{{ url_for('escalation.list_escalations') }}{% endif %}" 
+                            class="btn btn-outline-secondary">
+                                <i class="fas fa-times"></i>
+                                Cancel
+                            </a>
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="fas fa-save"></i>
+                                Create Escalation
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <!-- Guidelines Card -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="card-title mb-0">
+                        <i class="fas fa-info-circle text-primary"></i>
+                        Guidelines & Access
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="access-info mb-4">
+                        <h6 class="text-primary">Your Access Level:</h6>
+                        <div class="bg-light p-3 rounded">
+                            <div class="row text-sm">
+                                <div class="col-5"><strong>Role:</strong></div>
+                                <div class="col-7">{{ current_user.role|title }}</div>
+                            </div>
+                            <div class="row text-sm">
+                                <div class="col-5"><strong>Department:</strong></div>
+                                <div class="col-7">{{ current_user.department.name if current_user.department else 'None' }}</div>
+                            </div>
+                            <div class="row text-sm">
+                                <div class="col-5"><strong>Can Create:</strong></div>
+                                <div class="col-7"><span class="text-success">Yes ✓</span></div>
+                            </div>
+                        </div>
+                        <div class="mt-2">
+                            {% if current_user.role == 'coordinator' %}
+                                <small class="text-muted"><em>You can create escalations for your department only.</em></small>
+                            {% else %}
+                                <small class="text-muted"><em>You can create escalations for any department.</em></small>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="guidelines mb-4">
+                        <h6 class="text-primary">When to Create an Escalation:</h6>
+                        <ul class="list-unstyled">
+                            <li><i class="fas fa-cog text-danger me-2"></i><small>Technical issues affecting platform functionality</small></li>
+                            <li><i class="fas fa-graduation-cap text-warning me-2"></i><small>Academic concerns about teaching quality</small></li>
+                            <li><i class="fas fa-credit-card text-info me-2"></i><small>Payment disputes or billing issues</small></li>
+                            <li><i class="fas fa-calendar text-primary me-2"></i><small>Scheduling conflicts that can't be resolved</small></li>
+                            <li><i class="fas fa-users text-secondary me-2"></i><small>Behavioral issues requiring management attention</small></li>
+                        </ul>
+                    </div>
+
+                    <div class="priority-info mb-4">
+                        <h6 class="text-primary">Priority Levels:</h6>
+                        <div class="priority-item mb-2">
+                            <span class="badge bg-danger me-2">High</span>
+                            <small>Critical issues requiring immediate attention (&lt; 2 hours)</small>
+                        </div>
+                        <div class="priority-item mb-2">
+                            <span class="badge bg-warning me-2">Medium</span>
+                            <small>Important but not urgent (&lt; 24 hours)</small>
+                        </div>
+                        <div class="priority-item mb-2">
+                            <span class="badge bg-info me-2">Low</span>
+                            <small>General concerns (&lt; 72 hours)</small>
+                        </div>
+                    </div>
+
+                    <div class="category-info">
+                        <h6 class="text-primary">Categories:</h6>
+                        <div class="category-item mb-2">
+                            <i class="fas fa-cog text-primary me-2"></i>
+                            <strong>Technical:</strong> <small class="text-muted">Platform, system, or software issues</small>
+                        </div>
+                        <div class="category-item mb-2">
+                            <i class="fas fa-graduation-cap text-success me-2"></i>
+                            <strong>Academic:</strong> <small class="text-muted">Teaching quality, curriculum concerns</small>
+                        </div>
+                        <div class="category-item mb-2">
+                            <i class="fas fa-credit-card text-warning me-2"></i>
+                            <strong>Payment:</strong> <small class="text-muted">Billing, refunds, payment processing</small>
+                        </div>
+                        <div class="category-item mb-2">
+                            <i class="fas fa-calendar text-info me-2"></i>
+                            <strong>Scheduling:</strong> <small class="text-muted">Class timing, availability conflicts</small>
+                        </div>
+                        <div class="category-item mb-2">
+                            <i class="fas fa-users text-secondary me-2"></i>
+                            <strong>Behavioral:</strong> <small class="text-muted">Conduct, communication issues</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Escalations Card -->
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="card-title mb-0">
+                        <i class="fas fa-clock text-primary"></i>
+                        Recent Escalations
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div id="recentEscalations">
+                        <div class="text-center py-3">
+                            <div class="spinner-border spinner-border-sm text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <p class="small text-muted mt-2 mb-0">Loading recent escalations...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Load recent escalations
+    fetch('/escalations/dashboard-stats')
+        .then(response => response.json())
+        .then(data => {
+            const container = document.getElementById('recentEscalations');
+            if (data.recent && data.recent.length > 0) {
+                container.innerHTML = data.recent.slice(0, 5).map(esc => `
+                    <div class="escalation-item d-flex justify-content-between align-items-start mb-3 pb-3 border-bottom">
+                        <div class="flex-grow-1">
+                            <div class="d-flex align-items-center mb-1">
+                                <span class="badge bg-secondary me-2">#${esc.id}</span>
+                                <small class="text-muted">${new Date(esc.created_at).toLocaleDateString()}</small>
+                            </div>
+                            <div class="fw-bold small text-dark mb-1">
+                                ${esc.title.length > 25 ? esc.title.substring(0, 25) + '...' : esc.title}
+                            </div>
+                            <div>
+                                <span class="badge bg-${esc.priority === 'high' ? 'danger' : esc.priority === 'medium' ? 'warning' : 'info'} me-1">
+                                    ${esc.priority}
+                                </span>
+                                <span class="badge bg-light text-dark">${esc.category}</span>
+                            </div>
+                        </div>
+                        <div class="text-end">
+                            ${esc.is_overdue ? '<i class="fas fa-exclamation-triangle text-danger" title="Overdue"></i>' : ''}
+                        </div>
+                    </div>
+                `).join('');
+                
+                // Add "View All" link
+                container.innerHTML += `
+                    <div class="text-center mt-3">
+                        <a href="${window.location.origin}/escalations" class="btn btn-outline-primary btn-sm">
+                            <i class="fas fa-list"></i>
+                            View All Escalations
+                        </a>
+                    </div>
+                `;
+            } else {
+                container.innerHTML = `
+                    <div class="text-center py-3">
+                        <i class="fas fa-inbox fa-2x text-muted mb-2"></i>
+                        <p class="text-muted small mb-0">No recent escalations</p>
+                    </div>
+                `;
+            }
+        })
+        .catch(error => {
+            console.error('Error loading recent escalations:', error);
+            document.getElementById('recentEscalations').innerHTML = `
+                <div class="text-center py-3">
+                    <i class="fas fa-exclamation-triangle text-warning mb-2"></i>
+                    <p class="text-muted small mb-0">Error loading data</p>
+                </div>
+            `;
+        });
+
+    // Enhanced form validation
+    const form = document.getElementById('escalationForm');
+    form.addEventListener('submit', function(e) {
+        const title = document.getElementById('title').value.trim();
+        const description = document.getElementById('description').value.trim();
+        const category = document.getElementById('category').value;
+
+        // Clear previous validation states
+        clearValidationStates();
+
+        let isValid = true;
+        const errors = [];
+
+        if (!title) {
+            addValidationError('title', 'Title is required');
+            errors.push('Title is required');
+            isValid = false;
+        } else if (title.length < 5) {
+            addValidationError('title', 'Title must be at least 5 characters long');
+            errors.push('Title must be at least 5 characters long');
+            isValid = false;
+        }
+
+        if (!description) {
+            addValidationError('description', 'Description is required');
+            errors.push('Description is required');
+            isValid = false;
+        } else if (description.length < 20) {
+            addValidationError('description', 'Description must be at least 20 characters long');
+            errors.push('Description must be at least 20 characters long');
+            isValid = false;
+        }
+
+        if (!category) {
+            addValidationError('category', 'Category is required');
+            errors.push('Category is required');
+            isValid = false;
+        }
+
+        if (!isValid) {
+            e.preventDefault();
+            showValidationErrors(errors);
+            return false;
+        }
+    });
+
+    // Character counters with enhanced styling
+    const titleInput = document.getElementById('title');
+    const descriptionInput = document.getElementById('description');
+
+    function addCharCounter(input, maxLength) {
+        const counter = document.createElement('div');
+        counter.className = 'form-text text-end text-muted';
+        counter.innerHTML = `<small>0/${maxLength} characters</small>`;
+        input.parentNode.appendChild(counter);
+
+        input.addEventListener('input', function() {
+            const length = this.value.length;
+            const percentage = (length / maxLength) * 100;
+            
+            counter.innerHTML = `<small>${length}/${maxLength} characters</small>`;
+            
+            if (percentage > 90) {
+                counter.className = 'form-text text-end text-danger';
+            } else if (percentage > 75) {
+                counter.className = 'form-text text-end text-warning';
+            } else {
+                counter.className = 'form-text text-end text-muted';
+            }
+        });
+    }
+
+    addCharCounter(titleInput, 200);
+    addCharCounter(descriptionInput, 2000);
+
+    // Helper functions for validation
+    function clearValidationStates() {
+        document.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid'));
+        document.querySelectorAll('.invalid-feedback').forEach(el => el.remove());
+    }
+
+    function addValidationError(fieldId, message) {
+        const field = document.getElementById(fieldId);
+        field.classList.add('is-invalid');
+        
+        const feedback = document.createElement('div');
+        feedback.className = 'invalid-feedback';
+        feedback.textContent = message;
+        field.parentNode.appendChild(feedback);
+    }
+
+    function showValidationErrors(errors) {
+        const errorHtml = errors.map(error => `<li>${error}</li>`).join('');
+        const alertHtml = `
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                <i class="fas fa-exclamation-circle"></i>
+                <strong>Please fix the following errors:</strong>
+                <ul class="mb-0 mt-2">${errorHtml}</ul>
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        `;
+        
+        // Insert alert at top of form
+        const formCard = document.querySelector('.card .card-body');
+        formCard.insertAdjacentHTML('afterbegin', alertHtml);
+        
+        // Scroll to top of form
+        formCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    // Auto-save draft functionality (optional)
+    let saveTimeout;
+    const draftFields = ['title', 'description', 'category', 'priority'];
+    
+    draftFields.forEach(fieldId => {
+        const field = document.getElementById(fieldId);
+        if (field) {
+            field.addEventListener('input', function() {
+                clearTimeout(saveTimeout);
+                saveTimeout = setTimeout(saveDraft, 2000); // Save after 2 seconds of inactivity
+            });
+        }
+    });
+
+    function saveDraft() {
+        const draft = {};
+        draftFields.forEach(fieldId => {
+            const field = document.getElementById(fieldId);
+            if (field) draft[fieldId] = field.value;
+        });
+        
+        localStorage.setItem('escalation_draft', JSON.stringify(draft));
+        showDraftSavedIndicator();
+    }
+
+    function loadDraft() {
+        const draft = localStorage.getItem('escalation_draft');
+        if (draft) {
+            try {
+                const draftData = JSON.parse(draft);
+                Object.keys(draftData).forEach(fieldId => {
+                    const field = document.getElementById(fieldId);
+                    if (field && field.value === '') {
+                        field.value = draftData[fieldId];
+                    }
+                });
+            } catch (e) {
+                console.log('Error loading draft:', e);
+            }
+        }
+    }
+
+    function showDraftSavedIndicator() {
+        // Show a subtle indicator that draft was saved
+        const indicator = document.createElement('div');
+        indicator.className = 'toast position-fixed bottom-0 end-0 m-3';
+        indicator.innerHTML = `
+            <div class="toast-body">
+                <i class="fas fa-save text-success me-2"></i>
+                Draft saved automatically
+            </div>
+        `;
+        document.body.appendChild(indicator);
+        
+        const toast = new bootstrap.Toast(indicator, { delay: 2000 });
+        toast.show();
+        
+        indicator.addEventListener('hidden.bs.toast', () => {
+            indicator.remove();
+        });
+    }
+
+    // Load draft on page load
+    loadDraft();
+
+    // Clear draft when form is successfully submitted
+    form.addEventListener('submit', function() {
+        if (form.checkValidity()) {
+            localStorage.removeItem('escalation_draft');
+        }
+    });
+});
+</script>
+
+<style>
+.page-header {
+    margin-bottom: 2rem;
+}
+
+.page-title {
+    font-size: 1.75rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+}
+
+.page-subtitle {
+    color: #6c757d;
+    margin-bottom: 0;
+}
+
+.form-control-lg {
+    padding: 0.75rem 1rem;
+    font-size: 1.1rem;
+}
+
+.access-info .row {
+    margin-bottom: 0.5rem;
+}
+
+.access-info .row:last-child {
+    margin-bottom: 0;
+}
+
+.priority-item, .category-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+}
+
+.escalation-item:last-child {
+    border-bottom: none !important;
+    margin-bottom: 0 !important;
+    padding-bottom: 0 !important;
+}
+
+.card-title {
+    font-weight: 600;
+}
+
+.text-sm {
+    font-size: 0.875rem;
+}
+
+.header-actions .btn {
+    margin-left: 0.5rem;
+}
+
+.bg-light {
+    background-color: #f8f9fa !important;
+}
+
+.form-label {
+    font-weight: 500;
+    margin-bottom: 0.5rem;
+}
+
+.form-label i {
+    margin-right: 0.25rem;
+}
+
+.btn-lg {
+    padding: 0.75rem 1.5rem;
+    font-size: 1.1rem;
+}
+
+.invalid-feedback {
+    display: block;
+}
+
+.alert ul {
+    padding-left: 1.25rem;
+}
+
+.spinner-border-sm {
+    width: 1rem;
+    height: 1rem;
+}
+
+.toast {
+    z-index: 1055;
+}
+</style>
+{% endblock %}

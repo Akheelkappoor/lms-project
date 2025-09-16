@@ -51,7 +51,7 @@ def reset_database():
             print("=" * 50)
             print("Default Login Credentials:")
             print(f"Email: {admin.email}")
-            print(f"Password: {admin.password}")
+            print(f"Password: {admin.password_hash}")
             print("=" * 50)
             
         except Exception as e:

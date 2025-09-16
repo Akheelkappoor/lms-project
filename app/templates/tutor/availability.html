@@ -34,12 +34,19 @@
             <div class="card">
                 <div class="card-header">
                     <h5 class="card-title mb-0">
-                        <i class="fas fa-clock"></i>
-                        Weekly Schedule
+                        <i class="fas fa-calendar-week"></i>
+                        Your Weekly Schedule
                     </h5>
+                    {% if availability %}
+                    <small class="text-muted">
+                        <i class="fas fa-info-circle"></i>
+                        Your schedule is saved. Use the edit buttons to make changes.
+                    </small>
+                    {% endif %}
                 </div>
                 <div class="card-body">
-                    <form id="availabilityForm" action="{{ url_for('tutor.update_availability') }}" method="POST">
+                    <form id="availabilityForm" action="{{ url_for('tutor.update_availability') }}" method="POST" class="form-section {{ 'hidden' if availability else '' }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         {% for day in ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] %}
                         <div class="day-schedule mb-4">
                             <div class="day-header">
@@ -109,6 +116,60 @@
                             </button>
                         </div>
                     </form>
+                    
+                    <!-- Weekly Schedule Overview -->
+                    {% if availability %}
+                    <div class="weekly-schedule-overview mt-4 {{ 'hidden' if not availability else '' }}">
+                        <div class="schedule-header mb-3">
+                            <h6 class="text-primary">
+                                <i class="fas fa-eye"></i>
+                                Schedule Overview
+                            </h6>
+                        </div>
+                        <div class="weekly-schedule-display">
+                            {% for day in ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] %}
+                            {% set day_slots = availability.get(day, []) %}
+                            <div class="day-schedule-item {{ 'has-slots' if day_slots else 'no-slots' }}">
+                                <div class="day-name">
+                                    <strong>{{ day[:3].title() }}</strong>
+                                </div>
+                                <div class="day-slots">
+                                    {% if day_slots %}
+                                        {% for slot in day_slots %}
+                                        <div class="time-slot-display">
+                                            <span class="slot-time">{{ slot.start }} - {{ slot.end }}</span>
+                                        </div>
+                                        {% endfor %}
+                                    {% else %}
+                                        <span class="text-muted small">Not Available</span>
+                                    {% endif %}
+                                </div>
+                                <div class="day-actions">
+                                    {% if day_slots %}
+                                        <button class="btn btn-sm btn-outline-primary edit-day-btn" data-day="{{ day }}" title="Edit {{ day.title() }}">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                    {% else %}
+                                        <button class="btn btn-sm btn-outline-success add-day-btn" data-day="{{ day }}" title="Add slots for {{ day.title() }}">
+                                            <i class="fas fa-plus"></i>
+                                        </button>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        <div class="schedule-actions text-center mt-3">
+                            <button class="btn btn-primary" id="editScheduleBtn">
+                                <i class="fas fa-edit"></i>
+                                Edit Full Schedule
+                            </button>
+                            <button class="btn btn-outline-secondary" id="clearScheduleBtn">
+                                <i class="fas fa-trash"></i>
+                                Clear All
+                            </button>
+                        </div>
+                    </div>
+                    {% endif %}
                 </div>
             </div>
         </div>
@@ -125,21 +186,21 @@
                 <div class="card-body">
                     <div class="status-item mb-3">
                         <label>Profile Status:</label>
-                        <span class="badge badge-{{ 'success' if tutor.status == 'active' else 'warning' if tutor.status == 'pending' else 'danger' }}">
+                        <span class="badge bg-{{ 'success' if tutor.status == 'active' else 'warning' if tutor.status == 'pending' else 'danger' }}">
                             {{ tutor.status.title() }}
                         </span>
                     </div>
                     
                     <div class="status-item mb-3">
                         <label>Availability Set:</label>
-                        <span class="badge badge-{{ 'success' if availability else 'warning' }}">
+                        <span class="badge bg-{{ 'success' if availability else 'warning' }}">
                             {{ 'Yes' if availability else 'No' }}
                         </span>
                     </div>
                     
                     <div class="status-item mb-3">
                         <label>Can Teach:</label>
-                        <span class="badge badge-{{ 'success' if (tutor.status == 'active' and availability) else 'danger' }}">
+                        <span class="badge bg-{{ 'success' if (tutor.status == 'active' and availability) else 'danger' }}">
                             {{ 'Yes' if (tutor.status == 'active' and availability) else 'No' }}
                         </span>
                     </div>
@@ -154,9 +215,9 @@
                     {% endif %}
                 </div>
             </div>
-            
+
             <!-- Guidelines -->
-            <div class="card">
+            <div class="card mb-4">
                 <div class="card-header">
                     <h6 class="card-title mb-0">
                         <i class="fas fa-lightbulb"></i>
@@ -180,37 +241,140 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('availabilityForm');
+    const scheduleOverview = document.querySelector('.weekly-schedule-overview');
+    const editScheduleBtn = document.getElementById('editScheduleBtn');
+    const clearScheduleBtn = document.getElementById('clearScheduleBtn');
+    
+    // Show/Hide form functionality
+    function toggleForm(show) {
+        if (show) {
+            form.classList.remove('hidden');
+            form.classList.add('editing');
+            if (scheduleOverview) scheduleOverview.classList.add('hidden');
+            if (editScheduleBtn) editScheduleBtn.innerHTML = '<i class="fas fa-times"></i> Cancel Edit';
+        } else {
+            form.classList.add('hidden');
+            form.classList.remove('editing');
+            if (scheduleOverview) scheduleOverview.classList.remove('hidden');
+            if (editScheduleBtn) editScheduleBtn.innerHTML = '<i class="fas fa-edit"></i> Edit Full Schedule';
+        }
+    }
+    
+    // Edit schedule button
+    if (editScheduleBtn) {
+        editScheduleBtn.addEventListener('click', function() {
+            const isEditing = form.classList.contains('editing');
+            toggleForm(!isEditing);
+        });
+    }
+    
+    // Clear schedule button
+    if (clearScheduleBtn) {
+        clearScheduleBtn.addEventListener('click', function() {
+            if (confirm('Are you sure you want to clear your entire schedule? This action cannot be undone.')) {
+                // Clear all time slots
+                document.querySelectorAll('.time-slot-row input').forEach(input => {
+                    input.value = '';
+                });
+                
+                // Show form
+                toggleForm(true);
+                
+                // Show alert
+                if (typeof LMS !== 'undefined') {
+                    LMS.showAlert('Schedule cleared. Make your changes and save.', 'info');
+                } else {
+                    alert('Schedule cleared. Make your changes and save.');
+                }
+            }
+        });
+    }
+    
+    // Edit single day functionality
+    document.querySelectorAll('.edit-day-btn').forEach(button => {
+        button.addEventListener('click', function() {
+            const day = this.getAttribute('data-day');
+            toggleForm(true);
+            
+            // Scroll to and highlight the specific day
+            const daySection = document.querySelector(`#${day}_slots`).closest('.day-schedule');
+            daySection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            daySection.style.border = '2px solid #ffc107';
+            daySection.style.borderRadius = '8px';
+            
+            // Remove highlight after 3 seconds
+            setTimeout(() => {
+                daySection.style.border = '';
+                daySection.style.borderRadius = '';
+            }, 3000);
+        });
+    });
+    
+    // Add day functionality
+    document.querySelectorAll('.add-day-btn').forEach(button => {
+        button.addEventListener('click', function() {
+            const day = this.getAttribute('data-day');
+            toggleForm(true);
+            
+            // Add a slot to the day if it doesn't have any
+            const slotsContainer = document.getElementById(day + '_slots');
+            if (slotsContainer.children.length === 0) {
+                addNewSlot(day, slotsContainer);
+            }
+            
+            // Scroll to and highlight the specific day
+            const daySection = slotsContainer.closest('.day-schedule');
+            daySection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            daySection.style.border = '2px solid #28a745';
+            daySection.style.borderRadius = '8px';
+            
+            // Remove highlight after 3 seconds
+            setTimeout(() => {
+                daySection.style.border = '';
+                daySection.style.borderRadius = '';
+            }, 3000);
+        });
+    });
+    
     // Add slot functionality
     document.querySelectorAll('.add-slot').forEach(button => {
         button.addEventListener('click', function() {
             const day = this.getAttribute('data-day');
             const slotsContainer = document.getElementById(day + '_slots');
-            
-            const newSlot = document.createElement('div');
-            newSlot.className = 'time-slot-row mb-2';
-            newSlot.innerHTML = `
-                <div class="row">
-                    <div class="col-md-4">
-                        <label class="form-label">Start Time</label>
-                        <input type="time" name="${day}_start" class="form-control">
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label">End Time</label>
-                        <input type="time" name="${day}_end" class="form-control">
-                    </div>
-                    <div class="col-md-4 d-flex align-items-end">
-                        <button type="button" class="btn btn-outline-danger btn-sm remove-slot">
-                            <i class="fas fa-trash"></i>
-                            Remove
-                        </button>
-                    </div>
-                </div>
-            `;
-            
-            slotsContainer.appendChild(newSlot);
-            attachRemoveListener(newSlot.querySelector('.remove-slot'));
+            addNewSlot(day, slotsContainer);
         });
     });
+    
+    // Function to add new slot
+    function addNewSlot(day, slotsContainer) {
+        const newSlot = document.createElement('div');
+        newSlot.className = 'time-slot-row mb-2';
+        newSlot.innerHTML = `
+            <div class="row">
+                <div class="col-md-4">
+                    <label class="form-label">Start Time</label>
+                    <input type="time" name="${day}_start" class="form-control">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">End Time</label>
+                    <input type="time" name="${day}_end" class="form-control">
+                </div>
+                <div class="col-md-4 d-flex align-items-end">
+                    <button type="button" class="btn btn-outline-danger btn-sm remove-slot">
+                        <i class="fas fa-trash"></i>
+                        Remove
+                    </button>
+                </div>
+            </div>
+        `;
+        
+        slotsContainer.appendChild(newSlot);
+        attachRemoveListener(newSlot.querySelector('.remove-slot'));
+        
+        // Focus on the start time input
+        newSlot.querySelector('input[type="time"]').focus();
+    }
     
     // Remove slot functionality
     function attachRemoveListener(button) {
@@ -222,30 +386,76 @@ document.addEventListener('DOMContentLoaded', function() {
     // Attach to existing remove buttons
     document.querySelectorAll('.remove-slot').forEach(attachRemoveListener);
     
-    // Form validation
-    document.getElementById('availabilityForm').addEventListener('submit', function(e) {
+    // Enhanced form validation
+    form.addEventListener('submit', function(e) {
         const timeSlots = document.querySelectorAll('.time-slot-row');
         let hasValidSlot = false;
+        let errors = [];
         
         timeSlots.forEach(slot => {
-            const startTime = slot.querySelector('input[name$="_start"]').value;
-            const endTime = slot.querySelector('input[name$="_end"]').value;
+            const startTimeInput = slot.querySelector('input[name$="_start"]');
+            const endTimeInput = slot.querySelector('input[name$="_end"]');
+            const startTime = startTimeInput.value;
+            const endTime = endTimeInput.value;
             
             if (startTime && endTime) {
                 if (startTime >= endTime) {
-                    e.preventDefault();
-                    alert('End time must be after start time');
-                    return;
+                    errors.push('End time must be after start time');
+                    startTimeInput.style.borderColor = '#dc3545';
+                    endTimeInput.style.borderColor = '#dc3545';
+                } else {
+                    startTimeInput.style.borderColor = '';
+                    endTimeInput.style.borderColor = '';
+                    hasValidSlot = true;
                 }
-                hasValidSlot = true;
+            } else if (startTime || endTime) {
+                errors.push('Both start and end time must be filled');
+                if (!startTime) startTimeInput.style.borderColor = '#dc3545';
+                if (!endTime) endTimeInput.style.borderColor = '#dc3545';
             }
         });
         
-        if (!hasValidSlot) {
+        if (errors.length > 0) {
             e.preventDefault();
-            alert('Please add at least one valid time slot');
+            if (typeof LMS !== 'undefined') {
+                LMS.showAlert('Please fix the following errors: ' + errors.join(', '), 'error');
+            } else {
+                alert('Please fix the following errors: ' + errors.join(', '));
+            }
             return;
         }
+        
+        if (!hasValidSlot) {
+            e.preventDefault();
+            if (typeof LMS !== 'undefined') {
+                LMS.showAlert('Please add at least one valid time slot', 'warning');
+            } else {
+                alert('Please add at least one valid time slot');
+            }
+            return;
+        }
+        
+        // Show loading state
+        const submitBtn = form.querySelector('button[type="submit"]');
+        const originalText = submitBtn.innerHTML;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+        submitBtn.disabled = true;
+        
+        // Reset on form submission failure (if page doesn't redirect)
+        setTimeout(() => {
+            submitBtn.innerHTML = originalText;
+            submitBtn.disabled = false;
+        }, 5000);
+    });
+    
+    // Auto-save on significant changes (optional feature)
+    let autoSaveTimeout;
+    form.addEventListener('input', function() {
+        clearTimeout(autoSaveTimeout);
+        autoSaveTimeout = setTimeout(() => {
+            // Could add auto-save functionality here
+            console.log('Changes detected - consider adding auto-save');
+        }, 2000);
     });
 });
 </script>
@@ -297,8 +507,98 @@ document.addEventListener('DOMContentLoaded', function() {
     width: 120px;
 }
 
-.badge-success { background-color: #28a745; }
-.badge-warning { background-color: #ffc107; color: #000; }
-.badge-danger { background-color: #dc3545; }
+/* Weekly Schedule Overview in Main Card */
+.weekly-schedule-overview {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 1.5rem;
+    border: 1px solid #dee2e6;
+}
+
+.schedule-header h6 {
+    font-weight: 600;
+    margin-bottom: 0;
+}
+
+/* Weekly Schedule Display */
+.weekly-schedule-display {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.day-schedule-item {
+    display: flex;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid #e9ecef;
+    gap: 1rem;
+}
+
+.day-schedule-item:last-child {
+    border-bottom: none;
+}
+
+.day-schedule-item.has-slots {
+    background: rgba(40, 167, 69, 0.05);
+}
+
+.day-schedule-item.no-slots {
+    background: rgba(108, 117, 125, 0.05);
+}
+
+.day-name {
+    min-width: 50px;
+    font-size: 0.9rem;
+    color: #495057;
+}
+
+.day-slots {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.time-slot-display {
+    background: #fff;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    border: 1px solid #dee2e6;
+    font-size: 0.8rem;
+    color: #495057;
+}
+
+.slot-time {
+    font-weight: 500;
+}
+
+.day-actions {
+    min-width: 40px;
+}
+
+.edit-day-btn, .add-day-btn {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+}
+
+/* Form States */
+.form-section {
+    transition: all 0.3s ease;
+}
+
+.form-section.hidden {
+    display: none;
+}
+
+.form-section.editing {
+    border: 2px solid #007bff;
+    border-radius: 8px;
+    background: rgba(0, 123, 255, 0.05);
+}
+
 </style>
 {% endblock %}

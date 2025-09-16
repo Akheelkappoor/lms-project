@@ -1,0 +1,69 @@
+{% extends "email/base_email.html" %}
+
+{% block title %}Class Rescheduled - {{ class.subject }}{% endblock %}
+{% block email_title %}Class Rescheduled{% endblock %}
+{% block email_subtitle %}{{ class.subject }} - New Schedule Updated{% endblock %}
+
+{% block recipient_name %}{{ student.full_name }}{% endblock %}
+
+{% block email_content %}
+<div class="alert-box alert-warning">
+    <strong>📅 Schedule Update!</strong> Your {{ class.subject }} class has been rescheduled. Please note the new date and time.
+</div>
+
+<div class="content-section">
+    <h2>Original Schedule</h2>
+    <div class="info-grid">
+        <div class="info-row">
+            <div class="info-label">Previous Date:</div>
+            <div class="info-value" style="text-decoration: line-through; color: #dc3545;">
+                {{ reschedule_details.original_date.strftime('%A, %B %d, %Y') if reschedule_details.original_date else 'N/A' }}
+            </div>
+        </div>
+        <div class="info-row">
+            <div class="info-label">Previous Time:</div>
+            <div class="info-value" style="text-decoration: line-through; color: #dc3545;">
+                {{ reschedule_details.original_time.strftime('%I:%M %p') if reschedule_details.original_time else 'N/A' }}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="content-section priority-high">
+    <h2>New Schedule</h2>
+    <div class="info-grid">
+        <div class="info-row">
+            <div class="info-label">New Date:</div>
+            <div class="info-value" style="color: #28a745; font-weight: bold;">
+                {{ new_schedule.date.strftime('%A, %B %d, %Y') if new_schedule and new_schedule.date else 'To be confirmed' }}
+            </div>
+        </div>
+        <div class="info-row">
+            <div class="info-label">New Time:</div>
+            <div class="info-value" style="color: #28a745; font-weight: bold;">
+                {{ new_schedule.time.strftime('%I:%M %p') if new_schedule and new_schedule.time else 'To be confirmed' }}
+            </div>
+        </div>
+        <div class="info-row">
+            <div class="info-label">Duration:</div>
+            <div class="info-value">{{ class.duration or '60' }} minutes</div>
+        </div>
+        <div class="info-row">
+            <div class="info-label">Reason:</div>
+            <div class="info-value">{{ reschedule_details.reason or 'Schedule adjustment' }}</div>
+        </div>
+    </div>
+</div>
+
+<div class="alert-box alert-success">
+    <strong>✅ Confirmed!</strong> The new schedule has been confirmed and your tutor has been notified. You'll receive a reminder before the new class time.
+</div>
+{% endblock %}
+
+{% block email_actions %}
+<div class="text-center">
+    <a href="#" class="button button-success">Add to Calendar</a>
+    <a href="#" class="button button-secondary">View Class Details</a>
+    <a href="#" class="button button-secondary">Contact Support</a>
+</div>
+{% endblock %}

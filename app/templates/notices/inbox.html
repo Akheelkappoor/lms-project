@@ -1,0 +1,498 @@
+{% extends "base.html" %}
+
+{% block title %}Notice Inbox - {{ APP_NAME }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h1 class="page-title">
+                <i class="fas fa-inbox"></i>
+                Notice Inbox
+            </h1>
+            <p class="page-subtitle">Your organizational notices and announcements</p>
+        </div>
+        <div class="header-actions">
+            <div class="btn-group">
+                <button type="button" class="btn btn-outline-primary" onclick="markAllAsRead()">
+                    <i class="fas fa-check-double"></i>
+                    Mark All Read
+                </button>
+                <button type="button" class="btn btn-outline-secondary" onclick="refreshNotices()">
+                    <i class="fas fa-sync"></i>
+                    Refresh
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="container-fluid">
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col-lg-4 col-md-6">
+            <div class="stat-card">
+                <div class="stat-icon bg-primary">
+                    <i class="fas fa-bell"></i>
+                </div>
+                <div class="stat-content">
+                    <h3>{{ stats.total }}</h3>
+                    <p>Total Notices</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4 col-md-6">
+            <div class="stat-card">
+                <div class="stat-icon bg-warning">
+                    <i class="fas fa-envelope"></i>
+                </div>
+                <div class="stat-content">
+                    <h3 id="unreadCount">{{ stats.unread }}</h3>
+                    <p>Unread Notices</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4 col-md-6">
+            <div class="stat-card">
+                <div class="stat-icon bg-info">
+                    <i class="fas fa-hand-paper"></i>
+                </div>
+                <div class="stat-content">
+                    <h3 id="pendingCount">{{ stats.pending_acknowledgment }}</h3>
+                    <p>Pending Acknowledgment</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="GET" class="row g-3" id="filterForm">
+                <div class="col-md-3">
+                    <label class="form-label">Search Notices</label>
+                    <input type="text" name="search" class="form-control" 
+                           placeholder="Search title or content" 
+                           value="{{ request.args.get('search', '') }}">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Category</label>
+                    <select name="category" class="form-select">
+                        <option value="">All Categories</option>
+                        <option value="academic" {{ 'selected' if request.args.get('category') == 'academic' }}>Academic</option>
+                        <option value="administrative" {{ 'selected' if request.args.get('category') == 'administrative' }}>Administrative</option>
+                        <option value="emergency" {{ 'selected' if request.args.get('category') == 'emergency' }}>Emergency</option>
+                        <option value="celebration" {{ 'selected' if request.args.get('category') == 'celebration' }}>Celebration</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Read Status</label>
+                    <select name="read_status" class="form-select">
+                        <option value="">All Notices</option>
+                        <option value="unread" {{ 'selected' if request.args.get('read_status') == 'unread' }}>Unread Only</option>
+                        <option value="read" {{ 'selected' if request.args.get('read_status') == 'read' }}>Read Only</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Acknowledgment</label>
+                    <select name="acknowledgment_status" class="form-select">
+                        <option value="">All Notices</option>
+                        <option value="pending" {{ 'selected' if request.args.get('acknowledgment_status') == 'pending' }}>Pending</option>
+                        <option value="acknowledged" {{ 'selected' if request.args.get('acknowledgment_status') == 'acknowledged' }}>Acknowledged</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">&nbsp;</label>
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-search"></i> Filter
+                        </button>
+                        <a href="{{ url_for('notice.user_notices') }}" class="btn btn-secondary">
+                            <i class="fas fa-times"></i> Clear
+                        </a>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Notices List -->
+    <div class="card">
+        <div class="card-header">
+            <h6 class="card-title mb-0">
+                <i class="fas fa-list"></i>
+                Your Notices
+                {% if notices.total > 0 %}
+                <span class="badge bg-secondary ms-2">{{ notices.total }}</span>
+                {% endif %}
+            </h6>
+        </div>
+        <div class="card-body">
+            {% if notices.items %}
+            <div class="notices-list">
+                {% for notice in notices.items %}
+                {% set distribution = notice.distributions.filter_by(user_id=current_user.id).first() %}
+                <div class="notice-item {{ 'notice-unread' if not distribution.is_read else '' }} {{ 'notice-urgent' if notice.is_urgent() else '' }}" 
+                     data-notice-id="{{ notice.id }}">
+                    <div class="notice-content">
+                        <div class="notice-header">
+                            <div class="notice-title-row">
+                                <h6 class="notice-title">
+                                    <a href="{{ url_for('notice.view_user_notice', notice_id=notice.id) }}" 
+                                       class="text-decoration-none {{ 'fw-bold' if not distribution.is_read else '' }}">
+                                        {{ notice.title }}
+                                    </a>
+                                    {% if not distribution.is_read %}
+                                    <span class="badge bg-primary ms-2">New</span>
+                                    {% endif %}
+                                    {% if notice.requires_acknowledgment and not distribution.is_acknowledged %}
+                                    <span class="badge bg-warning ms-1">Action Required</span>
+                                    {% endif %}
+                                </h6>
+                                <div class="notice-badges">
+                                    <span class="badge badge-category-{{ notice.category }}">
+                                        {{ notice.category.title() }}
+                                    </span>
+                                    {% if notice.priority == 'urgent' %}
+                                    <span class="badge bg-danger">Urgent</span>
+                                    {% elif notice.priority == 'high' %}
+                                    <span class="badge bg-warning">High</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="notice-meta">
+                                <small class="text-muted">
+                                    <i class="fas fa-user"></i>
+                                    {{ notice.author.full_name }}
+                                    •
+                                    <i class="fas fa-calendar"></i>
+                                    {{ notice.created_at|dateformat('%d %b %Y') }}
+                                    {% if notice.attachments.count() > 0 %}
+                                    •
+                                    <i class="fas fa-paperclip"></i>
+                                    {{ notice.attachments.count() }} attachment(s)
+                                    {% endif %}
+                                </small>
+                            </div>
+                        </div>
+                        
+                        <div class="notice-preview">
+                            {{ notice.content[:200] }}{% if notice.content|length > 200 %}...{% endif %}
+                        </div>
+                        
+                        <div class="notice-actions">
+                            <div class="action-buttons">
+                                <a href="{{ url_for('notice.view_user_notice', notice_id=notice.id) }}" 
+                                   class="btn btn-sm btn-outline-primary">
+                                    <i class="fas fa-eye"></i>
+                                    {% if distribution.is_read %}View{% else %}Read{% endif %}
+                                </a>
+                                
+                                {% if notice.requires_acknowledgment and not distribution.is_acknowledged %}
+                                <button type="button" class="btn btn-sm btn-warning" 
+                                        onclick="quickAcknowledge({{ notice.id }})">
+                                    <i class="fas fa-check"></i>
+                                    Acknowledge
+                                </button>
+                                {% endif %}
+                                
+                                {% if not distribution.is_read %}
+                                <button type="button" class="btn btn-sm btn-outline-secondary" 
+                                        onclick="markAsRead({{ notice.id }})">
+                                    <i class="fas fa-check"></i>
+                                    Mark Read
+                                </button>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="notice-status">
+                                {% if distribution.is_acknowledged %}
+                                <span class="status-badge acknowledged">
+                                    <i class="fas fa-check-circle"></i>
+                                    Acknowledged
+                                </span>
+                                {% elif distribution.is_read %}
+                                <span class="status-badge read">
+                                    <i class="fas fa-eye"></i>
+                                    Read
+                                </span>
+                                {% else %}
+                                <span class="status-badge unread">
+                                    <i class="fas fa-envelope"></i>
+                                    Unread
+                                </span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+
+            <!-- Pagination -->
+            {% if notices.pages > 1 %}
+            <nav aria-label="Notice pagination" class="mt-4">
+                <ul class="pagination justify-content-center">
+                    {% if notices.has_prev %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('notice.user_notices', page=notices.prev_num, **request.args) }}">Previous</a>
+                    </li>
+                    {% endif %}
+                    
+                    {% for page_num in notices.iter_pages() %}
+                        {% if page_num %}
+                            {% if page_num != notices.page %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('notice.user_notices', page=page_num, **request.args) }}">{{ page_num }}</a>
+                            </li>
+                            {% else %}
+                            <li class="page-item active">
+                                <span class="page-link">{{ page_num }}</span>
+                            </li>
+                            {% endif %}
+                        {% else %}
+                        <li class="page-item disabled">
+                            <span class="page-link">…</span>
+                        </li>
+                        {% endif %}
+                    {% endfor %}
+                    
+                    {% if notices.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('notice.user_notices', page=notices.next_num, **request.args) }}">Next</a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+            {% endif %}
+
+            {% else %}
+            <div class="empty-state">
+                <div class="empty-state-icon">
+                    <i class="fas fa-inbox"></i>
+                </div>
+                <h3>No notices found</h3>
+                <p>You don't have any notices matching the current filters.</p>
+                {% if request.args %}
+                <a href="{{ url_for('notice.user_notices') }}" class="btn btn-primary">
+                    <i class="fas fa-times"></i> Clear Filters
+                </a>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<style>
+.badge-category-academic { background-color: #17a2b8; }
+.badge-category-administrative { background-color: #6c757d; }
+.badge-category-emergency { background-color: #dc3545; }
+.badge-category-celebration { background-color: #28a745; }
+
+.notice-item {
+    border: 1px solid #dee2e6;
+    border-radius: 0.375rem;
+    margin-bottom: 1rem;
+    transition: all 0.2s ease;
+}
+
+.notice-item:hover {
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.notice-unread {
+    border-left: 4px solid #007bff;
+    background-color: #f8f9ff;
+}
+
+.notice-urgent {
+    border-left: 4px solid #dc3545;
+    background-color: #fff5f5;
+}
+
+.notice-content {
+    padding: 1rem;
+}
+
+.notice-title-row {
+    display: flex;
+    justify-content: between;
+    align-items: flex-start;
+    margin-bottom: 0.5rem;
+}
+
+.notice-title {
+    flex-grow: 1;
+    margin-bottom: 0;
+}
+
+.notice-badges {
+    margin-left: auto;
+}
+
+.notice-preview {
+    color: #6c757d;
+    margin: 0.75rem 0;
+    line-height: 1.5;
+}
+
+.notice-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 1rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid #dee2e6;
+}
+
+.action-buttons {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.status-badge {
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+
+.status-badge.acknowledged {
+    background-color: #d4edda;
+    color: #155724;
+}
+
+.status-badge.read {
+    background-color: #cce7ff;
+    color: #004085;
+}
+
+.status-badge.unread {
+    background-color: #fff3cd;
+    color: #856404;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 60px 20px;
+}
+
+.empty-state-icon {
+    font-size: 4rem;
+    color: #6c757d;
+    margin-bottom: 1rem;
+}
+
+@media (max-width: 768px) {
+    .notice-title-row {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    
+    .notice-actions {
+        flex-direction: column;
+        gap: 0.75rem;
+        align-items: flex-start;
+    }
+    
+    .action-buttons {
+        width: 100%;
+        justify-content: flex-start;
+    }
+}
+</style>
+
+<script>
+function markAsRead(noticeId) {
+    fetch(`/api/notices/${noticeId}/read`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token() }}'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('Error marking notice as read');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Network error occurred');
+    });
+}
+
+function quickAcknowledge(noticeId) {
+    fetch(`/api/notices/${noticeId}/acknowledge`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token() }}'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('Error acknowledging notice');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Network error occurred');
+    });
+}
+
+function markAllAsRead() {
+    if (confirm('Mark all visible notices as read?')) {
+        const unreadNotices = document.querySelectorAll('.notice-unread');
+        let promises = [];
+        
+        unreadNotices.forEach(notice => {
+            const noticeId = notice.dataset.noticeId;
+            promises.push(
+                fetch(`/api/notices/${noticeId}/read`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': '{{ csrf_token() }}'
+                    }
+                })
+            );
+        });
+        
+        Promise.all(promises)
+            .then(() => {
+                location.reload();
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Some notices could not be marked as read');
+            });
+    }
+}
+
+function refreshNotices() {
+    location.reload();
+}
+
+// Auto-refresh unread counts every 30 seconds
+setInterval(() => {
+    fetch('/api/notices/unread-count')
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('unreadCount').textContent = data.unread_count;
+        })
+        .catch(console.error);
+    
+    fetch('/api/notices/pending-acknowledgments-count')
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('pendingCount').textContent = data.pending_count;
+        })
+        .catch(console.error);
+}, 30000);
+</script>
+{% endblock %}

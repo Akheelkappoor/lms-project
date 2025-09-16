@@ -1,0 +1,160 @@
+{% extends "email/base_email.html" %}
+
+{% block title %}Attendance Alert - Action Required{% endblock %}
+{% block email_title %}Attendance Alert{% endblock %}
+{% block email_subtitle %}Your Attendance Needs Immediate Attention{% endblock %}
+
+{% block extra_styles %}
+<style>
+    .attendance-meter {
+        width: 100%;
+        height: 20px;
+        background-color: #ecf0f1;
+        border-radius: 10px;
+        overflow: hidden;
+        margin: 10px 0;
+    }
+    
+    .attendance-fill {
+        height: 100%;
+        transition: width 0.3s ease;
+        border-radius: 10px;
+    }
+    
+    .attendance-low { background-color: #e74c3c; }
+    .attendance-medium { background-color: #f39c12; }
+    .attendance-good { background-color: #27ae60; }
+    
+    .stat-box {
+        background: white;
+        border: 2px solid #e74c3c;
+        border-radius: 8px;
+        padding: 15px;
+        margin: 10px 0;
+        text-align: center;
+    }
+    
+    .stat-number {
+        font-size: 32px;
+        font-weight: bold;
+        color: #e74c3c;
+        line-height: 1;
+    }
+    
+    .stat-label {
+        font-size: 14px;
+        color: #666;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-top: 5px;
+    }
+</style>
+{% endblock %}
+
+{% block recipient_name %}{{ student.full_name }}{% endblock %}
+
+{% block email_content %}
+<div class="alert-box alert-danger">
+    <strong>⚠️ Attendance Alert!</strong> Your current attendance is below the required minimum of 75%. Immediate improvement is needed to continue your course.
+</div>
+
+<div class="content-section">
+    <h2>Current Attendance Status</h2>
+    
+    <div style="display: flex; justify-content: space-around; flex-wrap: wrap; margin: 20px 0;">
+        <div class="stat-box" style="flex: 1; min-width: 120px; margin: 5px;">
+            <div class="stat-number">{{ "%.1f"|format(attendance_percentage) }}%</div>
+            <div class="stat-label">Current Attendance</div>
+        </div>
+        <div class="stat-box" style="flex: 1; min-width: 120px; margin: 5px;">
+            <div class="stat-number">{{ attended_classes }}</div>
+            <div class="stat-label">Classes Attended</div>
+        </div>
+        <div class="stat-box" style="flex: 1; min-width: 120px; margin: 5px;">
+            <div class="stat-number">{{ total_classes - attended_classes }}</div>
+            <div class="stat-label">Classes Missed</div>
+        </div>
+    </div>
+    
+    <div style="margin: 20px 0;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+            <span>Attendance Progress</span>
+            <span style="font-weight: bold; color: #e74c3c;">{{ "%.1f"|format(attendance_percentage) }}%</span>
+        </div>
+        <div class="attendance-meter">
+            <div class="attendance-fill attendance-low" style="width: {{ attendance_percentage }}%;"></div>
+        </div>
+        <div style="display: flex; justify-content: space-between; font-size: 12px; color: #666; margin-top: 5px;">
+            <span>0%</span>
+            <span style="color: #f39c12;">Required: 75%</span>
+            <span>100%</span>
+        </div>
+    </div>
+</div>
+
+{% if improvement_plan %}
+<div class="content-section">
+    <h2>Improvement Plan</h2>
+    <div class="info-grid">
+        <div class="info-row">
+            <div class="info-label">Target Attendance:</div>
+            <div class="info-value">{{ improvement_plan.target_percentage }}%</div>
+        </div>
+        <div class="info-row">
+            <div class="info-label">Additional Classes Needed:</div>
+            <div class="info-value">{{ improvement_plan.classes_needed }} classes</div>
+        </div>
+    </div>
+    
+    <h3>Recommended Actions:</h3>
+    <ul class="action-list">
+        {% for recommendation in improvement_plan.recommendations %}
+        <li>{{ recommendation }}</li>
+        {% endfor %}
+    </ul>
+</div>
+{% endif %}
+
+<div class="content-section">
+    <h2>Consequences of Low Attendance</h2>
+    <div class="alert-box alert-warning">
+        <ul style="margin: 0; padding-left: 20px;">
+            <li>Risk of course failure</li>
+            <li>Inability to appear for final assessments</li>
+            <li>Possible suspension from classes</li>
+            <li>Impact on academic progress and certification</li>
+            <li>Financial implications for continued enrollment</li>
+        </ul>
+    </div>
+</div>
+
+<div class="content-section">
+    <h2>Support Available</h2>
+    <ul class="action-list">
+        <li>Flexible class scheduling options</li>
+        <li>Makeup classes for missed sessions</li>
+        <li>One-on-one counseling with coordinators</li>
+        <li>Academic support and study planning</li>
+        <li>Communication with parents/guardians for support</li>
+    </ul>
+</div>
+
+<div class="alert-box alert-info">
+    <strong>Next Steps:</strong> Our coordination team will contact you within 24 hours to discuss your attendance and create a personalized improvement plan.
+</div>
+{% endblock %}
+
+{% block email_actions %}
+<div class="text-center">
+    <a href="#" class="button button-danger">Schedule Improvement Meeting</a>
+    <a href="#" class="button button-secondary">View Attendance Details</a>
+</div>
+{% endblock %}
+
+{% block email_closing %}
+<div class="mt-20">
+    <p><strong>Immediate Action Required:</strong> Please prioritize attending all upcoming classes and contact us if you're facing any challenges that prevent regular attendance.</p>
+    <p>We're here to help you succeed. Don't hesitate to reach out to our support team.</p>
+    <p>Best regards,<br>Academic Coordination Team</p>
+</div>
+{% endblock %}

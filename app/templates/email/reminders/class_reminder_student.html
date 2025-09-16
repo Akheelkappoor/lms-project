@@ -1,0 +1,89 @@
+{% extends "email/base_email.html" %}
+
+{% block title %}Class Reminder - {{ class.subject }}{% endblock %}
+{% block email_title %}Class Reminder{% endblock %}
+{% block email_subtitle %}{{ class.subject }} - {{ timing.title() }}{% endblock %}
+
+{% block recipient_name %}{{ student.full_name }}{% endblock %}
+
+{% block email_content %}
+<div class="alert-box alert-info">
+    <strong>📅 Class Reminder!</strong> You have a {{ class.subject }} class {% if timing == 'today' %}today{% elif timing == 'tomorrow' %}tomorrow{% else %}coming up{% endif %}.
+</div>
+
+<div class="content-section">
+    <h2>Class Details</h2>
+    <div class="info-grid">
+        <div class="info-row">
+            <div class="info-label">Subject:</div>
+            <div class="info-value"><strong>{{ class.subject }}</strong></div>
+        </div>
+        <div class="info-row">
+            <div class="info-label">Date:</div>
+            <div class="info-value">{{ class.scheduled_date.strftime('%A, %B %d, %Y') }}</div>
+        </div>
+        <div class="info-row">
+            <div class="info-label">Time:</div>
+            <div class="info-value"><strong>{{ class.scheduled_time.strftime('%I:%M %p') if class.scheduled_time else 'TBD' }}</strong></div>
+        </div>
+        <div class="info-row">
+            <div class="info-label">Duration:</div>
+            <div class="info-value">{{ class.duration or 60 }} minutes</div>
+        </div>
+        <div class="info-row">
+            <div class="info-label">Class Type:</div>
+            <div class="info-value">{{ class.class_type.title() }}</div>
+        </div>
+    </div>
+</div>
+
+{% if tutor and tutor_user %}
+<div class="content-section">
+    <h2>Your Tutor</h2>
+    <div class="info-grid">
+        <div class="info-row">
+            <div class="info-label">Name:</div>
+            <div class="info-value"><strong>{{ tutor_user.full_name }}</strong></div>
+        </div>
+        <div class="info-row">
+            <div class="info-label">Contact:</div>
+            <div class="info-value">{{ tutor_user.phone or 'Available in class' }}</div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<div class="content-section">
+    <h2>Pre-Class Checklist</h2>
+    <ul class="action-list">
+        {% for tip in preparation_tips %}
+        <li>{{ tip }}</li>
+        {% endfor %}
+    </ul>
+</div>
+
+{% if timing == 'today' %}
+<div class="alert-box alert-warning">
+    <strong>⏰ Class Today!</strong> Your class is scheduled for today. Make sure you're prepared and join on time!
+</div>
+{% endif %}
+
+<div class="alert-box alert-success">
+    <strong>🎯 Ready to Learn?</strong> We're excited to see you in class. Your consistent attendance contributes to better learning outcomes!
+</div>
+{% endblock %}
+
+{% block email_actions %}
+<div class="text-center">
+    <a href="{{ class_url }}" class="button button-success">Join Class</a>
+    <a href="#" class="button button-secondary">View Class Materials</a>
+    <a href="#" class="button button-secondary">Contact Tutor</a>
+</div>
+{% endblock %}
+
+{% block email_closing %}
+<div class="mt-20">
+    <p>We hope you have a productive learning session! Remember, your active participation makes the class better for everyone.</p>
+    <p>See you in class!<br>Academic Team</p>
+</div>
+{% endblock %}

@@ -10,13 +10,17 @@
                 <i class="fas fa-calendar-check"></i>
                 Attendance Records
             </h1>
-            <p class="page-subtitle">View and manage your attendance history</p>
+            <p class="page-subtitle">View and manage your attendance history with auto-tracking system</p>
         </div>
         <div class="header-actions">
             <div class="btn-group">
                 <button class="btn btn-outline-primary" onclick="exportAttendance()">
                     <i class="fas fa-download"></i>
                     Export
+                </button>
+                <button class="btn btn-outline-secondary" onclick="location.reload()">
+                    <i class="fas fa-sync-alt"></i>
+                    Refresh
                 </button>
                 <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#filterModal">
                     <i class="fas fa-filter"></i>
@@ -28,6 +32,28 @@
 </div>
 
 <div class="container-fluid">
+    <!-- 🔥 NEW: Auto-Attendance System Notification 🔥 -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="alert alert-info border-0">
+                <div class="d-flex align-items-center">
+                    <i class="fas fa-robot fa-2x me-3"></i>
+                    <div>
+                        <h6 class="mb-1">
+                            <i class="fas fa-magic"></i>
+                            Auto-Attendance System Active
+                        </h6>
+                        <p class="mb-0">
+                            <strong>Smart Tracking:</strong> Attendance is automatically marked when you start classes • 
+                            <strong>Review Process:</strong> You can review and adjust attendance when completing classes • 
+                            <strong>Real-Time Updates:</strong> All changes are tracked and timestamped
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Summary Cards -->
     <div class="row mb-4">
         <div class="col-lg-3 col-md-6">
@@ -38,6 +64,10 @@
                 <div class="stat-content">
                     <h3>{{ summary.get('present_count', 0) }}</h3>
                     <p>Classes Attended</p>
+                    <small class="text-success">
+                        <i class="fas fa-arrow-up"></i>
+                        Auto-marked present
+                    </small>
                 </div>
             </div>
         </div>
@@ -50,6 +80,10 @@
                 <div class="stat-content">
                     <h3>{{ summary.get('absent_count', 0) }}</h3>
                     <p>Classes Missed</p>
+                    <small class="text-danger">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        System detected
+                    </small>
                 </div>
             </div>
         </div>
@@ -62,6 +96,10 @@
                 <div class="stat-content">
                     <h3>{{ summary.get('late_count', 0) }}</h3>
                     <p>Late Arrivals</p>
+                    <small class="text-warning">
+                        <i class="fas fa-clock"></i>
+                        Time tracked
+                    </small>
                 </div>
             </div>
         </div>
@@ -74,131 +112,250 @@
                 <div class="stat-content">
                     <h3>{{ "%.1f"|format(summary.get('attendance_percentage', 0)) }}%</h3>
                     <p>Attendance Rate</p>
+                    <small class="text-primary">
+                        <i class="fas fa-chart-line"></i>
+                        Overall performance
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Filter Buttons -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card bg-light border-0">
+                <div class="card-body py-3">
+                    <div class="d-flex flex-wrap gap-2 align-items-center">
+                        <span class="fw-bold text-muted me-3">Quick Filters:</span>
+                        <button class="btn btn-sm btn-outline-primary" onclick="filterByPeriod('today')">
+                            <i class="fas fa-calendar-day"></i> Today
+                        </button>
+                        <button class="btn btn-sm btn-outline-primary" onclick="filterByPeriod('week')">
+                            <i class="fas fa-calendar-week"></i> This Week
+                        </button>
+                        <button class="btn btn-sm btn-outline-primary" onclick="filterByPeriod('month')">
+                            <i class="fas fa-calendar"></i> This Month
+                        </button>
+                        <button class="btn btn-sm btn-outline-secondary" onclick="clearFilters()">
+                            <i class="fas fa-times"></i> Clear
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
     <!-- Attendance Records -->
-    <div class="card">
-        <div class="card-header">
-            <h5 class="card-title mb-0">
-                <i class="fas fa-list"></i>
-                Attendance History
-            </h5>
+    <div class="card shadow-sm">
+        <div class="card-header bg-white">
+            <div class="d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-list"></i>
+                    Attendance History
+                    {% if attendance_records.items %}
+                        <span class="badge bg-primary ms-2">{{ attendance_records.total }} records</span>
+                    {% endif %}
+                </h5>
+                <div class="card-actions">
+                    {% if attendance_records.items %}
+                        <span class="text-muted small">
+                            Showing {{ attendance_records.items|length }} of {{ attendance_records.total }}
+                        </span>
+                    {% endif %}
+                </div>
+            </div>
         </div>
-        <div class="card-body">
+        <div class="card-body p-0">
             {% if attendance_records.items %}
             <div class="table-responsive">
-                <table class="table table-hover">
+                <table class="table table-hover mb-0">
                     <thead class="table-light">
                         <tr>
-                            <th>Date</th>
-                            <th>Class</th>
-                            <th>Student(s)</th>
-                            <th>Scheduled Time</th>
-                            <th>Status</th>
-                            <th>Punctuality</th>
-                            <th>Actions</th>
+                            <th class="border-0">Date</th>
+                            <th class="border-0">Class Details</th>
+                            <th class="border-0">Student(s)</th>
+                            <th class="border-0">Scheduled Time</th>
+                            <th class="border-0">Attendance Status</th>
+                            <th class="border-0">Punctuality</th>
+                            <th class="border-0">Auto-Tracking</th>
+                            <th class="border-0">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for record in attendance_records.items %}
-                        <tr>
+                        <tr class="attendance-row">
                             <td>
-                                <strong>{{ record.class_date.strftime('%d %b %Y') }}</strong>
-                                <br>
-                                <small class="text-muted">{{ record.class_date.strftime('%A') }}</small>
+                                <div class="date-info">
+                                    <strong class="d-block">{{ record.class_date.strftime('%d %b %Y') }}</strong>
+                                    <small class="text-muted">{{ record.class_date.strftime('%A') }}</small>
+                                </div>
                             </td>
                             <td>
                                 {% if record.class_session %}
-                                <strong>{{ record.class_session.subject }}</strong>
-                                <br>
-                                <small class="text-muted">{{ record.class_session.class_type.replace('_', ' ').title() }}</small>
+                                <div class="class-info">
+                                    <strong class="d-block">{{ record.class_session.subject }}</strong>
+                                    <small class="text-muted">
+                                        {{ record.class_session.class_type.replace('_', ' ').title() }}
+                                        {% if record.class_session.grade %}
+                                            • Grade {{ record.class_session.grade }}
+                                        {% endif %}
+                                    </small>
+                                </div>
                                 {% else %}
-                                <span class="text-muted">Class details unavailable</span>
+                                <span class="text-muted">
+                                    <i class="fas fa-exclamation-triangle"></i>
+                                    Class details unavailable
+                                </span>
                                 {% endif %}
                             </td>
                             <td>
                                 {% if record.student %}
                                 <div class="student-info">
-                                    <strong>{{ record.student.full_name }}</strong>
-                                    <br>
-                                    <small class="text-muted">Grade {{ record.student.grade }}</small>
+                                    <strong class="d-block">{{ record.student.full_name }}</strong>
+                                    <small class="text-muted">
+                                        Grade {{ record.student.grade }}
+                                        {% if record.student.board %}
+                                            • {{ record.student.board }}
+                                        {% endif %}
+                                    </small>
                                 </div>
                                 {% else %}
-                                <span class="text-muted">Student info unavailable</span>
+                                <span class="text-muted">
+                                    <i class="fas fa-user-times"></i>
+                                    Student info unavailable
+                                </span>
                                 {% endif %}
                             </td>
                             <td>
                                 {% if record.scheduled_start %}
-                                {{ record.scheduled_start.strftime('%I:%M %p') }}
-                                {% if record.scheduled_end %}
-                                <br>
-                                <small class="text-muted">to {{ record.scheduled_end.strftime('%I:%M %p') }}</small>
-                                {% endif %}
+                                <div class="time-info">
+                                    <strong class="d-block">{{ record.scheduled_start.strftime('%I:%M %p') }}</strong>
+                                    {% if record.scheduled_end %}
+                                        <small class="text-muted">to {{ record.scheduled_end.strftime('%I:%M %p') }}</small>
+                                    {% endif %}
+                                </div>
                                 {% else %}
-                                <span class="text-muted">Time not set</span>
+                                <span class="text-muted">
+                                    <i class="fas fa-clock"></i>
+                                    Time not set
+                                </span>
                                 {% endif %}
                             </td>
                             <td>
                                 <div class="status-info">
                                     {% if record.tutor_present %}
-                                    <span class="badge bg-success">Present</span>
+                                        <span class="badge bg-success">
+                                            <i class="fas fa-check-circle"></i> Present
+                                        </span>
                                     {% else %}
-                                    <span class="badge bg-danger">Absent</span>
+                                        <span class="badge bg-danger">
+                                            <i class="fas fa-times-circle"></i> Absent
+                                        </span>
                                     {% endif %}
                                     
                                     {% if record.tutor_join_time and record.tutor_leave_time %}
-                                    <br>
-                                    <small class="text-muted">
-                                        {{ record.tutor_join_time.strftime('%I:%M %p') }} - 
-                                        {{ record.tutor_leave_time.strftime('%I:%M %p') }}
-                                    </small>
+                                        <div class="mt-1">
+                                            <small class="text-muted d-block">
+                                                <i class="fas fa-sign-in-alt"></i> 
+                                                {{ record.tutor_join_time.strftime('%I:%M %p') }}
+                                            </small>
+                                            <small class="text-muted d-block">
+                                                <i class="fas fa-sign-out-alt"></i>
+                                                {{ record.tutor_leave_time.strftime('%I:%M %p') }}
+                                            </small>
+                                        </div>
                                     {% endif %}
                                 </div>
                             </td>
                             <td>
                                 <div class="punctuality-info">
                                     {% if record.tutor_late_minutes > 0 %}
-                                    <span class="badge bg-warning">
-                                        <i class="fas fa-clock"></i>
-                                        {{ record.tutor_late_minutes }}m late
-                                    </span>
+                                        <span class="badge bg-warning">
+                                            <i class="fas fa-clock"></i>
+                                            {{ record.tutor_late_minutes }}m late
+                                        </span>
                                     {% elif record.tutor_present %}
-                                    <span class="badge bg-success">
-                                        <i class="fas fa-check"></i>
-                                        On time
-                                    </span>
+                                        <span class="badge bg-success">
+                                            <i class="fas fa-check"></i>
+                                            On time
+                                        </span>
                                     {% endif %}
                                     
                                     {% if record.tutor_early_leave_minutes > 0 %}
-                                    <br>
-                                    <span class="badge bg-danger">
-                                        <i class="fas fa-sign-out-alt"></i>
-                                        {{ record.tutor_early_leave_minutes }}m early
-                                    </span>
+                                        <div class="mt-1">
+                                            <span class="badge bg-danger">
+                                                <i class="fas fa-door-open"></i>
+                                                {{ record.tutor_early_leave_minutes }}m early
+                                            </span>
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td>
+                                <div class="auto-tracking-info">
+                                    {% if record.auto_marked %}
+                                        <span class="badge bg-info">
+                                            <i class="fas fa-robot"></i>
+                                            Auto-marked
+                                        </span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">
+                                            <i class="fas fa-user"></i>
+                                            Manual
+                                        </span>
+                                    {% endif %}
+                                    
+                                    {% if record.last_updated %}
+                                        <div class="mt-1">
+                                            <small class="text-muted">
+                                                <i class="fas fa-clock"></i>
+                                                Updated {{ record.last_updated.strftime('%H:%M') }}
+                                            </small>
+                                        </div>
                                     {% endif %}
                                 </div>
                             </td>
                             <td>
                                 <div class="btn-group btn-group-sm">
                                     {% if record.class_session %}
-                                    <a href="{{ url_for('tutor.class_details', class_id=record.class_session.id) }}" 
-                                       class="btn btn-outline-primary btn-sm">
-                                        <i class="fas fa-eye"></i>
-                                        View Class
-                                    </a>
+                                        <a href="{{ url_for('tutor.class_details', class_id=record.class_session.id) }}" 
+                                           class="btn btn-outline-primary btn-sm"
+                                           data-bs-toggle="tooltip" title="View Class Details">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
                                     {% endif %}
                                     
                                     {% if record.attendance_notes or record.behavioral_notes %}
-                                    <button class="btn btn-outline-info btn-sm" 
-                                            data-bs-toggle="modal" 
-                                            data-bs-target="#notesModal"
-                                            onclick="showNotes('{{ record.id }}', '{{ record.attendance_notes or '' }}', '{{ record.behavioral_notes or '' }}')">
-                                        <i class="fas fa-sticky-note"></i>
-                                        Notes
-                                    </button>
+                                        <button class="btn btn-outline-info btn-sm" 
+                                                data-bs-toggle="modal" 
+                                                data-bs-target="#notesModal"
+                                                onclick="showNotes('{{ record.id }}', '{{ record.attendance_notes or '' }}', '{{ record.behavioral_notes or '' }}')"
+                                                title="View Notes">
+                                            <i class="fas fa-sticky-note"></i>
+                                        </button>
+                                    {% endif %}
+                                    
+                                    <!-- Admin Quick Actions -->
+                                    {% if current_user.role in ['admin', 'coordinator', 'superadmin'] %}
+                                        <div class="btn-group btn-group-sm">
+                                            <button class="btn btn-outline-secondary btn-sm dropdown-toggle" 
+                                                    data-bs-toggle="dropdown">
+                                                <i class="fas fa-cog"></i>
+                                            </button>
+                                            <ul class="dropdown-menu">
+                                                <li>
+                                                    <a class="dropdown-item" href="#" onclick="editAttendance('{{ record.id }}')">
+                                                        <i class="fas fa-edit"></i> Edit Record
+                                                    </a>
+                                                </li>
+                                                <li>
+                                                    <a class="dropdown-item" href="#" onclick="viewAuditLog('{{ record.id }}')">
+                                                        <i class="fas fa-history"></i> Audit Log
+                                                    </a>
+                                                </li>
+                                            </ul>
+                                        </div>
                                     {% endif %}
                                 </div>
                             </td>
@@ -210,99 +367,171 @@
 
             <!-- Pagination -->
             {% if attendance_records.pages > 1 %}
-            <nav aria-label="Attendance pagination">
-                <ul class="pagination justify-content-center">
-                    {% if attendance_records.has_prev %}
-                    <li class="page-item">
-                        <a class="page-link" href="{{ url_for('tutor.attendance', page=attendance_records.prev_num) }}">
-                            <i class="fas fa-chevron-left"></i>
-                        </a>
-                    </li>
-                    {% endif %}
-                    
-                    {% for page_num in attendance_records.iter_pages() %}
-                        {% if page_num %}
-                            {% if page_num != attendance_records.page %}
+            <div class="card-footer bg-light">
+                <nav aria-label="Attendance pagination">
+                    <ul class="pagination pagination-sm justify-content-center mb-0">
+                        {% if attendance_records.has_prev %}
                             <li class="page-item">
-                                <a class="page-link" href="{{ url_for('tutor.attendance', page=page_num) }}">{{ page_num }}</a>
+                                <a class="page-link" href="{{ url_for('tutor.attendance', page=attendance_records.prev_num) }}">
+                                    <i class="fas fa-chevron-left"></i>
+                                </a>
                             </li>
-                            {% else %}
-                            <li class="page-item active">
-                                <span class="page-link">{{ page_num }}</span>
-                            </li>
-                            {% endif %}
-                        {% else %}
-                        <li class="page-item disabled">
-                            <span class="page-link">...</span>
-                        </li>
                         {% endif %}
-                    {% endfor %}
-                    
-                    {% if attendance_records.has_next %}
-                    <li class="page-item">
-                        <a class="page-link" href="{{ url_for('tutor.attendance', page=attendance_records.next_num) }}">
-                            <i class="fas fa-chevron-right"></i>
-                        </a>
-                    </li>
-                    {% endif %}
-                </ul>
-            </nav>
+                        
+                        {% for page_num in attendance_records.iter_pages(left_edge=1, right_edge=1, left_current=1, right_current=2) %}
+                            {% if page_num %}
+                                {% if page_num != attendance_records.page %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="{{ url_for('tutor.attendance', page=page_num) }}">{{ page_num }}</a>
+                                    </li>
+                                {% else %}
+                                    <li class="page-item active">
+                                        <span class="page-link">{{ page_num }}</span>
+                                    </li>
+                                {% endif %}
+                            {% else %}
+                                <li class="page-item disabled">
+                                    <span class="page-link">...</span>
+                                </li>
+                            {% endif %}
+                        {% endfor %}
+                        
+                        {% if attendance_records.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('tutor.attendance', page=attendance_records.next_num) }}">
+                                    <i class="fas fa-chevron-right"></i>
+                                </a>
+                            </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+            </div>
             {% endif %}
             
             {% else %}
             <div class="text-center py-5">
-                <i class="fas fa-calendar-check fa-3x text-muted mb-3"></i>
+                <i class="fas fa-robot fa-3x text-primary mb-3"></i>
                 <h5 class="text-muted">No Attendance Records Found</h5>
-                <p class="text-muted">Your attendance records will appear here once you start teaching classes.</p>
+                <p class="text-muted mb-4">
+                    Your attendance records will appear here automatically once you start teaching classes.<br>
+                    The system will track attendance when you start and complete classes.
+                </p>
+                <div class="d-flex justify-content-center gap-2">
+                    <a href="{{ url_for('tutor.my_classes') }}" class="btn btn-primary">
+                        <i class="fas fa-chalkboard"></i>
+                        View My Classes
+                    </a>
+                    <button class="btn btn-outline-secondary" onclick="location.reload()">
+                        <i class="fas fa-sync-alt"></i>
+                        Refresh
+                    </button>
+                </div>
             </div>
             {% endif %}
         </div>
     </div>
 </div>
 
-<!-- Filter Modal -->
+<!-- Enhanced Filter Modal -->
 <div class="modal fade" id="filterModal" tabindex="-1">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-lg">
         <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Filter Attendance Records</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-filter"></i>
+                    Filter Attendance Records
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
-            <form method="GET">
+            <form method="GET" id="filterForm">
                 <div class="modal-body">
                     <div class="row g-3">
                         <div class="col-md-6">
-                            <label class="form-label">Start Date</label>
+                            <label class="form-label">
+                                <i class="fas fa-calendar-alt"></i>
+                                Start Date
+                            </label>
                             <input type="date" name="start_date" class="form-control" 
                                    value="{{ request.args.get('start_date', '') }}">
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label">End Date</label>
+                            <label class="form-label">
+                                <i class="fas fa-calendar-alt"></i>
+                                End Date
+                            </label>
                             <input type="date" name="end_date" class="form-control" 
                                    value="{{ request.args.get('end_date', '') }}">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">
+                                <i class="fas fa-check-circle"></i>
+                                Attendance Status
+                            </label>
+                            <select name="status" class="form-select">
+                                <option value="">All Status</option>
+                                <option value="present" {{ 'selected' if request.args.get('status') == 'present' }}>Present</option>
+                                <option value="absent" {{ 'selected' if request.args.get('status') == 'absent' }}>Absent</option>
+                                <option value="late" {{ 'selected' if request.args.get('status') == 'late' }}>Late</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">
+                                <i class="fas fa-robot"></i>
+                                Tracking Method
+                            </label>
+                            <select name="tracking" class="form-select">
+                                <option value="">All Methods</option>
+                                <option value="auto" {{ 'selected' if request.args.get('tracking') == 'auto' }}>Auto-tracked</option>
+                                <option value="manual" {{ 'selected' if request.args.get('tracking') == 'manual' }}>Manual</option>
+                            </select>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">
+                                <i class="fas fa-book"></i>
+                                Subject
+                            </label>
+                            <input type="text" name="subject" class="form-control" 
+                                   placeholder="Enter subject name"
+                                   value="{{ request.args.get('subject', '') }}">
                         </div>
                     </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-primary">Apply Filters</button>
+                    <button type="button" class="btn btn-outline-danger" onclick="clearAllFilters()">
+                        <i class="fas fa-times"></i>
+                        Clear All
+                    </button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-search"></i>
+                        Apply Filters
+                    </button>
                 </div>
             </form>
         </div>
     </div>
 </div>
 
-<!-- Notes Modal -->
+<!-- Enhanced Notes Modal -->
 <div class="modal fade" id="notesModal" tabindex="-1">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-lg">
         <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Attendance Notes</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            <div class="modal-header bg-info text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-sticky-note"></i>
+                    Attendance Notes
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <div id="attendanceNotes"></div>
-                <div id="behavioralNotes"></div>
+                <div class="row g-4">
+                    <div class="col-12">
+                        <div id="attendanceNotes" class="notes-section"></div>
+                    </div>
+                    <div class="col-12">
+                        <div id="behavioralNotes" class="notes-section"></div>
+                    </div>
+                </div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
@@ -312,16 +541,23 @@
 </div>
 
 <style>
+/* Enhanced Stat Cards */
 .stat-card {
     background: white;
     border-radius: 12px;
     padding: 1.5rem;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
     border: 1px solid #e9ecef;
     display: flex;
     align-items: center;
     gap: 1rem;
     height: 100%;
+    transition: var(--transition);
+}
+
+.stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
 }
 
 .stat-icon {
@@ -333,6 +569,7 @@
     justify-content: center;
     font-size: 1.5rem;
     color: white;
+    position: relative;
 }
 
 .stat-icon.primary { background: linear-gradient(135deg, #007bff, #0056b3); }
@@ -348,24 +585,95 @@
 }
 
 .stat-content p {
-    margin: 0;
+    margin: 0.25rem 0;
     color: #6c757d;
     font-size: 0.9rem;
+    font-weight: 600;
 }
 
-.status-info, .punctuality-info {
+.stat-content small {
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+
+/* Enhanced Table Styles */
+.attendance-row {
+    transition: all 0.2s ease;
+}
+
+.attendance-row:hover {
+    background-color: rgba(0, 123, 255, 0.05);
+}
+
+.date-info, .class-info, .student-info, .time-info {
+    min-width: 120px;
+}
+
+.status-info, .punctuality-info, .auto-tracking-info {
     display: flex;
     flex-direction: column;
     gap: 4px;
 }
 
-.student-info {
-    min-width: 150px;
+.badge {
+    font-size: 0.75rem;
+    font-weight: 500;
 }
 
+.notes-section {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 1rem;
+    border-left: 4px solid #007bff;
+}
+
+.notes-section h6 {
+    margin-bottom: 0.75rem;
+    color: #495057;
+}
+
+.notes-section p {
+    margin-bottom: 0;
+    color: #6c757d;
+    line-height: 1.5;
+}
+
+/* Auto-Attendance System Styles */
+.alert .fa-robot {
+    color: #007bff;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.7; }
+    100% { opacity: 1; }
+}
+
+/* Quick Filter Buttons */
+.quick-filters .btn {
+    border-radius: 20px;
+    font-size: 0.875rem;
+    padding: 0.375rem 0.75rem;
+}
+
+/* Responsive Design */
 @media (max-width: 768px) {
     .stat-card {
         margin-bottom: 1rem;
+        flex-direction: column;
+        text-align: center;
+        gap: 0.75rem;
+    }
+    
+    .stat-icon {
+        width: 50px;
+        height: 50px;
+        font-size: 1.25rem;
+    }
+    
+    .stat-content h3 {
+        font-size: 1.5rem;
     }
     
     .btn-group-sm .btn {
@@ -375,25 +683,198 @@
     .table-responsive {
         font-size: 0.875rem;
     }
+    
+    .header-actions .btn-group {
+        flex-direction: column;
+        width: 100%;
+    }
+    
+    .header-actions .btn {
+        margin-bottom: 0.25rem;
+    }
+    
+    .quick-filters {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+}
+
+@media (max-width: 576px) {
+    .page-header {
+        text-align: center;
+    }
+    
+    .page-header .d-flex {
+        flex-direction: column;
+        gap: 1rem;
+    }
+    
+    .table-responsive table {
+        font-size: 0.8rem;
+    }
+    
+    .badge {
+        font-size: 0.7rem;
+    }
+}
+
+/* Loading States */
+.loading-overlay {
+    position: relative;
+}
+
+.loading-overlay::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255, 255, 255, 0.8);
+    z-index: 10;
+    display: none;
+}
+
+.loading-overlay.loading::before {
+    display: block;
+}
+
+/* Enhanced Modal Styles */
+.modal-header.bg-primary {
+    border-bottom: none;
+}
+
+.modal-header.bg-info {
+    border-bottom: none;
+}
+
+.btn-close-white {
+    filter: brightness(0) invert(1);
 }
 </style>
 
 <script>
+// Enhanced JavaScript Functions
+
 function exportAttendance() {
-    // Simple export functionality
-    window.print();
+    // Enhanced export functionality
+    const currentFilters = new URLSearchParams(window.location.search);
+    const exportUrl = `/tutor/attendance/export?${currentFilters.toString()}`;
+    
+    // Show loading state
+    const exportBtn = event.target;
+    const originalText = exportBtn.innerHTML;
+    exportBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Exporting...';
+    exportBtn.disabled = true;
+    
+    // Create download link
+    const link = document.createElement('a');
+    link.href = exportUrl;
+    link.download = `attendance_records_${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    // Reset button state
+    setTimeout(() => {
+        exportBtn.innerHTML = originalText;
+        exportBtn.disabled = false;
+    }, 2000);
+}
+
+function filterByPeriod(period) {
+    const now = new Date();
+    let startDate, endDate;
+    
+    switch(period) {
+        case 'today':
+            startDate = endDate = now.toISOString().split('T')[0];
+            break;
+        case 'week':
+            const startOfWeek = new Date(now.setDate(now.getDate() - now.getDay()));
+            const endOfWeek = new Date(now.setDate(now.getDate() - now.getDay() + 6));
+            startDate = startOfWeek.toISOString().split('T')[0];
+            endDate = endOfWeek.toISOString().split('T')[0];
+            break;
+        case 'month':
+            startDate = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+            endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
+            break;
+    }
+    
+    const url = new URL(window.location);
+    url.searchParams.set('start_date', startDate);
+    url.searchParams.set('end_date', endDate);
+    window.location = url;
+}
+
+function clearFilters() {
+    const url = new URL(window.location);
+    url.search = '';
+    window.location = url;
+}
+
+function clearAllFilters() {
+    document.getElementById('filterForm').reset();
+    clearFilters();
 }
 
 function showNotes(recordId, attendanceNotes, behavioralNotes) {
     document.getElementById('attendanceNotes').innerHTML = `
         <h6><i class="fas fa-sticky-note text-primary"></i> Attendance Notes</h6>
-        <p>${attendanceNotes || 'No attendance notes available.'}</p>
+        <p>${attendanceNotes || '<em class="text-muted">No attendance notes available.</em>'}</p>
     `;
     
     document.getElementById('behavioralNotes').innerHTML = `
         <h6><i class="fas fa-user-check text-info"></i> Behavioral Notes</h6>
-        <p>${behavioralNotes || 'No behavioral notes available.'}</p>
+        <p>${behavioralNotes || '<em class="text-muted">No behavioral notes available.</em>'}</p>
     `;
 }
+
+function editAttendance(recordId) {
+    // Admin function to edit attendance record
+    window.location.href = `/admin/attendance/${recordId}/edit`;
+}
+
+function viewAuditLog(recordId) {
+    // Admin function to view audit log
+    window.location.href = `/admin/attendance/${recordId}/audit-log`;
+}
+
+// Initialize tooltips
+document.addEventListener('DOMContentLoaded', function() {
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+    
+    // Auto-refresh every 5 minutes for real-time updates
+    setInterval(() => {
+        if (document.visibilityState === 'visible') {
+            // Only refresh if user is actively viewing the page
+            const refreshIndicator = document.createElement('div');
+            refreshIndicator.className = 'position-fixed top-0 end-0 p-3';
+            refreshIndicator.innerHTML = `
+                <div class="toast show">
+                    <div class="toast-body bg-info text-white">
+                        <i class="fas fa-sync-alt fa-spin"></i> Checking for updates...
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(refreshIndicator);
+            
+            setTimeout(() => {
+                location.reload();
+            }, 2000);
+        }
+    }, 300000); // 5 minutes
+});
+
+// Handle form submission with loading state
+document.getElementById('filterForm').addEventListener('submit', function() {
+    const submitBtn = this.querySelector('button[type="submit"]');
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Applying...';
+    submitBtn.disabled = true;
+});
 </script>
 {% endblock %}

@@ -21,9 +21,10 @@ def clean_pycache(directory):
         print(f"Error: {e}")
 
 if __name__ == "__main__":
-    directory_path = "C:\\Users\\akhee\\Documents\\GitHub\\lms-project"
-    if not os.path.isdir(directory_path):
+    import sys
+    directory = sys.argv[1] if len(sys.argv) > 1 else "."
+
+    if not os.path.isdir(directory):
         print("Invalid directory path!")
     else:
-        clean_pycache(directory_path)
-        print("Cache cleaning completed.")
+        clean_pycache(directory)

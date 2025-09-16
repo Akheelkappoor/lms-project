@@ -1,0 +1,157 @@
+{% extends "email/base_email.html" %}
+
+{% block title %}Payout Processed - ₹{{ payout.total_amount }}{% endblock %}
+{% block email_title %}Monthly Payout Processed{% endblock %}
+{% block email_subtitle %}₹{{ "%.2f"|format(payout.total_amount) }} - {{ payout.period or 'This Month' }}{% endblock %}
+
+{% block recipient_name %}{{ user.full_name }}{% endblock %}
+
+{% block email_content %}
+<div class="alert-box alert-success">
+    <strong>💰 Payout Processed!</strong> Your teaching payout for {{ payout.period or 'this month' }} has been successfully processed and will be credited to your account.
+</div>
+
+<div class="content-section">
+    <h2>Payout Summary</h2>
+    <div style="text-align: center; background: linear-gradient(135deg, #28a745, #20c997); color: white; border-radius: 8px; padding: 25px; margin: 20px 0;">
+        <div style="font-size: 36px; font-weight: bold; margin-bottom: 8px;">
+            ₹{{ "%.2f"|format(payout.total_amount) }}
+        </div>
+        <div style="font-size: 16px; opacity: 0.9;">
+            Net Payout Amount
+        </div>
+    </div>
+</div>
+
+<div class="content-section">
+    <h2>Payment Details</h2>
+    <div class="info-grid">
+        <div class="info-row">
+            <div class="info-label">Tutor Name:</div>
+            <div class="info-value"><strong>{{ user.full_name }}</strong></div>
+        </div>
+        <div class="info-row">
+            <div class="info-label">Tutor ID:</div>
+            <div class="info-value">{{ tutor.id }}</div>
+        </div>
+        <div class="info-row">
+            <div class="info-label">Payment Period:</div>
+            <div class="info-value">{{ payout.period or 'Current Month' }}</div>
+        </div>
+        <div class="info-row">
+            <div class="info-label">Payment Date:</div>
+            <div class="info-value">{{ payment_date.strftime('%B %d, %Y') }}</div>
+        </div>
+        <div class="info-row">
+            <div class="info-label">Payment Method:</div>
+            <div class="info-value">{{ payment_method }}</div>
+        </div>
+        <div class="info-row">
+            <div class="info-label">Classes Conducted:</div>
+            <div class="info-value"><strong>{{ classes_conducted }} classes</strong></div>
+        </div>
+    </div>
+</div>
+
+{% if breakdown %}
+<div class="content-section">
+    <h2>Earnings Breakdown</h2>
+    <div style="background: #f8f9fa; border-radius: 8px; padding: 20px; margin: 15px 0;">
+        <div class="info-grid">
+            {% for item, amount in breakdown.items() %}
+            <div class="info-row">
+                <div class="info-label">{{ item.replace('_', ' ').title() }}:</div>
+                <div class="info-value">
+                    {% if amount > 0 %}
+                        <span style="color: #28a745;">+₹{{ "%.2f"|format(amount) }}</span>
+                    {% else %}
+                        <span style="color: #dc3545;">-₹{{ "%.2f"|format(amount|abs) }}</span>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        
+        <div style="border-top: 2px solid #dee2e6; margin-top: 15px; padding-top: 15px;">
+            <div style="display: flex; justify-content: space-between; font-size: 18px; font-weight: bold; color: #28a745;">
+                <span>Net Amount:</span>
+                <span>₹{{ "%.2f"|format(payout.total_amount) }}</span>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% if tax_details %}
+<div class="content-section">
+    <h2>Tax Information</h2>
+    <div class="info-grid">
+        {% for detail, value in tax_details.items() %}
+        <div class="info-row">
+            <div class="info-label">{{ detail.replace('_', ' ').title() }}:</div>
+            <div class="info-value">
+                {% if detail in ['tds_amount', 'tax_deducted'] %}
+                    ₹{{ "%.2f"|format(value) }}
+                {% else %}
+                    {{ value }}
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    
+    <div class="alert-box alert-info">
+        <strong>Tax Note:</strong> Tax details and TDS certificates will be provided at the end of the financial year for your IT returns.
+    </div>
+</div>
+{% endif %}
+
+<div class="content-section">
+    <h2>Teaching Performance This Month</h2>
+    <div style="display: flex; justify-content: space-around; flex-wrap: wrap; margin: 20px 0;">
+        <div style="background: white; border: 1px solid #dee2e6; border-radius: 8px; padding: 15px; margin: 5px; text-align: center; flex: 1; min-width: 120px;">
+            <div style="font-size: 24px; font-weight: bold; color: #17a2b8;">{{ classes_conducted }}</div>
+            <div style="font-size: 12px; color: #666; text-transform: uppercase;">Classes Taught</div>
+        </div>
+        <div style="background: white; border: 1px solid #dee2e6; border-radius: 8px; padding: 15px; margin: 5px; text-align: center; flex: 1; min-width: 120px;">
+            <div style="font-size: 24px; font-weight: bold; color: #28a745;">{{ (classes_conducted * 60) or 'N/A' }}</div>
+            <div style="font-size: 12px; color: #666; text-transform: uppercase;">Minutes Taught</div>
+        </div>
+        <div style="background: white; border: 1px solid #dee2e6; border-radius: 8px; padding: 15px; margin: 5px; text-align: center; flex: 1; min-width: 120px;">
+            <div style="font-size: 24px; font-weight: bold; color: #ffc107;">{{ tutor.rating or 'New' }}</div>
+            <div style="font-size: 12px; color: #666; text-transform: uppercase;">Tutor Rating</div>
+        </div>
+    </div>
+</div>
+
+<div class="alert-box alert-info">
+    <strong>Payment Processing:</strong> Your payout will be credited to your registered bank account within 2-3 business days. You'll receive an SMS confirmation once the transfer is complete.
+</div>
+
+<div class="content-section">
+    <h2>Next Steps</h2>
+    <ul class="action-list">
+        <li>Monitor your bank account for the credit notification</li>
+        <li>Save this email as your payout receipt</li>
+        <li>Update your banking details if needed for future payouts</li>
+        <li>Review your teaching schedule for next month</li>
+        <li>Continue providing excellent education to your students</li>
+    </ul>
+</div>
+{% endblock %}
+
+{% block email_actions %}
+<div class="text-center">
+    <a href="#" class="button button-success">Download Payout Statement</a>
+    <a href="#" class="button button-secondary">View Teaching History</a>
+    <a href="#" class="button button-secondary">Update Banking Details</a>
+</div>
+{% endblock %}
+
+{% block email_closing %}
+<div class="mt-20">
+    <p>Thank you for your dedication and excellent teaching! Your commitment to our students' success is truly valued and appreciated.</p>
+    <p>If you have any questions about your payout or need assistance with banking details, please contact our finance team.</p>
+    <p>Keep up the great work!<br>Finance & Operations Team</p>
+</div>
+{% endblock %}

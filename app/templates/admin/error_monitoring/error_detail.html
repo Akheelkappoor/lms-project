@@ -1,0 +1,353 @@
+{% extends "base.html" %}
+
+{% block title %}Error Details - {{ error.error_id }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .error-detail-card {
+        border-left: 4px solid #dc3545;
+        margin-bottom: 20px;
+    }
+    .severity-critical { border-left-color: #dc3545; }
+    .severity-high { border-left-color: #fd7e14; }
+    .severity-medium { border-left-color: #ffc107; }
+    .severity-low { border-left-color: #28a745; }
+    
+    .code-block {
+        background: #f8f9fa;
+        border: 1px solid #e9ecef;
+        border-radius: 4px;
+        padding: 15px;
+        font-family: 'Courier New', monospace;
+        font-size: 12px;
+        white-space: pre-wrap;
+        max-height: 400px;
+        overflow-y: auto;
+    }
+    
+    .info-table th {
+        background-color: #f8f9fa;
+        font-weight: 600;
+        width: 200px;
+    }
+    
+    .status-badge {
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 12px;
+        font-weight: 500;
+    }
+    
+    .status-open { background-color: #fff3cd; color: #856404; }
+    .status-investigating { background-color: #cce5ff; color: #004085; }
+    .status-resolved { background-color: #d4edda; color: #155724; }
+    .status-ignored { background-color: #f8d7da; color: #721c24; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-12">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{{ url_for('dashboard.admin_dashboard') }}">Dashboard</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('error_monitoring.dashboard') }}">Error Monitoring</a></li>
+                    <li class="breadcrumb-item active">Error Details</li>
+                </ol>
+            </nav>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <!-- Error Overview -->
+            <div class="card error-detail-card severity-{{ error.severity }}">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-exclamation-triangle text-{{ 'danger' if error.severity in ['critical', 'high'] else 'warning' if error.severity == 'medium' else 'success' }}"></i>
+                        {{ error.error_type|title }}
+                    </h5>
+                    <span class="status-badge status-{{ error.status }}">{{ error.status|title }}</span>
+                </div>
+                <div class="card-body">
+                    <h6 class="text-muted mb-2">Error ID: <code>{{ error.error_id }}</code></h6>
+                    <p class="mb-3"><strong>{{ error.error_message }}</strong></p>
+                    
+                    <!-- Basic Info Table -->
+                    <table class="table table-sm info-table">
+                        <tr>
+                            <th>Severity</th>
+                            <td>
+                                <span class="badge badge-{{ 'danger' if error.severity in ['critical', 'high'] else 'warning' if error.severity == 'medium' else 'success' }}">
+                                    {{ error.severity|title }}
+                                </span>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>Category</th>
+                            <td>{{ error.error_category|title }}</td>
+                        </tr>
+                        <tr>
+                            <th>Error Code</th>
+                            <td>{{ error.error_code or 'N/A' }}</td>
+                        </tr>
+                        <tr>
+                            <th>Occurred At</th>
+                            <td>{{ error.created_at|datetime }}</td>
+                        </tr>
+                        {% if error.user %}
+                        <tr>
+                            <th>User</th>
+                            <td>
+                                {{ error.user.first_name }} {{ error.user.last_name }} 
+                                <small class="text-muted">({{ error.user_role }})</small>
+                            </td>
+                        </tr>
+                        {% endif %}
+                    </table>
+                </div>
+            </div>
+
+            <!-- Stack Trace -->
+            {% if error.stack_trace %}
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="fas fa-code"></i> Stack Trace</h6>
+                </div>
+                <div class="card-body">
+                    <div class="code-block">{{ error.stack_trace }}</div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Request Details -->
+            {% if error.request_url %}
+            <div class="card mt-3">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="fas fa-globe"></i> Request Information</h6>
+                </div>
+                <div class="card-body">
+                    <table class="table table-sm info-table">
+                        <tr>
+                            <th>URL</th>
+                            <td><code>{{ error.request_url }}</code></td>
+                        </tr>
+                        <tr>
+                            <th>Method</th>
+                            <td><span class="badge badge-primary">{{ error.request_method }}</span></td>
+                        </tr>
+                        {% if error.ip_address %}
+                        <tr>
+                            <th>IP Address</th>
+                            <td>{{ error.ip_address }}</td>
+                        </tr>
+                        {% endif %}
+                        {% if error.user_agent %}
+                        <tr>
+                            <th>User Agent</th>
+                            <td><small>{{ error.user_agent }}</small></td>
+                        </tr>
+                        {% endif %}
+                        {% if error.previous_page %}
+                        <tr>
+                            <th>Previous Page</th>
+                            <td><code>{{ error.previous_page }}</code></td>
+                        </tr>
+                        {% endif %}
+                    </table>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Form Data -->
+            {% if error.get_form_data() %}
+            <div class="card mt-3">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="fas fa-wpforms"></i> Form Data</h6>
+                </div>
+                <div class="card-body">
+                    <div class="code-block">{{ error.get_form_data()|tojson(indent=2) }}</div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="col-lg-4">
+            <!-- Actions -->
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="fas fa-tools"></i> Actions</h6>
+                </div>
+                <div class="card-body">
+                    {% if error.status == 'open' %}
+                    <button class="btn btn-success btn-sm btn-block mb-2" onclick="resolveError('{{ error.error_id }}')">
+                        <i class="fas fa-check"></i> Mark as Resolved
+                    </button>
+                    {% endif %}
+                    
+                    <a href="{{ url_for('error_monitoring.dashboard') }}" class="btn btn-secondary btn-sm btn-block mb-2">
+                        <i class="fas fa-arrow-left"></i> Back to Dashboard
+                    </a>
+                    
+                    {% if error.user %}
+                    <a href="{{ url_for('error_monitoring.user_errors', user_id=error.user_id) }}" class="btn btn-info btn-sm btn-block">
+                        <i class="fas fa-user"></i> View User's Errors
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- System Information -->
+            {% if error.server_load or error.memory_usage %}
+            <div class="card mt-3">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="fas fa-server"></i> System State</h6>
+                </div>
+                <div class="card-body">
+                    <table class="table table-sm info-table">
+                        {% if error.server_load %}
+                        <tr>
+                            <th>Server Load</th>
+                            <td>{{ "%.2f"|format(error.server_load) }}%</td>
+                        </tr>
+                        {% endif %}
+                        {% if error.memory_usage %}
+                        <tr>
+                            <th>Memory Usage</th>
+                            <td>{{ "%.2f"|format(error.memory_usage) }}%</td>
+                        </tr>
+                        {% endif %}
+                        {% if error.response_time %}
+                        <tr>
+                            <th>Response Time</th>
+                            <td>{{ "%.3f"|format(error.response_time) }}s</td>
+                        </tr>
+                        {% endif %}
+                    </table>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Related Errors -->
+            {% if related_errors %}
+            <div class="card mt-3">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="fas fa-link"></i> Related Errors ({{ related_errors|length }})</h6>
+                </div>
+                <div class="card-body">
+                    {% for related in related_errors[:5] %}
+                    <div class="border-bottom pb-2 mb-2">
+                        <small class="text-muted">{{ related.created_at|datetime }}</small><br>
+                        <a href="{{ url_for('error_monitoring.error_detail', error_id=related.error_id) }}" class="text-decoration-none">
+                            {{ related.error_type }}
+                        </a>
+                        <span class="badge badge-sm badge-{{ 'danger' if related.severity in ['critical', 'high'] else 'warning' if related.severity == 'medium' else 'success' }}">
+                            {{ related.severity }}
+                        </span>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Resolution -->
+            {% if error.resolution %}
+            <div class="card mt-3">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="fas fa-check-circle"></i> Resolution</h6>
+                </div>
+                <div class="card-body">
+                    <p>{{ error.resolution }}</p>
+                    {% if error.resolved_at %}
+                    <small class="text-muted">
+                        Resolved on {{ error.resolved_at|datetime }}
+                        {% if error.resolver %}by {{ error.resolver.first_name }} {{ error.resolver.last_name }}{% endif %}
+                    </small>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Modal for resolving error -->
+<div class="modal fade" id="resolveModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Resolve Error</h5>
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <textarea class="form-control" id="resolutionText" placeholder="Describe how this error was resolved..." rows="4"></textarea>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-success" onclick="submitResolution()">Mark as Resolved</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let currentErrorId = null;
+
+function resolveError(errorId) {
+    currentErrorId = errorId;
+    const modal = document.getElementById('resolveModal');
+    if (modal) {
+        // Use Bootstrap 4 modal method if available, otherwise fallback
+        if (typeof bootstrap !== 'undefined') {
+            new bootstrap.Modal(modal).show();
+        } else if (window.jQuery && window.jQuery.fn.modal) {
+            window.jQuery(modal).modal('show');
+        } else {
+            modal.style.display = 'block';
+            modal.classList.add('show');
+        }
+    }
+}
+
+function submitResolution() {
+    const resolution = document.getElementById('resolutionText').value;
+    
+    fetch(`/admin/errors/resolve/${currentErrorId}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token() }}'
+        },
+        body: JSON.stringify({
+            resolution: resolution
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const modal = document.getElementById('resolveModal');
+            if (modal) {
+                if (typeof bootstrap !== 'undefined') {
+                    bootstrap.Modal.getInstance(modal).hide();
+                } else if (window.jQuery && window.jQuery.fn.modal) {
+                    window.jQuery(modal).modal('hide');
+                } else {
+                    modal.style.display = 'none';
+                    modal.classList.remove('show');
+                }
+            }
+            location.reload();
+        } else {
+            alert('Error resolving: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error resolving the issue');
+    });
+}
+</script>
+{% endblock %}

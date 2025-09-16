@@ -1,9 +1,9 @@
 from app import create_app, db
-from app.models import User, Department, Tutor, Student, Class, Attendance
+from app.models import (User, Department, Tutor, Student, Class, Attendance, Escalation,
+                       StudentGraduation, StudentDrop, StudentStatusHistory)
 from flask import url_for, redirect, request, jsonify, render_template
 
-# Create Flask application instance
-app = create_app()
+app = create_app()  
 
 @app.shell_context_processor
 def make_shell_context():
@@ -14,7 +14,11 @@ def make_shell_context():
         'Tutor': Tutor, 
         'Student': Student, 
         'Class': Class, 
-        'Attendance': Attendance
+        'Attendance': Attendance,
+        'Escalation': Escalation,
+        'StudentGraduation': StudentGraduation,
+        'StudentDrop': StudentDrop, 
+        'StudentStatusHistory': StudentStatusHistory
     }
 
 @app.route('/')
@@ -120,47 +124,43 @@ def initialize_database():
         try:
             # Test if tables exist by making a simple query
             User.query.first()
-            print("✅ Database tables already exist")
+            print("Database tables already exist")
         except Exception as e:
-            print(f"⚠️  Creating database tables: {str(e)}")
+            print(f"Creating database tables: {str(e)}")
             try:
                 db.create_all()
-                print("✅ Database tables created successfully")
+                print("Database tables created successfully")
             except Exception as create_error:
-                print(f"❌ Error creating tables: {str(create_error)}")
+                print(f"Error creating tables: {str(create_error)}")
 
 def display_config_info():
     """Display important configuration information"""
     max_size_gb = app.config.get('MAX_CONTENT_LENGTH', 5368709120) / (1024**3)
-    upload_folder = app.config.get('UPLOAD_FOLDER', 'app/static/uploads')
+    upload_folder = app.config.get('UPLOAD_FOLDER')
     
     print("=" * 60)
-    print("🚀 I2Global LMS - Configuration")
+    print("I2Global LMS - Configuration")
     print("=" * 60)
-    print(f"📁 Upload Limit: {max_size_gb:.1f}GB")
-    print(f"📂 Upload Folder: {upload_folder}")
-    print(f"🗄️  Database: {app.config.get('SQLALCHEMY_DATABASE_URI', 'SQLite')[:50]}...")
-    print(f"🐛 Debug Mode: {app.config.get('DEBUG', False)}")
-    print(f"🔐 Secret Key: {'Set' if app.config.get('SECRET_KEY') else 'Not Set'}")
+    print(f"Upload Limit: {max_size_gb:.1f}GB")
+    print(f"Upload Folder: {upload_folder}")
+    print(f"Database: {app.config.get('SQLALCHEMY_DATABASE_URI', 'SQLite')[:50]}...")
+    print(f"Debug Mode: {app.config.get('DEBUG', False)}")
+    print(f"Secret Key: {'Set' if app.config.get('SECRET_KEY') else 'Not Set'}")
     print("=" * 60)
 
 if __name__ == '__main__':
-    print("🚀 Starting I2Global LMS...")
+    print("Starting I2Global LMS...")
     
     # Display configuration
     display_config_info()
     
-    print("📊 Checking database...")
+    print("Checking database...")
     # Initialize database tables if needed
     initialize_database()
     
-    print("🌐 Server starting on http://0.0.0.0:5001")
-    print("⏳ Large file uploads (up to 5GB) supported")
-    print("🔄 Press Ctrl+C to stop the server")
+    print("Server starting on http://0.0.0.0:5001")
+    print("Large file uploads (up to 5GB) supported")
+    print("Press Ctrl+C to stop the server")
+
+    app.run(host='0.0.0.0', port=5001)
     
-    try:
-        app.run(debug=True, host='0.0.0.0', port=5001, threaded=True)
-    except KeyboardInterrupt:
-        print("\n👋 Server stopped by user")
-    except Exception as e:
-        print(f"❌ Server error: {str(e)}")

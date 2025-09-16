@@ -1,0 +1,4313 @@
+{% extends "base.html" %}
+
+{% block title %}{{ subject }} - Course Batch Details{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h1 class="page-title">
+                <i class="fas fa-book"></i>
+                {{ subject }}
+            </h1>
+            <p class="page-subtitle">
+                <i class="fas fa-user-tie"></i>
+                {{ tutor.user.full_name if tutor and tutor.user else 'No Tutor Assigned' }}
+            </p>
+        </div>
+        <div class="header-actions">
+            <!-- Smart Bulk Edit Prominent Button -->
+            <button class="btn btn-success" onclick="openSmartBulkEdit()" id="smartBulkEditBtn">
+                <i class="fas fa-magic"></i>
+                Smart Bulk Edit
+            </button>
+            
+            <a href="{{ url_for('admin.course_batches') }}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left"></i>
+                Back to Batches
+            </a>
+            <a href="{{ url_for('admin.classes') }}?tutor={{ tutor.id if tutor else '' }}&subject={{ subject }}" 
+               class="btn btn-outline-primary">
+                <i class="fas fa-list"></i>
+                View in Classes
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="container-fluid">
+    <!-- Statistics Cards -->
+    <div class="row g-4 mb-4">
+        <div class="col-lg-3 col-md-6">
+            <div class="stat-card">
+                <div class="stat-icon primary">
+                    <i class="fas fa-chalkboard"></i>
+                </div>
+                <div class="stat-content">
+                    <h3>{{ stats.total_classes }}</h3>
+                    <p>Total Classes</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6">
+            <div class="stat-card">
+                <div class="stat-icon success">
+                    <i class="fas fa-check-circle"></i>
+                </div>
+                <div class="stat-content">
+                    <h3>{{ stats.completed_classes }}</h3>
+                    <p>Completed</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6">
+            <div class="stat-card">
+                <div class="stat-icon warning">
+                    <i class="fas fa-clock"></i>
+                </div>
+                <div class="stat-content">
+                    <h3>{{ stats.scheduled_classes }}</h3>
+                    <p>Scheduled</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6">
+            <div class="stat-card">
+                <div class="stat-icon danger">
+                    <i class="fas fa-times-circle"></i>
+                </div>
+                <div class="stat-content">
+                    <h3>{{ stats.cancelled_classes }}</h3>
+                    <p>Cancelled</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Batch Management Section -->
+    {% if stats.scheduled_classes > 0 %}
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="card-title mb-0">
+                <i class="fas fa-cogs"></i>
+                Batch Management
+            </h5>
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                <!-- Smart Bulk Edit Card -->
+                <div class="col-md-4">
+                    <div class="management-card">
+                        <div class="d-flex align-items-center mb-3">
+                            <div class="management-icon smart">
+                                <i class="fas fa-magic"></i>
+                            </div>
+                            <div>
+                                <h6 class="mb-0">Smart Bulk Edit</h6>
+                                <small class="text-muted">Edit everything with one touch</small>
+                            </div>
+                        </div>
+                        <button class="btn btn-outline-success btn-sm" onclick="openSmartBulkEdit()">
+                            <i class="fas fa-wand-magic"></i>
+                            Smart Edit All Classes
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="col-md-4">
+                    <div class="management-card">
+                        <div class="d-flex align-items-center mb-3">
+                            <div class="management-icon primary">
+                                <i class="fas fa-user-switch"></i>
+                            </div>
+                            <div>
+                                <h6 class="mb-0">Change Tutor</h6>
+                                <small class="text-muted">Assign all classes to a different tutor</small>
+                            </div>
+                        </div>
+                        <button class="btn btn-outline-primary btn-sm" onclick="showChangeTutorModal()">
+                            <i class="fas fa-exchange-alt"></i>
+                            Change Tutor for Batch
+                        </button>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="management-card">
+                        <div class="d-flex align-items-center mb-3">
+                            <div class="management-icon danger">
+                                <i class="fas fa-trash-alt"></i>
+                            </div>
+                            <div>
+                                <h6 class="mb-0">Bulk Delete</h6>
+                                <small class="text-muted">Cancel multiple classes at once</small>
+                            </div>
+                        </div>
+                        <button class="btn btn-outline-danger btn-sm" onclick="enableBulkDelete()">
+                            <i class="fas fa-check-square"></i>
+                            Select Classes to Delete
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Bulk Delete Actions Bar (Hidden by default) -->
+            <div id="bulkDeleteBar" class="bulk-actions-bar" style="display: none;">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <span id="selectedCount">0</span> classes selected
+                    </div>
+                    <div>
+                        <button class="btn btn-danger btn-sm" onclick="deleteBulkClasses()">
+                            <i class="fas fa-trash"></i>
+                            Delete Selected
+                        </button>
+                        <button class="btn btn-secondary btn-sm" onclick="cancelBulkDelete()">
+                            Cancel
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Students Section -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="card-title mb-0">
+                <i class="fas fa-users"></i>
+                Students ({{ students|length }})
+            </h5>
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                {% for student in students %}
+                <div class="col-md-4">
+                    <div class="student-card">
+                        <div class="student-info">
+                            <h6>{{ student.full_name }}</h6>
+                            <p class="mb-1">
+                                <span class="badge bg-info">Grade {{ student.grade }}</span>
+                                <span class="badge bg-secondary">{{ student.board }}</span>
+                            </p>
+                            <p class="mb-0">
+                                <span class="status-badge status-{{ student.enrollment_status }}">
+                                    {{ student.enrollment_status.title() }}
+                                </span>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Classes Section -->
+    <div class="card">
+        <div class="card-header">
+            <h5 class="card-title mb-0">
+                <i class="fas fa-calendar-alt"></i>
+                Classes ({{ classes|length }})
+            </h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th width="40">
+                                <input type="checkbox" id="selectAllClasses" style="display: none;">
+                                <span id="bulkSelectHeader">#</span>
+                            </th>
+                            <th>Date & Time</th>
+                            <th>Duration</th>
+                            <th>Students</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for class in classes %}
+                        <tr class="class-row" data-class-id="{{ class.id }}">
+                            <td>
+                                <input type="checkbox" class="class-selector" data-class-id="{{ class.id }}" style="display: none;">
+                                <span class="row-number">{{ loop.index }}</span>
+                            </td>
+                            <td>
+                                <div class="class-datetime">
+                                    <strong>{{ class.scheduled_date.strftime('%d %b %Y') }}</strong><br>
+                                    <span class="text-muted">{{ class.scheduled_date.strftime('%A') }} • {{ class.scheduled_time.strftime('%I:%M %p') }}</span>
+                                </div>
+                            </td>
+                            <td>
+                                <span class="badge bg-light text-dark">{{ class.duration }} min</span>
+                            </td>
+                            <td>
+                                <div class="student-count">
+                                    {% set class_students = class.get_students() or [] %}
+                                    {% if class_students %}
+                                        <span class="badge bg-primary">{{ class_students|length }} student{{ 's' if class_students|length != 1 else '' }}</span>
+                                    {% else %}
+                                        <span class="text-muted">No students</span>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td>
+                                <span class="status-badge status-{{ class.status }}">
+                                    {{ class.status.title() }}
+                                </span>
+                            </td>
+                            <td>
+                                <div class="btn-group btn-group-sm" role="group">
+                                    <a href="{{ url_for('admin.class_details', class_id=class.id) }}" 
+                                       class="btn btn-outline-primary btn-sm" title="View Details">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    {% if class.status == 'scheduled' %}
+                                    <button class="btn btn-outline-warning btn-sm" 
+                                            onclick="rescheduleClass({{ class.id }})" title="Reschedule">
+                                        <i class="fas fa-calendar-alt"></i>
+                                    </button>
+                                    <button class="btn btn-outline-danger btn-sm" 
+                                            onclick="cancelClass({{ class.id }})" title="Cancel">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Smart Bulk Edit Modal -->
+<div class="modal fade" id="smartBulkEditModal" tabindex="-1" aria-labelledby="smartBulkEditLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="smartBulkEditLabel">
+                    <i class="fas fa-magic"></i>
+                    Smart Bulk Edit - {{ subject }} Classes
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <!-- Selection Summary -->
+                <div class="alert alert-info">
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <div>
+                            <strong>Bulk Edit Target:</strong> <span id="editTargetCount">0</span> classes selected
+                            <br>
+                            <small>Changes will be applied to all selected classes at once</small>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Class Selection Options -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h6><i class="fas fa-target"></i> Select Classes to Edit</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="selectionType" id="selectAll" value="all" checked>
+                                    <label class="form-check-label" for="selectAll">
+                                        <strong>All Classes</strong> ({{ classes|length }} classes)
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="selectionType" id="selectScheduled" value="scheduled">
+                                    <label class="form-check-label" for="selectScheduled">
+                                        <strong>Scheduled Only</strong> ({{ stats.scheduled_classes }} classes)
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="selectionType" id="selectCustom" value="custom">
+                                    <label class="form-check-label" for="selectCustom">
+                                        <strong>Custom Selection</strong>
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="selectionType" id="selectDateRange" value="daterange">
+                                    <label class="form-check-label" for="selectDateRange">
+                                        <strong>Date Range</strong>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Date Range Selection -->
+                        <div id="dateRangeSection" class="mt-3" style="display: none;">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <label class="form-label">From Date:</label>
+                                    <input type="date" class="form-control" id="editFromDate">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">To Date:</label>
+                                    <input type="date" class="form-control" id="editToDate">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Edit Options Tabs -->
+                <div class="card">
+                    <div class="card-header">
+                        <ul class="nav nav-tabs card-header-tabs" id="editTabs" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active" id="basic-tab" data-bs-toggle="tab" data-bs-target="#basic" type="button" role="tab">
+                                    <i class="fas fa-info-circle"></i> Basic Info
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="schedule-tab" data-bs-toggle="tab" data-bs-target="#schedule" type="button" role="tab">
+                                    <i class="fas fa-calendar"></i> Scheduling
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="assignments-tab" data-bs-toggle="tab" data-bs-target="#assignments" type="button" role="tab">
+                                    <i class="fas fa-users"></i> Assignments
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="platform-tab" data-bs-toggle="tab" data-bs-target="#platform" type="button" role="tab">
+                                    <i class="fas fa-video"></i> Platform
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="content-tab" data-bs-toggle="tab" data-bs-target="#content" type="button" role="tab">
+                                    <i class="fas fa-book"></i> Content
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="status-tab" data-bs-toggle="tab" data-bs-target="#status" type="button" role="tab">
+                                    <i class="fas fa-flag"></i> Status
+                                </button>
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="card-body">
+                        <div class="tab-content" id="editTabsContent">
+                            
+                            <!-- Basic Info Tab -->
+                            <div class="tab-pane fade show active" id="basic" role="tabpanel">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="form-check mb-3">
+                                            <input class="form-check-input" type="checkbox" id="editSubject">
+                                            <label class="form-check-label" for="editSubject">
+                                                <strong>Change Subject</strong>
+                                            </label>
+                                        </div>
+                                        <input type="text" class="form-control" id="newSubject" placeholder="New subject name" disabled>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-check mb-3">
+                                            <input class="form-check-input" type="checkbox" id="editGrade">
+                                            <label class="form-check-label" for="editGrade">
+                                                <strong>Change Grade</strong>
+                                            </label>
+                                        </div>
+                                        <input type="text" class="form-control" id="newGrade" placeholder="Grade (e.g., Grade 10)" disabled>
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="form-check mb-3">
+                                            <input class="form-check-input" type="checkbox" id="editBoard">
+                                            <label class="form-check-label" for="editBoard">
+                                                <strong>Change Board</strong>
+                                            </label>
+                                        </div>
+                                        <select class="form-select" id="newBoard" disabled>
+                                            <option value="">Select Board</option>
+                                            <option value="CBSE">CBSE</option>
+                                            <option value="ICSE">ICSE</option>
+                                            <option value="State Board">State Board</option>
+                                            <option value="IGCSE">IGCSE</option>
+                                            <option value="IB">IB</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-check mb-3">
+                                            <input class="form-check-input" type="checkbox" id="editClassType">
+                                            <label class="form-check-label" for="editClassType">
+                                                <strong>Change Class Type</strong>
+                                            </label>
+                                        </div>
+                                        <select class="form-select" id="newClassType" disabled>
+                                            <option value="">Select Type</option>
+                                            <option value="one_on_one">One-on-One</option>
+                                            <option value="group">Group Class</option>
+                                            <option value="demo">Demo Class</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Scheduling Tab -->
+                            <div class="tab-pane fade" id="schedule" role="tabpanel">
+                                <div class="row">
+                                    <div class="col-md-12">
+                                        <h6 class="text-primary mb-3"><i class="fas fa-clock"></i> Time Operations</h6>
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <div class="form-check mb-3">
+                                            <input class="form-check-input" type="checkbox" id="shiftTime">
+                                            <label class="form-check-label" for="shiftTime">
+                                                <strong>Shift All Times</strong>
+                                            </label>
+                                        </div>
+                                        <div class="input-group">
+                                            <select class="form-select" id="timeShiftDirection" disabled>
+                                                <option value="add">Add</option>
+                                                <option value="subtract">Subtract</option>
+                                            </select>
+                                            <input type="number" class="form-control" id="timeShiftAmount" placeholder="30" disabled>
+                                            <span class="input-group-text">minutes</span>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="form-check mb-3">
+                                            <input class="form-check-input" type="checkbox" id="changeDuration">
+                                            <label class="form-check-label" for="changeDuration">
+                                                <strong>Change Duration</strong>
+                                            </label>
+                                        </div>
+                                        <div class="input-group">
+                                            <input type="number" class="form-control" id="newDuration" placeholder="60" disabled>
+                                            <span class="input-group-text">minutes</span>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="form-check mb-3">
+                                            <input class="form-check-input" type="checkbox" id="setSpecificTime">
+                                            <label class="form-check-label" for="setSpecificTime">
+                                                <strong>Set Specific Time</strong>
+                                            </label>
+                                        </div>
+                                        <input type="time" class="form-control" id="specificTime" disabled>
+                                    </div>
+                                </div>
+                                
+                                <!-- Day-Wise Time Editing -->
+                                <div class="row mt-3">
+                                    <div class="col-md-12">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="enableDayWiseTimeEdit">
+                                            <label class="form-check-label" for="enableDayWiseTimeEdit">
+                                                <strong>Set Different Time for Each Day</strong>
+                                                <small class="text-muted d-block">Change time for specific days only</small>
+                                            </label>
+                                        </div>
+                                        <div id="dayWiseTimeContainer" class="mt-3" style="display: none;">
+                                            <div class="card">
+                                                <div class="card-header">
+                                                    <h6 class="mb-0"><i class="fas fa-clock"></i> Day-Specific Time Settings</h6>
+                                                </div>
+                                                <div class="card-body">
+                                                    <div class="row" id="dayTimeGrid">
+                                                        <!-- Day-specific time inputs will be populated by JavaScript -->
+                                                    </div>
+                                                    <div class="alert alert-info mt-3">
+                                                        <i class="fas fa-info-circle"></i>
+                                                        <small>Only selected days will have their time changed. Unchecked days will keep their current time.</small>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <hr>
+                                
+                                <div class="row">
+                                    <div class="col-md-12">
+                                        <h6 class="text-primary mb-3"><i class="fas fa-calendar"></i> Date Operations</h6>
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="form-check mb-3">
+                                            <input class="form-check-input" type="checkbox" id="shiftDates">
+                                            <label class="form-check-label" for="shiftDates">
+                                                <strong>Shift All Dates</strong>
+                                            </label>
+                                        </div>
+                                        <div class="input-group">
+                                            <select class="form-select" id="dateShiftDirection" disabled>
+                                                <option value="add">Move Forward</option>
+                                                <option value="subtract">Move Backward</option>
+                                            </select>
+                                            <input type="number" class="form-control" id="dateShiftAmount" placeholder="7" disabled>
+                                            <span class="input-group-text">days</span>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-check mb-3">
+                                            <input class="form-check-input" type="checkbox" id="changeDayOfWeek">
+                                            <label class="form-check-label" for="changeDayOfWeek">
+                                                <strong>Change Day of Week</strong>
+                                            </label>
+                                        </div>
+                                        <select class="form-select" id="newDayOfWeek" disabled>
+                                            <option value="">Select Day</option>
+                                            <option value="monday">Monday</option>
+                                            <option value="tuesday">Tuesday</option>
+                                            <option value="wednesday">Wednesday</option>
+                                            <option value="thursday">Thursday</option>
+                                            <option value="friday">Friday</option>
+                                            <option value="saturday">Saturday</option>
+                                            <option value="sunday">Sunday</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                
+                                <!-- Day-to-Day Mapping -->
+                                <div class="row mt-3">
+                                    <div class="col-md-12">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="enableDayToDayMapping">
+                                            <label class="form-check-label" for="enableDayToDayMapping">
+                                                <strong>Map Days to Different Days</strong>
+                                                <small class="text-muted d-block">Change specific days to other days (e.g., Monday → Tuesday)</small>
+                                            </label>
+                                        </div>
+                                        <div id="dayToDayMappingContainer" class="mt-3" style="display: none;">
+                                            <div class="card">
+                                                <div class="card-header">
+                                                    <h6 class="mb-0"><i class="fas fa-arrows-alt-h"></i> Day-to-Day Mapping</h6>
+                                                </div>
+                                                <div class="card-body">
+                                                    <div class="row" id="dayMappingGrid">
+                                                        <!-- Day mapping inputs will be populated by JavaScript -->
+                                                    </div>
+                                                    <div class="alert alert-info mt-3">
+                                                        <i class="fas fa-info-circle"></i>
+                                                        <small>Select which days should change to which other days. Unmapped days will stay the same.</small>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Assignments Tab -->
+                            <div class="tab-pane fade" id="assignments" role="tabpanel">
+                                <!-- Change Tutor removed - use standalone Change Tutor modal instead -->
+                                
+                                
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="form-check mb-3">
+                                            <input class="form-check-input" type="checkbox" id="addStudents">
+                                            <label class="form-check-label" for="addStudents">
+                                                <strong>Add Students to Group Classes</strong>
+                                            </label>
+                                        </div>
+                                        <select class="form-select searchable-students" id="studentsToAdd" multiple disabled>
+                                            {% for student in all_active_students %}
+                                            <option value="{{ student.id }}" data-grade="{{ student.grade }}" data-board="{{ student.board }}" data-status="{{ student.enrollment_status }}">
+                                                {{ student.full_name }} - Grade {{ student.grade }} ({{ student.board }})
+                                            </option>
+                                            {% endfor %}
+                                        </select>
+                                        <div class="mt-2">
+                                            <small class="text-muted">
+                                                <i class="fas fa-search"></i> Type to search by name, grade, or board
+                                            </small>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-check mb-3">
+                                            <input class="form-check-input" type="checkbox" id="removeStudents">
+                                            <label class="form-check-label" for="removeStudents">
+                                                <strong>Remove Students</strong>
+                                            </label>
+                                        </div>
+                                        <select class="form-select searchable-students" id="studentsToRemove" multiple disabled>
+                                            {% for student in students %}
+                                            <option value="{{ student.id }}" data-grade="{{ student.grade }}" data-board="{{ student.board }}" data-status="{{ student.enrollment_status }}">
+                                                {{ student.full_name }} - Grade {{ student.grade }} ({{ student.board }})
+                                            </option>
+                                            {% endfor %}
+                                        </select>
+                                        <div class="mt-2">
+                                            <small class="text-muted">
+                                                <i class="fas fa-search"></i> Type to search by name, grade, or board
+                                            </small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Platform Tab -->
+                            <div class="tab-pane fade" id="platform" role="tabpanel">
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <div class="form-check mb-3">
+                                            <input class="form-check-input" type="checkbox" id="changePlatform">
+                                            <label class="form-check-label" for="changePlatform">
+                                                <strong>Change Platform</strong>
+                                            </label>
+                                        </div>
+                                        <select class="form-select" id="newPlatform" disabled>
+                                            <option value="">Select Platform</option>
+                                            <option value="zoom">Zoom</option>
+                                            <option value="google_meet">Google Meet</option>
+                                            <option value="teams">Microsoft Teams</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="form-check mb-3">
+                                            <input class="form-check-input" type="checkbox" id="updateMeetingLink">
+                                            <label class="form-check-label" for="updateMeetingLink">
+                                                <strong>Update Meeting Link</strong>
+                                            </label>
+                                        </div>
+                                        <input type="url" class="form-control" id="newMeetingLink" placeholder="https://..." disabled>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="form-check mb-3">
+                                            <input class="form-check-input" type="checkbox" id="updateMeetingId">
+                                            <label class="form-check-label" for="updateMeetingId">
+                                                <strong>Update Meeting ID</strong>
+                                            </label>
+                                        </div>
+                                        <input type="text" class="form-control" id="newMeetingId" placeholder="Meeting ID" disabled>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Content Tab -->
+                            <div class="tab-pane fade" id="content" role="tabpanel">
+                                <div class="row">
+                                    <div class="col-md-12">
+                                        <div class="form-check mb-3">
+                                            <input class="form-check-input" type="checkbox" id="updateNotes">
+                                            <label class="form-check-label" for="updateNotes">
+                                                <strong>Update Class Notes</strong>
+                                            </label>
+                                        </div>
+                                        <div class="row">
+                                            <div class="col-md-3">
+                                                <select class="form-select" id="notesAction" disabled>
+                                                    <option value="replace">Replace All</option>
+                                                    <option value="append">Append To Existing</option>
+                                                    <option value="prepend">Add At Beginning</option>
+                                                </select>
+                                            </div>
+                                            <div class="col-md-9">
+                                                <textarea class="form-control" id="newNotes" rows="3" placeholder="Enter notes..." disabled></textarea>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <hr>
+                                
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="form-check mb-3">
+                                            <input class="form-check-input" type="checkbox" id="updateTopics">
+                                            <label class="form-check-label" for="updateTopics">
+                                                <strong>Topics Covered</strong>
+                                            </label>
+                                        </div>
+                                        <textarea class="form-control" id="newTopics" rows="2" placeholder="Topics covered..." disabled></textarea>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-check mb-3">
+                                            <input class="form-check-input" type="checkbox" id="updateHomework">
+                                            <label class="form-check-label" for="updateHomework">
+                                                <strong>Homework Assigned</strong>
+                                            </label>
+                                        </div>
+                                        <textarea class="form-control" id="newHomework" rows="2" placeholder="Homework assignments..." disabled></textarea>
+                                    </div>
+                                </div>
+                                
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="form-check mb-3">
+                                            <input class="form-check-input" type="checkbox" id="updateVideoLink">
+                                            <label class="form-check-label" for="updateVideoLink">
+                                                <strong>Video Link</strong>
+                                            </label>
+                                        </div>
+                                        <input type="url" class="form-control" id="newVideoLink" placeholder="https://youtube.com/..." disabled>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-check mb-3">
+                                            <input class="form-check-input" type="checkbox" id="updateMaterials">
+                                            <label class="form-check-label" for="updateMaterials">
+                                                <strong>Materials</strong>
+                                            </label>
+                                        </div>
+                                        <textarea class="form-control" id="newMaterials" rows="2" placeholder="Study materials, links..." disabled></textarea>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Status Tab -->
+                            <div class="tab-pane fade" id="status" role="tabpanel">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="form-check mb-3">
+                                            <input class="form-check-input" type="checkbox" id="changeStatus">
+                                            <label class="form-check-label" for="changeStatus">
+                                                <strong>Change Status</strong>
+                                            </label>
+                                        </div>
+                                        <select class="form-select" id="newStatus" disabled>
+                                            <option value="">Select Status</option>
+                                            <option value="scheduled">Scheduled</option>
+                                            <option value="completed">Completed</option>
+                                            <option value="cancelled">Cancelled</option>
+                                            <option value="rescheduled">Rescheduled</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-check mb-3">
+                                            <input class="form-check-input" type="checkbox" id="setCompletionStatus">
+                                            <label class="form-check-label" for="setCompletionStatus">
+                                                <strong>Completion Status</strong>
+                                            </label>
+                                        </div>
+                                        <select class="form-select" id="newCompletionStatus" disabled>
+                                            <option value="">Select Completion</option>
+                                            <option value="completed">Completed</option>
+                                            <option value="incomplete">Incomplete</option>
+                                            <option value="no_show">No Show</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Conflict Preview -->
+                <div id="conflictPreview" class="alert alert-warning" style="display: none;">
+                    <h6><i class="fas fa-exclamation-triangle"></i> Potential Conflicts Detected:</h6>
+                    <div id="conflictsList"></div>
+                </div>
+
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-warning" onclick="previewChanges()">
+                    <i class="fas fa-eye"></i>
+                    Preview Changes
+                </button>
+                <button type="button" class="btn btn-success" onclick="applyBulkChanges()" id="applyChangesBtn">
+                    <i class="fas fa-magic"></i>
+                    Apply All Changes
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Enhanced Change Tutor Modal for Batch -->
+<div class="modal fade" id="changeTutorModal" tabindex="-1">
+    <div class="modal-dialog" style="max-width: 75vw; width: 75vw;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-user-switch"></i>
+                    Enhanced Batch Tutor Change
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <!-- Step 1: Batch Schedule Analysis -->
+                <div id="batchStep1" class="batch-step-content">
+                    <h6 class="mb-3">
+                        <i class="fas fa-chart-line"></i>
+                        Step 1: Current Batch Schedule Analysis
+                    </h6>
+                    <div class="row">
+                        <div class="col-md-8">
+                            <div id="batchScheduleContainer">
+                                <div class="text-center py-4">
+                                    <div class="spinner-border text-primary" role="status">
+                                        <span class="visually-hidden">Loading batch schedule...</span>
+                                    </div>
+                                    <p class="text-muted mt-2">Analyzing current batch schedule...</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6 class="mb-0">
+                                        <i class="fas fa-info-circle"></i>
+                                        Batch Information
+                                    </h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="batch-info">
+                                        <p><strong>Current Tutor:</strong> {{ tutor.user.full_name }}</p>
+                                        <p><strong>Subject:</strong> {{ batch_id.split('_')[0]|replace('_', ' ')|title }}</p>
+                                        <p><strong>Total Classes:</strong> {{ classes|length }}</p>
+                                        <p><strong>Students:</strong> {{ students|length }}</p>
+                                    </div>
+                                    <div class="alert alert-warning mt-3">
+                                        <small><i class="fas fa-exclamation-triangle"></i> Only future scheduled classes will be changed</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Step 2: Tutor Selection -->
+                <div id="batchStep2" class="batch-step-content" style="display: none;">
+                    <h6 class="mb-3">
+                        <i class="fas fa-user-tie"></i>
+                        Step 2: Select New Tutor
+                    </h6>
+                    <div class="row">
+                        <div class="col-md-8">
+                            <!-- Search Bar -->
+                            <div class="mb-3">
+                                <div class="input-group">
+                                    <span class="input-group-text">
+                                        <i class="fas fa-search"></i>
+                                    </span>
+                                    <input type="text" class="form-control" id="batchTutorSearch" 
+                                           placeholder="Search tutors by name, subject, or experience..." 
+                                           oninput="searchBatchTutors()" autocomplete="off">
+                                    <button class="btn btn-outline-secondary" type="button" onclick="clearBatchTutorSearch()">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </div>
+                                <small class="text-muted">Showing <span id="batchTutorCount">0</span> tutors</small>
+                            </div>
+                            
+                            <div id="batchTutorContainer">
+                                <div class="row" id="batchTutorCardsContainer">
+                                    <!-- Tutor cards will be populated here -->
+                                </div>
+                                
+                                <!-- Pagination -->
+                                <div class="d-flex justify-content-between align-items-center mt-3" id="batchTutorPagination" style="display: none !important;">
+                                    <div>
+                                        <small class="text-muted">
+                                            Showing <span id="batchPaginationInfo"></span>
+                                        </small>
+                                    </div>
+                                    <nav>
+                                        <ul class="pagination pagination-sm mb-0">
+                                            <li class="page-item" id="batchPrevPage">
+                                                <a class="page-link" href="#" onclick="changeBatchTutorPage('prev')">
+                                                    <i class="fas fa-chevron-left"></i> Previous
+                                                </a>
+                                            </li>
+                                            <li class="page-item" id="batchNextPage">
+                                                <a class="page-link" href="#" onclick="changeBatchTutorPage('next')">
+                                                    Next <i class="fas fa-chevron-right"></i>
+                                                </a>
+                                            </li>
+                                        </ul>
+                                    </nav>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6 class="mb-0">
+                                        <i class="fas fa-filter"></i>
+                                        Filter Tutors
+                                    </h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="mb-3">
+                                        <label class="form-label">Rating</label>
+                                        <select class="form-select" id="batchRatingFilter" onchange="filterBatchTutors()">
+                                            <option value="">All Ratings</option>
+                                            <option value="4.5">4.5+ Stars</option>
+                                            <option value="4.0">4.0+ Stars</option>
+                                            <option value="3.5">3.5+ Stars</option>
+                                        </select>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Availability</label>
+                                        <select class="form-select" id="batchAvailabilityFilter" onchange="filterBatchTutors()">
+                                            <option value="all">Show All</option>
+                                            <option value="perfect">Perfect Match (100%)</option>
+                                            <option value="high">High Match (80%+)</option>
+                                            <option value="partial">Partial Match (50%+)</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Step 3: Day/Time Selection -->
+                <div id="batchStep3" class="batch-step-content" style="display: none;">
+                    <h6 class="mb-3">
+                        <i class="fas fa-calendar-check"></i>
+                        Step 3: Select Days & Times to Change
+                    </h6>
+                    <div class="row">
+                        <div class="col-md-8">
+                            <div id="batchDayTimeContainer">
+                                <!-- Day/time grid will be populated here -->
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6 class="mb-0">
+                                        <i class="fas fa-cog"></i>
+                                        Change Options
+                                    </h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="mb-3">
+                                        <h6 class="text-primary mb-2">Schedule Change Options:</h6>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="batchChangeType" id="batchKeepSchedule" value="keep_schedule" checked>
+                                            <label class="form-check-label" for="batchKeepSchedule">
+                                                <strong>Keep Current Schedule</strong>
+                                                <br><small class="text-muted">Change tutor only, keep same days & times</small>
+                                            </label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="batchChangeType" id="batchModifyTimes" value="modify_times">
+                                            <label class="form-check-label" for="batchModifyTimes">
+                                                <strong>Modify Times Only</strong>
+                                                <br><small class="text-muted">Change tutor & times, keep same days</small>
+                                            </label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="batchChangeType" id="batchModifyDaysAndTimes" value="modify_schedule">
+                                            <label class="form-check-label" for="batchModifyDaysAndTimes">
+                                                <strong>Modify Days & Times</strong>
+                                                <br><small class="text-muted">Full flexibility - change days, times & tutor</small>
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div id="batchSelectedSummary" class="border rounded p-3 bg-light">
+                                        <h6>Selection Summary:</h6>
+                                        <p class="mb-0 text-muted">No changes selected yet</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Step 4: Confirmation -->
+                <div id="batchStep4" class="batch-step-content" style="display: none;">
+                    <h6 class="mb-3">
+                        <i class="fas fa-check-double"></i>
+                        Step 4: Confirm Batch Changes
+                    </h6>
+                    <div id="batchConfirmationContainer">
+                        <!-- Confirmation details will be populated here -->
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <div class="me-auto">
+                    <button type="button" class="btn btn-outline-secondary" id="batchPrevStepBtn" onclick="previousBatchStep()" style="display: none;">
+                        <i class="fas fa-arrow-left"></i>
+                        Previous
+                    </button>
+                </div>
+                <div>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="batchNextStepBtn" onclick="nextBatchStep()">
+                        Next
+                        <i class="fas fa-arrow-right"></i>
+                    </button>
+                    <button type="button" class="btn btn-success" id="batchConfirmBtn" onclick="applyBatchChanges()" style="display: none;">
+                        <i class="fas fa-check"></i>
+                        Apply Changes
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteConfirmModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-exclamation-triangle text-warning"></i>
+                    Confirm Delete
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to cancel <span id="deleteCount"></span> selected classes?</p>
+                <p><strong>This action cannot be undone.</strong></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" onclick="confirmBulkDelete()">
+                    <i class="fas fa-trash"></i>
+                    Yes, Cancel Classes
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+/* Enhanced Batch Management Styles */
+.management-card {
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    padding: 1rem;
+    height: 100%;
+    transition: all 0.3s ease;
+}
+
+.management-card:hover {
+    border-color: var(--primary-color);
+    box-shadow: 0 2px 8px rgba(241, 161, 80, 0.1);
+    transform: translateY(-2px);
+}
+
+.management-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 1rem;
+    color: white;
+    font-size: 1.1rem;
+    transition: all 0.3s ease;
+}
+
+.management-icon.primary {
+    background: var(--primary-color);
+}
+
+.management-icon.danger {
+    background: var(--danger-color);
+}
+
+.management-icon.smart {
+    background: linear-gradient(135deg, #28a745, #20c997);
+    position: relative;
+    overflow: hidden;
+}
+
+.management-icon.smart::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: linear-gradient(45deg, transparent, rgba(255,255,255,0.3), transparent);
+    transform: rotate(45deg);
+    transition: all 0.6s;
+    opacity: 0;
+}
+
+.management-card:hover .management-icon {
+    transform: scale(1.1);
+}
+
+.management-card:hover .management-icon.smart::before {
+    animation: shimmer 1.5s ease-in-out infinite;
+    opacity: 1;
+}
+
+@keyframes shimmer {
+    0% { transform: translateX(-100%) translateY(-100%) rotate(45deg); }
+    50% { transform: translateX(0%) translateY(0%) rotate(45deg); }
+    100% { transform: translateX(100%) translateY(100%) rotate(45deg); }
+}
+
+.bulk-actions-bar {
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-top: 1rem;
+}
+
+/* Student Cards */
+.student-card {
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    padding: 1rem;
+    background: white;
+    transition: all 0.3s ease;
+}
+
+.student-card:hover {
+    border-color: var(--primary-color);
+    transform: translateY(-1px);
+}
+
+.student-info h6 {
+    margin: 0 0 0.5rem 0;
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+/* Status Badges */
+.status-badge {
+    padding: 0.25rem 0.75rem;
+    border-radius: 16px;
+    font-size: 0.8rem;
+    font-weight: 500;
+}
+
+.status-scheduled {
+    background: #e3f2fd;
+    color: #1976d2;
+}
+
+.status-completed {
+    background: #e8f5e8;
+    color: #2e7d32;
+}
+
+.status-cancelled {
+    background: #ffebee;
+    color: #c62828;
+}
+
+.status-active {
+    background: #e8f5e8;
+    color: #2e7d32;
+}
+
+.status-inactive {
+    background: #f5f5f5;
+    color: #757575;
+}
+
+/* Class Table */
+.class-datetime strong {
+    color: var(--text-primary);
+}
+
+.class-row {
+    transition: background-color 0.3s ease;
+}
+
+.class-row:hover {
+    background-color: #f8f9fa;
+}
+
+.class-row.selected {
+    background-color: #fff3cd;
+}
+
+/* Stat Cards */
+.stat-card {
+    background: white;
+    border-radius: 8px;
+    padding: 1.5rem;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    transition: all 0.3s ease;
+}
+
+.stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.stat-icon {
+    width: 60px;
+    height: 60px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    color: white;
+}
+
+.stat-icon.primary { background: var(--primary-color); }
+.stat-icon.success { background: var(--success-color); }
+.stat-icon.warning { background: var(--warning-color); color: var(--text-primary); }
+.stat-icon.danger { background: var(--danger-color); }
+
+.stat-content h3 {
+    margin: 0;
+    font-size: 2rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.stat-content p {
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+}
+
+/* Smart Bulk Edit Modal Styles */
+.modal-xl {
+    max-width: 1200px;
+}
+
+.form-check-label strong {
+    color: #495057;
+}
+
+.nav-tabs .nav-link {
+    color: #6c757d;
+    border: 1px solid transparent;
+}
+
+.nav-tabs .nav-link.active {
+    background: linear-gradient(135deg, #28a745, #20c997);
+    border-color: #28a745;
+    color: white;
+    position: relative;
+}
+
+.nav-tabs .nav-link:hover {
+    border-color: #28a745;
+    color: #28a745;
+}
+
+.tab-content {
+    min-height: 300px;
+    padding: 1.5rem 0;
+}
+
+.form-check-input:checked {
+    background: linear-gradient(135deg, #28a745, #20c997);
+    border-color: #28a745;
+}
+
+#conflictPreview {
+    border-left: 4px solid #ffc107;
+}
+
+.input-group-text {
+    background-color: #f8f9fa;
+    border-color: #ced4da;
+}
+
+hr {
+    margin: 2rem 0;
+    border-color: #e9ecef;
+}
+
+.text-primary {
+    color: #28a745 !important;
+}
+
+/* Enhanced Header Actions */
+.header-actions .btn-success {
+    background: linear-gradient(135deg, #28a745, #20c997);
+    border: none;
+    box-shadow: 0 2px 8px rgba(40, 167, 69, 0.3);
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s ease;
+}
+
+.header-actions .btn-success:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 16px rgba(40, 167, 69, 0.4);
+}
+
+.header-actions .btn-success:active {
+    transform: translateY(0);
+}
+
+/* Loading States */
+.btn.loading {
+    pointer-events: none;
+    opacity: 0.8;
+}
+
+.btn.loading .fas {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Error States */
+.form-error {
+    border-color: #dc3545 !important;
+    box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25) !important;
+}
+
+.error-message {
+    color: #dc3545;
+    font-size: 0.875rem;
+    margin-top: 0.25rem;
+}
+
+/* Success States */
+.form-success {
+    border-color: #28a745 !important;
+    box-shadow: 0 0 0 0.2rem rgba(40, 167, 69, 0.25) !important;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .management-card {
+        margin-bottom: 1rem;
+    }
+    
+    .stat-card {
+        padding: 1rem;
+    }
+    
+    .stat-icon {
+        width: 50px;
+        height: 50px;
+        font-size: 1.25rem;
+    }
+    
+    .stat-content h3 {
+        font-size: 1.5rem;
+    }
+    
+    .header-actions {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    
+    .header-actions .btn {
+        width: 100%;
+    }
+}
+</style>
+
+<script>
+// ========================================
+// ENHANCED SMART BULK EDIT SYSTEM - COMPLETE VERSION
+// ========================================
+
+// Global variables for better state management
+let smartBulkEditInitialized = false;
+let modalEventListenersAdded = false;
+let formFieldsInitialized = false;
+let selectedClassIds = [];
+let conflictsDetected = [];
+let bulkDeleteMode = false;
+let selectedClasses = new Set();
+
+// Enhanced error handling and logging
+const SmartBulkEditLogger = {
+    log: function(message, type = 'info') {
+        const timestamp = new Date().toLocaleTimeString();
+        const prefix = type === 'error' ? '❌' : type === 'warn' ? '⚠️' : type === 'success' ? '✅' : 'ℹ️';
+        console.log(`${prefix} [${timestamp}] Smart Bulk Edit: ${message}`);
+    },
+    
+    error: function(message, error = null) {
+        this.log(message, 'error');
+        if (error) console.error(error);
+    },
+    
+    warn: function(message) {
+        this.log(message, 'warn');
+    },
+    
+    success: function(message) {
+        this.log(message, 'success');
+    }
+};
+
+// Enhanced DOM ready detection
+function ensureReady(callback) {
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', callback);
+    } else {
+        callback();
+    }
+}
+
+// Safe element getter with error handling
+function safeGetElement(selector, context = document) {
+    try {
+        const element = context.querySelector(selector);
+        if (!element) {
+            SmartBulkEditLogger.warn(`Element not found: ${selector}`);
+        }
+        return element;
+    } catch (error) {
+        SmartBulkEditLogger.error(`Error getting element ${selector}`, error);
+        return null;
+    }
+}
+
+// Enhanced Smart Bulk Edit initialization
+function initializeSmartBulkEditSystem() {
+    if (smartBulkEditInitialized) {
+        SmartBulkEditLogger.warn('Smart Bulk Edit already initialized');
+        return;
+    }
+    
+    SmartBulkEditLogger.log('Initializing Smart Bulk Edit System...');
+    
+    try {
+        // Initialize all components
+        initializeFormFieldToggles();
+        initializeSelectionHandlers();
+        initializeModalEvents();
+        initializeClassData();
+        initializeDayWiseTimeEdit();
+        
+        smartBulkEditInitialized = true;
+        SmartBulkEditLogger.success('Smart Bulk Edit System Initialized Successfully');
+        
+    } catch (error) {
+        SmartBulkEditLogger.error('Failed to initialize Smart Bulk Edit System', error);
+    }
+}
+
+// Enhanced form field toggle initialization
+function initializeFormFieldToggles() {
+    if (formFieldsInitialized) return;
+    
+    SmartBulkEditLogger.log('Setting up form field toggles...');
+    
+    const toggleMappings = [
+        // Basic Info
+        ['editSubject', 'newSubject'],
+        ['editGrade', 'newGrade'],
+        ['editBoard', 'newBoard'],
+        ['editClassType', 'newClassType'],
+        // Scheduling
+        ['shiftTime', ['timeShiftDirection', 'timeShiftAmount']],
+        ['changeDuration', 'newDuration'],
+        ['setSpecificTime', 'specificTime'],
+        ['enableDayWiseTimeEdit', 'dayWiseTimeContainer'],
+        ['shiftDates', ['dateShiftDirection', 'dateShiftAmount']],
+        ['changeDayOfWeek', 'newDayOfWeek'],
+        ['enableDayToDayMapping', 'dayToDayMappingContainer'],
+        // Assignments (changeTutor removed - use standalone modal)
+        ['addStudents', 'studentsToAdd'],
+        ['removeStudents', 'studentsToRemove'],
+        // Platform
+        ['changePlatform', 'newPlatform'],
+        ['updateMeetingLink', 'newMeetingLink'],
+        ['updateMeetingId', 'newMeetingId'],
+        // Content
+        ['updateNotes', ['notesAction', 'newNotes']],
+        ['updateTopics', 'newTopics'],
+        ['updateHomework', 'newHomework'],
+        ['updateVideoLink', 'newVideoLink'],
+        ['updateMaterials', 'newMaterials'],
+        // Status
+        ['changeStatus', 'newStatus'],
+        ['setCompletionStatus', 'newCompletionStatus']
+    ];
+    
+    toggleMappings.forEach(([checkboxId, targetIds]) => {
+        const checkbox = safeGetElement(`#${checkboxId}`);
+        if (!checkbox) return;
+        
+        const targetElements = Array.isArray(targetIds) ? targetIds : [targetIds];
+        
+        checkbox.addEventListener('change', function() {
+            targetElements.forEach(targetId => {
+                const target = safeGetElement(`#${targetId}`);
+                if (target) {
+                    // Special handling for containers that need show/hide
+                    if (targetId === 'dayWiseTimeContainer') {
+                        if (this.checked) {
+                            target.style.display = 'block';
+                            populateDayTimeGrid();
+                            
+                            // Disable other time options
+                            const specificTimeCheckbox = safeGetElement('#setSpecificTime');
+                            const shiftTimeCheckbox = safeGetElement('#shiftTime');
+                            
+                            if (specificTimeCheckbox) {
+                                specificTimeCheckbox.checked = false;
+                                specificTimeCheckbox.disabled = true;
+                                safeGetElement('#specificTime').disabled = true;
+                            }
+                            
+                            if (shiftTimeCheckbox) {
+                                shiftTimeCheckbox.checked = false;
+                                shiftTimeCheckbox.disabled = true;
+                                safeGetElement('#timeShiftDirection').disabled = true;
+                                safeGetElement('#timeShiftAmount').disabled = true;
+                            }
+                        } else {
+                            target.style.display = 'none';
+                            
+                            // Re-enable other time options
+                            const specificTimeCheckbox = safeGetElement('#setSpecificTime');
+                            const shiftTimeCheckbox = safeGetElement('#shiftTime');
+                            
+                            if (specificTimeCheckbox) {
+                                specificTimeCheckbox.disabled = false;
+                            }
+                            
+                            if (shiftTimeCheckbox) {
+                                shiftTimeCheckbox.disabled = false;
+                            }
+                        }
+                    } else if (targetId === 'dayToDayMappingContainer') {
+                        if (this.checked) {
+                            target.style.display = 'block';
+                            populateDayMappingGrid();
+                            
+                            // Disable other day options
+                            const changeDayCheckbox = safeGetElement('#changeDayOfWeek');
+                            if (changeDayCheckbox) {
+                                changeDayCheckbox.checked = false;
+                                changeDayCheckbox.disabled = true;
+                                safeGetElement('#newDayOfWeek').disabled = true;
+                            }
+                        } else {
+                            target.style.display = 'none';
+                            
+                            // Re-enable other day options
+                            const changeDayCheckbox = safeGetElement('#changeDayOfWeek');
+                            if (changeDayCheckbox) {
+                                changeDayCheckbox.disabled = false;
+                            }
+                        }
+                    } else {
+                        // Standard toggle behavior
+                        target.disabled = !this.checked;
+                        if (this.checked) {
+                            target.classList.remove('form-error');
+                        }
+                    }
+                    
+                    // If target is a Select2 element, enable/disable it properly
+                    if (target.classList.contains('searchable-students')) {
+                        try {
+                            if (typeof $ !== 'undefined' && typeof $.fn.select2 !== 'undefined') {
+                                $(target).prop('disabled', !this.checked).trigger('change');
+                            }
+                        } catch (e) {
+                            // Fallback: normal disable
+                            target.disabled = !this.checked;
+                        }
+                    }
+                }
+            });
+        });
+    });
+    
+    formFieldsInitialized = true;
+    SmartBulkEditLogger.success('Form field toggles initialized');
+}
+
+// Enhanced selection handlers
+function initializeSelectionHandlers() {
+    SmartBulkEditLogger.log('Setting up selection handlers...');
+    
+    // Selection type handlers
+    const selectionRadios = document.querySelectorAll('input[name="selectionType"]');
+    selectionRadios.forEach(radio => {
+        radio.addEventListener('change', function() {
+            handleSelectionTypeChange(this.value);
+        });
+    });
+    
+    // Date range handlers
+    const fromDate = safeGetElement('#editFromDate');
+    const toDate = safeGetElement('#editToDate');
+    
+    if (fromDate) fromDate.addEventListener('change', updateClassSelection);
+    if (toDate) toDate.addEventListener('change', updateClassSelection);
+}
+
+// Enhanced modal event handling
+function initializeModalEvents() {
+    if (modalEventListenersAdded) return;
+    
+    SmartBulkEditLogger.log('Setting up modal events...');
+    
+    const modal = safeGetElement('#smartBulkEditModal');
+    if (!modal) {
+        SmartBulkEditLogger.error('Smart Bulk Edit modal not found');
+        return;
+    }
+    
+    // Modal show event
+    modal.addEventListener('show.bs.modal', function() {
+        SmartBulkEditLogger.log('Modal opening...');
+        resetBulkEditForm();
+        updateClassSelection();
+    });
+    
+    // Modal shown event
+    modal.addEventListener('shown.bs.modal', function() {
+        SmartBulkEditLogger.log('Modal opened successfully');
+        // Focus first tab
+        const firstTab = safeGetElement('#basic-tab');
+        if (firstTab) firstTab.click();
+    });
+    
+    // Modal hidden event
+    modal.addEventListener('hidden.bs.modal', function() {
+        SmartBulkEditLogger.log('Modal closed');
+        hideConflictPreview();
+    });
+    
+    modalEventListenersAdded = true;
+}
+
+// Enhanced class data initialization
+function initializeClassData() {
+    if (typeof window.classesData === 'undefined') {
+        window.classesData = [
+            {% for class in classes %}
+            {
+                id: {{ class.id }},
+                subject: '{{ class.subject|replace("'", "\\'") }}',
+                status: '{{ class.status }}',
+                scheduled_date: '{{ class.scheduled_date.isoformat() }}',
+                scheduled_time: '{{ class.scheduled_time.strftime("%H:%M") }}',
+                tutor_id: {{ class.tutor_id or 'null' }}
+            }{{ ',' if not loop.last else '' }}
+            {% endfor %}
+        ];
+        SmartBulkEditLogger.success(`Loaded ${window.classesData.length} classes`);
+    }
+}
+
+// Day-Wise Time Edit Initialization
+function initializeDayWiseTimeEdit() {
+    SmartBulkEditLogger.log('Initializing Day-Wise Time Edit...');
+    
+    try {
+        // Setup is now handled by the main toggle system
+        // The event listener is added in initializeFormFieldToggles()
+        SmartBulkEditLogger.success('Day-Wise Time Edit initialized');
+    } catch (error) {
+        SmartBulkEditLogger.error('Error initializing Day-Wise Time Edit', error);
+    }
+}
+
+// Setup Day-Wise Time UI
+function setupDayWiseTimeUI() {
+    // This will be called when classes are selected
+}
+
+// Populate day-time grid based on selected classes
+function populateDayTimeGrid() {
+    SmartBulkEditLogger.log('Populating day-time grid...');
+    
+    const container = safeGetElement('#dayTimeGrid');
+    if (!container) {
+        SmartBulkEditLogger.error('dayTimeGrid container not found');
+        return;
+    }
+    
+    // Get unique days from selected classes
+    const uniqueDays = getUniqueDaysFromSelectedClasses();
+    
+    SmartBulkEditLogger.log(`Found ${uniqueDays.length} unique days:`, uniqueDays);
+    
+    container.innerHTML = '';
+    
+    if (uniqueDays.length === 0) {
+        container.innerHTML = '<div class="col-12"><p class="text-muted">Please select classes first to see available days</p></div>';
+        SmartBulkEditLogger.warn('No unique days found - please select classes first');
+        return;
+    }
+    
+    uniqueDays.forEach((dayInfo, index) => {
+        const dayName = dayInfo.day;
+        const dayCapitalized = dayName.charAt(0).toUpperCase() + dayName.slice(1);
+        const currentTime = dayInfo.currentTime;
+        const classCount = dayInfo.count;
+        
+        const dayCol = document.createElement('div');
+        dayCol.className = 'col-md-6 mb-3';
+        
+        dayCol.innerHTML = `
+            <div class="form-check mb-2">
+                <input class="form-check-input" type="checkbox" id="changeTime_${dayName}" data-day="${dayName}">
+                <label class="form-check-label" for="changeTime_${dayName}">
+                    <strong>${dayCapitalized}</strong>
+                    <small class="text-muted d-block">${classCount} classes • Current: ${currentTime}</small>
+                </label>
+            </div>
+            <input type="time" class="form-control" id="${dayName}Time" value="${currentTime}" disabled>
+        `;
+        
+        container.appendChild(dayCol);
+        
+        // Add event listener for day checkbox
+        const dayCheckbox = dayCol.querySelector(`#changeTime_${dayName}`);
+        const timeInput = dayCol.querySelector(`#${dayName}Time`);
+        
+        dayCheckbox.addEventListener('change', function() {
+            timeInput.disabled = !this.checked;
+            if (!this.checked) {
+                timeInput.classList.remove('form-error');
+            }
+        });
+        
+        // Add validation to time input
+        timeInput.addEventListener('change', function() {
+            if (dayCheckbox.checked && this.value) {
+                this.classList.remove('form-error');
+                this.classList.add('form-success');
+            }
+        });
+    });
+    
+    SmartBulkEditLogger.success(`Populated ${uniqueDays.length} day-time options`);
+}
+
+// Get unique days from selected classes
+function getUniqueDaysFromSelectedClasses() {
+    SmartBulkEditLogger.log(`Getting unique days from ${selectedClassIds.length} selected classes`);
+    
+    if (!window.classesData || selectedClassIds.length === 0) {
+        SmartBulkEditLogger.warn('No classes data or no classes selected');
+        return [];
+    }
+    
+    const dayMap = new Map();
+    
+    // Get selected classes data
+    const selectedClasses = window.classesData.filter(cls => selectedClassIds.includes(cls.id));
+    
+    selectedClasses.forEach(cls => {
+        const date = new Date(cls.scheduled_date);
+        const dayName = date.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
+        const time = cls.scheduled_time;
+        
+        if (!dayMap.has(dayName)) {
+            dayMap.set(dayName, {
+                day: dayName,
+                currentTime: time,
+                count: 1,
+                times: new Set([time])
+            });
+        } else {
+            const dayInfo = dayMap.get(dayName);
+            dayInfo.count++;
+            dayInfo.times.add(time);
+            
+            // If multiple times exist for this day, show the most common one
+            if (dayInfo.times.size === 1) {
+                dayInfo.currentTime = time;
+            } else {
+                dayInfo.currentTime = 'Mixed times';
+            }
+        }
+    });
+    
+    return Array.from(dayMap.values()).sort((a, b) => {
+        const dayOrder = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+        return dayOrder.indexOf(a.day) - dayOrder.indexOf(b.day);
+    });
+}
+
+// Day-to-Day Mapping Functions
+function populateDayMappingGrid() {
+    SmartBulkEditLogger.log('Populating day-to-day mapping grid...');
+    
+    const container = safeGetElement('#dayMappingGrid');
+    if (!container) {
+        SmartBulkEditLogger.error('dayMappingGrid container not found');
+        return;
+    }
+    
+    // Get unique days from selected classes
+    const uniqueDays = getUniqueDaysFromSelectedClasses();
+    
+    SmartBulkEditLogger.log(`Found ${uniqueDays.length} unique days for mapping:`, uniqueDays);
+    
+    container.innerHTML = '';
+    
+    if (uniqueDays.length === 0) {
+        container.innerHTML = '<div class="col-12"><p class="text-muted">Please select classes first to see available days for mapping</p></div>';
+        SmartBulkEditLogger.warn('No unique days found for mapping - please select classes first');
+        return;
+    }
+    
+    // Create mapping options for each day
+    uniqueDays.forEach((dayInfo, index) => {
+        const dayName = dayInfo.day;
+        const dayCapitalized = dayName.charAt(0).toUpperCase() + dayName.slice(1);
+        const classCount = dayInfo.count;
+        
+        const dayCol = document.createElement('div');
+        dayCol.className = 'col-md-6 mb-3';
+        
+        const dayOptions = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
+            .map(day => {
+                const selected = day === dayName ? 'selected' : '';
+                const dayTitle = day.charAt(0).toUpperCase() + day.slice(1);
+                return `<option value="${day}" ${selected}>${dayTitle}</option>`;
+            }).join('');
+        
+        dayCol.innerHTML = `
+            <div class="form-check mb-2">
+                <input class="form-check-input" type="checkbox" id="mapDay_${dayName}" data-day="${dayName}">
+                <label class="form-check-label" for="mapDay_${dayName}">
+                    <strong>Map ${dayCapitalized}</strong>
+                    <small class="text-muted d-block">${classCount} classes</small>
+                </label>
+            </div>
+            <div class="input-group">
+                <span class="input-group-text">to</span>
+                <select class="form-select" id="mapTo_${dayName}" disabled>
+                    <option value="">Choose day...</option>
+                    ${dayOptions}
+                </select>
+            </div>
+        `;
+        
+        container.appendChild(dayCol);
+        
+        // Add event listeners
+        const dayCheckbox = dayCol.querySelector(`#mapDay_${dayName}`);
+        const selectDropdown = dayCol.querySelector(`#mapTo_${dayName}`);
+        
+        dayCheckbox.addEventListener('change', function() {
+            selectDropdown.disabled = !this.checked;
+            if (!this.checked) {
+                selectDropdown.value = dayName; // Reset to original day
+                selectDropdown.classList.remove('form-error');
+            }
+        });
+        
+        // Add validation to dropdown
+        selectDropdown.addEventListener('change', function() {
+            if (dayCheckbox.checked && this.value && this.value !== dayName) {
+                this.classList.remove('form-error');
+                this.classList.add('form-success');
+            } else if (dayCheckbox.checked && this.value === dayName) {
+                this.classList.add('form-error');
+                showFieldError(`mapTo_${dayName}`, `${dayCapitalized} cannot map to itself`);
+            }
+        });
+    });
+    
+    SmartBulkEditLogger.success(`Populated ${uniqueDays.length} day-to-day mapping options`);
+}
+
+// Enhanced Open Smart Bulk Edit function
+function openSmartBulkEdit() {
+    SmartBulkEditLogger.log('Opening Smart Bulk Edit Modal...');
+    
+    try {
+        // Ensure system is initialized
+        if (!smartBulkEditInitialized) {
+            initializeSmartBulkEditSystem();
+        }
+        
+        // Get modal
+        const modal = safeGetElement('#smartBulkEditModal');
+        if (!modal) {
+            SmartBulkEditLogger.error('Modal element not found');
+            showAlert('Error: Smart Bulk Edit modal not found. Please refresh the page.', 'error');
+            return;
+        }
+        
+        // Show modal
+        const bootstrapModal = new bootstrap.Modal(modal);
+        bootstrapModal.show();
+        
+        SmartBulkEditLogger.success('Modal opened successfully');
+        
+    } catch (error) {
+        SmartBulkEditLogger.error('Failed to open modal', error);
+        showAlert('Error opening Smart Bulk Edit. Please refresh the page and try again.', 'error');
+    }
+}
+
+// Enhanced selection type handling
+function handleSelectionTypeChange(selectionType) {
+    SmartBulkEditLogger.log(`Selection type changed to: ${selectionType}`);
+    
+    const dateRangeSection = safeGetElement('#dateRangeSection');
+    
+    if (selectionType === 'daterange') {
+        if (dateRangeSection) dateRangeSection.style.display = 'block';
+    } else {
+        if (dateRangeSection) dateRangeSection.style.display = 'none';
+    }
+    
+    updateClassSelection();
+}
+
+// Enhanced class selection update
+function updateClassSelection() {
+    try {
+        const selectionTypeRadio = document.querySelector('input[name="selectionType"]:checked');
+        if (!selectionTypeRadio) {
+            SmartBulkEditLogger.warn('No selection type checked');
+            return;
+        }
+        
+        const selectionType = selectionTypeRadio.value;
+        const allClasses = window.classesData || [];
+        
+        selectedClassIds = [];
+        
+        switch (selectionType) {
+            case 'all':
+                selectedClassIds = allClasses.map(c => c.id);
+                break;
+                
+            case 'scheduled':
+                selectedClassIds = allClasses
+                    .filter(c => c.status === 'scheduled')
+                    .map(c => c.id);
+                break;
+                
+            case 'daterange':
+                const fromDate = safeGetElement('#editFromDate');
+                const toDate = safeGetElement('#editToDate');
+                
+                if (fromDate && toDate && fromDate.value && toDate.value) {
+                    selectedClassIds = allClasses
+                        .filter(c => c.scheduled_date >= fromDate.value && c.scheduled_date <= toDate.value)
+                        .map(c => c.id);
+                }
+                break;
+                
+            case 'custom':
+                selectedClassIds = getCustomSelectedClasses();
+                break;
+        }
+        
+        updateSelectedCount();
+        SmartBulkEditLogger.log(`Selected ${selectedClassIds.length} classes`);
+        
+        // Refresh day-wise time grid if it's enabled
+        const dayWiseCheckbox = safeGetElement('#enableDayWiseTimeEdit');
+        if (dayWiseCheckbox && dayWiseCheckbox.checked) {
+            populateDayTimeGrid();
+        }
+        
+        // Refresh day-to-day mapping grid if it's enabled
+        const dayMappingCheckbox = safeGetElement('#enableDayToDayMapping');
+        if (dayMappingCheckbox && dayMappingCheckbox.checked) {
+            populateDayMappingGrid();
+        }
+        
+    } catch (error) {
+        SmartBulkEditLogger.error('Error updating class selection', error);
+    }
+}
+
+// Enhanced selected count update
+function updateSelectedCount() {
+    const countElement = safeGetElement('#editTargetCount');
+    if (countElement) {
+        countElement.textContent = selectedClassIds.length;
+    }
+}
+
+// Enhanced form reset
+function resetBulkEditForm() {
+    SmartBulkEditLogger.log('Resetting bulk edit form...');
+    
+    try {
+        // Reset checkboxes
+        const checkboxes = document.querySelectorAll('#smartBulkEditModal input[type="checkbox"]');
+        checkboxes.forEach(cb => {
+            cb.checked = false;
+            cb.dispatchEvent(new Event('change'));
+        });
+        
+        // Reset form fields
+        const fields = document.querySelectorAll('#smartBulkEditModal input:not([type="checkbox"]):not([type="radio"]), #smartBulkEditModal select, #smartBulkEditModal textarea');
+        fields.forEach(field => {
+            field.value = '';
+            field.classList.remove('form-error', 'form-success');
+        });
+        
+        // Set default selection
+        const selectAllRadio = safeGetElement('#selectAll');
+        if (selectAllRadio) selectAllRadio.checked = true;
+        
+        hideConflictPreview();
+        
+        SmartBulkEditLogger.success('Form reset complete');
+        
+    } catch (error) {
+        SmartBulkEditLogger.error('Error resetting form', error);
+    }
+}
+
+// Enhanced conflict preview
+function hideConflictPreview() {
+    const conflictDiv = safeGetElement('#conflictPreview');
+    if (conflictDiv) {
+        conflictDiv.style.display = 'none';
+    }
+    conflictsDetected = [];
+}
+
+// Enhanced button management
+function setButtonLoading(buttonSelector, isLoading = true) {
+    const button = safeGetElement(buttonSelector);
+    if (!button) return;
+    
+    if (isLoading) {
+        button.classList.add('loading');
+        button.disabled = true;
+        const icon = button.querySelector('i');
+        if (icon) {
+            icon.className = 'fas fa-spinner fa-spin';
+        }
+    } else {
+        button.classList.remove('loading');
+        button.disabled = false;
+        const icon = button.querySelector('i');
+        if (icon) {
+            icon.className = 'fas fa-magic';
+        }
+    }
+}
+
+// Enhanced error display
+function showFieldError(fieldId, message) {
+    const field = safeGetElement(`#${fieldId}`);
+    if (!field) return;
+    
+    field.classList.add('form-error');
+    
+    // Remove existing error message
+    const existingError = field.parentNode.querySelector('.error-message');
+    if (existingError) existingError.remove();
+    
+    // Add new error message
+    const errorDiv = document.createElement('div');
+    errorDiv.className = 'error-message';
+    errorDiv.textContent = message;
+    field.parentNode.appendChild(errorDiv);
+}
+
+// Enhanced success display
+function showFieldSuccess(fieldId) {
+    const field = safeGetElement(`#${fieldId}`);
+    if (!field) return;
+    
+    field.classList.remove('form-error');
+    field.classList.add('form-success');
+    
+    // Remove error message
+    const errorMessage = field.parentNode.querySelector('.error-message');
+    if (errorMessage) errorMessage.remove();
+}
+
+// Enhanced form data collection with validation
+function collectFormChanges() {
+    SmartBulkEditLogger.log('Collecting form changes...');
+    
+    const changes = {};
+    let hasChanges = false;
+    
+    try {
+        // Basic Info
+        if (safeGetElement('#editSubject')?.checked) {
+            const value = safeGetElement('#newSubject')?.value?.trim();
+            if (value) {
+                changes.subject = value;
+                hasChanges = true;
+                showFieldSuccess('newSubject');
+            } else {
+                showFieldError('newSubject', 'Subject cannot be empty');
+            }
+        }
+        
+        if (safeGetElement('#editGrade')?.checked) {
+            const value = safeGetElement('#newGrade')?.value?.trim();
+            if (value) {
+                changes.grade = value;
+                hasChanges = true;
+                showFieldSuccess('newGrade');
+            } else {
+                showFieldError('newGrade', 'Grade cannot be empty');
+            }
+        }
+        
+        if (safeGetElement('#editBoard')?.checked) {
+            const value = safeGetElement('#newBoard')?.value;
+            if (value) {
+                changes.board = value;
+                hasChanges = true;
+                showFieldSuccess('newBoard');
+            } else {
+                showFieldError('newBoard', 'Please select a board');
+            }
+        }
+        
+        if (safeGetElement('#editClassType')?.checked) {
+            const value = safeGetElement('#newClassType')?.value;
+            if (value) {
+                changes.class_type = value;
+                hasChanges = true;
+                showFieldSuccess('newClassType');
+            } else {
+                showFieldError('newClassType', 'Please select a class type');
+            }
+        }
+        
+        // Scheduling Changes
+        if (safeGetElement('#shiftTime')?.checked) {
+            const direction = safeGetElement('#timeShiftDirection')?.value;
+            const amount = parseInt(safeGetElement('#timeShiftAmount')?.value);
+            
+            if (direction && amount && amount > 0) {
+                changes.time_shift = { direction, amount };
+                hasChanges = true;
+                showFieldSuccess('timeShiftAmount');
+            } else {
+                showFieldError('timeShiftAmount', 'Enter a valid time shift amount');
+            }
+        }
+        
+        if (safeGetElement('#changeDuration')?.checked) {
+            const duration = parseInt(safeGetElement('#newDuration')?.value);
+            if (duration && duration > 0) {
+                changes.duration = duration;
+                hasChanges = true;
+                showFieldSuccess('newDuration');
+            } else {
+                showFieldError('newDuration', 'Enter a valid duration in minutes');
+            }
+        }
+        
+        if (safeGetElement('#setSpecificTime')?.checked) {
+            const time = safeGetElement('#specificTime')?.value;
+            if (time) {
+                changes.specific_time = time;
+                hasChanges = true;
+                showFieldSuccess('specificTime');
+            } else {
+                showFieldError('specificTime', 'Please select a time');
+            }
+        }
+        
+        // Day-wise time changes
+        if (safeGetElement('#enableDayWiseTimeEdit')?.checked) {
+            const dayTimeChanges = {};
+            let dayChangesFound = false;
+            let validationError = false;
+            
+            // Get all day checkboxes
+            const dayCheckboxes = document.querySelectorAll('[id^="changeTime_"]');
+            
+            dayCheckboxes.forEach(checkbox => {
+                if (checkbox.checked) {
+                    const dayName = checkbox.dataset.day;
+                    const dayCapitalized = dayName.charAt(0).toUpperCase() + dayName.slice(1);
+                    const timeInput = safeGetElement(`#${dayName}Time`);
+                    
+                    if (timeInput && timeInput.value) {
+                        dayTimeChanges[dayName] = timeInput.value;
+                        dayChangesFound = true;
+                        showFieldSuccess(`${dayName}Time`);
+                    } else {
+                        showFieldError(`${dayName}Time`, `Please select a time for ${dayCapitalized}`);
+                        validationError = true;
+                    }
+                }
+            });
+            
+            if (validationError) {
+                // Show error on the main checkbox
+                showFieldError('enableDayWiseTimeEdit', 'Please select at least one day and set its time');
+            } else if (dayChangesFound) {
+                changes.day_wise_time_changes = dayTimeChanges;
+                hasChanges = true;
+                showFieldSuccess('enableDayWiseTimeEdit');
+            } else {
+                showFieldError('enableDayWiseTimeEdit', 'Please select at least one day to change');
+            }
+        }
+        
+        if (safeGetElement('#shiftDates')?.checked) {
+            const direction = safeGetElement('#dateShiftDirection')?.value;
+            const amount = parseInt(safeGetElement('#dateShiftAmount')?.value);
+            
+            if (direction && amount && amount > 0) {
+                changes.date_shift = { direction, amount };
+                hasChanges = true;
+                showFieldSuccess('dateShiftAmount');
+            } else {
+                showFieldError('dateShiftAmount', 'Enter a valid date shift amount');
+            }
+        }
+        
+        if (safeGetElement('#changeDayOfWeek')?.checked) {
+            const day = safeGetElement('#newDayOfWeek')?.value;
+            if (day) {
+                changes.day_of_week = day;
+                hasChanges = true;
+                showFieldSuccess('newDayOfWeek');
+            } else {
+                showFieldError('newDayOfWeek', 'Please select a day');
+            }
+        }
+        
+        // Day-to-day mapping changes
+        if (safeGetElement('#enableDayToDayMapping')?.checked) {
+            const dayMappings = {};
+            let mappingsFound = false;
+            let validationError = false;
+            
+            // Get all day mapping checkboxes
+            const dayMappingCheckboxes = document.querySelectorAll('[id^="mapDay_"]');
+            
+            dayMappingCheckboxes.forEach(checkbox => {
+                if (checkbox.checked) {
+                    const fromDay = checkbox.dataset.day;
+                    const fromDayCapitalized = fromDay.charAt(0).toUpperCase() + fromDay.slice(1);
+                    const toDropdown = safeGetElement(`#mapTo_${fromDay}`);
+                    
+                    if (toDropdown && toDropdown.value && toDropdown.value !== fromDay) {
+                        dayMappings[fromDay] = toDropdown.value;
+                        mappingsFound = true;
+                        showFieldSuccess(`mapTo_${fromDay}`);
+                    } else if (toDropdown && toDropdown.value === fromDay) {
+                        showFieldError(`mapTo_${fromDay}`, `${fromDayCapitalized} cannot map to itself`);
+                        validationError = true;
+                    } else {
+                        showFieldError(`mapTo_${fromDay}`, `Please select a target day for ${fromDayCapitalized}`);
+                        validationError = true;
+                    }
+                }
+            });
+            
+            if (validationError) {
+                showFieldError('enableDayToDayMapping', 'Please fix mapping errors above');
+            } else if (mappingsFound) {
+                changes.day_to_day_mappings = dayMappings;
+                hasChanges = true;
+                showFieldSuccess('enableDayToDayMapping');
+            } else {
+                showFieldError('enableDayToDayMapping', 'Please select at least one day mapping');
+            }
+        }
+        
+        // Assignment Changes (changeTutor removed - use standalone modal)        
+        if (safeGetElement('#addStudents')?.checked) {
+            const select = safeGetElement('#studentsToAdd');
+            const selected = Array.from(select?.selectedOptions || []);
+            if (selected.length > 0) {
+                changes.add_students = selected.map(option => parseInt(option.value));
+                hasChanges = true;
+                showFieldSuccess('studentsToAdd');
+            } else {
+                showFieldError('studentsToAdd', 'Please select students to add');
+            }
+        }
+        
+        if (safeGetElement('#removeStudents')?.checked) {
+            const select = safeGetElement('#studentsToRemove');
+            const selected = Array.from(select?.selectedOptions || []);
+            if (selected.length > 0) {
+                changes.remove_students = selected.map(option => parseInt(option.value));
+                hasChanges = true;
+                showFieldSuccess('studentsToRemove');
+            } else {
+                showFieldError('studentsToRemove', 'Please select students to remove');
+            }
+        }
+        
+        // Platform Changes
+        if (safeGetElement('#changePlatform')?.checked) {
+            const platform = safeGetElement('#newPlatform')?.value;
+            if (platform) {
+                changes.platform = platform;
+                hasChanges = true;
+                showFieldSuccess('newPlatform');
+            } else {
+                showFieldError('newPlatform', 'Please select a platform');
+            }
+        }
+        
+        if (safeGetElement('#updateMeetingLink')?.checked) {
+            const link = safeGetElement('#newMeetingLink')?.value?.trim();
+            if (link && isValidURL(link)) {
+                changes.meeting_link = link;
+                hasChanges = true;
+                showFieldSuccess('newMeetingLink');
+            } else {
+                showFieldError('newMeetingLink', 'Please enter a valid meeting link');
+            }
+        }
+        
+        if (safeGetElement('#updateMeetingId')?.checked) {
+            const meetingId = safeGetElement('#newMeetingId')?.value?.trim();
+            if (meetingId) {
+                changes.meeting_id = meetingId;
+                hasChanges = true;
+                showFieldSuccess('newMeetingId');
+            } else {
+                showFieldError('newMeetingId', 'Please enter a meeting ID');
+            }
+        }
+        
+        // Content Changes
+        if (safeGetElement('#updateNotes')?.checked) {
+            const action = safeGetElement('#notesAction')?.value;
+            const content = safeGetElement('#newNotes')?.value?.trim();
+            
+            if (action && content) {
+                changes.class_notes = { action, content };
+                hasChanges = true;
+                showFieldSuccess('newNotes');
+            } else {
+                showFieldError('newNotes', 'Please enter notes content');
+            }
+        }
+        
+        if (safeGetElement('#updateTopics')?.checked) {
+            const topics = safeGetElement('#newTopics')?.value?.trim();
+            if (topics) {
+                changes.topics_covered = topics;
+                hasChanges = true;
+                showFieldSuccess('newTopics');
+            } else {
+                showFieldError('newTopics', 'Please enter topics');
+            }
+        }
+        
+        if (safeGetElement('#updateHomework')?.checked) {
+            const homework = safeGetElement('#newHomework')?.value?.trim();
+            if (homework) {
+                changes.homework_assigned = homework;
+                hasChanges = true;
+                showFieldSuccess('newHomework');
+            } else {
+                showFieldError('newHomework', 'Please enter homework details');
+            }
+        }
+        
+        if (safeGetElement('#updateVideoLink')?.checked) {
+            const link = safeGetElement('#newVideoLink')?.value?.trim();
+            if (link && isValidURL(link)) {
+                changes.video_link = link;
+                hasChanges = true;
+                showFieldSuccess('newVideoLink');
+            } else {
+                showFieldError('newVideoLink', 'Please enter a valid video link');
+            }
+        }
+        
+        if (safeGetElement('#updateMaterials')?.checked) {
+            const materials = safeGetElement('#newMaterials')?.value?.trim();
+            if (materials) {
+                changes.materials = materials;
+                hasChanges = true;
+                showFieldSuccess('newMaterials');
+            } else {
+                showFieldError('newMaterials', 'Please enter materials');
+            }
+        }
+        
+        // Status Changes
+        if (safeGetElement('#changeStatus')?.checked) {
+            const status = safeGetElement('#newStatus')?.value;
+            if (status) {
+                changes.status = status;
+                hasChanges = true;
+                showFieldSuccess('newStatus');
+            } else {
+                showFieldError('newStatus', 'Please select a status');
+            }
+        }
+        
+        if (safeGetElement('#setCompletionStatus')?.checked) {
+            const completionStatus = safeGetElement('#newCompletionStatus')?.value;
+            if (completionStatus) {
+                changes.completion_status = completionStatus;
+                hasChanges = true;
+                showFieldSuccess('newCompletionStatus');
+            } else {
+                showFieldError('newCompletionStatus', 'Please select completion status');
+            }
+        }
+        
+        if (!hasChanges) {
+            SmartBulkEditLogger.warn('No valid changes collected');
+        } else {
+            SmartBulkEditLogger.success(`Collected ${Object.keys(changes).length} changes`);
+        }
+        
+        return changes;
+        
+    } catch (error) {
+        SmartBulkEditLogger.error('Error collecting form changes', error);
+        return {};
+    }
+}
+
+// Enhanced preview changes function
+function previewChanges() {
+    SmartBulkEditLogger.log('Previewing changes...');
+    
+    try {
+        if (selectedClassIds.length === 0) {
+            showAlert('Please select classes to edit first.', 'warning');
+            return;
+        }
+        
+        const changes = collectFormChanges();
+        
+        if (Object.keys(changes).length === 0) {
+            showAlert('Please select at least one field to change and fill in the required values.', 'warning');
+            return;
+        }
+        
+        let previewText = `📋 Smart Bulk Edit Preview\n\n`;
+        previewText += `🎯 Target: ${selectedClassIds.length} classes\n\n`;
+        previewText += `📝 Changes to apply:\n`;
+        
+        Object.keys(changes).forEach(key => {
+            const change = changes[key];
+            previewText += `• ${formatFieldName(key)}: ${formatChangeValue(key, change)}\n`;
+        });
+        
+        if (conflictsDetected.length > 0) {
+            previewText += `\n⚠️ Warning: ${conflictsDetected.length} potential conflicts detected.`;
+            previewText += `\nSome classes may not be updated due to scheduling conflicts.`;
+        }
+        
+        previewText += `\n\n⚡ This action will update all selected classes at once.`;
+        previewText += `\n✅ You can review individual results after applying.`;
+        
+        if (confirm(previewText + '\n\nProceed with applying these changes?')) {
+            applyBulkChanges();
+        }
+        
+    } catch (error) {
+        SmartBulkEditLogger.error('Error previewing changes', error);
+        showAlert('Error previewing changes. Please try again.', 'error');
+    }
+}
+
+// Enhanced apply bulk changes function
+async function applyBulkChanges() {
+    SmartBulkEditLogger.log('Applying bulk changes...');
+    
+    try {
+        if (selectedClassIds.length === 0) {
+            showAlert('Please select classes to edit first.', 'warning');
+            return;
+        }
+        
+        const changes = collectFormChanges();
+        
+        if (Object.keys(changes).length === 0) {
+            showAlert('Please select at least one field to change and fill in the required values.', 'warning');
+            return;
+        }
+        
+        // Set loading state
+        setButtonLoading('#applyChangesBtn', true);
+        
+        const response = await fetch('/admin/api/classes/smart-bulk-edit', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCSRFToken()
+            },
+            body: JSON.stringify({
+                class_ids: selectedClassIds,
+                changes: changes,
+                batch_id: '{{ batch_id }}'
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            SmartBulkEditLogger.success(`Successfully updated ${result.updated_count} classes`);
+            
+            let message = `✅ Success! ${result.updated_count} out of ${selectedClassIds.length} classes updated successfully.`;
+            
+            if (result.conflicts && result.conflicts.length > 0) {
+                message += `\n\n⚠️ ${result.conflicts.length} classes had conflicts and were not updated.`;
+            }
+            
+            showAlert(message, 'success');
+            
+            // Close modal and refresh
+            const modal = bootstrap.Modal.getInstance(safeGetElement('#smartBulkEditModal'));
+            if (modal) modal.hide();
+            
+            setTimeout(() => location.reload(), 1500);
+            
+        } else {
+            SmartBulkEditLogger.error('Bulk edit failed', result);
+            showAlert(`❌ Error: ${result.error || 'Failed to apply changes'}`, 'error');
+        }
+        
+    } catch (error) {
+        SmartBulkEditLogger.error('Error applying bulk changes', error);
+        showAlert('❌ Error applying changes. Please check your connection and try again.', 'error');
+    } finally {
+        setButtonLoading('#applyChangesBtn', false);
+    }
+}
+
+// Utility functions
+function isValidURL(string) {
+    try {
+        new URL(string);
+        return true;
+    } catch (_) {
+        return false;
+    }
+}
+
+function formatFieldName(key) {
+    const fieldNames = {
+        'subject': 'Subject',
+        'grade': 'Grade', 
+        'board': 'Board',
+        'class_type': 'Class Type',
+        'time_shift': 'Time Shift',
+        'duration': 'Duration',
+        'specific_time': 'Start Time',
+        'day_wise_time_changes': 'Day-Specific Times',
+        'date_shift': 'Date Shift',
+        'day_of_week': 'Day of Week',
+        'day_to_day_mappings': 'Day-to-Day Mappings',
+        'add_students': 'Add Students',
+        'remove_students': 'Remove Students',
+        'platform': 'Platform',
+        'meeting_link': 'Meeting Link',
+        'meeting_id': 'Meeting ID',
+        'class_notes': 'Class Notes',
+        'topics_covered': 'Topics Covered',
+        'homework_assigned': 'Homework',
+        'video_link': 'Video Link',
+        'materials': 'Materials',
+        'status': 'Status',
+        'completion_status': 'Completion Status'
+    };
+    
+    return fieldNames[key] || key.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase());
+}
+
+function formatChangeValue(key, value) {
+    if (typeof value === 'object') {
+        if (key === 'time_shift') {
+            return `${value.direction === 'add' ? 'Add' : 'Subtract'} ${value.amount} minutes`;
+        } else if (key === 'date_shift') {
+            return `${value.direction === 'add' ? 'Move forward' : 'Move backward'} ${value.amount} days`;
+        } else if (key === 'day_wise_time_changes') {
+            const dayChanges = Object.entries(value).map(([day, time]) => {
+                const dayCapitalized = day.charAt(0).toUpperCase() + day.slice(1);
+                return `${dayCapitalized}: ${time}`;
+            }).join(', ');
+            return dayChanges;
+        } else if (key === 'day_to_day_mappings') {
+            const dayMappings = Object.entries(value).map(([fromDay, toDay]) => {
+                const fromCapitalized = fromDay.charAt(0).toUpperCase() + fromDay.slice(1);
+                const toCapitalized = toDay.charAt(0).toUpperCase() + toDay.slice(1);
+                return `${fromCapitalized} → ${toCapitalized}`;
+            }).join(', ');
+            return dayMappings;
+        } else if (key === 'class_notes') {
+            return `${value.action}: "${value.content.substring(0, 50)}${value.content.length > 50 ? '...' : ''}"`;
+        }
+        return JSON.stringify(value);
+    }
+    return String(value);
+}
+
+function getCustomSelectedClasses() {
+    // Implement custom selection logic if needed
+    return [];
+}
+
+function getCSRFToken() {
+    return document.querySelector('meta[name="csrf-token"]')?.content || 
+           document.querySelector('[name="csrf_token"]')?.value || 
+           '{{ csrf_token() }}' || '';
+}
+
+function showAlert(message, type = 'info') {
+    // Enhanced alert system
+    const alertTypes = {
+        'success': { icon: 'check-circle', class: 'alert-success' },
+        'error': { icon: 'exclamation-triangle', class: 'alert-danger' },
+        'warning': { icon: 'exclamation-circle', class: 'alert-warning' },
+        'info': { icon: 'info-circle', class: 'alert-info' }
+    };
+    
+    const alertConfig = alertTypes[type] || alertTypes.info;
+    
+    // Create alert element
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert ${alertConfig.class} alert-dismissible fade show position-fixed`;
+    alertDiv.style.cssText = `
+        top: 20px;
+        right: 20px;
+        z-index: 9999;
+        min-width: 300px;
+        max-width: 500px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    `;
+    
+    alertDiv.innerHTML = `
+        <i class="fas fa-${alertConfig.icon} me-2"></i>
+        ${message.replace(/\n/g, '<br>')}
+        <button type="button" class="btn-close" onclick="this.parentElement.remove()"></button>
+    `;
+    
+    document.body.appendChild(alertDiv);
+    
+    // Auto-remove after delay
+    const delay = type === 'error' ? 8000 : 5000;
+    setTimeout(() => {
+        if (alertDiv.parentElement) {
+            alertDiv.remove();
+        }
+    }, delay);
+}
+
+// EXISTING FUNCTIONALITY - Change Tutor, Bulk Delete, etc.
+
+function showChangeTutorModal() {
+    // Initialize the enhanced batch tutor change system
+    batchCurrentStep = 1;
+    batchScheduleData = {};
+    batchSelectedTutor = null;
+    batchSelectedChanges = [];
+    
+    const modal = new bootstrap.Modal(document.getElementById('changeTutorModal'));
+    loadBatchScheduleAnalysis();
+    modal.show();
+}
+
+function checkTutorAvailability() {
+    const tutorId = document.getElementById('newTutorSelect').value;
+    const availabilityDiv = document.getElementById('availabilityCheck');
+    const confirmBtn = document.getElementById('confirmChangeTutor');
+    
+    if (!tutorId) {
+        availabilityDiv.style.display = 'none';
+        confirmBtn.disabled = true;
+        return;
+    }
+    
+    const scheduledClasses = Array.from(document.querySelectorAll('.class-row'))
+        .filter(row => row.querySelector('.status-scheduled'))
+        .map(row => row.dataset.classId);
+    
+    if (scheduledClasses.length === 0) {
+        availabilityDiv.innerHTML = '<div class="alert alert-warning">No scheduled classes to change tutor for.</div>';
+        availabilityDiv.style.display = 'block';
+        confirmBtn.disabled = true;
+        return;
+    }
+    
+    fetch(`/admin/api/tutor/${tutorId}/batch-availability?${scheduledClasses.map(id => `class_ids=${id}`).join('&')}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                displayAvailabilityResults(data);
+                confirmBtn.disabled = data.available_classes === 0;
+            } else {
+                document.getElementById('availabilityResults').innerHTML = 
+                    `<div class="alert alert-danger">${data.error || 'Failed to check availability'}</div>`;
+                confirmBtn.disabled = true;
+            }
+            availabilityDiv.style.display = 'block';
+        })
+        .catch(error => {
+            console.error('Error checking availability:', error);
+            document.getElementById('availabilityResults').innerHTML = 
+                '<div class="alert alert-danger">Error checking availability</div>';
+            confirmBtn.disabled = true;
+            availabilityDiv.style.display = 'block';
+        });
+}
+
+function displayAvailabilityResults(data) {
+    const available = data.details.filter(d => d.available);
+    const conflicts = data.details.filter(d => !d.available);
+    
+    let html = `
+        <div class="row mb-3">
+            <div class="col-md-4">
+                <div class="text-center">
+                    <h5 class="text-success">${data.available_classes}</h5>
+                    <small>Available</small>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="text-center">
+                    <h5 class="text-danger">${data.conflicts}</h5>
+                    <small>Conflicts</small>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="text-center">
+                    <h5>${data.total_classes}</h5>
+                    <small>Total Classes</small>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    if (conflicts.length > 0) {
+        html += '<h6 class="text-danger">Scheduling Conflicts:</h6>';
+        html += '<div class="table-responsive"><table class="table table-sm">';
+        html += '<thead><tr><th>Date</th><th>Time</th><th>Day</th><th>Reason</th></tr></thead><tbody>';
+        
+        conflicts.forEach(conflict => {
+            html += `
+                <tr>
+                    <td>${conflict.date}</td>
+                    <td>${conflict.time}</td>
+                    <td>${conflict.day}</td>
+                    <td><span class="text-danger">${conflict.reason}</span></td>
+                </tr>
+            `;
+        });
+        
+        html += '</tbody></table></div>';
+    }
+    
+    document.getElementById('availabilityResults').innerHTML = html;
+}
+
+function confirmChangeTutor() {
+    const tutorId = document.getElementById('newTutorSelect').value;
+    if (!tutorId) return;
+    
+    const confirmBtn = document.getElementById('confirmChangeTutor');
+    confirmBtn.disabled = true;
+    confirmBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Changing...';
+    
+    fetch(`/admin/api/batch/{{ batch_id }}/change-tutor`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token() }}'
+        },
+        body: JSON.stringify({
+            new_tutor_id: parseInt(tutorId)
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(`${data.message}${data.conflicts.length > 0 ? '\n\nSome classes had scheduling conflicts and were not changed.' : ''}`);
+            location.reload();
+        } else {
+            alert('Error: ' + (data.error || 'Failed to change tutor'));
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error changing tutor');
+    })
+    .finally(() => {
+        confirmBtn.disabled = false;
+        confirmBtn.innerHTML = '<i class="fas fa-exchange-alt"></i> Change Tutor';
+    });
+}
+
+// ============ ENHANCED BATCH TUTOR CHANGE SYSTEM ============
+let batchCurrentStep = 1;
+let batchScheduleData = {};
+let batchSelectedTutor = null;
+let batchSelectedChanges = [];
+
+// Pagination and search variables
+let batchAllTutors = [];
+let batchFilteredTutors = [];
+let batchCurrentPage = 1;
+let batchTutorsPerPage = 5;
+let batchAvailabilityMatrix = {};
+
+function loadBatchScheduleAnalysis() {
+    console.log('Loading batch schedule analysis...');
+    
+    // Get current batch information
+    const batchId = '{{ batch_id }}';
+    
+    // Analyze classes directly from the current page data
+    const classRows = document.querySelectorAll('.class-row');
+    const futureClasses = [];
+    
+    console.log('Found class rows:', classRows.length);
+    
+    classRows.forEach(row => {
+        const datetimeDiv = row.querySelector('.class-datetime');
+        const statusElement = row.querySelector('[class*="status-"]');
+        
+        let dateText = '';
+        let timeText = '';
+        
+        if (datetimeDiv) {
+            // Extract date from the <strong> tag
+            const strongElement = datetimeDiv.querySelector('strong');
+            if (strongElement) {
+                dateText = strongElement.textContent.trim();
+            }
+            
+            // Extract time from the span with text-muted class
+            const timeSpan = datetimeDiv.querySelector('span.text-muted');
+            if (timeSpan) {
+                // Time format is "Monday • 02:30 PM" - extract the time part after •
+                const timeMatch = timeSpan.textContent.match(/•\s*(.+)$/);
+                if (timeMatch) {
+                    timeText = timeMatch[1].trim();
+                }
+            }
+        }
+        
+        console.log('Processing row - Date:', dateText, 'Time:', timeText, 'Status:', statusElement?.className);
+        
+        if (statusElement && statusElement.classList.contains('status-scheduled') && dateText && timeText) {
+            // Parse the date properly (format: "10 Sep 2024")
+            const dateParts = dateText.split(' ');
+            const months = {
+                'Jan': '01', 'Feb': '02', 'Mar': '03', 'Apr': '04', 'May': '05', 'Jun': '06',
+                'Jul': '07', 'Aug': '08', 'Sep': '09', 'Oct': '10', 'Nov': '11', 'Dec': '12'
+            };
+            
+            if (dateParts.length === 3) {
+                const day = dateParts[0].padStart(2, '0');
+                const month = months[dateParts[1]];
+                const year = dateParts[2];
+                
+                if (month && year) {
+                    const isoDateString = `${year}-${month}-${day}`;
+                    const classDate = new Date(isoDateString);
+                    
+                    const classData = {
+                        id: row.dataset.classId,
+                        date: dateText,
+                        time: timeText,
+                        day: classDate.toLocaleDateString('en', { weekday: 'long' })
+                    };
+                    
+                    // Only include future classes
+                    if (classDate >= new Date()) {
+                        futureClasses.push(classData);
+                        console.log('Added future class:', classData);
+                    }
+                }
+            }
+        }
+    });
+    
+    // Group by day and time
+    batchScheduleData = {
+        classes: futureClasses,
+        unique_days: [...new Set(futureClasses.map(c => c.day))],
+        unique_times: [...new Set(futureClasses.map(c => c.time))],
+        day_time_combos: {}
+    };
+    
+    // Create day-time combinations
+    futureClasses.forEach(cls => {
+        const key = `${cls.day}|${cls.time}`;
+        if (!batchScheduleData.day_time_combos[key]) {
+            batchScheduleData.day_time_combos[key] = [];
+        }
+        batchScheduleData.day_time_combos[key].push(cls);
+    });
+    
+    console.log('Final batchScheduleData:', batchScheduleData);
+    renderBatchScheduleAnalysis();
+}
+
+function renderBatchScheduleAnalysis() {
+    const container = document.getElementById('batchScheduleContainer');
+    
+    if (batchScheduleData.classes.length === 0) {
+        container.innerHTML = `
+            <div class="text-center py-4">
+                <i class="fas fa-calendar-times fa-2x text-muted mb-3"></i>
+                <h6 class="text-muted">No Future Classes</h6>
+                <p class="text-muted">This batch has no scheduled classes that can be changed.</p>
+            </div>
+        `;
+        return;
+    }
+    
+    let html = `
+        <div class="schedule-summary">
+            <h6>Current Schedule Pattern:</h6>
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <strong>Days</strong>
+                        </div>
+                        <div class="card-body">
+                            <div class="d-flex flex-wrap gap-1">
+                                ${batchScheduleData.unique_days.map(day => 
+                                    `<span class="badge badge-primary">${day}</span>`
+                                ).join('')}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <strong>Times</strong>
+                        </div>
+                        <div class="card-body">
+                            <div class="d-flex flex-wrap gap-1">
+                                ${batchScheduleData.unique_times.map(time => 
+                                    `<span class="badge badge-secondary">${time}</span>`
+                                ).join('')}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mt-3">
+                <h6>Schedule Breakdown:</h6>
+                <div class="table-responsive">
+                    <table class="table table-sm table-bordered">
+                        <thead>
+                            <tr>
+                                <th>Day</th>
+                                <th>Time</th>
+                                <th>Classes</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+    `;
+    
+    Object.entries(batchScheduleData.day_time_combos).forEach(([key, classes]) => {
+        const [day, time] = key.split('|');
+        html += `
+            <tr>
+                <td>${day}</td>
+                <td>${time}</td>
+                <td><span class="badge badge-info">${classes.length} classes</span></td>
+            </tr>
+        `;
+    });
+    
+    html += `
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    container.innerHTML = html;
+    document.getElementById('batchNextStepBtn').disabled = false;
+}
+
+function loadBatchTutors() {
+    Promise.all([
+        fetch('/admin/api/v1/tutors/active').then(r => r.json()),
+        fetch('/admin/api/tutors/availability-matrix').then(r => r.json())
+    ]).then(([tutorsData, availabilityData]) => {
+        console.log('Tutors data:', tutorsData);
+        console.log('Availability data:', availabilityData);
+        
+        if (tutorsData.success && availabilityData.success) {
+            // Store all data globally for search and pagination
+            batchAllTutors = tutorsData.tutors;
+            batchAvailabilityMatrix = availabilityData.availability_matrix;
+            batchFilteredTutors = [...batchAllTutors]; // Start with all tutors
+            batchCurrentPage = 1;
+            
+            // Initial render
+            renderBatchTutorCards();
+        } else {
+            console.error('API Error - Tutors:', tutorsData.error, 'Availability:', availabilityData.error);
+            showBatchError('Failed to load tutors: ' + (tutorsData.error || availabilityData.error || 'Unknown error'));
+        }
+    }).catch(error => {
+        console.error('Error loading batch tutors:', error);
+        showBatchError('Failed to load tutors: ' + error.message);
+    });
+}
+
+function searchBatchTutors() {
+    const searchTerm = document.getElementById('batchTutorSearch').value.toLowerCase().trim();
+    
+    if (!searchTerm) {
+        batchFilteredTutors = [...batchAllTutors];
+    } else {
+        batchFilteredTutors = batchAllTutors.filter(tutor => {
+            const name = tutor.name.toLowerCase();
+            const experience = tutor.experience || '';
+            const subjects = (tutor.subjects || []).join(' ').toLowerCase();
+            
+            return name.includes(searchTerm) || 
+                   experience.toString().includes(searchTerm) ||
+                   subjects.includes(searchTerm);
+        });
+    }
+    
+    batchCurrentPage = 1; // Reset to first page
+    renderBatchTutorCards();
+}
+
+function clearBatchTutorSearch() {
+    document.getElementById('batchTutorSearch').value = '';
+    batchFilteredTutors = [...batchAllTutors];
+    batchCurrentPage = 1;
+    renderBatchTutorCards();
+}
+
+function changeBatchTutorPage(direction) {
+    const totalPages = Math.ceil(batchFilteredTutors.length / batchTutorsPerPage);
+    
+    if (direction === 'prev' && batchCurrentPage > 1) {
+        batchCurrentPage--;
+    } else if (direction === 'next' && batchCurrentPage < totalPages) {
+        batchCurrentPage++;
+    }
+    
+    renderBatchTutorCards();
+}
+
+function convertTo24Hour(timeStr) {
+    // Handle different time formats: "14:30", "2:30 PM", "14:30:00"
+    if (!timeStr) return '';
+    
+    // Remove any extra whitespace
+    timeStr = timeStr.trim();
+    
+    // If already in 24-hour format (HH:MM or HH:MM:SS)
+    if (/^\d{1,2}:\d{2}(:\d{2})?$/.test(timeStr)) {
+        // Extract just HH:MM part
+        return timeStr.substring(0, 5);
+    }
+    
+    // If in 12-hour format (H:MM AM/PM or HH:MM AM/PM)
+    if (/\d{1,2}:\d{2}\s*(AM|PM)/i.test(timeStr)) {
+        const [time, period] = timeStr.split(/\s+/);
+        const [hours, minutes] = time.split(':');
+        let hour24 = parseInt(hours);
+        
+        if (period.toUpperCase() === 'PM' && hour24 !== 12) {
+            hour24 += 12;
+        } else if (period.toUpperCase() === 'AM' && hour24 === 12) {
+            hour24 = 0;
+        }
+        
+        return `${hour24.toString().padStart(2, '0')}:${minutes}`;
+    }
+    
+    // If no format matches, return as is
+    return timeStr;
+}
+
+function renderBatchTutorCards() {
+    const container = document.getElementById('batchTutorCardsContainer');
+    const countElement = document.getElementById('batchTutorCount');
+    const paginationElement = document.getElementById('batchTutorPagination');
+    const paginationInfo = document.getElementById('batchPaginationInfo');
+    
+    console.log('Rendering batch tutor cards:');
+    console.log('Filtered tutors:', batchFilteredTutors.length);
+    console.log('Current page:', batchCurrentPage);
+    
+    // Update tutor count
+    countElement.textContent = batchFilteredTutors.length;
+    
+    if (batchFilteredTutors.length === 0) {
+        container.innerHTML = '<div class="col-12"><div class="alert alert-warning">No tutors found matching your search.</div></div>';
+        paginationElement.style.display = 'none';
+        return;
+    }
+    
+    // Calculate pagination
+    const totalPages = Math.ceil(batchFilteredTutors.length / batchTutorsPerPage);
+    const startIndex = (batchCurrentPage - 1) * batchTutorsPerPage;
+    const endIndex = Math.min(startIndex + batchTutorsPerPage, batchFilteredTutors.length);
+    const tutorsToShow = batchFilteredTutors.slice(startIndex, endIndex);
+    
+    console.log(`Showing tutors ${startIndex + 1}-${endIndex} of ${batchFilteredTutors.length}`);
+    
+    // Render tutors for current page
+    let html = '';
+    tutorsToShow.forEach(tutor => {
+        console.log('Processing tutor:', tutor);
+        const availability = batchAvailabilityMatrix[tutor.id];
+        if (!availability) {
+            console.log(`No availability data for tutor ${tutor.id} (${tutor.name})`);
+            return;
+        }
+        
+        // Calculate compatibility score for batch schedule
+        let availableSlots = 0;
+        let totalSlots = 0;
+        
+        console.log(`Checking availability for tutor ${tutor.name} (ID: ${tutor.id})`);
+        console.log('Tutor availability data:', availability.availability);
+        console.log('Schedule unique_days:', batchScheduleData.unique_days);
+        console.log('Schedule unique_times:', batchScheduleData.unique_times);
+        
+        batchScheduleData.unique_days.forEach(day => {
+            batchScheduleData.unique_times.forEach(time => {
+                totalSlots++;
+                const dayLower = day.toLowerCase();
+                
+                console.log(`Checking ${dayLower} at ${time}`);
+                
+                if (availability.availability[dayLower]) {
+                    const daySlots = availability.availability[dayLower];
+                    console.log(`Day ${dayLower} slots:`, daySlots);
+                    
+                    const isAvailable = daySlots.some(slot => {
+                        // Convert times to comparable format (24-hour)
+                        const slotStart = convertTo24Hour(slot.start);
+                        const slotEnd = convertTo24Hour(slot.end);
+                        const classTime = convertTo24Hour(time);
+                        
+                        console.log(`  Slot: ${slotStart} - ${slotEnd}, Class: ${classTime}`);
+                        const available = slotStart <= classTime && classTime <= slotEnd;
+                        console.log(`  Available: ${available}`);
+                        return available;
+                    });
+                    
+                    if (isAvailable) {
+                        availableSlots++;
+                        console.log(`  ✅ Available for ${day} at ${time}`);
+                    } else {
+                        console.log(`  ❌ Not available for ${day} at ${time}`);
+                    }
+                } else {
+                    console.log(`  No availability data for ${dayLower}`);
+                }
+            });
+        });
+        
+        const compatibilityPercent = Math.round((availableSlots / totalSlots) * 100);
+        
+        html += `
+            <div class="col-md-6 mb-3" data-rating="${availability.rating}" data-compatibility="${compatibilityPercent}">
+                <div class="card tutor-card" onclick="selectBatchTutor(${tutor.id})">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <h6 class="mb-1">${tutor.name}</h6>
+                            <div class="text-end">
+                                <div class="rating-stars">
+                                    ${renderStars(availability.rating)}
+                                </div>
+                                <small class="text-muted">${availability.rating.toFixed(1)}</small>
+                            </div>
+                        </div>
+                        <div class="text-muted small mb-2">
+                            ${availability.subjects.join(', ')}
+                        </div>
+                        <div class="compatibility-meter mb-2">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <small>Schedule Match</small>
+                                <small class="fw-bold">${compatibilityPercent}%</small>
+                            </div>
+                            <div class="progress" style="height: 4px;">
+                                <div class="progress-bar bg-${compatibilityPercent >= 80 ? 'success' : compatibilityPercent >= 60 ? 'warning' : 'danger'}" 
+                                     style="width: ${compatibilityPercent}%"></div>
+                            </div>
+                        </div>
+                        <div class="availability-preview">
+                            <small class="text-muted">Available: ${availableSlots}/${totalSlots} time slots</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+    
+    console.log('Generated HTML length:', html.length);
+    
+    if (html === '') {
+        container.innerHTML = `
+            <div class="col-12">
+                <div class="alert alert-warning">
+                    <h6><i class="fas fa-exclamation-triangle"></i> No Available Tutors</h6>
+                    <p class="mb-2">No tutors have availability data configured for their schedules.</p>
+                    <small class="text-muted">
+                        <strong>To fix this:</strong><br>
+                        1. Ask tutors to set their availability in their profile<br>
+                        2. Ensure tutors have active status<br>
+                        3. Verify tutors have configured their weekly schedules
+                    </small>
+                </div>
+            </div>
+        `;
+    } else {
+        container.innerHTML = html;
+    }
+    
+    // Update pagination controls
+    if (totalPages > 1) {
+        paginationElement.style.display = 'flex';
+        paginationInfo.textContent = `${startIndex + 1}-${endIndex} of ${batchFilteredTutors.length} tutors`;
+        
+        // Update pagination buttons
+        const prevButton = document.getElementById('batchPrevPage');
+        const nextButton = document.getElementById('batchNextPage');
+        
+        prevButton.classList.toggle('disabled', batchCurrentPage === 1);
+        nextButton.classList.toggle('disabled', batchCurrentPage === totalPages);
+    } else {
+        paginationElement.style.display = 'none';
+    }
+}
+
+function selectBatchTutor(tutorId) {
+    document.querySelectorAll('.tutor-card').forEach(card => {
+        card.classList.remove('selected');
+    });
+    event.currentTarget.classList.add('selected');
+    
+    batchSelectedTutor = tutorId;
+    document.getElementById('batchNextStepBtn').disabled = false;
+}
+
+function filterBatchTutors() {
+    const ratingFilter = document.getElementById('batchRatingFilter').value;
+    const availabilityFilter = document.getElementById('batchAvailabilityFilter').value;
+    
+    // Filter from all tutors based on search and filters
+    let filteredTutors = [...batchAllTutors];
+    
+    // Apply search filter first
+    const searchTerm = document.getElementById('batchTutorSearch').value.toLowerCase().trim();
+    if (searchTerm) {
+        filteredTutors = filteredTutors.filter(tutor => {
+            const name = tutor.name.toLowerCase();
+            const experience = tutor.experience || '';
+            const subjects = (tutor.subjects || []).join(' ').toLowerCase();
+            
+            return name.includes(searchTerm) || 
+                   experience.toString().includes(searchTerm) ||
+                   subjects.includes(searchTerm);
+        });
+    }
+    
+    // Apply rating and availability filters
+    if (ratingFilter || availabilityFilter !== 'all') {
+        filteredTutors = filteredTutors.filter(tutor => {
+            const availability = batchAvailabilityMatrix[tutor.id];
+            if (!availability) return false;
+            
+            // Calculate compatibility for availability filter
+            let availableSlots = 0;
+            let totalSlots = 0;
+            
+            batchScheduleData.unique_days.forEach(day => {
+                batchScheduleData.unique_times.forEach(time => {
+                    totalSlots++;
+                    const dayLower = day.toLowerCase();
+                    
+                    if (availability.availability[dayLower]) {
+                        const daySlots = availability.availability[dayLower];
+                        const isAvailable = daySlots.some(slot => {
+                            const slotStart = convertTo24Hour(slot.start);
+                            const slotEnd = convertTo24Hour(slot.end);
+                            const classTime = convertTo24Hour(time);
+                            return slotStart <= classTime && classTime <= slotEnd;
+                        });
+                        if (isAvailable) availableSlots++;
+                    }
+                });
+            });
+            
+            const compatibility = Math.round((availableSlots / totalSlots) * 100);
+            
+            // Rating filter
+            if (ratingFilter && availability.rating < parseFloat(ratingFilter)) {
+                return false;
+            }
+            
+            // Availability filter
+            if (availabilityFilter !== 'all') {
+                switch (availabilityFilter) {
+                    case 'perfect':
+                        if (compatibility < 100) return false;
+                        break;
+                    case 'high':
+                        if (compatibility < 80) return false;
+                        break;
+                    case 'partial':
+                        if (compatibility < 50) return false;
+                        break;
+                }
+            }
+            
+            return true;
+        });
+    }
+    
+    batchFilteredTutors = filteredTutors;
+    batchCurrentPage = 1; // Reset to first page
+    renderBatchTutorCards();
+}
+
+function renderBatchDayTimeSelection() {
+    const container = document.getElementById('batchDayTimeContainer');
+    
+    let html = `
+        <div class="day-time-grid">
+            <h6 class="mb-3">Select which classes to change:</h6>
+            <div class="table-responsive">
+                <table class="table table-bordered">
+                    <thead>
+                        <tr>
+                            <th width="50">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="selectAllBatchChanges" onchange="toggleAllBatchChanges()">
+                                    <label class="form-check-label" for="selectAllBatchChanges">All</label>
+                                </div>
+                            </th>
+                            <th width="90">Current Day</th>
+                            <th width="90">Current Time</th>
+                            <th id="batchNewDayHeader" style="display: none;" width="110">New Day</th>
+                            <th id="batchNewTimeHeader" style="display: none;" width="90">New Time</th>
+                            <th width="70">Classes</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+    `;
+    
+    Object.entries(batchScheduleData.day_time_combos).forEach(([key, classes]) => {
+        const [day, time] = key.split('|');
+        
+        // Convert 12-hour time to 24-hour for input field
+        const time24 = convertTo24Hour(time);
+        
+        html += `
+            <tr>
+                <td>
+                    <div class="form-check">
+                        <input class="form-check-input batch-day-time-checkbox" 
+                               type="checkbox" 
+                               data-day="${day}" 
+                               data-time="${time}"
+                               onchange="updateBatchSelectedChanges()">
+                    </div>
+                </td>
+                <td>${day}</td>
+                <td>${time}</td>
+                <td class="batch-new-day-cell" style="display: none;">
+                    <select class="form-select form-select-sm batch-new-day-select" 
+                            data-day="${day}" data-time="${time}">
+                        <option value="Monday" ${day === 'Monday' ? 'selected' : ''}>Monday</option>
+                        <option value="Tuesday" ${day === 'Tuesday' ? 'selected' : ''}>Tuesday</option>
+                        <option value="Wednesday" ${day === 'Wednesday' ? 'selected' : ''}>Wednesday</option>
+                        <option value="Thursday" ${day === 'Thursday' ? 'selected' : ''}>Thursday</option>
+                        <option value="Friday" ${day === 'Friday' ? 'selected' : ''}>Friday</option>
+                        <option value="Saturday" ${day === 'Saturday' ? 'selected' : ''}>Saturday</option>
+                        <option value="Sunday" ${day === 'Sunday' ? 'selected' : ''}>Sunday</option>
+                    </select>
+                </td>
+                <td class="batch-new-time-cell" style="display: none;">
+                    <input type="time" class="form-control form-control-sm batch-new-time-input" 
+                           data-day="${day}" data-time="${time}" value="${time24}">
+                </td>
+                <td>
+                    <span class="badge bg-info">${classes.length} classes</span>
+                </td>
+            </tr>
+        `;
+    });
+    
+    html += `
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    `;
+    
+    container.innerHTML = html;
+    
+    // Add event listeners for change type radio buttons
+    document.querySelectorAll('input[name="batchChangeType"]').forEach(radio => {
+        radio.addEventListener('change', toggleBatchScheduleInputs);
+    });
+}
+
+function toggleAllBatchChanges() {
+    const selectAllCheckbox = document.getElementById('selectAllBatchChanges');
+    document.querySelectorAll('.batch-day-time-checkbox').forEach(checkbox => {
+        checkbox.checked = selectAllCheckbox.checked;
+    });
+    updateBatchSelectedChanges();
+}
+
+function toggleBatchScheduleInputs() {
+    const keepSchedule = document.getElementById('batchKeepSchedule').checked;
+    const modifyTimes = document.getElementById('batchModifyTimes').checked;
+    const modifySchedule = document.getElementById('batchModifyDaysAndTimes').checked;
+    
+    const newDayHeader = document.getElementById('batchNewDayHeader');
+    const newTimeHeader = document.getElementById('batchNewTimeHeader');
+    const newDayCells = document.querySelectorAll('.batch-new-day-cell');
+    const newTimeCells = document.querySelectorAll('.batch-new-time-cell');
+    
+    if (keepSchedule) {
+        // Hide all modification columns
+        newDayHeader.style.display = 'none';
+        newTimeHeader.style.display = 'none';
+        newDayCells.forEach(cell => cell.style.display = 'none');
+        newTimeCells.forEach(cell => cell.style.display = 'none');
+    } else if (modifyTimes) {
+        // Show time modification only
+        newDayHeader.style.display = 'none';
+        newTimeHeader.style.display = 'table-cell';
+        newDayCells.forEach(cell => cell.style.display = 'none');
+        newTimeCells.forEach(cell => cell.style.display = 'table-cell');
+    } else if (modifySchedule) {
+        // Show both day and time modification
+        newDayHeader.style.display = 'table-cell';
+        newTimeHeader.style.display = 'table-cell';
+        newDayCells.forEach(cell => cell.style.display = 'table-cell');
+        newTimeCells.forEach(cell => cell.style.display = 'table-cell');
+    }
+}
+
+function updateBatchSelectedChanges() {
+    batchSelectedChanges = [];
+    const checkboxes = document.querySelectorAll('.batch-day-time-checkbox:checked');
+    
+    checkboxes.forEach(checkbox => {
+        const day = checkbox.dataset.day;
+        const time = checkbox.dataset.time;
+        const newDaySelect = document.querySelector(`.batch-new-day-select[data-day="${day}"][data-time="${time}"]`);
+        const newTimeInput = document.querySelector(`.batch-new-time-input[data-day="${day}"][data-time="${time}"]`);
+        
+        const newDay = newDaySelect ? newDaySelect.value : day;
+        const newTime = newTimeInput ? formatTime12Hour(newTimeInput.value) : time;
+        
+        batchSelectedChanges.push({
+            day: day,
+            time: time,
+            new_day: newDay,
+            new_time: newTime
+        });
+    });
+    
+    updateBatchSelectionSummary();
+    document.getElementById('batchNextStepBtn').disabled = batchSelectedChanges.length === 0;
+}
+
+function formatTime12Hour(time24) {
+    if (!time24) return '';
+    const [hour, minute] = time24.split(':');
+    const hourNum = parseInt(hour);
+    const ampm = hourNum >= 12 ? 'PM' : 'AM';
+    const hour12 = hourNum === 0 ? 12 : hourNum > 12 ? hourNum - 12 : hourNum;
+    return `${hour12}:${minute} ${ampm}`;
+}
+
+function updateBatchSelectionSummary() {
+    const summary = document.getElementById('batchSelectedSummary');
+    
+    if (batchSelectedChanges.length === 0) {
+        summary.innerHTML = `
+            <h6>Selection Summary:</h6>
+            <p class="mb-0 text-muted">No changes selected yet</p>
+        `;
+        return;
+    }
+    
+    let html = `
+        <h6>Selection Summary:</h6>
+        <div class="selected-changes">
+    `;
+    
+    batchSelectedChanges.forEach(change => {
+        const classes = batchScheduleData.day_time_combos[`${change.day}|${change.time}`];
+        const dayChange = change.day !== change.new_day;
+        const timeChange = change.time !== change.new_time;
+        
+        let changeText = '';
+        if (dayChange && timeChange) {
+            changeText = `${change.day} at ${change.time} → ${change.new_day} at ${change.new_time}`;
+        } else if (dayChange) {
+            changeText = `${change.day} at ${change.time} → ${change.new_day} at ${change.time}`;
+        } else if (timeChange) {
+            changeText = `${change.day} at ${change.time} → ${change.day} at ${change.new_time}`;
+        } else {
+            changeText = `${change.day} at ${change.time}`;
+        }
+        
+        html += `
+            <div class="change-item mb-1">
+                <i class="fas fa-check-circle text-success me-2"></i>
+                <small>${changeText}</small>
+                <span class="badge bg-secondary ms-2">${classes.length} classes</span>
+            </div>
+        `;
+    });
+    
+    html += '</div>';
+    summary.innerHTML = html;
+}
+
+function renderBatchConfirmation() {
+    const container = document.getElementById('batchConfirmationContainer');
+    
+    // Calculate total classes affected
+    let totalAffected = 0;
+    batchSelectedChanges.forEach(change => {
+        const classes = batchScheduleData.day_time_combos[`${change.day}|${change.time}`];
+        totalAffected += classes.length;
+    });
+    
+    const html = `
+        <div class="confirmation-summary">
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle me-2"></i>
+                <strong>Ready to apply batch changes</strong><br>
+                This will affect <strong>${totalAffected} classes</strong> in the current batch
+            </div>
+            
+            <div class="row">
+                <div class="col-md-6">
+                    <h6>Current Batch</h6>
+                    <div class="current-setup">
+                        <p><strong>Subject:</strong> {{ batch_id.split('_')[0]|replace('_', ' ')|title }}</p>
+                        <p><strong>Current Tutor:</strong> {{ tutor.user.full_name }}</p>
+                        <p><strong>Total Classes:</strong> ${batchScheduleData.classes.length}</p>
+                        <p><strong>Students:</strong> {{ students|length }}</p>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <h6>Changes to Apply</h6>
+                    <div class="changes-summary">
+                        ${batchSelectedChanges.map(change => {
+                            const classes = batchScheduleData.day_time_combos[`${change.day}|${change.time}`];
+                            const timeChange = change.time !== change.new_time ? 
+                                ` (time: ${change.time} → ${change.new_time})` : '';
+                            return `
+                                <div class="change-detail">
+                                    <i class="fas fa-arrow-right text-primary me-2"></i>
+                                    ${change.day}${timeChange}
+                                    <small class="text-muted">(${classes.length} classes)</small>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    container.innerHTML = html;
+}
+
+function nextBatchStep() {
+    if (batchCurrentStep === 1) {
+        batchCurrentStep = 2;
+        loadBatchTutors();
+    } else if (batchCurrentStep === 2) {
+        if (!batchSelectedTutor) {
+            showBatchError('Please select a new tutor');
+            return;
+        }
+        batchCurrentStep = 3;
+        renderBatchDayTimeSelection();
+    } else if (batchCurrentStep === 3) {
+        if (batchSelectedChanges.length === 0) {
+            showBatchError('Please select at least one day/time to change');
+            return;
+        }
+        batchCurrentStep = 4;
+        renderBatchConfirmation();
+    }
+    
+    updateBatchStepDisplay();
+}
+
+function previousBatchStep() {
+    if (batchCurrentStep > 1) {
+        batchCurrentStep--;
+        updateBatchStepDisplay();
+    }
+}
+
+function updateBatchStepDisplay() {
+    // Hide all steps
+    document.querySelectorAll('.batch-step-content').forEach(step => {
+        step.style.display = 'none';
+    });
+    
+    // Show current step
+    document.getElementById(`batchStep${batchCurrentStep}`).style.display = 'block';
+    
+    // Update button states
+    const prevBtn = document.getElementById('batchPrevStepBtn');
+    const nextBtn = document.getElementById('batchNextStepBtn');
+    const confirmBtn = document.getElementById('batchConfirmBtn');
+    
+    prevBtn.style.display = batchCurrentStep > 1 ? 'block' : 'none';
+    
+    if (batchCurrentStep === 4) {
+        nextBtn.style.display = 'none';
+        confirmBtn.style.display = 'block';
+    } else {
+        nextBtn.style.display = 'block';
+        confirmBtn.style.display = 'none';
+        nextBtn.disabled = true; // Will be enabled by selection
+    }
+}
+
+function applyBatchChanges() {
+    const confirmBtn = document.getElementById('batchConfirmBtn');
+    confirmBtn.disabled = true;
+    confirmBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Applying Changes...';
+    
+    const changeType = document.querySelector('input[name="batchChangeType"]:checked').value;
+    
+    const requestData = {
+        new_tutor_id: batchSelectedTutor,
+        selected_changes: batchSelectedChanges,
+        change_type: changeType
+    };
+    
+    fetch(`/admin/api/batch/{{ batch_id }}/change-tutor`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token() }}'
+        },
+        body: JSON.stringify(requestData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showBatchSuccess(`Successfully changed tutor for ${data.successful_changes} classes!`);
+            if (data.conflicts && data.conflicts.length > 0) {
+                showBatchWarning(`${data.conflicts.length} classes could not be changed due to conflicts.`);
+            }
+            
+            // Close modal and refresh page
+            bootstrap.Modal.getInstance(document.getElementById('changeTutorModal')).hide();
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            showBatchError('Failed to apply changes: ' + (data.error || 'Unknown error'));
+            confirmBtn.disabled = false;
+            confirmBtn.innerHTML = '<i class="fas fa-check"></i> Apply Changes';
+        }
+    })
+    .catch(error => {
+        console.error('Apply batch changes error:', error);
+        showBatchError('Failed to apply changes');
+        confirmBtn.disabled = false;
+        confirmBtn.innerHTML = '<i class="fas fa-check"></i> Apply Changes';
+    });
+}
+
+function renderStars(rating) {
+    const fullStars = Math.floor(rating);
+    const hasHalfStar = rating % 1 >= 0.5;
+    let html = '';
+    
+    for (let i = 0; i < 5; i++) {
+        if (i < fullStars) {
+            html += '<i class="fas fa-star text-warning"></i>';
+        } else if (i === fullStars && hasHalfStar) {
+            html += '<i class="fas fa-star-half-alt text-warning"></i>';
+        } else {
+            html += '<i class="far fa-star text-muted"></i>';
+        }
+    }
+    
+    return html;
+}
+
+function showBatchError(message) {
+    const toast = document.createElement('div');
+    toast.className = 'toast-notification error';
+    toast.innerHTML = `<i class="fas fa-exclamation-circle"></i> ${message}`;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 5000);
+}
+
+function showBatchSuccess(message) {
+    const toast = document.createElement('div');
+    toast.className = 'toast-notification success';
+    toast.innerHTML = `<i class="fas fa-check-circle"></i> ${message}`;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 5000);
+}
+
+function showBatchWarning(message) {
+    const toast = document.createElement('div');
+    toast.className = 'toast-notification warning';
+    toast.innerHTML = `<i class="fas fa-exclamation-triangle"></i> ${message}`;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 5000);
+}
+
+function enableBulkDelete() {
+    bulkDeleteMode = true;
+    document.getElementById('bulkDeleteBar').style.display = 'block';
+    
+    document.querySelectorAll('.class-selector').forEach(cb => cb.style.display = 'block');
+    document.querySelectorAll('.row-number').forEach(num => num.style.display = 'none');
+    document.getElementById('selectAllClasses').style.display = 'block';
+    document.getElementById('bulkSelectHeader').textContent = '';
+    
+    document.getElementById('selectAllClasses').onchange = function() {
+        document.querySelectorAll('.class-selector').forEach(cb => {
+            cb.checked = this.checked;
+            updateSelection(cb);
+        });
+    };
+    
+    document.querySelectorAll('.class-selector').forEach(cb => {
+        cb.onchange = function() {
+            updateSelection(this);
+        };
+    });
+}
+
+function updateSelection(checkbox) {
+    const classId = checkbox.dataset.classId;
+    const row = checkbox.closest('.class-row');
+    
+    if (checkbox.checked) {
+        selectedClasses.add(classId);
+        row.classList.add('selected');
+    } else {
+        selectedClasses.delete(classId);
+        row.classList.remove('selected');
+    }
+    
+    document.getElementById('selectedCount').textContent = selectedClasses.size;
+}
+
+function cancelBulkDelete() {
+    bulkDeleteMode = false;
+    selectedClasses.clear();
+    
+    document.getElementById('bulkDeleteBar').style.display = 'none';
+    
+    document.querySelectorAll('.class-selector').forEach(cb => {
+        cb.style.display = 'none';
+        cb.checked = false;
+    });
+    document.querySelectorAll('.row-number').forEach(num => num.style.display = 'block');
+    document.querySelectorAll('.class-row').forEach(row => row.classList.remove('selected'));
+    document.getElementById('selectAllClasses').style.display = 'none';
+    document.getElementById('bulkSelectHeader').textContent = '#';
+}
+
+function deleteBulkClasses() {
+    if (selectedClasses.size === 0) {
+        alert('Please select classes to delete');
+        return;
+    }
+    
+    document.getElementById('deleteCount').textContent = selectedClasses.size;
+    const modal = new bootstrap.Modal(document.getElementById('deleteConfirmModal'));
+    modal.show();
+}
+
+function confirmBulkDelete() {
+    const classIds = Array.from(selectedClasses);
+    
+    fetch(`/admin/api/batch/{{ batch_id }}/delete-classes`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token() }}'
+        },
+        body: JSON.stringify({
+            class_ids: classIds
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(data.message);
+            location.reload();
+        } else {
+            alert('Error: ' + (data.error || 'Failed to delete classes'));
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error deleting classes');
+    });
+    
+    bootstrap.Modal.getInstance(document.getElementById('deleteConfirmModal')).hide();
+}
+
+function cancelClass(classId) {
+    if (confirm('Are you sure you want to cancel this class?')) {
+        alert('Individual cancel functionality - implement as needed');
+    }
+}
+
+function rescheduleClass(classId) {
+    const userRole = '{{ current_user.role }}';
+    
+    if (userRole === 'tutor') {
+        window.location.href = `/reschedule/tutor/request-reschedule/${classId}`;
+    } else if (['admin', 'coordinator', 'superadmin'].includes(userRole)) {
+        window.location.href = `/reschedule/admin/class/${classId}/quick-reschedule`;
+    } else {
+        alert('You do not have permission to reschedule classes');
+    }
+}
+
+// Initialize when DOM is ready
+ensureReady(function() {
+    SmartBulkEditLogger.log('DOM Ready - Initializing Smart Bulk Edit System');
+    
+    // Small delay to ensure all elements are rendered
+    setTimeout(() => {
+        initializeSmartBulkEditSystem();
+    }, 100);
+});
+
+// Backup initialization for late-loading content
+setTimeout(() => {
+    if (!smartBulkEditInitialized) {
+        SmartBulkEditLogger.warn('Backup initialization triggered');
+        initializeSmartBulkEditSystem();
+    }
+}, 2000);
+
+SmartBulkEditLogger.success('Enhanced Smart Bulk Edit System Loaded!');
+
+// Enhanced Student Search functionality
+let studentSearchInitialized = false;
+
+function initializeSearchableStudents() {
+    if (studentSearchInitialized) {
+        SmartBulkEditLogger.log('Student search already initialized, skipping...');
+        return;
+    }
+    
+    SmartBulkEditLogger.log('Initializing searchable student selects...');
+    
+    // Always use the fallback search as it's more reliable and doesn't depend on external libraries
+    setupFallbackStudentSearch();
+    studentSearchInitialized = true;
+    
+    // Optionally try to enhance with Select2 if available (but fallback is primary)
+    if (typeof $ !== 'undefined' && typeof $.fn.select2 !== 'undefined') {
+        try {
+            SmartBulkEditLogger.log('Attempting to enhance with Select2...');
+            setupStudentSearch();
+        } catch (error) {
+            SmartBulkEditLogger.warn('Select2 enhancement failed, fallback search is working', error);
+        }
+    }
+}
+
+function loadSelect2() {
+    return new Promise((resolve, reject) => {
+        // Load CSS
+        if (!document.querySelector('link[href*="select2"]')) {
+            const link = document.createElement('link');
+            link.rel = 'stylesheet';
+            link.href = 'https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css';
+            document.head.appendChild(link);
+        }
+        
+        // Load JS
+        if (!document.querySelector('script[src*="select2"]')) {
+            const script = document.createElement('script');
+            script.src = 'https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js';
+            script.onload = resolve;
+            script.onerror = reject;
+            document.head.appendChild(script);
+        } else {
+            resolve();
+        }
+    });
+}
+
+function setupStudentSearch() {
+    SmartBulkEditLogger.log('Setting up Select2 for student selects...');
+    
+    try {
+        $('.searchable-students').each(function() {
+            const $select = $(this);
+            
+            // Check if Select2 is already initialized
+            if ($select.hasClass('select2-hidden-accessible')) {
+                SmartBulkEditLogger.log('Select2 already initialized for this element, skipping...');
+                return;
+            }
+            
+            $select.select2({
+                placeholder: 'Search and select students...',
+                allowClear: true,
+                width: '100%',
+                templateResult: formatStudentOption,
+                templateSelection: formatStudentSelection,
+                matcher: customStudentMatcher,
+                dropdownParent: $('#smartBulkEditModal'),
+                escapeMarkup: function (markup) {
+                    return markup; // Allow HTML in options
+                }
+            });
+        });
+        
+        SmartBulkEditLogger.success('Select2 initialized for student selects');
+    } catch (error) {
+        SmartBulkEditLogger.error('Error setting up Select2', error);
+        setupFallbackStudentSearch();
+    }
+}
+
+function setupFallbackStudentSearch() {
+    SmartBulkEditLogger.log('Setting up fallback student search with search inputs...');
+    
+    document.querySelectorAll('.searchable-students').forEach(select => {
+        // Skip if already has a search wrapper
+        if (select.parentNode.classList.contains('student-search-wrapper')) {
+            return;
+        }
+        
+        const wrapper = document.createElement('div');
+        wrapper.className = 'student-search-wrapper mb-3';
+        
+        const searchInput = document.createElement('input');
+        searchInput.type = 'text';
+        searchInput.className = 'form-control mb-2';
+        searchInput.placeholder = 'Type to search students...';
+        searchInput.style.fontSize = '14px';
+        
+        const originalOptions = Array.from(select.options);
+        
+        // Filter function
+        searchInput.addEventListener('input', (e) => {
+            const searchTerm = e.target.value.toLowerCase();
+            
+            // Clear current options
+            select.innerHTML = '';
+            
+            // Filter and add matching options
+            originalOptions.forEach(option => {
+                const text = option.textContent.toLowerCase();
+                const grade = option.getAttribute('data-grade') || '';
+                const board = (option.getAttribute('data-board') || '').toLowerCase();
+                const status = (option.getAttribute('data-status') || '').toLowerCase();
+                
+                if (searchTerm === '' || 
+                    text.includes(searchTerm) || 
+                    grade.includes(searchTerm) || 
+                    board.includes(searchTerm) || 
+                    status.includes(searchTerm)) {
+                    select.appendChild(option.cloneNode(true));
+                }
+            });
+        });
+        
+        // Wrap the select with search input
+        select.parentNode.insertBefore(wrapper, select);
+        wrapper.appendChild(searchInput);
+        wrapper.appendChild(select);
+        
+        SmartBulkEditLogger.log(`Added search input for ${select.id}`);
+    });
+    
+    SmartBulkEditLogger.success('Fallback student search with inputs initialized');
+}
+
+function formatStudentOption(student) {
+    if (!student.id) return student.text;
+    
+    const $student = $(student.element);
+    const grade = $student.data('grade') || '';
+    const board = $student.data('board') || '';
+    const status = $student.data('status') || '';
+    
+    const $result = $(
+        '<div class="student-option">' +
+        '<div class="student-name">' + student.text.split(' - ')[0] + '</div>' +
+        '<div class="student-details">' +
+        '<span class="badge bg-info">Grade ' + grade + '</span> ' +
+        '<span class="badge bg-secondary">' + board + '</span> ' +
+        '<span class="badge bg-' + getStatusColor(status) + '">' + status + '</span>' +
+        '</div>' +
+        '</div>'
+    );
+    
+    return $result;
+}
+
+function formatStudentSelection(student) {
+    if (!student.id) return student.text;
+    return student.text.split(' - ')[0]; // Just show name in selection
+}
+
+function customStudentMatcher(params, data) {
+    // If there are no search terms, return all data
+    if ($.trim(params.term) === '') {
+        return data;
+    }
+    
+    if (typeof data.text === 'undefined') {
+        return null;
+    }
+    
+    const term = params.term.toLowerCase();
+    const text = data.text.toLowerCase();
+    const $element = $(data.element);
+    const grade = ($element.data('grade') || '').toString().toLowerCase();
+    const board = ($element.data('board') || '').toString().toLowerCase();
+    const status = ($element.data('status') || '').toString().toLowerCase();
+    
+    // Check if the term matches name, grade, board, or status
+    if (text.includes(term) || 
+        grade.includes(term) || 
+        board.includes(term) || 
+        status.includes(term)) {
+        return data;
+    }
+    
+    return null;
+}
+
+function getStatusColor(status) {
+    const colors = {
+        'active': 'success',
+        'paused': 'warning',
+        'completed': 'primary',
+        'dropped': 'danger'
+    };
+    return colors[status] || 'secondary';
+}
+
+// Initialize searchable students when the modal opens
+const originalOpenSmartBulkEdit = window.openSmartBulkEdit;
+window.openSmartBulkEdit = function() {
+    if (originalOpenSmartBulkEdit) {
+        originalOpenSmartBulkEdit();
+    }
+    
+    // Initialize searchable students after modal is shown
+    setTimeout(() => {
+        initializeSearchableStudents();
+    }, 500);
+};
+
+// Add some CSS for better styling
+const studentSearchStyles = `
+<style>
+.student-option {
+    padding: 5px 0;
+}
+
+.student-name {
+    font-weight: 500;
+    color: #333;
+}
+
+.student-details {
+    margin-top: 3px;
+}
+
+.student-details .badge {
+    font-size: 0.75em;
+    margin-right: 4px;
+}
+
+.student-search-wrapper {
+    position: relative;
+    border: 1px solid #e3e6f0;
+    border-radius: 8px;
+    padding: 15px;
+    background: #f8f9fc;
+    margin-bottom: 15px;
+}
+
+.student-search-wrapper input[type="text"] {
+    border: 2px solid #4e73df;
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-size: 14px;
+    transition: all 0.3s ease;
+}
+
+.student-search-wrapper input[type="text"]:focus {
+    border-color: #2e59d9;
+    box-shadow: 0 0 0 0.2rem rgba(78, 115, 223, 0.25);
+    outline: none;
+}
+
+.student-search-wrapper select {
+    min-height: 120px;
+    border: 1px solid #d1d3e2;
+    border-radius: 6px;
+}
+
+.student-search-wrapper select:disabled {
+    background-color: #e9ecef;
+    opacity: 0.6;
+}
+
+.select2-container {
+    z-index: 9999 !important;
+}
+
+.select2-dropdown {
+    z-index: 9999 !important;
+}
+
+.searchable-students:disabled + .select2-container {
+    opacity: 0.5;
+    pointer-events: none;
+}
+
+/* Ensure Select2 works well in modal */
+.modal .select2-container {
+    width: 100% !important;
+}
+
+/* Enhanced styling for search results */
+.student-search-wrapper select option {
+    padding: 8px;
+    border-bottom: 1px solid #eee;
+}
+
+/* Search input placeholder styling */
+.student-search-wrapper input::placeholder {
+    color: #6c757d;
+    font-style: italic;
+}
+
+/* ============ Enhanced Batch Tutor Change Styles ============ */
+.batch-step-content {
+    min-height: 400px;
+}
+
+.schedule-card.selected, .tutor-card.selected {
+    border-color: var(--bs-primary);
+    background-color: rgba(13, 110, 253, 0.05);
+    box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+}
+
+.tutor-card {
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border: 2px solid transparent;
+}
+
+.tutor-card:hover {
+    border-color: var(--bs-primary);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    transform: translateY(-2px);
+}
+
+.compatibility-meter .progress {
+    border-radius: 2px;
+    height: 4px;
+}
+
+.rating-stars {
+    display: inline-flex;
+    gap: 2px;
+}
+
+.batch-day-time-checkbox {
+    cursor: pointer;
+}
+
+.selected-changes .change-item {
+    padding: 0.25rem 0;
+    font-size: 0.9rem;
+}
+
+.toast-notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 1rem 1.5rem;
+    border-radius: 6px;
+    color: white;
+    z-index: 9999;
+    animation: slideInFromRight 0.3s ease;
+}
+
+.toast-notification.success {
+    background-color: #198754;
+}
+
+.toast-notification.error {
+    background-color: #dc3545;
+}
+
+.toast-notification.warning {
+    background-color: #fd7e14;
+}
+
+@keyframes slideInFromRight {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+.day-time-grid .table th {
+    background-color: #f8f9fa;
+    font-weight: 600;
+}
+
+.batch-info p {
+    margin-bottom: 0.5rem;
+}
+
+.schedule-summary .card-header {
+    background-color: #f8f9fa;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.availability-preview {
+    font-size: 0.85rem;
+}
+</style>
+`;
+
+document.head.insertAdjacentHTML('beforeend', studentSearchStyles);
+
+</script>
+{% endblock %}

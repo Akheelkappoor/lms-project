@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+
+{% block title %}Request Reschedule - {{ APP_NAME }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h1 class="page-title">
+                <i class="fas fa-calendar-alt"></i>
+                Request Class Reschedule
+            </h1>
+            <p class="page-subtitle">Submit a request to reschedule your class</p>
+        </div>
+        <div class="header-actions">
+            <a href="{{ url_for('tutor.my_classes') }}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i>
+                Back to My Classes
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-lg-8 col-md-10">
+            <!-- Current Class Details -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="card-title mb-0">
+                        <i class="fas fa-info-circle"></i>
+                        Current Class Details
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="detail-item">
+                                <label>Subject</label>
+                                <div class="fw-semibold">{{ class_item.subject }}</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="detail-item">
+                                <label>Class Type</label>
+                                <div>{{ class_item.class_type|title }}</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="detail-item">
+                                <label>Current Date</label>
+                                <div class="fw-semibold text-primary">{{ class_item.scheduled_date.strftime('%A, %d %B %Y') }}</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="detail-item">
+                                <label>Current Time</label>
+                                <div class="fw-semibold text-primary">{{ class_item.scheduled_time.strftime('%I:%M %p') }}</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="detail-item">
+                                <label>Duration</label>
+                                <div>{{ class_item.duration }} minutes</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="detail-item">
+                                <label>Students</label>
+                                <div>
+                                    {% for student in class_item.get_student_objects() %}
+                                        {{ student.full_name }}{% if not loop.last %}, {% endif %}
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Reschedule Request Form -->
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="card-title mb-0">
+                        <i class="fas fa-edit"></i>
+                        Reschedule Request Form
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <form method="POST">
+                        {{ form.hidden_tag() }}
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    {{ form.requested_date.label(class="form-label required") }}
+                                    {{ form.requested_date(class="form-control" + (" is-invalid" if form.requested_date.errors else "")) }}
+                                    {% if form.requested_date.errors %}
+                                        <div class="invalid-feedback">
+                                            {% for error in form.requested_date.errors %}
+                                                {{ error }}
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+                                    <div class="form-text">Select the new date for your class</div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    {{ form.requested_time.label(class="form-label required") }}
+                                    {{ form.requested_time(class="form-control" + (" is-invalid" if form.requested_time.errors else "")) }}
+                                    {% if form.requested_time.errors %}
+                                        <div class="invalid-feedback">
+                                            {% for error in form.requested_time.errors %}
+                                                {{ error }}
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+                                    <div class="form-text">Select the new time for your class</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-4">
+                            {{ form.reason.label(class="form-label required") }}
+                            {{ form.reason(class="form-control" + (" is-invalid" if form.reason.errors else "")) }}
+                            {% if form.reason.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.reason.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                            <div class="form-text">Please provide a detailed reason for rescheduling this class</div>
+                        </div>
+                        
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle"></i>
+                            <strong>Note:</strong> Your reschedule request will be reviewed by the coordinator/admin. 
+                            You will be notified once a decision is made. The system will automatically check for 
+                            conflicts with your schedule and student availability.
+                        </div>
+                        
+                        <div class="d-flex justify-content-between">
+                            <a href="{{ url_for('tutor.my_classes') }}" class="btn btn-secondary">
+                                <i class="fas fa-times"></i>
+                                Cancel
+                            </a>
+                            {{ form.submit(class="btn btn-primary") }}
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.detail-item {
+    margin-bottom: 1rem;
+}
+
+.detail-item label {
+    display: block;
+    font-size: 0.875rem;
+    color: var(--bs-gray-600);
+    margin-bottom: 0.25rem;
+}
+
+.required::after {
+    content: " *";
+    color: var(--bs-danger);
+}
+</style>
+{% endblock %}

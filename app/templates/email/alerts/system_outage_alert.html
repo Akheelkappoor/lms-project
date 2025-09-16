@@ -1,0 +1,188 @@
+{% extends "email/base_email.html" %}
+
+{% block title %}SYSTEM OUTAGE - {{ outage_data.type|title }}{% endblock %}
+{% block email_title %}🚨 SYSTEM OUTAGE ALERT 🚨{% endblock %}
+{% block email_subtitle %}{{ outage_data.type|title }} - {{ outage_data.severity|title }} Severity{% endblock %}
+
+{% block extra_styles %}
+<style>
+    .outage-header {
+        background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+        border: 3px solid #bd2130;
+        animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+        0% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.7); }
+        70% { box-shadow: 0 0 0 10px rgba(220, 53, 69, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0); }
+    }
+    
+    .severity-critical {
+        background: #dc3545;
+        color: white;
+        padding: 15px;
+        border-radius: 6px;
+        text-align: center;
+        font-weight: bold;
+        margin: 20px 0;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+    
+    .impact-box {
+        background: #f8d7da;
+        border: 1px solid #f5c6cb;
+        border-radius: 6px;
+        padding: 15px;
+        margin: 15px 0;
+        color: #721c24;
+    }
+    
+    .service-status {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 10px;
+        background: white;
+        border: 1px solid #dee2e6;
+        border-radius: 4px;
+        margin: 5px 0;
+    }
+    
+    .status-down { border-left: 4px solid #dc3545; }
+    .status-degraded { border-left: 4px solid #ffc107; }
+    .status-operational { border-left: 4px solid #28a745; }
+</style>
+{% endblock %}
+
+{% block recipient_name %}Technical Team{% endblock %}
+
+{% block email_content %}
+<div class="severity-critical">
+    ⚠️ CRITICAL SYSTEM OUTAGE - IMMEDIATE ACTION REQUIRED ⚠️
+</div>
+
+<div class="alert-box alert-danger">
+    <strong>Outage Details:</strong><br>
+    <strong>Type:</strong> {{ outage_data.type|title }}<br>
+    <strong>Severity:</strong> {{ outage_data.severity|title }}<br>
+    <strong>Start Time:</strong> {{ outage_data.start_time.strftime('%B %d, %Y at %I:%M %p') if outage_data.start_time else 'Unknown' }}<br>
+    <strong>User Impact:</strong> {{ outage_data.user_impact|title }}<br>
+    <strong>Estimated Resolution:</strong> {{ outage_data.estimated_resolution }}
+</div>
+
+<div class="content-section priority-immediate">
+    <h2>Affected Services</h2>
+    {% for service in outage_data.affected_services %}
+    <div class="service-status status-down">
+        <span><strong>{{ service.name }}</strong></span>
+        <span style="color: #dc3545; font-weight: bold;">❌ Down</span>
+    </div>
+    {% endfor %}
+</div>
+
+<div class="impact-box">
+    <h2 style="color: #721c24;">User Impact Assessment</h2>
+    <ul style="margin: 10px 0; padding-left: 20px;">
+        <li><strong>Current Users Affected:</strong> {{ outage_data.users_affected or 'All active users' }}</li>
+        <li><strong>Services Unavailable:</strong> {{ outage_data.affected_services|length }} critical services</li>
+        <li><strong>Business Operations:</strong> {{ outage_data.business_impact or 'Severely impacted' }}</li>
+        <li><strong>Data Integrity:</strong> {{ outage_data.data_status or 'Under assessment' }}</li>
+    </ul>
+</div>
+
+<div class="content-section priority-immediate">
+    <h2>🚨 IMMEDIATE ACTIONS REQUIRED</h2>
+    <ul class="action-list">
+        {% for action in immediate_actions %}
+        <li style="color: #dc3545; font-weight: 600;">{{ action }}</li>
+        {% endfor %}
+    </ul>
+</div>
+
+<div class="content-section">
+    <h2>Communication Plan</h2>
+    <div class="info-grid">
+        <div class="info-row">
+            <div class="info-label">User Notification:</div>
+            <div class="info-value">{{ communication_plan.user_notification }}</div>
+        </div>
+        <div class="info-row">
+            <div class="info-label">Update Frequency:</div>
+            <div class="info-value">{{ communication_plan.update_frequency }}</div>
+        </div>
+        <div class="info-row">
+            <div class="info-label">Resolution Notification:</div>
+            <div class="info-value">{{ communication_plan.resolution_notification }}</div>
+        </div>
+    </div>
+</div>
+
+<div class="content-section">
+    <h2>Escalation Contacts</h2>
+    <div style="background: #2c3e50; color: white; padding: 20px; border-radius: 8px; margin: 15px 0;">
+        <h3 style="color: white; margin-bottom: 15px;">Emergency Response Team</h3>
+        {% for contact in escalation_contacts %}
+        <div style="margin: 10px 0; padding: 10px; background: rgba(255,255,255,0.1); border-radius: 4px;">
+            <strong>{{ contact }}</strong>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="alert-box alert-danger">
+    <strong>⚠️ CRITICAL REMINDER:</strong>
+    <ul style="margin: 10px 0; padding-left: 20px;">
+        <li>This is a production system outage affecting live services</li>
+        <li>All hands on deck - prioritize this over all other tasks</li>
+        <li>Update stakeholders every 30 minutes with progress</li>
+        <li>Document all actions taken for post-incident review</li>
+        <li>Do not make changes without proper approval and coordination</li>
+    </ul>
+</div>
+
+<div style="background: #fff3cd; border: 2px solid #ffc107; border-radius: 6px; padding: 20px; margin: 20px 0;">
+    <h2 style="color: #856404;">⏰ Response Timeline</h2>
+    <div style="color: #856404;">
+        <p><strong>T+0 minutes:</strong> Incident detected and alert sent</p>
+        <p><strong>T+5 minutes:</strong> Initial response team mobilized</p>
+        <p><strong>T+15 minutes:</strong> Preliminary assessment and user communication</p>
+        <p><strong>T+30 minutes:</strong> First progress update required</p>
+        <p><strong>T+60 minutes:</strong> Escalation if not resolved</p>
+    </div>
+</div>
+{% endblock %}
+
+{% block email_actions %}
+<div class="text-center">
+    <a href="#" class="button button-danger">Access War Room</a>
+    <a href="#" class="button button-secondary">View System Status</a>
+    <a href="#" class="button button-secondary">Update Incident Status</a>
+</div>
+{% endblock %}
+
+{% block email_closing %}
+<div class="mt-20" style="background: #dc3545; color: white; padding: 20px; border-radius: 6px; border: 2px solid #bd2130;">
+    <p style="color: white; font-weight: bold; font-size: 16px; margin-bottom: 15px;">
+        🚨 THIS IS A CRITICAL SYSTEM OUTAGE 🚨
+    </p>
+    <p style="color: white;">
+        <strong>IMMEDIATE RESPONSE REQUIRED:</strong> Our learning platform is experiencing a critical outage affecting {{ outage_data.user_impact or 'all users' }}. Every minute of downtime impacts our students and tutors.
+    </p>
+    <p style="color: white;">
+        Please drop everything and focus on this incident. Coordinate with the emergency response team and provide regular updates until resolution.
+    </p>
+    <p style="color: white; font-weight: bold;">
+        Emergency Response Team<br>
+        LMS Technical Operations
+    </p>
+</div>
+{% endblock %}
+
+{% block unsubscribe %}
+<!-- No unsubscribe for critical system alerts -->
+<div class="text-small" style="margin-top: 10px; color: #dc3545;">
+    <strong>This is a critical system alert that cannot be unsubscribed from.</strong>
+</div>
+{% endblock %}

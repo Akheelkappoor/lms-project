@@ -1,0 +1,861 @@
+<!-- Enhanced Dashboard Sections for Admin Dashboard -->
+
+<!-- Performance Metrics Section -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-chart-line text-primary"></i>
+                    Performance Metrics
+                </h5>
+                <button class="btn btn-sm btn-outline-primary" onclick="refreshPerformanceMetrics()">
+                    <i class="fas fa-sync-alt"></i> Refresh
+                </button>
+            </div>
+            <div class="card-body">
+                <div class="row" id="performance-metrics">
+                    <div class="col-md-3">
+                        <div class="metric-card">
+                            <div class="metric-icon bg-primary">
+                                <i class="fas fa-users"></i>
+                            </div>
+                            <div class="metric-content">
+                                <h4 id="tutor-utilization">--</h4>
+                                <p>Tutor Utilization</p>
+                                <small class="text-muted">Active tutors this week</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="metric-card">
+                            <div class="metric-icon bg-success">
+                                <i class="fas fa-user-graduate"></i>
+                            </div>
+                            <div class="metric-content">
+                                <h4 id="student-engagement">--</h4>
+                                <p>Student Engagement</p>
+                                <small class="text-muted">Active students this week</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="metric-card">
+                            <div class="metric-icon bg-info">
+                                <i class="fas fa-clock"></i>
+                            </div>
+                            <div class="metric-content">
+                                <h4 id="avg-duration">--</h4>
+                                <p>Avg Class Duration</p>
+                                <small class="text-muted">Last 30 days</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="metric-card">
+                            <div class="metric-icon bg-warning">
+                                <i class="fas fa-percentage"></i>
+                            </div>
+                            <div class="metric-content">
+                                <h4 id="completion-rate">--</h4>
+                                <p>Completion Rate</p>
+                                <small class="text-muted">Last 30 days</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Enhanced Today's Attendance Section -->
+<div class="row mb-4">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-user-check text-success"></i>
+                    Today's Attendance Overview
+                </h5>
+                <div class="header-actions">
+                    <button class="btn btn-sm btn-outline-success" onclick="refreshTodayAttendance()">
+                        <i class="fas fa-sync-alt"></i> Refresh
+                    </button>
+                    <button class="btn btn-sm btn-success" onclick="viewAttendanceDetails()">
+                        <i class="fas fa-eye"></i> View Details
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="row mb-3" id="attendance-summary">
+                    <div class="col-md-2">
+                        <div class="attendance-stat">
+                            <div class="stat-number text-primary" id="total-classes-today">0</div>
+                            <div class="stat-label">Total Classes</div>
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="attendance-stat">
+                            <div class="stat-number text-success" id="present-classes">0</div>
+                            <div class="stat-label">Both Present</div>
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="attendance-stat">
+                            <div class="stat-number text-danger" id="tutor-absent">0</div>
+                            <div class="stat-label">Tutor Absent</div>
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="attendance-stat">
+                            <div class="stat-number text-warning" id="student-absent">0</div>
+                            <div class="stat-label">Student Absent</div>
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="attendance-stat">
+                            <div class="stat-number text-info" id="late-arrivals">0</div>
+                            <div class="stat-label">Late Arrivals</div>
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="attendance-stat">
+                            <div class="stat-number text-primary" id="attendance-rate">0%</div>
+                            <div class="stat-label">Success Rate</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Attendance Progress Bar -->
+                <div class="attendance-progress mb-3">
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Attendance Overview</span>
+                        <span id="attendance-percentage">0%</span>
+                    </div>
+                    <div class="progress" style="height: 8px;">
+                        <div class="progress-bar bg-success" id="attendance-progress-bar" style="width: 0%"></div>
+                    </div>
+                </div>
+                
+                <!-- Real-time Attendance Alerts -->
+                <div id="attendance-alerts" class="alert-container">
+                    <!-- Dynamic alerts will be inserted here -->
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Real-time System Status -->
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-heartbeat text-danger"></i>
+                    System Status
+                    <span class="badge bg-success ms-2" id="system-status-badge">Online</span>
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="system-metrics" id="system-metrics">
+                    <div class="metric-row">
+                        <span>Active Classes</span>
+                        <span class="metric-value" id="active-classes">0</span>
+                    </div>
+                    <div class="metric-row">
+                        <span>Online Users</span>
+                        <span class="metric-value" id="online-users">0</span>
+                    </div>
+                    <div class="metric-row">
+                        <span>Pending Uploads</span>
+                        <span class="metric-value text-warning" id="pending-uploads">0</span>
+                    </div>
+                    <div class="metric-row">
+                        <span>Database</span>
+                        <span class="metric-value text-success" id="db-status">Healthy</span>
+                    </div>
+                </div>
+                
+                <!-- Quick Actions -->
+                <div class="quick-actions mt-3">
+                    <button class="btn btn-sm btn-outline-primary w-100 mb-2" onclick="triggerSystemCheck()">
+                        <i class="fas fa-stethoscope"></i> Run System Check
+                    </button>
+                    <button class="btn btn-sm btn-outline-info w-100" onclick="viewSystemLogs()">
+                        <i class="fas fa-file-alt"></i> View System Logs
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Enhanced Department Overview -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-building text-info"></i>
+                    Department Analytics
+                </h5>
+                <div class="header-actions">
+                    <button class="btn btn-sm btn-outline-info" onclick="refreshDepartmentAnalytics()">
+                        <i class="fas fa-sync-alt"></i> Refresh
+                    </button>
+                    <button class="btn btn-sm btn-info" onclick="exportDepartmentReport()">
+                        <i class="fas fa-download"></i> Export Report
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="row" id="department-analytics">
+                    {% if stats and stats.departments %}
+                        {% for dept in stats.departments %}
+                        <div class="col-lg-3 col-md-6 mb-3">
+                            <div class="department-card" data-department="{{ dept.code }}">
+                                <div class="dept-header">
+                                    <h6>{{ dept.name }}</h6>
+                                    <span class="badge bg-primary">{{ dept.code }}</span>
+                                </div>
+                                <div class="dept-stats">
+                                    <div class="dept-stat">
+                                        <span class="stat-number">{{ dept.tutors }}</span>
+                                        <span class="stat-label">Tutors</span>
+                                    </div>
+                                    <div class="dept-stat">
+                                        <span class="stat-number">{{ dept.students }}</span>
+                                        <span class="stat-label">Students</span>
+                                    </div>
+                                    <div class="dept-stat">
+                                        <span class="stat-number">{{ dept.get('classes_this_month', 0) }}</span>
+                                        <span class="stat-label">Classes</span>
+                                    </div>
+                                </div>
+                                <div class="dept-performance mt-2">
+                                    <div class="d-flex justify-content-between">
+                                        <small>Attendance Rate</small>
+                                        <small class="text-success">{{ dept.get('attendance_rate', 0) }}%</small>
+                                    </div>
+                                    <div class="progress" style="height: 4px;">
+                                        <div class="progress-bar bg-success" style="width: {{ dept.get('attendance_rate', 0) }}%"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="col-12">
+                            <div class="text-center py-4">
+                                <i class="fas fa-building fa-3x text-muted mb-3"></i>
+                                <h6>No Department Data</h6>
+                                <p class="text-muted">Department analytics will appear here once data is available.</p>
+                            </div>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Financial Overview Section -->
+<div class="row mb-4">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-money-bill-wave text-success"></i>
+                    Financial Overview
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="financial-stat">
+                            <div class="stat-icon bg-success">
+                                <i class="fas fa-dollar-sign"></i>
+                            </div>
+                            <div class="stat-content">
+                                <h4 id="monthly-revenue">${{ stats.finance.monthly_revenue if stats.finance else '0' }}</h4>
+                                <p>Monthly Revenue</p>
+                                <small class="text-success">+12% from last month</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="financial-stat">
+                            <div class="stat-icon bg-warning">
+                                <i class="fas fa-clock"></i>
+                            </div>
+                            <div class="stat-content">
+                                <h4 id="pending-fees">${{ stats.finance.pending_fees if stats.finance else '0' }}</h4>
+                                <p>Pending Fees</p>
+                                <small class="text-warning">Requires follow-up</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="financial-stat">
+                            <div class="stat-icon bg-info">
+                                <i class="fas fa-percentage"></i>
+                            </div>
+                            <div class="stat-content">
+                                <h4 id="collection-rate">{{ stats.finance.collection_rate if stats.finance else '0' }}%</h4>
+                                <p>Collection Rate</p>
+                                <small class="text-info">Target: 90%</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modern Quick Actions Panel -->
+    <div class="col-lg-4">
+        <div class="card modern-card">
+            <div class="card-header modern-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-bolt"></i>
+                    Quick Actions
+                </h5>
+                <small class="text-muted">Frequently used actions</small>
+            </div>
+            <div class="card-body p-3">
+                <div class="quick-actions-grid">
+                    <button class="quick-action-btn primary" onclick="addNewStudent()" data-tooltip="Register new student">
+                        <div class="action-icon">
+                            <i class="fas fa-user-plus"></i>
+                        </div>
+                        <span class="action-text">Add Student</span>
+                    </button>
+                    <button class="quick-action-btn success" onclick="scheduleClass()" data-tooltip="Schedule new class">
+                        <div class="action-icon">
+                            <i class="fas fa-calendar-plus"></i>
+                        </div>
+                        <span class="action-text">Schedule Class</span>
+                    </button>
+                    <button class="quick-action-btn info" onclick="generateReport()" data-tooltip="Generate system reports">
+                        <div class="action-icon">
+                            <i class="fas fa-chart-bar"></i>
+                        </div>
+                        <span class="action-text">Reports</span>
+                    </button>
+                    <button class="quick-action-btn warning" onclick="sendNotifications()" data-tooltip="Send notifications">
+                        <div class="action-icon">
+                            <i class="fas fa-bell"></i>
+                        </div>
+                        <span class="action-text">Notifications</span>
+                    </button>
+                    <button class="quick-action-btn secondary" onclick="systemMaintenance()" data-tooltip="System maintenance">
+                        <div class="action-icon">
+                            <i class="fas fa-cogs"></i>
+                        </div>
+                        <span class="action-text">Settings</span>
+                    </button>
+                    <button class="quick-action-btn purple" onclick="viewStudentAnalytics()" data-tooltip="Student analytics">
+                        <div class="action-icon">
+                            <i class="fas fa-analytics"></i>
+                        </div>
+                        <span class="action-text">Analytics</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Enhanced CSS Styles -->
+<style>
+.metric-card {
+    display: flex;
+    align-items: center;
+    padding: 1rem;
+    background: #f8f9fa;
+    border-radius: 8px;
+    margin-bottom: 1rem;
+}
+
+.metric-icon {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    margin-right: 1rem;
+    font-size: 1.5rem;
+}
+
+.metric-content h4 {
+    margin: 0;
+    font-size: 1.8rem;
+    font-weight: 700;
+}
+
+.metric-content p {
+    margin: 0;
+    font-weight: 600;
+    color: #495057;
+}
+
+.attendance-stat {
+    text-align: center;
+    padding: 0.5rem;
+}
+
+.stat-number {
+    display: block;
+    font-size: 1.5rem;
+    font-weight: 700;
+}
+
+.stat-label {
+    font-size: 0.75rem;
+    color: #6c757d;
+    text-transform: uppercase;
+}
+
+.department-card {
+    background: white;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    padding: 1rem;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.department-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.dept-header {
+    display: flex;
+    justify-content: between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.dept-stats {
+    display: flex;
+    justify-content: space-around;
+    margin-bottom: 1rem;
+}
+
+.dept-stat {
+    text-align: center;
+}
+
+.financial-stat {
+    display: flex;
+    align-items: center;
+    padding: 1rem;
+    background: #f8f9fa;
+    border-radius: 8px;
+    margin-bottom: 1rem;
+}
+
+.system-metrics .metric-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.metric-value {
+    font-weight: 600;
+}
+
+.alert-container .alert {
+    margin-bottom: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+}
+
+/* Modern Quick Actions Styling */
+.modern-card {
+    border: none;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+    border-radius: 12px;
+    transition: transform 0.2s ease;
+}
+
+.modern-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+}
+
+.modern-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 12px 12px 0 0;
+    padding: 1rem 1.25rem;
+}
+
+.modern-header .card-title {
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+}
+
+.modern-header small {
+    color: rgba(255,255,255,0.8);
+    font-size: 0.75rem;
+}
+
+.quick-actions-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.75rem;
+    padding: 0.5rem 0;
+}
+
+.quick-action-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem 0.5rem;
+    border: none;
+    border-radius: 8px;
+    background: white;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    transition: all 0.2s ease;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+}
+
+.quick-action-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+}
+
+.quick-action-btn:active {
+    transform: translateY(0);
+}
+
+.quick-action-btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: var(--btn-color);
+    transition: height 0.2s ease;
+}
+
+.quick-action-btn:hover::before {
+    height: 100%;
+    opacity: 0.1;
+}
+
+.action-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 0.5rem;
+    background: var(--btn-color);
+    color: white;
+    font-size: 1.1rem;
+}
+
+.action-text {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #2c3e50;
+    text-align: center;
+    line-height: 1.2;
+}
+
+/* Color variations */
+.quick-action-btn.primary {
+    --btn-color: #3498db;
+}
+
+.quick-action-btn.success {
+    --btn-color: #2ecc71;
+}
+
+.quick-action-btn.info {
+    --btn-color: #17a2b8;
+}
+
+.quick-action-btn.warning {
+    --btn-color: #f39c12;
+}
+
+.quick-action-btn.secondary {
+    --btn-color: #6c757d;
+}
+
+.quick-action-btn.purple {
+    --btn-color: #9b59b6;
+}
+
+/* Tooltip styling */
+.quick-action-btn[data-tooltip]:hover::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: -2.5rem;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #2c3e50;
+    color: white;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    white-space: nowrap;
+    z-index: 1000;
+    animation: tooltipFadeIn 0.2s ease;
+}
+
+@keyframes tooltipFadeIn {
+    from {
+        opacity: 0;
+        transform: translateX(-50%) translateY(5px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+    }
+}
+
+/* Performance optimizations */
+.quick-actions-grid {
+    will-change: transform;
+}
+
+.quick-action-btn {
+    will-change: transform, box-shadow;
+}
+
+/* Responsive adjustments */
+@media (max-width: 1200px) {
+    .quick-actions-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+@media (max-width: 768px) {
+    .metric-card {
+        flex-direction: column;
+        text-align: center;
+    }
+    
+    .metric-icon {
+        margin-right: 0;
+        margin-bottom: 0.5rem;
+    }
+    
+    .dept-stats {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    
+    .quick-actions-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.5rem;
+    }
+    
+    .quick-action-btn {
+        padding: 0.75rem 0.25rem;
+    }
+    
+    .action-icon {
+        width: 35px;
+        height: 35px;
+        font-size: 1rem;
+    }
+    
+    .action-text {
+        font-size: 0.7rem;
+    }
+}
+</style>
+
+<!-- Enhanced JavaScript Functions -->
+<script>
+// Performance metrics refresh
+function refreshPerformanceMetrics() {
+    const metricsContainer = document.getElementById('performance-metrics');
+    showLoading(metricsContainer);
+    
+    fetch('/api/performance-metrics')
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('tutor-utilization').textContent = data.tutor_utilization + '%';
+            document.getElementById('student-engagement').textContent = data.student_engagement + '%';
+            document.getElementById('avg-duration').textContent = data.average_class_duration + ' min';
+            document.getElementById('completion-rate').textContent = data.completion_rate + '%';
+        })
+        .catch(error => {
+            console.error('Error refreshing performance metrics:', error);
+            showError(metricsContainer, 'Failed to load performance metrics');
+        });
+}
+
+// Today's attendance refresh
+function refreshTodayAttendance() {
+    fetch('/api/attendance-today')
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('total-classes-today').textContent = data.total;
+            document.getElementById('present-classes').textContent = data.present;
+            document.getElementById('tutor-absent').textContent = data.tutor_absent;
+            document.getElementById('student-absent').textContent = data.student_absent;
+            document.getElementById('late-arrivals').textContent = data.late_arrivals;
+            
+            const rate = data.total > 0 ? Math.round((data.present / data.total) * 100) : 0;
+            document.getElementById('attendance-rate').textContent = rate + '%';
+            document.getElementById('attendance-percentage').textContent = rate + '%';
+            document.getElementById('attendance-progress-bar').style.width = rate + '%';
+        })
+        .catch(error => {
+            console.error('Error refreshing attendance:', error);
+        });
+}
+
+// Department analytics refresh
+function refreshDepartmentAnalytics() {
+    const analyticsContainer = document.getElementById('department-analytics');
+    showLoading(analyticsContainer);
+    
+    fetch('/api/department-analytics')
+        .then(response => response.json())
+        .then(data => {
+            updateDepartmentDisplay(data.departments);
+        })
+        .catch(error => {
+            console.error('Error refreshing department analytics:', error);
+            showError(analyticsContainer, 'Failed to load department analytics');
+        });
+}
+
+// Real-time updates
+function startRealTimeUpdates() {
+    setInterval(() => {
+        fetch('/api/real-time-stats')
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('active-classes').textContent = data.active_classes;
+                document.getElementById('online-users').textContent = data.online_users;
+                document.getElementById('pending-uploads').textContent = data.pending_uploads;
+                
+                // Update system status
+                const statusBadge = document.getElementById('system-status-badge');
+                if (data.system_status.database === 'healthy') {
+                    statusBadge.className = 'badge bg-success ms-2';
+                    statusBadge.textContent = 'Online';
+                } else {
+                    statusBadge.className = 'badge bg-danger ms-2';
+                    statusBadge.textContent = 'Issues';
+                }
+                
+                // Update alerts
+                updateRealTimeAlerts(data.alerts);
+            })
+            .catch(error => {
+                console.error('Error getting real-time updates:', error);
+            });
+    }, 30000); // Update every 30 seconds
+}
+
+// Quick action functions
+function addNewStudent() {
+    window.location.href = '/admin/students/register';
+}
+
+function scheduleClass() {
+    window.location.href = '/admin/classes';
+}
+
+function generateReport() {
+    window.location.href = '/admin/api/export-monitoring-report';
+}
+
+function sendNotifications() {
+    window.location.href = '/admin/notices/create';
+}
+
+function systemMaintenance() {
+    window.location.href = '/admin/system-logs';
+}
+
+function viewAttendanceDetails() {
+    window.location.href = '/admin/attendance';
+}
+
+function viewStudentAnalytics() {
+    window.location.href = '/admin/students';
+}
+
+// Performance optimization for button clicks
+function optimizedNavigate(url) {
+    // Preload the page for faster navigation
+    const link = document.createElement('link');
+    link.rel = 'prefetch';
+    link.href = url;
+    document.head.appendChild(link);
+    
+    // Navigate after a small delay to allow prefetch
+    setTimeout(() => {
+        window.location.href = url;
+    }, 100);
+}
+
+function exportDepartmentReport() {
+    window.location.href = '/admin/export/departments';
+}
+
+function triggerSystemCheck() {
+    LMS.showAlert('Running system check...', 'info');
+    // Implement system check logic
+}
+
+function viewSystemLogs() {
+    window.location.href = '/admin/system-logs';
+}
+
+// Utility functions
+function showLoading(container) {
+    container.innerHTML = '<div class="text-center p-3"><div class="spinner-border"></div></div>';
+}
+
+function showError(container, message) {
+    container.innerHTML = `<div class="alert alert-warning">${message}</div>`;
+}
+
+function updateDepartmentDisplay(departments) {
+    // Update department cards with new data
+    // Implementation depends on your specific needs
+}
+
+function updateRealTimeAlerts(alerts) {
+    const alertContainer = document.getElementById('attendance-alerts');
+    alertContainer.innerHTML = '';
+    
+    alerts.forEach(alert => {
+        const alertDiv = document.createElement('div');
+        alertDiv.className = `alert alert-${alert.severity} alert-dismissible fade show`;
+        alertDiv.innerHTML = `
+            <i class="fas fa-${alert.type === 'class_starting' ? 'clock' : 'exclamation-triangle'}"></i>
+            ${alert.message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        alertContainer.appendChild(alertDiv);
+    });
+}
+
+// Initialize enhanced dashboard
+document.addEventListener('DOMContentLoaded', function() {
+    refreshPerformanceMetrics();
+    refreshTodayAttendance();
+    startRealTimeUpdates();
+});
+</script>

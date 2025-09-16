@@ -33,6 +33,7 @@
                 </div>
                 <div class="card-body">
                     <form method="POST" id="permissionsForm">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
                         <div class="permission-categories">
                             
                             <!-- User & Staff Management -->

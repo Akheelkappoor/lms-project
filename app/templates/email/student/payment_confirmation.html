@@ -1,0 +1,104 @@
+{% extends "email/base_email.html" %}
+
+{% block title %}Payment Received - ₹{{ payment.amount }}{% endblock %}
+{% block email_title %}Payment Confirmation{% endblock %}
+{% block email_subtitle %}₹{{ "%.2f"|format(payment.amount) }} received successfully{% endblock %}
+
+{% block recipient_name %}{{ student.full_name }}{% endblock %}
+
+{% block email_content %}
+<div class="alert-box alert-success">
+    <strong>💰 Payment Received!</strong> Thank you for your payment of ₹{{ "%.2f"|format(payment.amount) }}. Your transaction has been successfully processed.
+</div>
+
+<div class="content-section">
+    <h2>Payment Details</h2>
+    <div class="info-grid">
+        <div class="info-row">
+            <div class="info-label">Amount Paid:</div>
+            <div class="info-value"><strong>₹{{ "%.2f"|format(payment.amount) }}</strong></div>
+        </div>
+        <div class="info-row">
+            <div class="info-label">Payment Method:</div>
+            <div class="info-value">{{ payment.payment_method or 'Online Payment' }}</div>
+        </div>
+        <div class="info-row">
+            <div class="info-label">Transaction ID:</div>
+            <div class="info-value">{{ payment.transaction_id or payment.id }}</div>
+        </div>
+        <div class="info-row">
+            <div class="info-label">Payment Date:</div>
+            <div class="info-value">{{ payment.payment_date.strftime('%B %d, %Y at %I:%M %p') if payment.payment_date else 'Today' }}</div>
+        </div>
+        <div class="info-row">
+            <div class="info-label">Payment Status:</div>
+            <div class="info-value"><span style="color: #28a745; font-weight: bold;">✅ Confirmed</span></div>
+        </div>
+    </div>
+</div>
+
+{% if fee_structure %}
+<div class="content-section">
+    <h2>Fee Summary</h2>
+    <div class="info-grid">
+        <div class="info-row">
+            <div class="info-label">Total Course Fee:</div>
+            <div class="info-value">₹{{ "%.2f"|format(fee_structure.total_fee) }}</div>
+        </div>
+        <div class="info-row">
+            <div class="info-label">Amount Paid So Far:</div>
+            <div class="info-value">₹{{ "%.2f"|format(fee_structure.total_fee - balance_amount) }}</div>
+        </div>
+        <div class="info-row">
+            <div class="info-label">Remaining Balance:</div>
+            <div class="info-value">
+                {% if balance_amount > 0 %}
+                    <span style="color: #f39c12;">₹{{ "%.2f"|format(balance_amount) }}</span>
+                {% else %}
+                    <span style="color: #28a745; font-weight: bold;">₹0.00 - Fully Paid! 🎉</span>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% if balance_amount > 0 %}
+<div class="alert-box alert-info">
+    <strong>Remaining Balance:</strong> You have a remaining balance of ₹{{ "%.2f"|format(balance_amount) }}. Your next payment is due on {{ payment.next_due_date.strftime('%B %d, %Y') if payment.next_due_date else 'as per your payment schedule' }}.
+</div>
+{% else %}
+<div class="alert-box alert-success">
+    <strong>🎉 Congratulations!</strong> You have completed all payments for your course. Thank you for your commitment to learning!
+</div>
+{% endif %}
+
+<div class="content-section">
+    <h2>Receipt Information</h2>
+    <p>This email serves as your official receipt. Please save this email for your records.</p>
+    <ul class="action-list">
+        <li>Transaction has been verified and processed</li>
+        <li>Amount has been credited to your student account</li>
+        <li>Access to all course materials remains active</li>
+        <li>Receipt is available for download from your dashboard</li>
+    </ul>
+</div>
+{% endblock %}
+
+{% block email_actions %}
+<div class="text-center">
+    <a href="#" class="button button-success">Download Receipt</a>
+    <a href="#" class="button button-secondary">View Payment History</a>
+    {% if balance_amount > 0 %}
+    <a href="#" class="button button-secondary">Make Next Payment</a>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block email_closing %}
+<div class="mt-20">
+    <p>Thank you for your payment and for being part of our learning community. We appreciate your trust in our educational services.</p>
+    <p>If you have any questions about this payment or need a detailed receipt, please contact our finance team.</p>
+    <p>Happy Learning!<br>Finance Team</p>
+</div>
+{% endblock %}

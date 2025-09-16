@@ -1,0 +1,27 @@
+{
+  "database": {
+    "type": "postgres",
+    "host": "lms.c9c8kyy28xrq.ap-south-1.rds.amazonaws.com",
+    "port": 5432,
+    "username": "LMS_database",
+    "password": "pkczZdj8vo6FjWEa4SWF",
+    "database": "postgres",
+    "ssl": {
+      "rejectUnauthorized": false
+    }
+  },
+  "credentials": {
+    "postgres": {
+      "name": "LMS Database",
+      "type": "postgres",
+      "data": {
+        "host": "lms.c9c8kyy28xrq.ap-south-1.rds.amazonaws.com",
+        "port": 5432,
+        "database": "postgres",
+        "user": "LMS_database",
+        "password": "pkczZdj8vo6FjWEa4SWF",
+        "ssl": "require"
+      }
+    }
+  }
+}

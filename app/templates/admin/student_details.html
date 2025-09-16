@@ -29,6 +29,66 @@
                         Actions
                     </button>
                     <ul class="dropdown-menu">
+                        <!-- Student Management Actions -->
+                        {% if student.enrollment_status == 'active' %}
+                            {% set can_graduate, reason = student.can_graduate() %}
+                            {% if can_graduate %}
+                                <li><a class="dropdown-item text-success" href="{{ url_for('admin.graduate_student', student_id=student.id) }}">
+                                    <i class="fas fa-graduation-cap"></i> Graduate Student
+                                </a></li>
+                            {% else %}
+                                <li><a class="dropdown-item text-success" href="{{ url_for('admin.graduate_student', student_id=student.id) }}">
+                                    <i class="fas fa-graduation-cap"></i> Graduate Student (Manual Override)
+                                </a></li>
+                            {% endif %}
+                            <li><a class="dropdown-item text-danger" href="{{ url_for('admin.drop_student_new', student_id=student.id) }}">
+                                <i class="fas fa-user-times"></i> Drop Student
+                            </a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item text-warning" href="{{ url_for('admin.hold_graduation', student_id=student.id) }}">
+                                <i class="fas fa-pause-circle"></i> Hold Graduation
+                            </a></li>
+                            <li><a class="dropdown-item text-info" href="{{ url_for('admin.hold_drop', student_id=student.id) }}">
+                                <i class="fas fa-shield-alt"></i> Protect from Drop
+                            </a></li>
+                        {% endif %}
+                        
+                        {% if student.enrollment_status in ['hold_graduation', 'hold_drop'] %}
+                            {% set hold_info = student.get_hold_status() %}
+                            <li><a class="dropdown-item text-warning">
+                                <i class="fas fa-exclamation-triangle"></i> 
+                                {% if student.enrollment_status == 'hold_graduation' %}
+                                    Graduation On Hold
+                                {% else %}
+                                    Drop Protection Active
+                                {% endif %}
+                            </a></li>
+                            <li><a class="dropdown-item text-success" href="{{ url_for('admin.remove_hold', student_id=student.id) }}">
+                                <i class="fas fa-unlock"></i> Remove Hold
+                            </a></li>
+                            <li><hr class="dropdown-divider"></li>
+                        {% endif %}
+                        
+                        {% if student.enrollment_status in ['dropped', 'paused'] %}
+                            <li><a class="dropdown-item text-primary" href="{{ url_for('admin.reactivate_student_new', student_id=student.id) }}">
+                                <i class="fas fa-user-check"></i> Reactivate Student
+                            </a></li>
+                        {% endif %}
+                        
+                        <li><a class="dropdown-item" href="{{ url_for('admin.student_status_history', student_id=student.id) }}">
+                            <i class="fas fa-history"></i> View Status History
+                        </a></li>
+                        
+                        <li><a class="dropdown-item" href="#" onclick="showEnhancedTutorChangeModal()">
+                            <i class="fas fa-exchange-alt"></i> Enhanced Tutor Change
+                        </a></li>
+                        <li><a class="dropdown-item" href="#" onclick="showTutorChangeHistory()">
+                            <i class="fas fa-history"></i> Tutor Change History
+                        </a></li>
+                        
+                        <li><hr class="dropdown-divider"></li>
+                        
+                        <!-- Existing Actions -->
                         <li><a class="dropdown-item" href="{{ url_for('student.student_fees', student_id=student.id) }}">
                             <i class="fas fa-money-bill-wave"></i> Manage Fees
                         </a></li>
@@ -231,10 +291,33 @@
                             <div class="info-group mb-3">
                                 <label class="form-label text-muted">Enrollment Status</label>
                                 <p class="mb-0">
-                                    <span class="badge badge-{{ 'success' if student.enrollment_status == 'active' else 'secondary' }}">
-                                        {{ student.enrollment_status.title() if student.enrollment_status else 'Not set' }}
-                                    </span>
+                                    {% if student.enrollment_status == 'active' %}
+                                        <span class="badge badge-success">Active</span>
+                                    {% elif student.enrollment_status == 'completed' %}
+                                        <span class="badge badge-primary">Graduated/Completed</span>
+                                    {% elif student.enrollment_status == 'dropped' %}
+                                        <span class="badge badge-danger">Dropped</span>
+                                    {% elif student.enrollment_status == 'paused' %}
+                                        <span class="badge badge-warning">Paused</span>
+                                    {% elif student.enrollment_status == 'hold_graduation' %}
+                                        <span class="badge badge-warning">
+                                            <i class="fas fa-pause-circle"></i> Graduation On Hold
+                                        </span>
+                                    {% elif student.enrollment_status == 'hold_drop' %}
+                                        <span class="badge badge-info">
+                                            <i class="fas fa-shield-alt"></i> Drop Protection
+                                        </span>
+                                    {% else %}
+                                        <span class="badge badge-secondary">{{ student.enrollment_status.title() if student.enrollment_status else 'Not set' }}</span>
+                                    {% endif %}
                                 </p>
+                                {% if student.enrollment_status in ['hold_graduation', 'hold_drop'] %}
+                                    {% set hold_info = student.get_hold_status() %}
+                                    <small class="text-muted">
+                                        Hold applied on {{ hold_info.hold_applied_date.strftime('%d %b %Y') if hold_info.hold_applied_date else 'Unknown date' }}
+                                        by {{ hold_info.hold_applied_by or 'Unknown user' }}
+                                    </small>
+                                {% endif %}
                             </div>
                         </div>
                     </div>
@@ -251,6 +334,60 @@
                         {% else %}
                         <p class="text-muted mb-0">No subjects enrolled</p>
                         {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Class Management -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h6 class="card-title mb-0">
+                            <i class="fas fa-cogs"></i>
+                            Class Management
+                        </h6>
+                        <button class="btn btn-warning btn-sm" onclick="openBulkClassManagement()">
+                            <i class="fas fa-edit"></i>
+                            Bulk Actions
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <div class="management-card bg-danger-subtle border-danger">
+                                <div class="d-flex align-items-center">
+                                    <div class="management-icon text-danger me-3">
+                                        <i class="fas fa-user-times fa-2x"></i>
+                                    </div>
+                                    <div>
+                                        <h6 class="mb-1">Drop Subjects</h6>
+                                        <p class="text-muted mb-2 small">Remove student from entire subjects and cancel related classes</p>
+                                        <button class="btn btn-outline-danger btn-sm" onclick="openDropSubjectsModal()">
+                                            <i class="fas fa-minus-circle"></i>
+                                            Drop Subjects
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="management-card bg-warning-subtle border-warning">
+                                <div class="d-flex align-items-center">
+                                    <div class="management-icon text-warning me-3">
+                                        <i class="fas fa-user-slash fa-2x"></i>
+                                    </div>
+                                    <div>
+                                        <h6 class="mb-1">Cancel Student</h6>
+                                        <p class="text-muted mb-2 small">Completely remove student from system</p>
+                                        <button class="btn btn-outline-warning btn-sm" onclick="openCancelStudentModal()">
+                                            <i class="fas fa-ban"></i>
+                                            Cancel Student
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -435,6 +572,350 @@
     </div>
 </div>
 
+<!-- Drop Subjects Modal -->
+<div class="modal fade" id="dropSubjectsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-user-times"></i>
+                    Drop Subjects for {{ student.full_name }}
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <strong>Critical Warning:</strong> This will remove the student from entire subjects and automatically cancel all related scheduled classes. This action cannot be undone.
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label">Select subjects to drop:</label>
+                    <div class="form-check mb-2">
+                        <input type="checkbox" class="form-check-input" id="selectAllSubjects">
+                        <label class="form-check-label" for="selectAllSubjects">
+                            <strong>Select All Subjects</strong>
+                        </label>
+                    </div>
+                    <hr>
+                </div>
+                
+                <div id="subjectsContainer" class="mb-3">
+                    {% set student_subjects = {} %}
+                    
+                    <!-- Initialize from enrolled subjects -->
+                    {% set enrolled_subjects = student.subjects_enrolled.split(',') if student.subjects_enrolled else [] %}
+                    {% for subject in enrolled_subjects %}
+                        {% set subject_clean = subject.strip() %}
+                        {% if subject_clean %}
+                            {% set _ = student_subjects.update({subject_clean: {'total': 0, 'scheduled': 0, 'completed': 0, 'cancelled': 0}}) %}
+                        {% endif %}
+                    {% endfor %}
+                    
+                    <!-- Update counts from actual classes -->
+                    {% if classes %}
+                        {% for class in classes %}
+                            {% if class.subject %}
+                                {% if class.subject not in student_subjects %}
+                                    {% set _ = student_subjects.update({class.subject: {'total': 0, 'scheduled': 0, 'completed': 0, 'cancelled': 0}}) %}
+                                {% endif %}
+                                {% set _ = student_subjects[class.subject].update({'total': student_subjects[class.subject]['total'] + 1}) %}
+                                {% if class.status == 'scheduled' %}
+                                    {% set _ = student_subjects[class.subject].update({'scheduled': student_subjects[class.subject]['scheduled'] + 1}) %}
+                                {% elif class.status == 'completed' %}
+                                    {% set _ = student_subjects[class.subject].update({'completed': student_subjects[class.subject]['completed'] + 1}) %}
+                                {% elif class.status == 'cancelled' %}
+                                    {% set _ = student_subjects[class.subject].update({'cancelled': student_subjects[class.subject]['cancelled'] + 1}) %}
+                                {% endif %}
+                            {% endif %}
+                        {% endfor %}
+                    {% endif %}
+                    
+                    {% if student_subjects %}
+                        {% for subject, stats in student_subjects.items() %}
+                        <div class="form-check mb-3 p-3 border rounded subject-card" data-subject="{{ subject }}">
+                            <input type="checkbox" class="form-check-input subject-checkbox" 
+                                   id="subject_{{ subject|replace(' ', '_') }}" value="{{ subject }}">
+                            <label class="form-check-label w-100" for="subject_{{ subject|replace(' ', '_') }}">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div>
+                                        <h6 class="mb-1">{{ subject }}</h6>
+                                        <div class="text-muted small">
+                                            {% if stats.total > 0 %}
+                                                <div><i class="fas fa-list me-1"></i>Total Classes: {{ stats.total }}</div>
+                                                <div class="mt-1">
+                                                    <span class="badge bg-success me-1">{{ stats.completed }} Completed</span>
+                                                    <span class="badge bg-warning me-1">{{ stats.scheduled }} Scheduled</span>
+                                                    {% if stats.cancelled > 0 %}
+                                                        <span class="badge bg-danger me-1">{{ stats.cancelled }} Cancelled</span>
+                                                    {% endif %}
+                                                </div>
+                                            {% else %}
+                                                <div><i class="fas fa-info-circle me-1"></i>Enrolled but no classes scheduled yet</div>
+                                                <div class="mt-1">
+                                                    <span class="badge bg-secondary me-1">No classes</span>
+                                                </div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    <div class="text-end">
+                                        {% if stats.total > 0 %}
+                                            {% if stats.scheduled > 0 %}
+                                                <div class="text-danger small">
+                                                    <i class="fas fa-exclamation-triangle"></i>
+                                                    {{ stats.scheduled }} classes will be cancelled
+                                                </div>
+                                            {% else %}
+                                                <div class="text-muted small">
+                                                    <i class="fas fa-check-circle"></i>
+                                                    No scheduled classes to cancel
+                                                </div>
+                                            {% endif %}
+                                        {% else %}
+                                            <div class="text-info small">
+                                                <i class="fas fa-graduation-cap"></i>
+                                                Remove from enrollment only
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </label>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="text-center py-3">
+                            <i class="fas fa-info-circle fa-2x text-muted mb-2"></i>
+                            <p class="text-muted">No subjects found. Student may not have any classes yet.</p>
+                        </div>
+                    {% endif %}
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label">Reason for dropping subjects:</label>
+                    <select class="form-select mb-2" id="dropSubjectReason" required>
+                        <option value="">Select reason...</option>
+                        <option value="academic_difficulty">Academic difficulty</option>
+                        <option value="schedule_conflict">Schedule conflict</option>
+                        <option value="financial_constraints">Financial constraints</option>
+                        <option value="change_of_focus">Change of academic focus</option>
+                        <option value="student_request">Student request</option>
+                        <option value="parent_request">Parent request</option>
+                        <option value="other">Other</option>
+                    </select>
+                    <textarea class="form-control" id="dropSubjectNotes" rows="3" placeholder="Additional notes about dropping these subjects..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" id="confirmDropSubjects" disabled>
+                    <i class="fas fa-user-times"></i>
+                    Drop Selected Subjects
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Cancel Student Modal -->
+<div class="modal fade" id="cancelStudentModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-warning">
+                <h5 class="modal-title">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    Cancel Student: {{ student.full_name }}
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-danger">
+                    <h6><i class="fas fa-exclamation-triangle"></i> CRITICAL WARNING</h6>
+                    <p class="mb-1">This action will:</p>
+                    <ul class="mb-0">
+                        <li>Remove the student from ALL classes</li>
+                        <li>Set enrollment status to "cancelled"</li>
+                        <li>Preserve historical data for records</li>
+                        <li>Send notification to student and guardians</li>
+                    </ul>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label"><strong>Reason for cancellation:</strong></label>
+                    <select class="form-select" id="cancellationReason" required>
+                        <option value="">Select reason...</option>
+                        <option value="student_request">Student Request</option>
+                        <option value="parent_request">Parent/Guardian Request</option>
+                        <option value="non_payment">Non-payment of fees</option>
+                        <option value="disciplinary">Disciplinary action</option>
+                        <option value="academic_performance">Academic performance issues</option>
+                        <option value="relocation">Student relocated</option>
+                        <option value="other">Other</option>
+                    </select>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label">Additional notes:</label>
+                    <textarea class="form-control" id="cancellationNotes" rows="3" placeholder="Provide additional details about the cancellation..."></textarea>
+                </div>
+                
+                <div class="form-check">
+                    <input type="checkbox" class="form-check-input" id="confirmCancellation">
+                    <label class="form-check-label" for="confirmCancellation">
+                        I understand this action will cancel the student's enrollment and cannot be undone easily.
+                    </label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-warning" id="confirmCancelStudent" disabled>
+                    <i class="fas fa-user-slash"></i>
+                    Cancel Student
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Bulk Class Management Modal -->
+<div class="modal fade" id="bulkClassManagementModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-edit"></i>
+                    Bulk Class Management - {{ student.full_name }}
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <div class="col-md-12 mb-4">
+                        <h6>Quick Actions:</h6>
+                        <div class="btn-group mb-3" role="group">
+                            <button type="button" class="btn btn-outline-warning btn-sm" onclick="selectClassesByStatus('scheduled')">
+                                <i class="fas fa-clock"></i> Select Scheduled ({{ classes|selectattr('status', 'eq', 'scheduled')|list|length }})
+                            </button>
+                            <button type="button" class="btn btn-outline-success btn-sm" onclick="selectClassesByStatus('completed')">
+                                <i class="fas fa-check"></i> Select Completed ({{ classes|selectattr('status', 'eq', 'completed')|list|length }})
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="selectAllBulkClasses()">
+                                <i class="fas fa-check-double"></i> Select All
+                            </button>
+                            <button type="button" class="btn btn-outline-danger btn-sm" onclick="clearAllBulkSelections()">
+                                <i class="fas fa-times"></i> Clear All
+                            </button>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <h6 class="small text-muted">Quick Select by Day:</h6>
+                            <div class="btn-group-sm" role="group">
+                                <button type="button" class="btn btn-outline-primary btn-sm me-1 mb-1" onclick="selectClassesByDay('monday')">
+                                    Mon
+                                </button>
+                                <button type="button" class="btn btn-outline-primary btn-sm me-1 mb-1" onclick="selectClassesByDay('tuesday')">
+                                    Tue
+                                </button>
+                                <button type="button" class="btn btn-outline-primary btn-sm me-1 mb-1" onclick="selectClassesByDay('wednesday')">
+                                    Wed
+                                </button>
+                                <button type="button" class="btn btn-outline-primary btn-sm me-1 mb-1" onclick="selectClassesByDay('thursday')">
+                                    Thu
+                                </button>
+                                <button type="button" class="btn btn-outline-primary btn-sm me-1 mb-1" onclick="selectClassesByDay('friday')">
+                                    Fri
+                                </button>
+                                <button type="button" class="btn btn-outline-primary btn-sm me-1 mb-1" onclick="selectClassesByDay('saturday')">
+                                    Sat
+                                </button>
+                                <button type="button" class="btn btn-outline-primary btn-sm me-1 mb-1" onclick="selectClassesByDay('sunday')">
+                                    Sun
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-12">
+                        <h6>Available Classes:</h6>
+                        <div id="bulkClassesList" class="mb-4" style="max-height: 400px; overflow-y: auto;">
+                            {% if classes %}
+                                {% for class in classes %}
+                                <div class="form-check mb-2 p-2 border rounded bulk-class-item">
+                                    <input type="checkbox" class="form-check-input bulk-class-checkbox" 
+                                           id="bulk_class_{{ class.id }}" value="{{ class.id }}" data-status="{{ class.status }}">
+                                    <label class="form-check-label w-100" for="bulk_class_{{ class.id }}">
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <div>
+                                                <strong>{{ class.subject or 'Class Session' }}</strong>
+                                                <div class="text-muted small">
+                                                    {{ class.scheduled_date.strftime('%d %b %Y') }} • 
+                                                    {{ class.scheduled_time.strftime('%I:%M %p') if class.scheduled_time else 'Time TBD' }}
+                                                    {% if class.tutor and class.tutor.user %}
+                                                        • {{ class.tutor.user.full_name }}
+                                                    {% endif %}
+                                                </div>
+                                            </div>
+                                            <span class="badge badge-{{ 'success' if class.status == 'completed' else 'warning' if class.status == 'ongoing' else 'secondary' }}">
+                                                {{ class.status.title() }}
+                                            </span>
+                                        </div>
+                                    </label>
+                                </div>
+                                {% endfor %}
+                            {% else %}
+                                <div class="text-center py-4">
+                                    <i class="fas fa-info-circle fa-2x text-muted mb-2"></i>
+                                    <p class="text-muted">No classes found for this student.</p>
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-12">
+                        <h6>Bulk Actions:</h6>
+                        <div class="btn-group mb-3" role="group">
+                            <button type="button" class="btn btn-outline-danger" id="bulkDropClasses" disabled>
+                                <i class="fas fa-user-times"></i> Drop Selected Classes
+                            </button>
+                            <button type="button" class="btn btn-outline-warning" id="bulkRescheduleClasses" disabled>
+                                <i class="fas fa-calendar-alt"></i> Reschedule Selected
+                            </button>
+                            <button type="button" class="btn btn-outline-primary" id="bulkChangeDay" disabled>
+                                <i class="fas fa-calendar-week"></i> Change Day
+                            </button>
+                            <button type="button" class="btn btn-outline-info" id="bulkChangeStatus" disabled>
+                                <i class="fas fa-edit"></i> Change Status
+                            </button>
+                        </div>
+                        
+                        <div id="bulkActionDetails" class="card" style="display: none;">
+                            <div class="card-body">
+                                <div id="bulkActionContent">
+                                    <!-- Bulk action specific forms will be inserted here -->
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div id="bulkSelectionSummary" class="alert alert-info" style="display: none;">
+                            <i class="fas fa-info-circle"></i>
+                            <span id="selectionSummaryText">No classes selected</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" id="applyBulkAction" style="display: none;">
+                    Apply Bulk Action
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
 function generateReport() {
     // Generate student report
@@ -445,12 +926,1760 @@ function exportData() {
     // Export student data
     window.open(`/admin/students/{{ student.id }}/export`, '_blank');
 }
+
+// Drop Subjects Modal Functions
+function openDropSubjectsModal() {
+    const modal = new bootstrap.Modal(document.getElementById('dropSubjectsModal'));
+    modal.show();
+    
+    // Setup event listeners
+    setupDropSubjectsModal();
+}
+
+function setupDropSubjectsModal() {
+    const selectAllCheckbox = document.getElementById('selectAllSubjects');
+    const subjectCheckboxes = document.querySelectorAll('.subject-checkbox');
+    const confirmButton = document.getElementById('confirmDropSubjects');
+    const reasonSelect = document.getElementById('dropSubjectReason');
+    
+    // Select all functionality
+    selectAllCheckbox?.addEventListener('change', function() {
+        subjectCheckboxes.forEach(checkbox => {
+            checkbox.checked = this.checked;
+        });
+        updateDropSubjectsButtonState();
+    });
+    
+    // Individual checkbox change
+    subjectCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', updateDropSubjectsButtonState);
+    });
+    
+    // Reason selection change
+    reasonSelect?.addEventListener('change', updateDropSubjectsButtonState);
+    
+    // Confirm drop subjects
+    confirmButton?.addEventListener('click', function() {
+        const selectedSubjects = Array.from(subjectCheckboxes)
+            .filter(cb => cb.checked)
+            .map(cb => cb.value);
+        const reason = document.getElementById('dropSubjectReason')?.value;
+        const notes = document.getElementById('dropSubjectNotes')?.value || '';
+        
+        dropSubjects(selectedSubjects, reason, notes);
+    });
+}
+
+function updateDropSubjectsButtonState() {
+    const subjectCheckboxes = document.querySelectorAll('.subject-checkbox');
+    const confirmButton = document.getElementById('confirmDropSubjects');
+    const reasonSelect = document.getElementById('dropSubjectReason');
+    
+    const selectedCount = Array.from(subjectCheckboxes).filter(cb => cb.checked).length;
+    const hasReason = reasonSelect?.value !== '';
+    
+    if (confirmButton) {
+        confirmButton.disabled = selectedCount === 0 || !hasReason;
+        confirmButton.innerHTML = selectedCount > 0 
+            ? `<i class="fas fa-user-times"></i> Drop ${selectedCount} Subject${selectedCount > 1 ? 's' : ''} & Cancel Related Classes`
+            : `<i class="fas fa-user-times"></i> Drop Selected Subjects`;
+    }
+}
+
+function dropSubjects(subjects, reason, notes) {
+    if (subjects.length === 0) {
+        alert('Please select at least one subject to drop.');
+        return;
+    }
+    
+    if (!reason) {
+        alert('Please select a reason for dropping the subjects.');
+        return;
+    }
+    
+    const data = {
+        student_id: {{ student.id }},
+        subjects: subjects,
+        reason: reason,
+        notes: notes
+    };
+    
+    fetch('/admin/students/drop-subjects', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(`Successfully dropped ${data.subjects_dropped} subjects and cancelled ${data.classes_cancelled} classes.`);
+            location.reload();
+        } else {
+            alert('Error dropping subjects: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('An error occurred while dropping subjects.');
+    });
+}
+
+// Cancel Student Modal Functions
+function openCancelStudentModal() {
+    const modal = new bootstrap.Modal(document.getElementById('cancelStudentModal'));
+    modal.show();
+    
+    setupCancelStudentModal();
+}
+
+function setupCancelStudentModal() {
+    const reasonSelect = document.getElementById('cancellationReason');
+    const confirmCheckbox = document.getElementById('confirmCancellation');
+    const confirmButton = document.getElementById('confirmCancelStudent');
+    
+    function updateCancelButtonState() {
+        const hasReason = reasonSelect?.value !== '';
+        const isConfirmed = confirmCheckbox?.checked;
+        
+        if (confirmButton) {
+            confirmButton.disabled = !hasReason || !isConfirmed;
+        }
+    }
+    
+    reasonSelect?.addEventListener('change', updateCancelButtonState);
+    confirmCheckbox?.addEventListener('change', updateCancelButtonState);
+    
+    confirmButton?.addEventListener('click', function() {
+        const reason = reasonSelect?.value;
+        const notes = document.getElementById('cancellationNotes')?.value || '';
+        
+        cancelStudent(reason, notes);
+    });
+}
+
+function cancelStudent(reason, notes) {
+    const data = {
+        student_id: {{ student.id }},
+        reason: reason,
+        notes: notes
+    };
+    
+    fetch('/admin/students/cancel-student', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('Student has been successfully cancelled.');
+            window.location.href = '/admin/students';
+        } else {
+            alert('Error cancelling student: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('An error occurred while cancelling the student.');
+    });
+}
+
+// Bulk Class Management Functions
+function openBulkClassManagement() {
+    const modal = new bootstrap.Modal(document.getElementById('bulkClassManagementModal'));
+    modal.show();
+    
+    // Setup bulk management event listeners
+    setupBulkClassManagement();
+}
+
+function setupBulkClassManagement() {
+    const bulkClassCheckboxes = document.querySelectorAll('.bulk-class-checkbox');
+    const bulkActionButtons = ['bulkDropClasses', 'bulkRescheduleClasses', 'bulkChangeDay', 'bulkChangeStatus'];
+    
+    // Setup checkbox change listeners
+    bulkClassCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', updateBulkActionButtons);
+    });
+    
+    // Setup bulk action buttons
+    document.getElementById('bulkDropClasses')?.addEventListener('click', function() {
+        const selectedClasses = getSelectedBulkClasses();
+        if (selectedClasses.length > 0) {
+            showBulkActionForm('drop', selectedClasses);
+        }
+    });
+    
+    document.getElementById('bulkRescheduleClasses')?.addEventListener('click', function() {
+        const selectedClasses = getSelectedBulkClasses();
+        if (selectedClasses.length > 0) {
+            showBulkActionForm('reschedule', selectedClasses);
+        }
+    });
+    
+    document.getElementById('bulkChangeDay')?.addEventListener('click', function() {
+        const selectedClasses = getSelectedBulkClasses();
+        if (selectedClasses.length > 0) {
+            showBulkActionForm('changeDay', selectedClasses);
+        }
+    });
+    
+    document.getElementById('bulkChangeStatus')?.addEventListener('click', function() {
+        const selectedClasses = getSelectedBulkClasses();
+        if (selectedClasses.length > 0) {
+            showBulkActionForm('status', selectedClasses);
+        }
+    });
+}
+
+function selectClassesByStatus(status) {
+    const bulkClassCheckboxes = document.querySelectorAll('.bulk-class-checkbox');
+    bulkClassCheckboxes.forEach(checkbox => {
+        checkbox.checked = checkbox.dataset.status === status;
+    });
+    updateBulkActionButtons();
+}
+
+function selectClassesByDay(targetDay) {
+    const bulkClassCheckboxes = document.querySelectorAll('.bulk-class-checkbox');
+    bulkClassCheckboxes.forEach(checkbox => {
+        const classItem = checkbox.closest('.bulk-class-item');
+        const classDetails = classItem.querySelector('.text-muted')?.textContent || '';
+        
+        // Extract date and calculate day (simplified - would need proper date parsing in real implementation)
+        // For now, we'll use a simple string match approach
+        // You would need to implement proper date parsing to get the actual day of week
+        
+        // This is a simplified approach - in real implementation, you'd parse the date and calculate the day
+        const dateMatch = classDetails.match(/(\d{2} \w{3} \d{4})/);
+        if (dateMatch) {
+            const dateStr = dateMatch[1];
+            // Here you would calculate the actual day of week from the date
+            // For demo purposes, we'll do a simple check (this would need proper implementation)
+            
+            // Simplified day detection - you'd need actual date calculation here
+            const currentDay = getDayOfWeekFromDateString(dateStr);
+            checkbox.checked = currentDay.toLowerCase() === targetDay.toLowerCase();
+        }
+    });
+    updateBulkActionButtons();
+}
+
+// Helper function to get day of week from date string (simplified)
+function getDayOfWeekFromDateString(dateStr) {
+    try {
+        // Parse date string like "08 Dec 2024" 
+        const date = new Date(dateStr);
+        const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+        return days[date.getDay()];
+    } catch (e) {
+        return 'unknown';
+    }
+}
+
+function selectAllBulkClasses() {
+    const bulkClassCheckboxes = document.querySelectorAll('.bulk-class-checkbox');
+    bulkClassCheckboxes.forEach(checkbox => {
+        checkbox.checked = true;
+    });
+    updateBulkActionButtons();
+}
+
+function clearAllBulkSelections() {
+    const bulkClassCheckboxes = document.querySelectorAll('.bulk-class-checkbox');
+    bulkClassCheckboxes.forEach(checkbox => {
+        checkbox.checked = false;
+    });
+    updateBulkActionButtons();
+    
+    // Hide bulk action details
+    document.getElementById('bulkActionDetails').style.display = 'none';
+    document.getElementById('applyBulkAction').style.display = 'none';
+}
+
+function getSelectedBulkClasses() {
+    const bulkClassCheckboxes = document.querySelectorAll('.bulk-class-checkbox');
+    return Array.from(bulkClassCheckboxes)
+        .filter(cb => cb.checked)
+        .map(cb => cb.value);
+}
+
+function updateBulkActionButtons() {
+    const selectedClasses = getSelectedBulkClasses();
+    const hasSelection = selectedClasses.length > 0;
+    const bulkActionButtons = ['bulkDropClasses', 'bulkRescheduleClasses', 'bulkChangeDay', 'bulkChangeStatus'];
+    
+    bulkActionButtons.forEach(buttonId => {
+        const button = document.getElementById(buttonId);
+        if (button) {
+            button.disabled = !hasSelection;
+        }
+    });
+    
+    // Update selection summary
+    const summaryDiv = document.getElementById('bulkSelectionSummary');
+    const summaryText = document.getElementById('selectionSummaryText');
+    
+    if (hasSelection) {
+        summaryDiv.style.display = 'block';
+        summaryText.textContent = `${selectedClasses.length} class${selectedClasses.length > 1 ? 'es' : ''} selected`;
+    } else {
+        summaryDiv.style.display = 'none';
+    }
+}
+
+function showBulkActionForm(actionType, selectedClasses) {
+    const actionDetails = document.getElementById('bulkActionDetails');
+    const actionContent = document.getElementById('bulkActionContent');
+    const applyButton = document.getElementById('applyBulkAction');
+    
+    let formHTML = '';
+    
+    switch (actionType) {
+        case 'drop':
+            formHTML = `
+                <h6>Drop Selected Classes</h6>
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    This will remove the student from ${selectedClasses.length} selected classes.
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Reason:</label>
+                    <select class="form-select" id="bulkDropReason" required>
+                        <option value="">Select reason...</option>
+                        <option value="schedule_conflict">Schedule conflict</option>
+                        <option value="student_request">Student request</option>
+                        <option value="academic_difficulty">Academic difficulty</option>
+                        <option value="other">Other</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Additional notes:</label>
+                    <textarea class="form-control" id="bulkDropNotes" rows="2"></textarea>
+                </div>
+            `;
+            break;
+        
+        case 'reschedule':
+            formHTML = `
+                <h6>Reschedule Selected Classes</h6>
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i>
+                    This will reschedule ${selectedClasses.length} selected classes.
+                </div>
+                <div class="row">
+                    <div class="col-md-6">
+                        <label class="form-label">New Date:</label>
+                        <input type="date" class="form-control" id="bulkRescheduleDate" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">New Time:</label>
+                        <input type="time" class="form-control" id="bulkRescheduleTime" required>
+                    </div>
+                </div>
+            `;
+            break;
+        
+        case 'changeDay':
+            // Automatically detect current days of selected classes
+            const selectedClassElements = document.querySelectorAll('.bulk-class-checkbox:checked');
+            const currentDays = new Set();
+            const classDetails = [];
+            
+            selectedClassElements.forEach(checkbox => {
+                const classItem = checkbox.closest('.bulk-class-item');
+                const classLabel = classItem.querySelector('label strong')?.textContent || 'Unknown Class';
+                const classDetailsText = classItem.querySelector('.text-muted')?.textContent || '';
+                
+                // Extract date and calculate current day
+                const dateMatch = classDetailsText.match(/(\d{2} \w{3} \d{4})/);
+                if (dateMatch) {
+                    const dateStr = dateMatch[1];
+                    const currentDay = getDayOfWeekFromDateString(dateStr);
+                    if (currentDay !== 'unknown') {
+                        currentDays.add(currentDay);
+                        classDetails.push({
+                            id: checkbox.value,
+                            name: classLabel,
+                            date: dateStr,
+                            currentDay: currentDay,
+                            details: classDetailsText
+                        });
+                    }
+                }
+            });
+            
+            const currentDaysArray = Array.from(currentDays);
+            const dayOptions = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
+                .filter(day => !currentDaysArray.includes(day))
+                .map(day => `<option value="${day}">${day.charAt(0).toUpperCase() + day.slice(1)}</option>`)
+                .join('');
+            
+            formHTML = `
+                <h6>Change Day for Selected Classes</h6>
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i>
+                    Selected classes are currently on: <strong>${currentDaysArray.map(day => day.charAt(0).toUpperCase() + day.slice(1)).join(', ')}</strong>
+                </div>
+                
+                <div class="card mb-3">
+                    <div class="card-header">
+                        <h6 class="mb-0"><i class="fas fa-list"></i> Selected Classes (${selectedClasses.length})</h6>
+                    </div>
+                    <div class="card-body" style="max-height: 200px; overflow-y: auto;">
+                        ${classDetails.map(cls => `
+                            <div class="d-flex justify-content-between align-items-center py-1 border-bottom">
+                                <div>
+                                    <strong>${cls.name}</strong><br>
+                                    <small class="text-muted">${cls.date}</small>
+                                </div>
+                                <span class="badge badge-secondary">${cls.currentDay.charAt(0).toUpperCase() + cls.currentDay.slice(1)}</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label">Move all selected classes TO which day?</label>
+                    <select class="form-select" id="bulkNewDay" required>
+                        <option value="">Choose new day...</option>
+                        ${dayOptions}
+                    </select>
+                    <small class="text-muted">Only showing days that are different from current days</small>
+                </div>
+                
+                <div class="mb-3">
+                    <div class="form-check">
+                        <input type="checkbox" class="form-check-input" id="bulkKeepSameWeek" checked>
+                        <label class="form-check-label" for="bulkKeepSameWeek">
+                            Keep classes in the same week (change within the same week)
+                        </label>
+                    </div>
+                    <small class="text-muted">Recommended: Keep same week to maintain class schedule pattern</small>
+                </div>
+                
+                <div class="alert alert-success" id="dayChangePreview" style="display: none;">
+                    <h6><i class="fas fa-arrow-right"></i> Change Preview</h6>
+                    <div id="dayChangePreviewContent">
+                        Select a target day to see the preview.
+                    </div>
+                </div>
+            `;
+            break;
+        
+        case 'status':
+            formHTML = `
+                <h6>Change Status for Selected Classes</h6>
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i>
+                    This will change the status of ${selectedClasses.length} selected classes.
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">New Status:</label>
+                    <select class="form-select" id="bulkNewStatus" required>
+                        <option value="">Select status...</option>
+                        <option value="scheduled">Scheduled</option>
+                        <option value="completed">Completed</option>
+                        <option value="cancelled">Cancelled</option>
+                        <option value="rescheduled">Rescheduled</option>
+                    </select>
+                </div>
+            `;
+            break;
+    }
+    
+    actionContent.innerHTML = formHTML;
+    actionDetails.style.display = 'block';
+    applyButton.style.display = 'inline-block';
+    applyButton.onclick = () => applyBulkAction(actionType, selectedClasses);
+    
+    // Special setup for changeDay action
+    if (actionType === 'changeDay') {
+        setupChangeDayPreview(selectedClasses);
+    }
+}
+
+function applyBulkAction(actionType, selectedClasses) {
+    let data = {
+        student_id: {{ student.id }},
+        class_ids: selectedClasses,
+        action_type: actionType
+    };
+    
+    // Collect form data based on action type
+    switch (actionType) {
+        case 'drop':
+            const dropReason = document.getElementById('bulkDropReason')?.value;
+            const dropNotes = document.getElementById('bulkDropNotes')?.value || '';
+            if (!dropReason) {
+                alert('Please select a reason for dropping the classes.');
+                return;
+            }
+            data.reason = dropReason;
+            data.notes = dropNotes;
+            break;
+        
+        case 'reschedule':
+            const newDate = document.getElementById('bulkRescheduleDate')?.value;
+            const newTime = document.getElementById('bulkRescheduleTime')?.value;
+            if (!newDate || !newTime) {
+                alert('Please select both date and time for rescheduling.');
+                return;
+            }
+            data.new_date = newDate;
+            data.new_time = newTime;
+            break;
+        
+        case 'changeDay':
+            const newDay = document.getElementById('bulkNewDay')?.value;
+            const keepSameWeek = document.getElementById('bulkKeepSameWeek')?.checked;
+            if (!newDay) {
+                alert('Please select a new day of the week.');
+                return;
+            }
+            data.new_day = newDay;
+            data.keep_same_week = keepSameWeek;
+            break;
+        
+        case 'status':
+            const newStatus = document.getElementById('bulkNewStatus')?.value;
+            if (!newStatus) {
+                alert('Please select a new status.');
+                return;
+            }
+            data.new_status = newStatus;
+            break;
+    }
+    
+    fetch('/admin/students/bulk-class-action', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(`Bulk action completed successfully. ${data.updated_count} classes were updated.`);
+            location.reload();
+        } else {
+            alert('Error performing bulk action: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('An error occurred while performing the bulk action.');
+    });
+}
+
+// Change Day Preview Function
+function setupChangeDayPreview(selectedClasses) {
+    const newDaySelect = document.getElementById('bulkNewDay');
+    const keepSameWeekCheckbox = document.getElementById('bulkKeepSameWeek');
+    const previewDiv = document.getElementById('dayChangePreview');
+    const previewContent = document.getElementById('dayChangePreviewContent');
+    
+    function updatePreview() {
+        const selectedDay = newDaySelect?.value;
+        const keepSameWeek = keepSameWeekCheckbox?.checked;
+        
+        if (!selectedDay) {
+            previewDiv.style.display = 'none';
+            return;
+        }
+        
+        previewDiv.style.display = 'block';
+        
+        // Get current day information for selected classes
+        const classElements = document.querySelectorAll('.bulk-class-checkbox:checked');
+        let previewHTML = `
+            <div class="mb-2">
+                <strong>All ${classElements.length} selected classes will be moved to ${selectedDay.charAt(0).toUpperCase() + selectedDay.slice(1)}</strong>
+                ${keepSameWeek ? ' (keeping same week)' : ' (next occurrence)'}
+            </div>
+            <div class="table-responsive">
+                <table class="table table-sm table-bordered">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Class</th>
+                            <th>Current Date & Day</th>
+                            <th>➜</th>
+                            <th>New Date & Day</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+        `;
+        
+        classElements.forEach(checkbox => {
+            const classItem = checkbox.closest('.bulk-class-item');
+            const classLabel = classItem.querySelector('label strong')?.textContent || 'Unknown Class';
+            const classDetails = classItem.querySelector('.text-muted')?.textContent || '';
+            
+            // Extract current date info from the label
+            const dateMatch = classDetails.match(/(\d{2} \w{3} \d{4})/);
+            const currentDate = dateMatch ? dateMatch[1] : 'Unknown Date';
+            
+            // Calculate current day name from date
+            const currentDayName = getDayOfWeekFromDateString(currentDate);
+            
+            // Calculate new date (simplified - would need proper date calculation)
+            const newDate = calculateNewDate(currentDate, selectedDay, keepSameWeek);
+            
+            previewHTML += `
+                <tr>
+                    <td>
+                        <strong>${classLabel}</strong>
+                        <div class="text-muted small">${classDetails.split(' • ').slice(1).join(' • ')}</div>
+                    </td>
+                    <td>
+                        <div>${currentDate}</div>
+                        <span class="badge badge-secondary">${currentDayName.charAt(0).toUpperCase() + currentDayName.slice(1)}</span>
+                    </td>
+                    <td class="text-center text-primary">
+                        <i class="fas fa-arrow-right"></i>
+                    </td>
+                    <td>
+                        <div class="text-success">${newDate}</div>
+                        <span class="badge badge-success">${selectedDay.charAt(0).toUpperCase() + selectedDay.slice(1)}</span>
+                    </td>
+                </tr>
+            `;
+        });
+        
+        previewHTML += `
+                    </tbody>
+                </table>
+            </div>
+            <div class="alert alert-warning mt-2">
+                <small>
+                    <i class="fas fa-info-circle"></i>
+                    <strong>Note:</strong> Times will remain the same, only dates will change to match the new day.
+                </small>
+            </div>
+        `;
+        previewContent.innerHTML = previewHTML;
+    }
+    
+    // Setup event listeners
+    newDaySelect?.addEventListener('change', updatePreview);
+    keepSameWeekCheckbox?.addEventListener('change', updatePreview);
+}
+
+// Helper function to calculate new date (simplified)
+function calculateNewDate(currentDateStr, targetDay, keepSameWeek) {
+    try {
+        const currentDate = new Date(currentDateStr);
+        const targetDayIndex = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'].indexOf(targetDay.toLowerCase());
+        const currentDayIndex = currentDate.getDay();
+        
+        let daysToAdd;
+        if (keepSameWeek) {
+            daysToAdd = targetDayIndex - currentDayIndex;
+        } else {
+            daysToAdd = targetDayIndex - currentDayIndex;
+            if (daysToAdd <= 0) daysToAdd += 7; // Move to next week if target day already passed
+        }
+        
+        const newDate = new Date(currentDate);
+        newDate.setDate(currentDate.getDate() + daysToAdd);
+        
+        return newDate.toLocaleDateString('en-GB', {
+            day: '2-digit',
+            month: 'short',
+            year: 'numeric'
+        });
+    } catch (e) {
+        return 'Date calculation error';
+    }
+}
+
+// Enhanced Tutor Change System JavaScript
+let currentStep = 1;
+let scheduleData = {};
+let selectedTutor = null;
+let selectedChanges = [];
+
+// Pagination and search variables
+let allTutors = [];
+let filteredTutors = [];
+let currentPage = 1;
+let tutorsPerPage = 5;
+let availabilityMatrix = {};
+
+function showEnhancedTutorChangeModal() {
+    const modal = new bootstrap.Modal(document.getElementById('enhancedTutorChangeModal'));
+    loadScheduleAnalysis();
+    modal.show();
+}
+
+function showTutorChangeHistory() {
+    const modal = new bootstrap.Modal(document.getElementById('tutorChangeHistoryModal'));
+    loadTutorChangeHistory();
+    modal.show();
+}
+
+function loadScheduleAnalysis() {
+    fetch(`/admin/api/student/{{ student.id }}/class-schedule-analysis`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                scheduleData = data.schedule_analysis;
+                renderScheduleAnalysis(data);
+            } else {
+                showError('Failed to load schedule: ' + (data.error || 'Unknown error'));
+            }
+        })
+        .catch(error => {
+            console.error('Schedule analysis error:', error);
+            showError('Failed to load schedule analysis');
+        });
+}
+
+function renderScheduleAnalysis(data) {
+    const container = document.getElementById('subjectScheduleContainer');
+    
+    if (Object.keys(data.schedule_analysis).length === 0) {
+        container.innerHTML = `
+            <div class="text-center py-4">
+                <i class="fas fa-calendar-times fa-2x text-muted mb-3"></i>
+                <h6 class="text-muted">No Future Classes</h6>
+                <p class="text-muted">This student has no scheduled classes that can be changed.</p>
+            </div>
+        `;
+        return;
+    }
+    
+    let html = '<div class="row">';
+    
+    Object.entries(data.schedule_analysis).forEach(([key, schedule]) => {
+        const subject = key.split('_')[0];
+        html += `
+            <div class="col-md-6 mb-3">
+                <div class="card schedule-card" onclick="selectSchedule('${key}')">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <h6 class="mb-1">${subject}</h6>
+                            <span class="badge badge-primary">${schedule.total_classes} classes</span>
+                        </div>
+                        <div class="text-muted small mb-2">
+                            <i class="fas fa-user-tie me-1"></i>
+                            Current Tutor: ${schedule.tutor_info.name}
+                        </div>
+                        <div class="schedule-preview">
+                            <div class="d-flex flex-wrap gap-1 mb-2">
+                                ${schedule.unique_days.map(day => 
+                                    `<span class="badge badge-outline-info badge-sm">${day}</span>`
+                                ).join('')}
+                            </div>
+                            <div class="d-flex flex-wrap gap-1">
+                                ${schedule.unique_times.map(time => 
+                                    `<span class="badge badge-outline-secondary badge-sm">${time}</span>`
+                                ).join('')}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+    
+    html += '</div>';
+    container.innerHTML = html;
+}
+
+function selectSchedule(key) {
+    document.querySelectorAll('.schedule-card').forEach(card => {
+        card.classList.remove('selected');
+    });
+    event.currentTarget.classList.add('selected');
+    
+    // Enable next button
+    document.getElementById('nextStepBtn').disabled = false;
+    
+    // Store selected schedule
+    window.selectedScheduleKey = key;
+}
+
+function loadTutors() {
+    Promise.all([
+        fetch('/admin/api/v1/tutors/active').then(r => r.json()),
+        fetch('/admin/api/tutors/availability-matrix').then(r => r.json())
+    ]).then(([tutorsData, availabilityData]) => {
+        if (tutorsData.success && availabilityData.success) {
+            // Store all data globally for search and pagination
+            allTutors = tutorsData.tutors;
+            availabilityMatrix = availabilityData.availability_matrix;
+            filteredTutors = [...allTutors]; // Start with all tutors
+            currentPage = 1;
+            
+            // Initial render
+            renderTutorCards();
+        }
+    }).catch(error => {
+        console.error('Error loading tutors:', error);
+        showError('Failed to load tutors');
+    });
+}
+
+function searchTutors() {
+    const searchTerm = document.getElementById('tutorSearch').value.toLowerCase().trim();
+    
+    if (!searchTerm) {
+        filteredTutors = [...allTutors];
+    } else {
+        filteredTutors = allTutors.filter(tutor => {
+            const name = tutor.name.toLowerCase();
+            const experience = tutor.experience || '';
+            const subjects = (tutor.subjects || []).join(' ').toLowerCase();
+            
+            return name.includes(searchTerm) || 
+                   experience.toString().includes(searchTerm) ||
+                   subjects.includes(searchTerm);
+        });
+    }
+    
+    currentPage = 1; // Reset to first page
+    renderTutorCards();
+}
+
+function clearTutorSearch() {
+    document.getElementById('tutorSearch').value = '';
+    filteredTutors = [...allTutors];
+    currentPage = 1;
+    renderTutorCards();
+}
+
+function changeTutorPage(direction) {
+    const totalPages = Math.ceil(filteredTutors.length / tutorsPerPage);
+    
+    if (direction === 'prev' && currentPage > 1) {
+        currentPage--;
+    } else if (direction === 'next' && currentPage < totalPages) {
+        currentPage++;
+    }
+    
+    renderTutorCards();
+}
+
+function convertTo24Hour(timeStr) {
+    // Handle different time formats: "14:30", "2:30 PM", "14:30:00"
+    if (!timeStr) return '';
+    
+    // Remove any extra whitespace
+    timeStr = timeStr.trim();
+    
+    // If already in 24-hour format (HH:MM or HH:MM:SS)
+    if (/^\d{1,2}:\d{2}(:\d{2})?$/.test(timeStr)) {
+        // Extract just HH:MM part
+        return timeStr.substring(0, 5);
+    }
+    
+    // If in 12-hour format (H:MM AM/PM or HH:MM AM/PM)
+    if (/\d{1,2}:\d{2}\s*(AM|PM)/i.test(timeStr)) {
+        const [time, period] = timeStr.split(/\s+/);
+        const [hours, minutes] = time.split(':');
+        let hour24 = parseInt(hours);
+        
+        if (period.toUpperCase() === 'PM' && hour24 !== 12) {
+            hour24 += 12;
+        } else if (period.toUpperCase() === 'AM' && hour24 === 12) {
+            hour24 = 0;
+        }
+        
+        return `${hour24.toString().padStart(2, '0')}:${minutes}`;
+    }
+    
+    // If no format matches, return as is
+    return timeStr;
+}
+
+function renderTutorCards() {
+    const container = document.getElementById('tutorCardsContainer');
+    const countElement = document.getElementById('tutorCount');
+    const paginationElement = document.getElementById('tutorPagination');
+    const paginationInfo = document.getElementById('paginationInfo');
+    const selectedSchedule = scheduleData[window.selectedScheduleKey];
+    
+    console.log('Rendering tutor cards:');
+    console.log('Filtered tutors:', filteredTutors.length);
+    console.log('Current page:', currentPage);
+    
+    // Update tutor count
+    countElement.textContent = filteredTutors.length;
+    
+    if (filteredTutors.length === 0) {
+        container.innerHTML = '<div class="col-12"><div class="alert alert-warning">No tutors found matching your search.</div></div>';
+        paginationElement.style.display = 'none';
+        return;
+    }
+    
+    // Calculate pagination
+    const totalPages = Math.ceil(filteredTutors.length / tutorsPerPage);
+    const startIndex = (currentPage - 1) * tutorsPerPage;
+    const endIndex = Math.min(startIndex + tutorsPerPage, filteredTutors.length);
+    const tutorsToShow = filteredTutors.slice(startIndex, endIndex);
+    
+    console.log(`Showing tutors ${startIndex + 1}-${endIndex} of ${filteredTutors.length}`);
+    
+    // Render tutors for current page
+    let html = '';
+    tutorsToShow.forEach(tutor => {
+        const availability = availabilityMatrix[tutor.id];
+        if (!availability) return;
+        
+        // Calculate compatibility score
+        let compatibilityScore = 0;
+        let availableSlots = 0;
+        let totalSlots = 0;
+        
+        selectedSchedule.unique_days.forEach(day => {
+            selectedSchedule.unique_times.forEach(time => {
+                totalSlots++;
+                const dayLower = day.toLowerCase();
+                if (availability.availability[dayLower]) {
+                    const daySlots = availability.availability[dayLower];
+                    const isAvailable = daySlots.some(slot => {
+                        const slotStart = convertTo24Hour(slot.start);
+                        const slotEnd = convertTo24Hour(slot.end);
+                        const classTime = convertTo24Hour(time);
+                        return slotStart <= classTime && classTime <= slotEnd;
+                    });
+                    if (isAvailable) {
+                        availableSlots++;
+                        compatibilityScore += 1;
+                    }
+                }
+            });
+        });
+        
+        const compatibilityPercent = Math.round((availableSlots / totalSlots) * 100);
+        
+        html += `
+            <div class="col-md-6 mb-3">
+                <div class="card tutor-card" onclick="selectTutor(${tutor.id})">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <h6 class="mb-1">${tutor.name}</h6>
+                            <div class="text-end">
+                                <div class="rating-stars">
+                                    ${renderStars(availability.rating)}
+                                </div>
+                                <small class="text-muted">${availability.rating.toFixed(1)}</small>
+                            </div>
+                        </div>
+                        <div class="text-muted small mb-2">
+                            ${availability.subjects.join(', ')}
+                        </div>
+                        <div class="compatibility-meter mb-2">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <small>Availability Match</small>
+                                <small class="fw-bold">${compatibilityPercent}%</small>
+                            </div>
+                            <div class="progress" style="height: 4px;">
+                                <div class="progress-bar bg-${compatibilityPercent >= 80 ? 'success' : compatibilityPercent >= 60 ? 'warning' : 'danger'}" 
+                                     style="width: ${compatibilityPercent}%"></div>
+                            </div>
+                        </div>
+                        <div class="availability-preview">
+                            <small class="text-muted">Available: ${availableSlots}/${totalSlots} time slots</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+    
+    container.innerHTML = html;
+    
+    // Update pagination controls
+    if (totalPages > 1) {
+        paginationElement.style.display = 'flex';
+        paginationInfo.textContent = `${startIndex + 1}-${endIndex} of ${filteredTutors.length} tutors`;
+        
+        // Update pagination buttons
+        const prevButton = document.getElementById('prevPage');
+        const nextButton = document.getElementById('nextPage');
+        
+        prevButton.classList.toggle('disabled', currentPage === 1);
+        nextButton.classList.toggle('disabled', currentPage === totalPages);
+    } else {
+        paginationElement.style.display = 'none';
+    }
+}
+
+function renderStars(rating) {
+    const fullStars = Math.floor(rating);
+    const hasHalfStar = rating % 1 >= 0.5;
+    let html = '';
+    
+    for (let i = 0; i < 5; i++) {
+        if (i < fullStars) {
+            html += '<i class="fas fa-star text-warning"></i>';
+        } else if (i === fullStars && hasHalfStar) {
+            html += '<i class="fas fa-star-half-alt text-warning"></i>';
+        } else {
+            html += '<i class="far fa-star text-muted"></i>';
+        }
+    }
+    
+    return html;
+}
+
+function selectTutor(tutorId) {
+    document.querySelectorAll('.tutor-card').forEach(card => {
+        card.classList.remove('selected');
+    });
+    event.currentTarget.classList.add('selected');
+    
+    selectedTutor = tutorId;
+    document.getElementById('nextStepBtn').disabled = false;
+}
+
+function renderDayTimeSelection() {
+    const container = document.getElementById('dayTimeSelectionContainer');
+    const selectedSchedule = scheduleData[window.selectedScheduleKey];
+    
+    let html = `
+        <div class="day-time-grid">
+            <h6 class="mb-3">Select which classes to change:</h6>
+            <div class="table-responsive">
+                <table class="table table-bordered">
+                    <thead>
+                        <tr>
+                            <th width="60">Select</th>
+                            <th width="120">Current Day</th>
+                            <th width="120">Current Time</th>
+                            <th id="newDayHeader" style="display: none;" width="150">New Day</th>
+                            <th id="newTimeHeader" style="display: none;" width="120">New Time</th>
+                            <th width="100">Classes</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+    `;
+    
+    const dayTimeCombos = new Set();
+    selectedSchedule.classes.forEach(cls => {
+        dayTimeCombos.add(`${cls.day}|${cls.time}`);
+    });
+    
+    Array.from(dayTimeCombos).forEach(combo => {
+        const [day, time] = combo.split('|');
+        const classCount = selectedSchedule.classes.filter(c => 
+            c.day === day && c.time === time
+        ).length;
+        
+        // Convert 12-hour time to 24-hour for input field
+        const time24 = convertTo24Hour(time);
+        
+        html += `
+            <tr>
+                <td>
+                    <div class="form-check">
+                        <input class="form-check-input day-time-checkbox" 
+                               type="checkbox" 
+                               data-day="${day}" 
+                               data-time="${time}"
+                               onchange="updateSelectedChanges()">
+                    </div>
+                </td>
+                <td>${day}</td>
+                <td>${time}</td>
+                <td class="new-day-cell" style="display: none;">
+                    <select class="form-select form-select-sm new-day-select" 
+                            data-day="${day}" data-time="${time}">
+                        <option value="Monday" ${day === 'Monday' ? 'selected' : ''}>Monday</option>
+                        <option value="Tuesday" ${day === 'Tuesday' ? 'selected' : ''}>Tuesday</option>
+                        <option value="Wednesday" ${day === 'Wednesday' ? 'selected' : ''}>Wednesday</option>
+                        <option value="Thursday" ${day === 'Thursday' ? 'selected' : ''}>Thursday</option>
+                        <option value="Friday" ${day === 'Friday' ? 'selected' : ''}>Friday</option>
+                        <option value="Saturday" ${day === 'Saturday' ? 'selected' : ''}>Saturday</option>
+                        <option value="Sunday" ${day === 'Sunday' ? 'selected' : ''}>Sunday</option>
+                    </select>
+                </td>
+                <td class="new-time-cell" style="display: none;">
+                    <input type="time" class="form-control form-control-sm new-time-input" 
+                           data-day="${day}" data-time="${time}" value="${time24}">
+                </td>
+                <td>
+                    <span class="badge bg-info">${classCount} classes</span>
+                </td>
+            </tr>
+        `;
+    });
+    
+    html += `
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    `;
+    
+    container.innerHTML = html;
+    
+    // Add event listeners for change type radio buttons
+    document.querySelectorAll('input[name="changeType"]').forEach(radio => {
+        radio.addEventListener('change', toggleScheduleInputs);
+    });
+}
+
+function toggleScheduleInputs() {
+    const keepSchedule = document.getElementById('keepSchedule').checked;
+    const modifyTimes = document.getElementById('modifyTimes').checked;
+    const modifySchedule = document.getElementById('modifyDaysAndTimes').checked;
+    
+    const newDayHeader = document.getElementById('newDayHeader');
+    const newTimeHeader = document.getElementById('newTimeHeader');
+    const newDayCells = document.querySelectorAll('.new-day-cell');
+    const newTimeCells = document.querySelectorAll('.new-time-cell');
+    
+    if (keepSchedule) {
+        // Hide all modification columns
+        newDayHeader.style.display = 'none';
+        newTimeHeader.style.display = 'none';
+        newDayCells.forEach(cell => cell.style.display = 'none');
+        newTimeCells.forEach(cell => cell.style.display = 'none');
+    } else if (modifyTimes) {
+        // Show time modification only
+        newDayHeader.style.display = 'none';
+        newTimeHeader.style.display = 'table-cell';
+        newDayCells.forEach(cell => cell.style.display = 'none');
+        newTimeCells.forEach(cell => cell.style.display = 'table-cell');
+    } else if (modifySchedule) {
+        // Show both day and time modification
+        newDayHeader.style.display = 'table-cell';
+        newTimeHeader.style.display = 'table-cell';
+        newDayCells.forEach(cell => cell.style.display = 'table-cell');
+        newTimeCells.forEach(cell => cell.style.display = 'table-cell');
+    }
+}
+
+function updateSelectedChanges() {
+    selectedChanges = [];
+    const checkboxes = document.querySelectorAll('.day-time-checkbox:checked');
+    
+    checkboxes.forEach(checkbox => {
+        const day = checkbox.dataset.day;
+        const time = checkbox.dataset.time;
+        const newDaySelect = document.querySelector(`.new-day-select[data-day="${day}"][data-time="${time}"]`);
+        const newTimeInput = document.querySelector(`.new-time-input[data-day="${day}"][data-time="${time}"]`);
+        
+        const newDay = newDaySelect ? newDaySelect.value : day;
+        const newTime = newTimeInput ? formatTime12Hour(newTimeInput.value) : time;
+        
+        selectedChanges.push({
+            day: day,
+            time: time,
+            new_day: newDay,
+            new_time: newTime
+        });
+    });
+    
+    updateSelectionSummary();
+    document.getElementById('nextStepBtn').disabled = selectedChanges.length === 0;
+}
+
+function formatTime12Hour(time24) {
+    if (!time24) return '';
+    const [hour, minute] = time24.split(':');
+    const hourNum = parseInt(hour);
+    const ampm = hourNum >= 12 ? 'PM' : 'AM';
+    const hour12 = hourNum === 0 ? 12 : hourNum > 12 ? hourNum - 12 : hourNum;
+    return `${hour12}:${minute} ${ampm}`;
+}
+
+function updateSelectionSummary() {
+    const summary = document.getElementById('selectedSummary');
+    
+    if (selectedChanges.length === 0) {
+        summary.innerHTML = `
+            <h6>Selection Summary:</h6>
+            <p class="mb-0 text-muted">No changes selected yet</p>
+        `;
+        return;
+    }
+    
+    let html = `
+        <h6>Selection Summary:</h6>
+        <div class="selected-changes">
+    `;
+    
+    selectedChanges.forEach(change => {
+        const dayChange = change.day !== change.new_day;
+        const timeChange = change.time !== change.new_time;
+        
+        let changeText = '';
+        if (dayChange && timeChange) {
+            changeText = `${change.day} at ${change.time} → ${change.new_day} at ${change.new_time}`;
+        } else if (dayChange) {
+            changeText = `${change.day} at ${change.time} → ${change.new_day} at ${change.time}`;
+        } else if (timeChange) {
+            changeText = `${change.day} at ${change.time} → ${change.day} at ${change.new_time}`;
+        } else {
+            changeText = `${change.day} at ${change.time}`;
+        }
+        
+        html += `
+            <div class="change-item mb-1">
+                <i class="fas fa-check-circle text-success me-2"></i>
+                <small>${changeText}</small>
+            </div>
+        `;
+    });
+    
+    html += '</div>';
+    summary.innerHTML = html;
+}
+
+function nextStep() {
+    if (currentStep === 1) {
+        if (!window.selectedScheduleKey) {
+            showError('Please select a subject schedule first');
+            return;
+        }
+        currentStep = 2;
+        loadTutors();
+    } else if (currentStep === 2) {
+        if (!selectedTutor) {
+            showError('Please select a new tutor');
+            return;
+        }
+        currentStep = 3;
+        renderDayTimeSelection();
+    } else if (currentStep === 3) {
+        if (selectedChanges.length === 0) {
+            showError('Please select at least one day/time to change');
+            return;
+        }
+        currentStep = 4;
+        renderConfirmation();
+    }
+    
+    updateStepDisplay();
+}
+
+function previousStep() {
+    if (currentStep > 1) {
+        currentStep--;
+        updateStepDisplay();
+    }
+}
+
+function updateStepDisplay() {
+    // Hide all steps
+    document.querySelectorAll('.step-content').forEach(step => {
+        step.style.display = 'none';
+    });
+    
+    // Show current step
+    document.getElementById(`step${currentStep}`).style.display = 'block';
+    
+    // Update button states
+    const prevBtn = document.getElementById('prevStepBtn');
+    const nextBtn = document.getElementById('nextStepBtn');
+    const confirmBtn = document.getElementById('confirmBtn');
+    
+    prevBtn.style.display = currentStep > 1 ? 'block' : 'none';
+    
+    if (currentStep === 4) {
+        nextBtn.style.display = 'none';
+        confirmBtn.style.display = 'block';
+    } else {
+        nextBtn.style.display = 'block';
+        confirmBtn.style.display = 'none';
+        nextBtn.disabled = true; // Will be enabled by selection
+    }
+}
+
+function renderConfirmation() {
+    const container = document.getElementById('confirmationContainer');
+    const selectedSchedule = scheduleData[window.selectedScheduleKey];
+    
+    // Calculate total classes affected
+    let totalAffected = 0;
+    selectedChanges.forEach(change => {
+        const affected = selectedSchedule.classes.filter(c => 
+            c.day === change.day && c.time === change.time
+        ).length;
+        totalAffected += affected;
+    });
+    
+    const html = `
+        <div class="confirmation-summary">
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle me-2"></i>
+                <strong>Ready to apply changes</strong><br>
+                This will affect <strong>${totalAffected} classes</strong> for subject <strong>${window.selectedScheduleKey.split('_')[0]}</strong>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-6">
+                    <h6>Current Setup</h6>
+                    <div class="current-setup">
+                        <p><strong>Tutor:</strong> ${selectedSchedule.tutor_info.name}</p>
+                        <p><strong>Subject:</strong> ${window.selectedScheduleKey.split('_')[0]}</p>
+                        <p><strong>Total Classes:</strong> ${selectedSchedule.total_classes}</p>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <h6>Changes to Apply</h6>
+                    <div class="changes-summary">
+                        ${selectedChanges.map(change => {
+                            const affected = selectedSchedule.classes.filter(c => 
+                                c.day === change.day && c.time === change.time
+                            ).length;
+                            const timeChange = change.time !== change.new_time ? 
+                                ` (time: ${change.time} → ${change.new_time})` : '';
+                            return `
+                                <div class="change-detail">
+                                    <i class="fas fa-arrow-right text-primary me-2"></i>
+                                    ${change.day}${timeChange}
+                                    <small class="text-muted">(${affected} classes)</small>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    container.innerHTML = html;
+}
+
+function applyChanges() {
+    const confirmBtn = document.getElementById('confirmBtn');
+    confirmBtn.disabled = true;
+    confirmBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Applying Changes...';
+    
+    const changeType = document.querySelector('input[name="changeType"]:checked').value;
+    
+    const requestData = {
+        current_tutor_id: scheduleData[window.selectedScheduleKey].tutor_info.id,
+        new_tutor_id: selectedTutor,
+        subject: window.selectedScheduleKey.split('_')[0],
+        selected_changes: selectedChanges,
+        change_type: changeType
+    };
+    
+    fetch(`/admin/api/student/{{ student.id }}/enhanced-tutor-change`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token() }}'
+        },
+        body: JSON.stringify(requestData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showSuccess(`Successfully changed tutor for ${data.successful_changes} classes!`);
+            if (data.conflicts && data.conflicts.length > 0) {
+                showWarning(`${data.conflicts.length} classes could not be changed due to conflicts.`);
+            }
+            
+            // Close modal and refresh page
+            bootstrap.Modal.getInstance(document.getElementById('enhancedTutorChangeModal')).hide();
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            showError('Failed to apply changes: ' + (data.error || 'Unknown error'));
+            confirmBtn.disabled = false;
+            confirmBtn.innerHTML = '<i class="fas fa-check"></i> Apply Changes';
+        }
+    })
+    .catch(error => {
+        console.error('Apply changes error:', error);
+        showError('Failed to apply changes');
+        confirmBtn.disabled = false;
+        confirmBtn.innerHTML = '<i class="fas fa-check"></i> Apply Changes';
+    });
+}
+
+function loadTutorChangeHistory() {
+    fetch(`/admin/api/student/{{ student.id }}/tutor-change-history`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                renderTutorChangeHistory(data.history);
+            } else {
+                showError('Failed to load history: ' + (data.error || 'Unknown error'));
+            }
+        })
+        .catch(error => {
+            console.error('History load error:', error);
+            showError('Failed to load tutor change history');
+        });
+}
+
+function renderTutorChangeHistory(history) {
+    const container = document.getElementById('historyContainer');
+    
+    if (history.length === 0) {
+        container.innerHTML = `
+            <div class="text-center py-4">
+                <i class="fas fa-history fa-2x text-muted mb-3"></i>
+                <h6 class="text-muted">No Change History</h6>
+                <p class="text-muted">No tutor changes have been recorded for this student yet.</p>
+            </div>
+        `;
+        return;
+    }
+    
+    let html = '<div class="timeline">';
+    
+    history.forEach((change, index) => {
+        html += `
+            <div class="timeline-item">
+                <div class="timeline-marker">
+                    <i class="fas fa-exchange-alt"></i>
+                </div>
+                <div class="timeline-content">
+                    <div class="timeline-header">
+                        <h6 class="mb-1">${change.subject}</h6>
+                        <small class="text-muted">${change.updated_at}</small>
+                    </div>
+                    <p class="mb-1">${change.change_details}</p>
+                    <small class="text-muted">Class: ${change.date} at ${change.time}</small>
+                </div>
+            </div>
+        `;
+    });
+    
+    html += '</div>';
+    container.innerHTML = html;
+}
+
+function showError(message) {
+    // Simple toast notification
+    const toast = document.createElement('div');
+    toast.className = 'toast-notification error';
+    toast.innerHTML = `<i class="fas fa-exclamation-circle"></i> ${message}`;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 5000);
+}
+
+function showSuccess(message) {
+    const toast = document.createElement('div');
+    toast.className = 'toast-notification success';
+    toast.innerHTML = `<i class="fas fa-check-circle"></i> ${message}`;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 5000);
+}
+
+function showWarning(message) {
+    const toast = document.createElement('div');
+    toast.className = 'toast-notification warning';
+    toast.innerHTML = `<i class="fas fa-exclamation-triangle"></i> ${message}`;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 5000);
+}
 </script>
+
+<!-- Enhanced Tutor Change Modal -->
+<div class="modal fade" id="enhancedTutorChangeModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-exchange-alt"></i>
+                    Enhanced Tutor Change - {{ student.full_name }}
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <!-- Step 1: Subject Selection -->
+                <div id="step1" class="step-content">
+                    <h6 class="mb-3">
+                        <i class="fas fa-book"></i>
+                        Step 1: Select Subject & Current Schedule
+                    </h6>
+                    <div class="row">
+                        <div class="col-md-8">
+                            <div id="subjectScheduleContainer" class="schedule-analysis-container">
+                                <div class="text-center py-4">
+                                    <div class="spinner-border text-primary" role="status">
+                                        <span class="visually-hidden">Loading schedule...</span>
+                                    </div>
+                                    <p class="text-muted mt-2">Analyzing class schedule...</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6 class="mb-0">
+                                        <i class="fas fa-info-circle"></i>
+                                        How It Works
+                                    </h6>
+                                </div>
+                                <div class="card-body">
+                                    <ul class="list-unstyled mb-0">
+                                        <li class="mb-2">
+                                            <i class="fas fa-check-circle text-success me-2"></i>
+                                            Select subject to change
+                                        </li>
+                                        <li class="mb-2">
+                                            <i class="fas fa-check-circle text-success me-2"></i>
+                                            Choose new tutor
+                                        </li>
+                                        <li class="mb-2">
+                                            <i class="fas fa-check-circle text-success me-2"></i>
+                                            Pick specific days/times
+                                        </li>
+                                        <li class="mb-2">
+                                            <i class="fas fa-check-circle text-success me-2"></i>
+                                            Real-time availability check
+                                        </li>
+                                        <li>
+                                            <i class="fas fa-check-circle text-success me-2"></i>
+                                            Apply changes safely
+                                        </li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Step 2: Tutor Selection -->
+                <div id="step2" class="step-content" style="display: none;">
+                    <h6 class="mb-3">
+                        <i class="fas fa-user-tie"></i>
+                        Step 2: Select New Tutor
+                    </h6>
+                    <div class="row">
+                        <div class="col-md-8">
+                            <!-- Search Bar -->
+                            <div class="mb-3">
+                                <div class="input-group">
+                                    <span class="input-group-text">
+                                        <i class="fas fa-search"></i>
+                                    </span>
+                                    <input type="text" class="form-control" id="tutorSearch" 
+                                           placeholder="Search tutors by name, subject, or experience..." 
+                                           oninput="searchTutors()" autocomplete="off">
+                                    <button class="btn btn-outline-secondary" type="button" onclick="clearTutorSearch()">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </div>
+                                <small class="text-muted">Showing <span id="tutorCount">0</span> tutors</small>
+                            </div>
+                            
+                            <div id="tutorSelectionContainer">
+                                <div class="row" id="tutorCardsContainer">
+                                    <!-- Tutor cards will be populated here -->
+                                </div>
+                                
+                                <!-- Pagination -->
+                                <div class="d-flex justify-content-between align-items-center mt-3" id="tutorPagination" style="display: none !important;">
+                                    <div>
+                                        <small class="text-muted">
+                                            Showing <span id="paginationInfo"></span>
+                                        </small>
+                                    </div>
+                                    <nav>
+                                        <ul class="pagination pagination-sm mb-0">
+                                            <li class="page-item" id="prevPage">
+                                                <a class="page-link" href="#" onclick="changeTutorPage('prev')">
+                                                    <i class="fas fa-chevron-left"></i> Previous
+                                                </a>
+                                            </li>
+                                            <li class="page-item" id="nextPage">
+                                                <a class="page-link" href="#" onclick="changeTutorPage('next')">
+                                                    Next <i class="fas fa-chevron-right"></i>
+                                                </a>
+                                            </li>
+                                        </ul>
+                                    </nav>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6 class="mb-0">
+                                        <i class="fas fa-filter"></i>
+                                        Filter Options
+                                    </h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="mb-3">
+                                        <label class="form-label">Rating</label>
+                                        <select class="form-select" id="ratingFilter">
+                                            <option value="">All Ratings</option>
+                                            <option value="4.5">4.5+ Stars</option>
+                                            <option value="4.0">4.0+ Stars</option>
+                                            <option value="3.5">3.5+ Stars</option>
+                                        </select>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Availability Match</label>
+                                        <select class="form-select" id="availabilityFilter">
+                                            <option value="all">Show All</option>
+                                            <option value="perfect">Perfect Match</option>
+                                            <option value="partial">Partial Match</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Step 3: Day/Time Selection -->
+                <div id="step3" class="step-content" style="display: none;">
+                    <h6 class="mb-3">
+                        <i class="fas fa-calendar-check"></i>
+                        Step 3: Select Days & Times to Change
+                    </h6>
+                    <div class="row">
+                        <div class="col-md-8">
+                            <div id="dayTimeSelectionContainer">
+                                <!-- Day/time grid will be populated here -->
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6 class="mb-0">
+                                        <i class="fas fa-cog"></i>
+                                        Change Options
+                                    </h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="mb-3">
+                                        <h6 class="text-primary mb-2">Schedule Change Options:</h6>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="changeType" id="keepSchedule" value="keep_schedule" checked>
+                                            <label class="form-check-label" for="keepSchedule">
+                                                <strong>Keep Current Schedule</strong>
+                                                <br><small class="text-muted">Change tutor only, keep same days & times</small>
+                                            </label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="changeType" id="modifyTimes" value="modify_times">
+                                            <label class="form-check-label" for="modifyTimes">
+                                                <strong>Modify Times Only</strong>
+                                                <br><small class="text-muted">Change tutor & times, keep same days</small>
+                                            </label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="changeType" id="modifyDaysAndTimes" value="modify_schedule">
+                                            <label class="form-check-label" for="modifyDaysAndTimes">
+                                                <strong>Modify Days & Times</strong>
+                                                <br><small class="text-muted">Full flexibility - change days, times & tutor</small>
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div id="selectedSummary" class="border rounded p-3 bg-light">
+                                        <h6>Selection Summary:</h6>
+                                        <p class="mb-0 text-muted">No changes selected yet</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Step 4: Confirmation -->
+                <div id="step4" class="step-content" style="display: none;">
+                    <h6 class="mb-3">
+                        <i class="fas fa-check-double"></i>
+                        Step 4: Confirm Changes
+                    </h6>
+                    <div id="confirmationContainer">
+                        <!-- Confirmation details will be populated here -->
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <div class="me-auto">
+                    <button type="button" class="btn btn-outline-secondary" id="prevStepBtn" onclick="previousStep()" style="display: none;">
+                        <i class="fas fa-arrow-left"></i>
+                        Previous
+                    </button>
+                </div>
+                <div>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="nextStepBtn" onclick="nextStep()">
+                        Next
+                        <i class="fas fa-arrow-right"></i>
+                    </button>
+                    <button type="button" class="btn btn-success" id="confirmBtn" onclick="applyChanges()" style="display: none;">
+                        <i class="fas fa-check"></i>
+                        Apply Changes
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Tutor Change History Modal -->
+<div class="modal fade" id="tutorChangeHistoryModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-history"></i>
+                    Tutor Change History - {{ student.full_name }}
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="historyContainer">
+                    <div class="text-center py-4">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading history...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 
 <style>
 .avatar-xl {
     width: 100px;
     height: 100px;
+}
+
+.management-card {
+    border: 1px solid;
+    border-radius: 0.375rem;
+    padding: 1rem;
+    margin-bottom: 1rem;
+    transition: all 0.2s ease;
+}
+
+.management-card:hover {
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    transform: translateY(-1px);
+}
+
+.management-icon {
+    min-width: 60px;
+}
+
+.bg-danger-subtle {
+    background-color: rgba(220, 53, 69, 0.1);
+}
+
+.bg-warning-subtle {
+    background-color: rgba(255, 193, 7, 0.1);
+}
+
+.border-danger {
+    border-color: #dc3545 !important;
+}
+
+.border-warning {
+    border-color: #ffc107 !important;
 }
 
 .badge-lg {
@@ -548,6 +2777,156 @@ function exportData() {
         margin-left: 0;
         margin-top: 0.5rem;
     }
+}
+
+/* Enhanced Tutor Change System Styles */
+.schedule-card, .tutor-card {
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border: 2px solid transparent;
+}
+
+.schedule-card:hover, .tutor-card:hover {
+    border-color: var(--primary-color);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    transform: translateY(-2px);
+}
+
+.schedule-card.selected, .tutor-card.selected {
+    border-color: var(--primary-color);
+    background-color: rgba(52, 152, 219, 0.05);
+}
+
+.compatibility-meter .progress {
+    border-radius: 2px;
+}
+
+.rating-stars {
+    display: inline-flex;
+    gap: 2px;
+}
+
+.day-time-grid .table th {
+    background-color: #f8f9fa;
+    font-weight: 600;
+}
+
+.day-time-checkbox {
+    cursor: pointer;
+}
+
+.selected-changes .change-item {
+    padding: 0.25rem 0;
+    font-size: 0.9rem;
+}
+
+.timeline {
+    position: relative;
+    padding-left: 2rem;
+}
+
+.timeline::before {
+    content: '';
+    position: absolute;
+    left: 1rem;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: #dee2e6;
+}
+
+.timeline-item {
+    position: relative;
+    margin-bottom: 2rem;
+}
+
+.timeline-marker {
+    position: absolute;
+    left: -2rem;
+    width: 2rem;
+    height: 2rem;
+    background: var(--primary-color);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 0.8rem;
+}
+
+.timeline-content {
+    background: #f8f9fa;
+    padding: 1rem;
+    border-radius: 8px;
+    border-left: 4px solid var(--primary-color);
+}
+
+.timeline-header {
+    display: flex;
+    justify-content: between;
+    align-items: flex-start;
+    margin-bottom: 0.5rem;
+}
+
+.toast-notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 1rem 1.5rem;
+    border-radius: 6px;
+    color: white;
+    z-index: 9999;
+    animation: slideIn 0.3s ease;
+}
+
+.toast-notification.success {
+    background-color: #28a745;
+}
+
+.toast-notification.error {
+    background-color: #dc3545;
+}
+
+.toast-notification.warning {
+    background-color: #ffc107;
+    color: #212529;
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+.step-content {
+    min-height: 400px;
+}
+
+.schedule-analysis-container {
+    max-height: 500px;
+    overflow-y: auto;
+}
+
+.badge-outline-info {
+    color: #17a2b8;
+    border: 1px solid #17a2b8;
+    background: transparent;
+}
+
+.badge-outline-secondary {
+    color: #6c757d;
+    border: 1px solid #6c757d;
+    background: transparent;
+}
+
+.badge-sm {
+    font-size: 0.7rem;
+    padding: 0.2rem 0.4rem;
 }
 </style>
 {% endblock %}

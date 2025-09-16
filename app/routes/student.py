@@ -1,3 +1,4 @@
+import os
 from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify
 from flask_login import login_required, current_user
 from datetime import datetime, date, timedelta
@@ -7,47 +8,59 @@ from app.models.class_model import Class
 from app.models.attendance import Attendance
 from app.models.tutor import Tutor
 from functools import wraps
+from app.models.department import Department
+from app.models.user import User
+from app.routes.admin import admin_required
+from sqlalchemy import or_
+from app.utils.advanced_permissions import require_permission
+from app.utils.input_sanitizer import InputSanitizer
+from app.utils.error_handler import handle_json_errors, ErrorHandler
+from sqlalchemy.orm import joinedload
+# Import new services
+from app.services.database_service import DatabaseService
+from app.services.validation_service import ValidationService
+from app.services.error_service import handle_errors, error_service
+
 bp = Blueprint('student', __name__)
 
 
-def admin_required(f):
-    """Decorator to require admin access"""
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if current_user.role not in ['superadmin', 'admin', 'coordinator']:
-            flash('Access denied. Insufficient permissions.', 'error')
-            return redirect(url_for('dashboard.index'))
-        return f(*args, **kwargs)
-    return decorated_function
-
 @bp.route('/students')
 @login_required
-@admin_required
+@require_permission('student_management')
 def list_students():
     """List all students (alias for admin.students)"""
     return redirect(url_for('admin.students'))
 
 @bp.route('/students/<int:student_id>')
 @login_required
-@admin_required
+@require_permission('student_management')
+@handle_errors
 def student_profile(student_id):
-    """View student profile"""
-    student = Student.query.get_or_404(student_id)
+    """View student profile with optimized queries"""
+    # Use optimized query with eager loading
+    student = DatabaseService.get_optimized_query(
+        Student,
+        includes=['department'],
+        filters={'id': student_id, 'is_active': True}
+    ).first()
+    
+    if not student:
+        return error_service.handle_not_found_error("Student")
     
     # Check department access
     if current_user.role == 'coordinator' and current_user.department_id != student.department_id:
         flash('Access denied. You can only view students from your department.', 'error')
         return redirect(url_for('admin.students'))
     
-    # Get student's classes
-    student_classes = []
-    all_classes = Class.query.order_by(Class.scheduled_date.desc()).all()
-    
-    for cls in all_classes:
-        if student.id in cls.get_students():
-            student_classes.append(cls)
-    
-    student_classes = student_classes[:20]  # Limit to recent 20 classes
+    # Optimized query for student's classes - direct SQL search instead of loading all classes
+    student_classes = Class.query.filter(
+        or_(
+            Class.primary_student_id == student_id,
+            Class.students.like(f'%{student_id}%')
+        )
+    ).options(
+        joinedload(Class.tutor).joinedload(Tutor.user)
+    ).order_by(Class.scheduled_date.desc()).limit(20).all()
     
     # Get attendance summary
     attendance_summary = Attendance.get_attendance_summary(student_id=student.id)
@@ -71,7 +84,7 @@ def student_profile(student_id):
 
 @bp.route('/students/<int:student_id>/edit', methods=['GET', 'POST'])
 @login_required
-@admin_required
+@require_permission('student_management')
 def edit_student(student_id):
     """Edit student information"""
     student = Student.query.get_or_404(student_id)
@@ -83,48 +96,54 @@ def edit_student(student_id):
     
     if request.method == 'POST':
         try:
-            # Update basic information
-            student.full_name = request.form.get('full_name')
-            student.email = request.form.get('email')
-            student.phone = request.form.get('phone')
-            student.grade = request.form.get('grade')
-            student.board = request.form.get('board')
-            student.school_name = request.form.get('school_name')
+            # Update basic information with sanitization
+            student.full_name = InputSanitizer.sanitize_name(request.form.get('full_name'))
+            student.email = InputSanitizer.sanitize_email(request.form.get('email'))
+            student.phone = InputSanitizer.sanitize_phone(request.form.get('phone'))
+            student.grade = InputSanitizer.sanitize_grade(request.form.get('grade'))
+            student.board = InputSanitizer.sanitize_text(request.form.get('board'), max_length=100)
+            student.school_name = InputSanitizer.sanitize_text(request.form.get('school_name'), max_length=200)
             
-            # Update parent details
+            # Update parent details with sanitization
             parent_details = {
                 'father': {
-                    'name': request.form.get('father_name'),
-                    'phone': request.form.get('father_phone'),
-                    'email': request.form.get('father_email'),
-                    'profession': request.form.get('father_profession'),
-                    'workplace': request.form.get('father_workplace')
+                    'name': InputSanitizer.sanitize_name(request.form.get('father_name')),
+                    'phone': InputSanitizer.sanitize_phone(request.form.get('father_phone')),
+                    'email': InputSanitizer.sanitize_email(request.form.get('father_email')),
+                    'profession': InputSanitizer.sanitize_text(request.form.get('father_profession'), max_length=100),
+                    'workplace': InputSanitizer.sanitize_text(request.form.get('father_workplace'), max_length=200)
                 },
                 'mother': {
-                    'name': request.form.get('mother_name'),
-                    'phone': request.form.get('mother_phone'),
-                    'email': request.form.get('mother_email'),
-                    'profession': request.form.get('mother_profession'),
-                    'workplace': request.form.get('mother_workplace')
+                    'name': InputSanitizer.sanitize_name(request.form.get('mother_name')),
+                    'phone': InputSanitizer.sanitize_phone(request.form.get('mother_phone')),
+                    'email': InputSanitizer.sanitize_email(request.form.get('mother_email')),
+                    'profession': InputSanitizer.sanitize_text(request.form.get('mother_profession'), max_length=100),
+                    'workplace': InputSanitizer.sanitize_text(request.form.get('mother_workplace'), max_length=200)
                 }
             }
             student.set_parent_details(parent_details)
             
-            # Update subjects
-            subjects = request.form.get('subjects_enrolled', '').split(',')
-            student.set_subjects_enrolled([s.strip() for s in subjects if s.strip()])
+            # Update subjects with sanitization
+            subjects_raw = InputSanitizer.sanitize_subject_list(request.form.get('subjects_enrolled', ''))
+            subjects = [s.strip() for s in subjects_raw.split(',') if s.strip()]
+            student.set_subjects_enrolled(subjects)
             
-            # Update fee structure
+            # Update fee structure with sanitization
             fee_structure = student.get_fee_structure()
-            fee_structure['total_fee'] = float(request.form.get('total_fee', 0))
-            fee_structure['amount_paid'] = float(request.form.get('amount_paid', 0))
+            total_fee = InputSanitizer.sanitize_numeric(request.form.get('total_fee', 0), min_val=0, max_val=1000000)
+            amount_paid = InputSanitizer.sanitize_numeric(request.form.get('amount_paid', 0), min_val=0, max_val=1000000)
+            fee_structure['total_fee'] = total_fee or 0
+            fee_structure['amount_paid'] = amount_paid or 0
             fee_structure['balance_amount'] = fee_structure['total_fee'] - fee_structure['amount_paid']
-            fee_structure['payment_mode'] = request.form.get('payment_mode')
-            fee_structure['payment_schedule'] = request.form.get('payment_schedule')
+            fee_structure['payment_mode'] = InputSanitizer.sanitize_text(request.form.get('payment_mode'), max_length=50)
+            fee_structure['payment_schedule'] = InputSanitizer.sanitize_text(request.form.get('payment_schedule'), max_length=50)
             student.set_fee_structure(fee_structure)
             
-            # Update status
-            student.enrollment_status = request.form.get('enrollment_status')
+            # Update status with validation
+            enrollment_status = InputSanitizer.sanitize_text(request.form.get('enrollment_status'), max_length=50)
+            # Validate enrollment status against allowed values
+            allowed_statuses = ['active', 'paused', 'completed', 'dropped']
+            student.enrollment_status = enrollment_status if enrollment_status in allowed_statuses else 'active'
             student.is_active = request.form.get('is_active') == 'on'
             
             db.session.commit()
@@ -139,7 +158,7 @@ def edit_student(student_id):
 
 @bp.route('/students/<int:student_id>/classes')
 @login_required
-@admin_required
+@require_permission('student_management')
 def student_classes(student_id):
     """View student's classes"""
     student = Student.query.get_or_404(student_id)
@@ -194,7 +213,7 @@ def student_classes(student_id):
 
 @bp.route('/students/<int:student_id>/attendance')
 @login_required
-@admin_required
+@require_permission('student_management')
 def student_attendance(student_id):
     """View student's attendance"""
     student = Student.query.get_or_404(student_id)
@@ -241,7 +260,7 @@ def student_attendance(student_id):
 
 @bp.route('/students/<int:student_id>/fees')
 @login_required
-@admin_required
+@require_permission('student_management')
 def student_fees(student_id):
     """View student's fee information"""
     student = Student.query.get_or_404(student_id)
@@ -252,14 +271,21 @@ def student_fees(student_id):
         return redirect(url_for('admin.students'))
     
     fee_structure = student.get_fee_structure()
+    payment_history = student.get_fee_payment_history()
+    upcoming_installments = student.get_upcoming_installments(5)  # Get next 5 upcoming payments
+    next_payment_info = student.get_next_payment_info()
     
     return render_template('student/fees.html',
                          student=student,
-                         fee_structure=fee_structure)
+                         fee_structure=fee_structure,
+                         payment_history=payment_history,
+                         upcoming_installments=upcoming_installments,
+                         next_payment_info=next_payment_info)
 
 @bp.route('/students/<int:student_id>/fees/payment', methods=['POST'])
 @login_required
-@admin_required
+@require_permission('student_management')
+@handle_json_errors
 def record_payment(student_id):
     """Record a fee payment"""
     student = Student.query.get_or_404(student_id)
@@ -269,37 +295,63 @@ def record_payment(student_id):
         return jsonify({'error': 'Access denied'}), 403
     
     try:
-        amount = float(request.json.get('amount', 0))
-        payment_mode = request.json.get('payment_mode', 'cash')
-        payment_date = request.json.get('payment_date', datetime.now().date().isoformat())
-        notes = request.json.get('notes', '')
+        # Better JSON handling
+        if not request.is_json:
+            return jsonify({'error': 'Content-Type must be application/json'}), 400
         
-        # Update fee structure
-        fee_structure = student.get_fee_structure()
-        current_paid = fee_structure.get('amount_paid', 0)
-        fee_structure['amount_paid'] = current_paid + amount
-        fee_structure['balance_amount'] = fee_structure.get('total_fee', 0) - fee_structure['amount_paid']
+        try:
+            data = request.get_json(force=False, silent=False, cache=False)
+        except Exception as json_err:
+            return jsonify({'error': 'Failed to decode JSON object: Invalid JSON format'}), 400
         
-        # Add payment record to history
-        if 'payment_history' not in fee_structure:
-            fee_structure['payment_history'] = []
+        if not data:
+            return jsonify({'error': 'No data provided'}), 400
         
-        fee_structure['payment_history'].append({
-            'amount': amount,
-            'payment_mode': payment_mode,
-            'payment_date': payment_date,
-            'notes': notes,
-            'recorded_by': current_user.full_name,
-            'recorded_at': datetime.now().isoformat()
-        })
+        # Sanitize payment input
+        amount = InputSanitizer.sanitize_numeric(data.get('amount', 0), min_val=0, max_val=1000000)
+        if amount is None or amount <= 0:
+            return jsonify({'error': 'Invalid payment amount'}), 400
         
-        student.set_fee_structure(fee_structure)
+        payment_mode = InputSanitizer.sanitize_text(data.get('payment_mode', 'cash'), max_length=50)
+        # Validate payment mode
+        allowed_payment_modes = ['cash', 'online', 'bank_transfer', 'cheque', 'upi', 'card']
+        if payment_mode not in allowed_payment_modes:
+            payment_mode = 'cash'
+        
+        payment_date_str = InputSanitizer.sanitize_text(data.get('payment_date', datetime.now().date().isoformat()), max_length=20)
+        try:
+            # Validate date format
+            datetime.fromisoformat(payment_date_str)
+            payment_date = payment_date_str
+        except ValueError:
+            payment_date = datetime.now().date().isoformat()
+        
+        notes = InputSanitizer.sanitize_text(data.get('notes', ''), max_length=500)
+        
+        # Parse payment date
+        payment_date_obj = None
+        if payment_date:
+            try:
+                payment_date_obj = datetime.fromisoformat(payment_date).date()
+            except ValueError:
+                payment_date_obj = datetime.now().date()
+        
+        # Record payment using the model method
+        payment_record = student.add_fee_payment(
+            amount=amount,
+            payment_mode=payment_mode,
+            payment_date=payment_date_obj,
+            notes=notes,
+            recorded_by=current_user.full_name if hasattr(current_user, 'full_name') else current_user.email
+        )
+        
         db.session.commit()
         
         return jsonify({
             'success': True,
             'message': f'Payment of ₹{amount:,.2f} recorded successfully',
-            'new_balance': fee_structure['balance_amount']
+            'payment_record': payment_record,
+            'new_balance': student.calculate_outstanding_fees()
         })
         
     except Exception as e:
@@ -308,7 +360,7 @@ def record_payment(student_id):
 
 @bp.route('/students/<int:student_id>/deactivate', methods=['POST'])
 @login_required
-@admin_required
+@require_permission('student_management')
 def deactivate_student(student_id):
     """Deactivate a student"""
     student = Student.query.get_or_404(student_id)
@@ -317,7 +369,15 @@ def deactivate_student(student_id):
     if current_user.role == 'coordinator' and current_user.department_id != student.department_id:
         return jsonify({'error': 'Access denied'}), 403
     
-    reason = request.json.get('reason', '')
+    # Better JSON handling
+    if request.is_json:
+        try:
+            data = request.get_json(force=False, silent=False, cache=False)
+            reason = data.get('reason', '') if data else ''
+        except Exception:
+            reason = ''
+    else:
+        reason = request.form.get('reason', '')
     
     student.is_active = False
     student.enrollment_status = 'dropped'
@@ -342,7 +402,7 @@ def deactivate_student(student_id):
 
 @bp.route('/students/<int:student_id>/reactivate', methods=['POST'])
 @login_required
-@admin_required
+@require_permission('student_management')
 def reactivate_student(student_id):
     """Reactivate a student"""
     student = Student.query.get_or_404(student_id)
@@ -373,7 +433,7 @@ def reactivate_student(student_id):
 
 @bp.route('/api/students/search')
 @login_required
-@admin_required
+@require_permission('student_management')
 def search_students():
     """Search students API endpoint"""
     query = request.args.get('q', '')
@@ -384,7 +444,8 @@ def search_students():
     search_query = Student.query.filter_by(is_active=True)
     
     if query:
-        search_query = search_query.filter(Student.full_name.contains(query))
+        search_term = f"%{query}%"
+        search_query = search_query.filter(Student.full_name.ilike(search_term))
     
     if department_id:
         search_query = search_query.filter_by(department_id=department_id)
@@ -411,3 +472,186 @@ def search_students():
         })
     
     return jsonify(results)
+    
+
+
+
+
+@bp.route('/api/students/search-enhanced')
+@login_required
+@require_permission('student_management')
+def search_students_enhanced():
+    """Enhanced student search with pagination and advanced filters"""
+    try:
+        # Get parameters
+        query = request.args.get('q', '').strip()
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 20, type=int)
+        grade = request.args.get('grade', '').strip()
+        board = request.args.get('board', '').strip()
+        subject = request.args.get('subject', '').strip()
+        department_id = request.args.get('department_id', type=int)
+        enrollment_status = request.args.get('enrollment_status', '').strip()
+        
+        # Build base query
+        search_query = Student.query.filter_by(is_active=True)
+        
+        # Department access check for coordinators
+        if current_user.role == 'coordinator':
+            search_query = search_query.filter_by(department_id=current_user.department_id)
+        
+        # Apply filters
+        if query:
+            search_term = f"%{query}%"
+            search_query = search_query.filter(
+                db.or_(
+                    Student.full_name.ilike(search_term),
+                    Student.email.ilike(search_term),
+                    Student.phone.ilike(search_term)
+                )
+            )
+        
+        if grade:
+            search_query = search_query.filter_by(grade=grade)
+        
+        if board:
+            search_query = search_query.filter_by(board=board)
+        
+        if department_id:
+            search_query = search_query.filter_by(department_id=department_id)
+        
+        if enrollment_status:
+            search_query = search_query.filter_by(enrollment_status=enrollment_status)
+        
+        if subject:
+            # Filter by subjects enrolled (assuming you have a method for this)
+            subject_students = []
+            all_students = search_query.all()
+            for student in all_students:
+                try:
+                    student_subjects = student.get_subjects_enrolled() if hasattr(student, 'get_subjects_enrolled') else []
+                    if any(subject.lower() in subj.lower() for subj in student_subjects):
+                        subject_students.append(student.id)
+                except:
+                    pass
+            
+            if subject_students:
+                search_query = search_query.filter(Student.id.in_(subject_students))
+            else:
+                search_query = search_query.filter(Student.id == -1)  # No results
+        
+        # Get paginated results
+        paginated = search_query.order_by(Student.full_name).paginate(
+            page=page, per_page=per_page, error_out=False
+        )
+        
+        # Format results
+        students = []
+        for student in paginated.items:
+            try:
+                # Get subjects enrolled
+                subjects_enrolled = []
+                if hasattr(student, 'get_subjects_enrolled'):
+                    subjects_enrolled = student.get_subjects_enrolled() or []
+                
+                students.append({
+                    'id': student.id,
+                    'name': student.full_name,
+                    'email': student.email,
+                    'phone': student.phone or '',
+                    'grade': student.grade,
+                    'board': student.board,
+                    'department': student.department.name if student.department else '',
+                    'enrollment_status': student.enrollment_status,
+                    'subjects_enrolled': subjects_enrolled
+                })
+            except Exception as e:
+                # Log error but continue with basic data
+                students.append({
+                    'id': student.id,
+                    'name': student.full_name,
+                    'email': student.email,
+                    'phone': student.phone or '',
+                    'grade': student.grade,
+                    'board': student.board,
+                    'department': student.department.name if student.department else '',
+                    'enrollment_status': student.enrollment_status,
+                    'subjects_enrolled': []
+                })
+        
+        return jsonify({
+            'success': True,
+            'students': students,
+            'pagination': {
+                'page': paginated.page,
+                'pages': paginated.pages,
+                'per_page': paginated.per_page,
+                'total': paginated.total,
+                'has_next': paginated.has_next,
+                'has_prev': paginated.has_prev
+            }
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@bp.route('/api/students/filter-options')
+@login_required
+@require_permission('student_management')
+def get_student_filter_options():
+    """Get available filter options for students"""
+    
+    # Base query with department restrictions
+    base_query = Student.query.filter_by(is_active=True)
+    if current_user.role == 'coordinator':
+        base_query = base_query.filter_by(department_id=current_user.department_id)
+    
+    # Get unique grades
+    grades = db.session.query(Student.grade).distinct().filter(
+        Student.is_active == True
+    )
+    if current_user.role == 'coordinator':
+        grades = grades.filter(Student.department_id == current_user.department_id)
+    grades = [g[0] for g in grades.all() if g[0]]
+    grades.sort(key=lambda x: int(x) if x.isdigit() else float('inf'))
+    
+    # Get unique boards
+    boards = db.session.query(Student.board).distinct().filter(
+        Student.is_active == True
+    )
+    if current_user.role == 'coordinator':
+        boards = boards.filter(Student.department_id == current_user.department_id)
+    boards = [b[0] for b in boards.all() if b[0]]
+    boards.sort()
+    
+    # Get departments (if user has access)
+    departments = []
+    if current_user.role != 'coordinator':
+        from app.models.department import Department
+        departments = [{'id': d.id, 'name': d.name} for d in Department.query.filter_by(is_active=True).all()]
+    
+    # Get common subjects
+    all_students = base_query.all()
+    all_subjects = set()
+    for student in all_students:
+        subjects = student.get_subjects_enrolled()
+        all_subjects.update(subjects)
+    subjects = sorted(list(all_subjects))
+    
+    # Enrollment statuses
+    enrollment_statuses = ['active', 'paused', 'completed', 'dropped']
+    
+    return jsonify({
+        'success': True,
+        'options': {
+            'grades': grades,
+            'boards': boards,
+            'departments': departments,
+            'subjects': subjects,
+            'enrollment_statuses': enrollment_statuses
+        }
+    })

@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>New Notice - {{ notice.title }}</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f8f9fa;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: #ffffff;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 24px;
+            font-weight: 600;
+        }
+        .content {
+            padding: 30px;
+        }
+        .notice-meta {
+            background: #f8f9fa;
+            border-left: 4px solid #667eea;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 0 5px 5px 0;
+        }
+        .notice-content {
+            background: #fff;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            white-space: pre-line;
+        }
+        .priority-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            margin: 5px 0;
+        }
+        .priority-high { background: #fff3cd; color: #856404; }
+        .priority-urgent { background: #f8d7da; color: #721c24; }
+        .priority-normal { background: #d4edda; color: #155724; }
+        .footer {
+            background: #f8f9fa;
+            padding: 20px;
+            text-align: center;
+            font-size: 14px;
+            color: #6c757d;
+        }
+        .btn {
+            display: inline-block;
+            padding: 12px 24px;
+            background: #667eea;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            font-weight: 600;
+            margin: 15px 0;
+        }
+        .btn:hover {
+            background: #5a6fd8;
+        }
+        .meta-item {
+            margin: 8px 0;
+            color: #495057;
+        }
+        .meta-item strong {
+            color: #212529;
+        }
+        @media (max-width: 600px) {
+            .container {
+                margin: 10px;
+                border-radius: 0;
+            }
+            .header, .content, .footer {
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>📢 New Notice</h1>
+            <p style="margin: 10px 0 0 0; opacity: 0.9;">{{ app_name or 'Learning Management System' }}</p>
+        </div>
+        
+        <!-- Content -->
+        <div class="content">
+            <h2 style="color: #212529; margin: 0 0 15px 0;">{{ notice.title }}</h2>
+            
+            <!-- Notice Meta Information -->
+            <div class="notice-meta">
+                <div class="meta-item">
+                    <strong>Category:</strong> {{ notice.category.title() if notice.category else 'General' }}
+                </div>
+                <div class="meta-item">
+                    <strong>Priority:</strong> 
+                    <span class="priority-badge priority-{{ notice.priority if notice.priority else 'normal' }}">
+                        {{ notice.priority.title() if notice.priority else 'Normal' }}
+                    </span>
+                </div>
+                <div class="meta-item">
+                    <strong>Published:</strong> {{ notice.created_at.strftime('%B %d, %Y at %I:%M %p') }}
+                </div>
+                {% if notice.expiry_date %}
+                <div class="meta-item">
+                    <strong>Expires:</strong> {{ notice.expiry_date.strftime('%B %d, %Y') }}
+                </div>
+                {% endif %}
+            </div>
+            
+            <!-- Notice Content -->
+            <div class="notice-content">
+                {{ notice.content }}
+            </div>
+            
+            <!-- Call to Action -->
+            <div style="text-align: center; margin: 30px 0;">
+                <a href="{{ config.BASE_URL or 'http://localhost:5000' }}/notices/{{ notice.id }}" class="btn">
+                    View Full Notice
+                </a>
+            </div>
+            
+            {% if notice.requires_acknowledgment %}
+            <div style="background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 5px; padding: 15px; margin: 20px 0;">
+                <strong style="color: #856404;">⚠️ Action Required:</strong>
+                <p style="margin: 5px 0 0 0; color: #856404;">
+                    This notice requires your acknowledgment. Please log in to the system to acknowledge that you have read this notice.
+                </p>
+            </div>
+            {% endif %}
+            
+            <!-- Attachments -->
+            {% if notice.attachments %}
+            <div style="margin: 20px 0;">
+                <h4 style="color: #495057; margin-bottom: 10px;">📎 Attachments:</h4>
+                <ul style="list-style-type: none; padding: 0;">
+                    {% for attachment in notice.attachments %}
+                    <li style="background: #f8f9fa; padding: 8px 12px; margin: 5px 0; border-radius: 4px;">
+                        <a href="{{ attachment.file_url }}" style="color: #667eea; text-decoration: none;">
+                            📄 {{ attachment.original_filename }}
+                        </a>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+        </div>
+        
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>{{ app_name or 'Learning Management System' }}</strong></p>
+            <p>
+                This is an automated notification. Please do not reply to this email.<br>
+                To view all notices, log in to your <a href="{{ config.BASE_URL or 'http://localhost:5000' }}" style="color: #667eea;">LMS account</a>.
+            </p>
+            <hr style="border: none; border-top: 1px solid #dee2e6; margin: 20px 0;">
+            <p style="font-size: 12px; color: #adb5bd;">
+                You received this email because you are a registered user of {{ app_name or 'LMS' }}.
+            </p>
+        </div>
+    </div>
+</body>
+</html>

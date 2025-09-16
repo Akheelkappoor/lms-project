@@ -350,9 +350,7 @@
     color: #495057;
 }
 
-.badge-success { background-color: #198754; }
-.badge-warning { background-color: #ffc107; color: #000; }
-.badge-danger { background-color: #dc3545; }
+/* Bootstrap 5 uses built-in bg-* classes, no custom CSS needed */
 
 .student-details {
     margin-bottom: 1rem;
@@ -514,10 +512,12 @@ function sendMessage() {
     }
     
     // Send message
+    const csrfToken = document.querySelector('meta[name=csrf-token]').getAttribute('content');
     fetch(`/tutor/student/${studentId}/contact`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken,
         },
         body: JSON.stringify({
             subject: subject,

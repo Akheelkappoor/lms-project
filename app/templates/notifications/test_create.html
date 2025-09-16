@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+
+{% block title %}Create Test Notification{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1 class="h3 mb-0 text-gray-800">
+                <i class="fas fa-paper-plane"></i> Create Test Notification
+            </h1>
+            <p class="mb-0 text-muted">Use this simple form to test your notification system</p>
+        </div>
+    </div>
+
+    <div class="card shadow">
+        <div class="card-header">
+            <h6 class="m-0 font-weight-bold text-primary">Quick Notification Test</h6>
+        </div>
+        <div class="card-body">
+            <form action="/admin/notifications/api/create-test" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                
+                <div class="form-group">
+                    <label for="title" class="font-weight-bold">Notification Title</label>
+                    <input type="text" class="form-control" id="title" name="title" 
+                           placeholder="e.g., Test Notification - Please Check Email" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="message" class="font-weight-bold">Message</label>
+                    <textarea class="form-control" id="message" name="message" rows="5" 
+                              placeholder="Enter your notification message here..." required></textarea>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label for="target_type" class="font-weight-bold">Send To</label>
+                            <select class="form-control" id="target_type" name="target_type">
+                                <option value="all">All Users</option>
+                                <option value="role" data-role="admin">Admins Only</option>
+                                <option value="role" data-role="tutor">Tutors Only</option>
+                                <option value="role" data-role="student">Students Only</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label for="priority" class="font-weight-bold">Priority</label>
+                            <select class="form-control" id="priority" name="priority">
+                                <option value="normal">Normal</option>
+                                <option value="high" selected>High</option>
+                                <option value="urgent">Urgent</option>
+                                <option value="critical">Critical</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="form-check mb-3">
+                    <input type="checkbox" class="form-check-input" id="email_enabled" name="email_enabled" checked>
+                    <label class="form-check-label" for="email_enabled">
+                        <i class="fas fa-envelope mr-1"></i> Send Email Notifications
+                    </label>
+                </div>
+                
+                <div class="form-check mb-3">
+                    <input type="checkbox" class="form-check-input" id="popup_enabled" name="popup_enabled" checked>
+                    <label class="form-check-label" for="popup_enabled">
+                        <i class="fas fa-bell mr-1"></i> Show Popup Notifications
+                    </label>
+                </div>
+                
+                <div class="border-top pt-3">
+                    <button type="submit" class="btn btn-primary btn-lg">
+                        <i class="fas fa-paper-plane mr-2"></i>Send Test Notification
+                    </button>
+                    <a href="/admin/notifications" class="btn btn-secondary ml-2">
+                        <i class="fas fa-arrow-left mr-2"></i>Back to Notifications
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Instructions Card -->
+    <div class="card shadow mt-4">
+        <div class="card-header bg-info text-white">
+            <h6 class="m-0 font-weight-bold">How to Use</h6>
+        </div>
+        <div class="card-body">
+            <ol class="mb-0">
+                <li><strong>Fill the form above</strong> with your notification details</li>
+                <li><strong>Choose recipients</strong> (All users or specific roles)</li>
+                <li><strong>Click "Send Test Notification"</strong></li>
+                <li><strong>Check your email</strong> for the notification</li>
+                <li><strong>Check the notification bell</strong> in the top right corner</li>
+                <li><strong>Visit /notifications</strong> to see the notification inbox</li>
+            </ol>
+        </div>
+    </div>
+</div>
+{% endblock %}

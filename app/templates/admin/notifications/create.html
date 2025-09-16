@@ -1,0 +1,270 @@
+{% extends "base.html" %}
+
+{% block title %}Create System Notification{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <h1 class="h3 mb-0 text-gray-800">
+                    <i class="fas fa-plus"></i> Create System Notification
+                </h1>
+                <a href="{{ url_for('system_notifications.admin_notifications') }}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left"></i> Back to Notifications
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Form Card -->
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">Notification Details</h6>
+        </div>
+        <div class="card-body">
+            <form method="POST" id="notification-form">
+                {{ form.hidden_tag() }}
+                
+                <!-- Basic Information -->
+                <div class="row">
+                    <div class="col-md-8">
+                        <div class="form-group">
+                            {{ form.title.label(class="font-weight-bold") }}
+                            {{ form.title(class="form-control") }}
+                            {% if form.title.errors %}
+                                <small class="text-danger">{{ form.title.errors[0] }}</small>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="form-group">
+                            {{ form.message.label(class="font-weight-bold") }}
+                            {{ form.message(class="form-control") }}
+                            <small class="form-text text-muted">Supports basic markdown: **bold**, *italic*</small>
+                            {% if form.message.errors %}
+                                <small class="text-danger">{{ form.message.errors[0] }}</small>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            {{ form.type.label(class="font-weight-bold") }}
+                            {{ form.type(class="form-control") }}
+                        </div>
+                        
+                        <div class="form-group">
+                            {{ form.priority.label(class="font-weight-bold") }}
+                            {{ form.priority(class="form-control") }}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Target Audience -->
+                <div class="row">
+                    <div class="col-12">
+                        <h5 class="mb-3">Target Audience</h5>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            {{ form.target_type.label(class="font-weight-bold") }}
+                            {{ form.target_type(class="form-control", onchange="updateTargetOptions()") }}
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-3" id="departments-section" style="display: none;">
+                        <div class="form-group">
+                            {{ form.target_departments.label(class="font-weight-bold") }}
+                            <div class="border p-2" style="max-height: 200px; overflow-y: auto;">
+                                {% for subfield in form.target_departments %}
+                                    <div class="form-check">
+                                        {{ subfield(class="form-check-input") }}
+                                        {{ subfield.label(class="form-check-label") }}
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-3" id="roles-section" style="display: none;">
+                        <div class="form-group">
+                            {{ form.target_roles.label(class="font-weight-bold") }}
+                            <div class="border p-2">
+                                {% for subfield in form.target_roles %}
+                                    <div class="form-check">
+                                        {{ subfield(class="form-check-input") }}
+                                        {{ subfield.label(class="form-check-label") }}
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-3" id="users-section" style="display: none;">
+                        <div class="form-group">
+                            {{ form.target_users.label(class="font-weight-bold") }}
+                            {{ form.target_users(class="form-control", multiple=True, style="height: 200px;") }}
+                            <small class="form-text text-muted">Hold Ctrl to select multiple users</small>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Delivery Options -->
+                <div class="row">
+                    <div class="col-12">
+                        <h5 class="mb-3">Delivery Options</h5>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="form-check">
+                            {{ form.email_enabled(class="form-check-input") }}
+                            {{ form.email_enabled.label(class="form-check-label font-weight-bold") }}
+                        </div>
+                        <small class="form-text text-muted">Send via email to users</small>
+                    </div>
+                    
+                    <div class="col-md-4">
+                        <div class="form-check">
+                            {{ form.popup_enabled(class="form-check-input") }}
+                            {{ form.popup_enabled.label(class="form-check-label font-weight-bold") }}
+                        </div>
+                        <small class="form-text text-muted">Show popup notification</small>
+                    </div>
+                    
+                    <div class="col-md-4">
+                        <div class="form-check">
+                            {{ form.include_parents(class="form-check-input") }}
+                            {{ form.include_parents.label(class="form-check-label font-weight-bold") }}
+                        </div>
+                        <small class="form-text text-muted">Include student parent emails</small>
+                    </div>
+                </div>
+
+                <!-- Scheduling -->
+                <div class="row mt-4">
+                    <div class="col-12">
+                        <h5 class="mb-3">Scheduling</h5>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="form-check">
+                            {{ form.send_immediately(class="form-check-input", onchange="toggleScheduling()") }}
+                            {{ form.send_immediately.label(class="form-check-label font-weight-bold") }}
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-4" id="schedule-section" style="display: none;">
+                        <div class="form-group">
+                            {{ form.scheduled_for.label(class="font-weight-bold") }}
+                            {{ form.scheduled_for(class="form-control") }}
+                            {% if form.scheduled_for.errors %}
+                                <small class="text-danger">{{ form.scheduled_for.errors[0] }}</small>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            {{ form.expires_at.label(class="font-weight-bold") }}
+                            {{ form.expires_at(class="form-control") }}
+                            <small class="form-text text-muted">Optional expiry date</small>
+                            {% if form.expires_at.errors %}
+                                <small class="text-danger">{{ form.expires_at.errors[0] }}</small>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Submit Buttons -->
+                <div class="row mt-4">
+                    <div class="col-12">
+                        <hr>
+                        <div class="d-flex justify-content-between">
+                            <a href="{{ url_for('system_notifications.admin_notifications') }}" class="btn btn-secondary">
+                                <i class="fas fa-times"></i> Cancel
+                            </a>
+                            <div>
+                                <button type="submit" name="save_draft" class="btn btn-outline-primary mr-2">
+                                    <i class="fas fa-save"></i> Save as Draft
+                                </button>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-paper-plane"></i> Create & Send
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+function updateTargetOptions() {
+    const targetType = document.getElementById('target_type').value;
+    
+    // Hide all sections
+    document.getElementById('departments-section').style.display = 'none';
+    document.getElementById('roles-section').style.display = 'none';
+    document.getElementById('users-section').style.display = 'none';
+    
+    // Show appropriate section
+    if (targetType === 'department') {
+        document.getElementById('departments-section').style.display = 'block';
+    } else if (targetType === 'role') {
+        document.getElementById('roles-section').style.display = 'block';
+    } else if (targetType === 'individual') {
+        document.getElementById('users-section').style.display = 'block';
+    }
+}
+
+function toggleScheduling() {
+    const sendImmediately = document.getElementById('send_immediately').checked;
+    const scheduleSection = document.getElementById('schedule-section');
+    
+    if (sendImmediately) {
+        scheduleSection.style.display = 'none';
+    } else {
+        scheduleSection.style.display = 'block';
+    }
+}
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+    updateTargetOptions();
+    toggleScheduling();
+    
+    // Set minimum datetime for scheduling
+    const now = new Date();
+    now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+    const isoString = now.toISOString().slice(0, 16);
+    
+    const scheduledFor = document.getElementById('scheduled_for');
+    const expiresAt = document.getElementById('expires_at');
+    
+    if (scheduledFor) scheduledFor.min = isoString;
+    if (expiresAt) expiresAt.min = isoString;
+});
+
+// Form validation
+document.getElementById('notification-form').addEventListener('submit', function(e) {
+    const priority = document.getElementById('priority').value;
+    const popupEnabled = document.getElementById('popup_enabled').checked;
+    
+    // Auto-enable popup for urgent/critical notifications
+    if ((priority === 'urgent' || priority === 'critical') && !popupEnabled) {
+        if (confirm('Urgent/Critical notifications should show popups. Enable popup notification?')) {
+            document.getElementById('popup_enabled').checked = true;
+        }
+    }
+});
+</script>
+{% endblock %}

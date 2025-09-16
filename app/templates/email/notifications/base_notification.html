@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ notification.title }}</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333333;
+            background-color: #f8f9fa;
+            padding: 20px;
+        }
+        
+        .email-container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .header.emergency {
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
+        }
+        
+        .header.holiday {
+            background: linear-gradient(135deg, #feca57 0%, #ff9ff3 100%);
+        }
+        
+        .header.maintenance {
+            background: linear-gradient(135deg, #54a0ff 0%, #2e86de 100%);
+        }
+        
+        .logo {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        
+        .priority-badge {
+            display: inline-block;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+            text-transform: uppercase;
+            margin-bottom: 15px;
+        }
+        
+        .priority-normal { background-color: rgba(255, 255, 255, 0.2); }
+        .priority-high { background-color: #ffa502; }
+        .priority-urgent { background-color: #ff6348; }
+        .priority-critical { 
+            background-color: #ff3838; 
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+        
+        .content {
+            padding: 40px;
+        }
+        
+        .greeting {
+            font-size: 16px;
+            margin-bottom: 20px;
+            color: #2c3e50;
+        }
+        
+        .title {
+            font-size: 24px;
+            font-weight: bold;
+            color: #2c3e50;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        .message {
+            font-size: 16px;
+            line-height: 1.8;
+            margin-bottom: 30px;
+            background-color: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+        
+        .message.emergency {
+            background-color: #fee;
+            border-left-color: #ff6b6b;
+        }
+        
+        .message.holiday {
+            background-color: #fffbf0;
+            border-left-color: #feca57;
+        }
+        
+        .info-box {
+            background-color: #e8f4f8;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        
+        .info-box h4 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+        
+        .cta-button {
+            display: inline-block;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 12px 30px;
+            text-decoration: none;
+            border-radius: 5px;
+            font-weight: bold;
+            margin: 20px 0;
+            text-align: center;
+        }
+        
+        .cta-button:hover {
+            opacity: 0.9;
+        }
+        
+        .footer {
+            background-color: #f8f9fa;
+            padding: 30px;
+            text-align: center;
+            border-top: 1px solid #e9ecef;
+        }
+        
+        .footer-info {
+            font-size: 14px;
+            color: #6c757d;
+            margin-bottom: 15px;
+        }
+        
+        .contact-info {
+            font-size: 13px;
+            color: #868e96;
+        }
+        
+        .unsubscribe {
+            font-size: 12px;
+            color: #adb5bd;
+            margin-top: 15px;
+        }
+        
+        .unsubscribe a {
+            color: #6c757d;
+            text-decoration: none;
+        }
+        
+        @media only screen and (max-width: 600px) {
+            .email-container {
+                margin: 10px;
+                border-radius: 5px;
+            }
+            
+            .header, .content, .footer {
+                padding: 20px;
+            }
+            
+            .title {
+                font-size: 20px;
+            }
+            
+            .message {
+                padding: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <!-- Header -->
+        <div class="header {% if notification.type %}{{ notification.type }}{% endif %}">
+            <div class="logo">{{ app_name or 'LMS' }}</div>
+            <div class="priority-badge priority-{{ notification.priority }}">
+                {{ notification.priority.upper() }} PRIORITY
+            </div>
+            <div>{{ company_name or 'Institution' }}</div>
+        </div>
+        
+        <!-- Content -->
+        <div class="content">
+            <div class="greeting">Hello {{ user.full_name }},</div>
+            
+            <div class="title">{{ notification.title }}</div>
+            
+            <div class="message {% if notification.type %}{{ notification.type }}{% endif %}">
+                {{ notification.message | safe }}
+            </div>
+            
+            <!-- Block for type-specific content -->
+            {% block type_specific_content %}{% endblock %}
+            
+            <!-- Action button if needed -->
+            {% if show_action_button %}
+            <div style="text-align: center;">
+                <a href="{{ base_url }}/notifications" class="cta-button">
+                    View in Dashboard
+                </a>
+            </div>
+            {% endif %}
+            
+            <!-- Additional info box -->
+            <div class="info-box">
+                <h4>Important Information:</h4>
+                <ul>
+                    <li><strong>Notification Type:</strong> {{ notification.type.title() }}</li>
+                    <li><strong>Sent:</strong> {{ notification.created_at.strftime('%B %d, %Y at %I:%M %p') }}</li>
+                    {% if notification.expires_at %}
+                    <li><strong>Expires:</strong> {{ notification.expires_at.strftime('%B %d, %Y at %I:%M %p') }}</li>
+                    {% endif %}
+                </ul>
+            </div>
+        </div>
+        
+        <!-- Footer -->
+        <div class="footer">
+            <div class="footer-info">
+                <strong>{{ company_name or 'Institution' }}</strong><br>
+                Learning Management System
+            </div>
+            
+            <div class="contact-info">
+                {% if company_address %}{{ company_address }}<br>{% endif %}
+                {% if company_phone %}Phone: {{ company_phone }} | {% endif %}
+                {% if company_email %}Email: {{ company_email }}{% endif %}
+            </div>
+            
+            <div class="unsubscribe">
+                <p>You received this notification as a member of {{ company_name or 'our institution' }}.</p>
+                <p>For urgent matters, please contact the administration directly.</p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,537 @@
+{% extends "base.html" %}
+{% set active_page = "students" %}
+
+{% block title %}Student Status History - {{ APP_NAME }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h1 class="page-title">
+                <i class="fas fa-history"></i>
+                Student Status History
+            </h1>
+            <p class="page-subtitle">Detailed status change history for {{ student.full_name }}</p>
+        </div>
+        <div class="header-actions">
+            <a href="{{ url_for('admin.student_details', student_id=student.id) }}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i>
+                Back to Student
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-lg-8">
+            <!-- Status History Timeline -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-timeline"></i>
+                        Status Change Timeline
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if status_history %}
+                        <div class="timeline">
+                            {% for history in status_history %}
+                                <div class="timeline-item {{ history.get_change_type() }}">
+                                    <div class="timeline-marker">
+                                        {% if history.get_change_type() == 'graduation' %}
+                                            <i class="fas fa-graduation-cap"></i>
+                                        {% elif history.get_change_type() == 'drop' %}
+                                            <i class="fas fa-user-times"></i>
+                                        {% elif history.get_change_type() == 'reactivation' %}
+                                            <i class="fas fa-user-check"></i>
+                                        {% elif history.get_change_type() == 'pause' %}
+                                            <i class="fas fa-pause"></i>
+                                        {% else %}
+                                            <i class="fas fa-edit"></i>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <div class="timeline-content">
+                                        <div class="timeline-header">
+                                            <h6 class="timeline-title">{{ history.get_change_description() }}</h6>
+                                            <small class="timeline-date">{{ history.created_at.strftime('%d %b %Y at %I:%M %p') }}</small>
+                                        </div>
+                                        
+                                        <div class="timeline-body">
+                                            <div class="status-change-details">
+                                                {% if history.old_status != history.new_status %}
+                                                    <div class="status-badges">
+                                                        <span class="badge badge-{{ 'secondary' if history.old_status != 'active' else 'success' }}">
+                                                            {{ history.get_status_display(history.old_status) }}
+                                                        </span>
+                                                        <i class="fas fa-arrow-right mx-2"></i>
+                                                        <span class="badge badge-{{ 'success' if history.new_status == 'active' else 'warning' if history.new_status == 'paused' else 'info' if history.new_status == 'completed' else 'danger' }}">
+                                                            {{ history.get_status_display(history.new_status) }}
+                                                        </span>
+                                                    </div>
+                                                {% endif %}
+                                                
+                                                <div class="change-reason mt-2">
+                                                    <strong>Reason:</strong> {{ history.change_reason }}
+                                                </div>
+                                                
+                                                {% if history.notes %}
+                                                    <div class="change-notes mt-2">
+                                                        <strong>Notes:</strong> {{ history.notes }}
+                                                    </div>
+                                                {% endif %}
+                                                
+                                                <div class="change-metadata mt-2">
+                                                    <small class="text-muted">
+                                                        Changed by: {{ history.changed_by_user.full_name }}
+                                                        {% if history.change_method != 'manual' %}
+                                                            | Method: {{ history.change_method.title() }}
+                                                        {% endif %}
+                                                        {% if history.effective_date and history.effective_date != history.created_at.date() %}
+                                                            | Effective: {{ history.effective_date.strftime('%d %b %Y') }}
+                                                        {% endif %}
+                                                    </small>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="text-center py-4">
+                            <i class="fas fa-history fa-3x text-muted mb-3"></i>
+                            <h5 class="text-muted">No Status History</h5>
+                            <p class="text-muted">This student has no recorded status changes.</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <!-- Graduation Record -->
+            {% if graduation_record %}
+                <div class="card mt-4">
+                    <div class="card-header bg-success text-white">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-graduation-cap"></i>
+                            Graduation Record
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="info-grid">
+                                    <div class="info-item">
+                                        <span class="label">Graduation Date:</span>
+                                        <span class="value">{{ graduation_record.graduation_date.strftime('%d %b %Y') }}</span>
+                                    </div>
+                                    <div class="info-item">
+                                        <span class="label">Final Grade:</span>
+                                        <span class="value">{{ graduation_record.final_grade or 'Not specified' }}</span>
+                                    </div>
+                                    <div class="info-item">
+                                        <span class="label">Performance Rating:</span>
+                                        <span class="value">{{ graduation_record.overall_performance_rating.title() }}</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="info-grid">
+                                    <div class="info-item">
+                                        <span class="label">Certificate Number:</span>
+                                        <span class="value">{{ graduation_record.certificate_number }}</span>
+                                    </div>
+                                    <div class="info-item">
+                                        <span class="label">Certificate Issued:</span>
+                                        <span class="value">
+                                            {% if graduation_record.certificate_issued %}
+                                                <span class="badge bg-success">Yes</span>
+                                            {% else %}
+                                                <span class="badge bg-warning">Pending</span>
+                                            {% endif %}
+                                        </span>
+                                    </div>
+                                    <div class="info-item">
+                                        <span class="label">Attendance Rate:</span>
+                                        <span class="value">{{ "%.1f"|format(graduation_record.attendance_percentage) }}%</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        {% if graduation_record.feedback %}
+                            <div class="mt-3">
+                                <strong>Graduation Feedback:</strong>
+                                <div class="feedback-content mt-2">{{ graduation_record.feedback }}</div>
+                            </div>
+                        {% endif %}
+                        
+                        {% if graduation_record.get_achievements() %}
+                            <div class="mt-3">
+                                <strong>Achievements:</strong>
+                                <ul class="achievements-list mt-2">
+                                    {% for achievement in graduation_record.get_achievements() %}
+                                        <li>{{ achievement }}</li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            {% endif %}
+            
+            <!-- Drop Record -->
+            {% if drop_record %}
+                <div class="card mt-4">
+                    <div class="card-header bg-danger text-white">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-user-times"></i>
+                            Drop Record
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="info-grid">
+                                    <div class="info-item">
+                                        <span class="label">Drop Date:</span>
+                                        <span class="value">{{ drop_record.drop_date.strftime('%d %b %Y') }}</span>
+                                    </div>
+                                    <div class="info-item">
+                                        <span class="label">Drop Reason:</span>
+                                        <span class="value">{{ drop_record.get_drop_reason_display() }}</span>
+                                    </div>
+                                    <div class="info-item">
+                                        <span class="label">Refund Amount:</span>
+                                        <span class="value">₹{{ "%.2f"|format(drop_record.refund_amount) }}</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="info-grid">
+                                    <div class="info-item">
+                                        <span class="label">Exit Interview:</span>
+                                        <span class="value">
+                                            {% if drop_record.exit_interview_conducted %}
+                                                <span class="badge bg-success">Completed</span>
+                                            {% else %}
+                                                <span class="badge bg-warning">Not Conducted</span>
+                                            {% endif %}
+                                        </span>
+                                    </div>
+                                    <div class="info-item">
+                                        <span class="label">Re-enrollment:</span>
+                                        <span class="value">
+                                            {% if drop_record.blacklisted %}
+                                                <span class="badge bg-danger">Blacklisted</span>
+                                            {% elif drop_record.re_enrollment_allowed %}
+                                                <span class="badge bg-success">Allowed</span>
+                                            {% else %}
+                                                <span class="badge bg-warning">Not Allowed</span>
+                                            {% endif %}
+                                        </span>
+                                    </div>
+                                    <div class="info-item">
+                                        <span class="label">Classes Cancelled:</span>
+                                        <span class="value">{{ drop_record.cancelled_classes_count or 0 }}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mt-3">
+                            <strong>Detailed Reason:</strong>
+                            <div class="reason-content mt-2">{{ drop_record.detailed_reason }}</div>
+                        </div>
+                        
+                        {% if drop_record.exit_interview_notes %}
+                            <div class="mt-3">
+                                <strong>Exit Interview Notes:</strong>
+                                <div class="interview-notes mt-2">{{ drop_record.exit_interview_notes }}</div>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+        
+        <div class="col-lg-4">
+            <!-- Lifecycle Summary -->
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="card-title mb-0">
+                        <i class="fas fa-chart-line"></i>
+                        Lifecycle Summary
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="lifecycle-stats">
+                        <div class="stat-item">
+                            <div class="stat-icon">
+                                <i class="fas fa-user-check text-success"></i>
+                            </div>
+                            <div class="stat-content">
+                                <div class="stat-label">Current Status</div>
+                                <div class="stat-value">
+                                    <span class="badge badge-{{ 'success' if lifecycle_summary.current_status == 'active' else 'warning' if lifecycle_summary.current_status == 'paused' else 'info' if lifecycle_summary.current_status == 'completed' else 'danger' }}">
+                                        {{ lifecycle_summary.current_status.title() }}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="stat-item">
+                            <div class="stat-icon">
+                                <i class="fas fa-calendar-alt text-primary"></i>
+                            </div>
+                            <div class="stat-content">
+                                <div class="stat-label">Course Duration</div>
+                                <div class="stat-value">{{ lifecycle_summary.course_duration_days or 'N/A' }} days</div>
+                            </div>
+                        </div>
+                        
+                        <div class="stat-item">
+                            <div class="stat-icon">
+                                <i class="fas fa-chart-bar text-info"></i>
+                            </div>
+                            <div class="stat-content">
+                                <div class="stat-label">Attendance Rate</div>
+                                <div class="stat-value">{{ "%.1f"|format(lifecycle_summary.attendance_rate) }}%</div>
+                            </div>
+                        </div>
+                        
+                        <div class="stat-item">
+                            <div class="stat-icon">
+                                <i class="fas fa-rupee-sign text-warning"></i>
+                            </div>
+                            <div class="stat-content">
+                                <div class="stat-label">Fee Status</div>
+                                <div class="stat-value">{{ lifecycle_summary.fee_status.title() }}</div>
+                            </div>
+                        </div>
+                        
+                        {% if lifecycle_summary.graduation_eligible %}
+                            <div class="stat-item">
+                                <div class="stat-icon">
+                                    <i class="fas fa-graduation-cap text-success"></i>
+                                </div>
+                                <div class="stat-content">
+                                    <div class="stat-label">Graduation</div>
+                                    <div class="stat-value text-success">Eligible</div>
+                                </div>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Quick Actions -->
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h6 class="card-title mb-0">
+                        <i class="fas fa-bolt"></i>
+                        Quick Actions
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        {% if student.enrollment_status == 'active' and lifecycle_summary.graduation_eligible %}
+                            <a href="{{ url_for('admin.graduate_student', student_id=student.id) }}" class="btn btn-success">
+                                <i class="fas fa-graduation-cap"></i>
+                                Graduate Student
+                            </a>
+                        {% endif %}
+                        
+                        {% if student.enrollment_status == 'active' %}
+                            <a href="{{ url_for('admin.drop_student_new', student_id=student.id) }}" class="btn btn-danger">
+                                <i class="fas fa-user-times"></i>
+                                Drop Student
+                            </a>
+                        {% endif %}
+                        
+                        {% if student.enrollment_status in ['dropped', 'paused'] %}
+                            <a href="{{ url_for('admin.reactivate_student_new', student_id=student.id) }}" class="btn btn-primary">
+                                <i class="fas fa-user-check"></i>
+                                Reactivate Student
+                            </a>
+                        {% endif %}
+                        
+                        <a href="{{ url_for('admin.student_details', student_id=student.id) }}" class="btn btn-outline-secondary">
+                            <i class="fas fa-eye"></i>
+                            View Details
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.timeline {
+    position: relative;
+    padding-left: 3rem;
+}
+
+.timeline::before {
+    content: '';
+    position: absolute;
+    left: 1.5rem;
+    top: 0;
+    height: 100%;
+    width: 2px;
+    background: #dee2e6;
+}
+
+.timeline-item {
+    position: relative;
+    margin-bottom: 2rem;
+}
+
+.timeline-marker {
+    position: absolute;
+    left: -3rem;
+    top: 0.25rem;
+    width: 2.5rem;
+    height: 2.5rem;
+    background: #fff;
+    border: 2px solid #dee2e6;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1;
+}
+
+.timeline-item.graduation .timeline-marker {
+    border-color: #28a745;
+    background: #28a745;
+    color: white;
+}
+
+.timeline-item.drop .timeline-marker {
+    border-color: #dc3545;
+    background: #dc3545;
+    color: white;
+}
+
+.timeline-item.reactivation .timeline-marker {
+    border-color: #007bff;
+    background: #007bff;
+    color: white;
+}
+
+.timeline-item.pause .timeline-marker {
+    border-color: #ffc107;
+    background: #ffc107;
+    color: #212529;
+}
+
+.timeline-content {
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 0.5rem;
+    padding: 1rem;
+}
+
+.timeline-header {
+    display: flex;
+    justify-content: between;
+    align-items: flex-start;
+    margin-bottom: 0.75rem;
+}
+
+.timeline-title {
+    font-weight: 600;
+    margin: 0;
+    flex-grow: 1;
+}
+
+.timeline-date {
+    color: #6c757d;
+    white-space: nowrap;
+}
+
+.status-badges {
+    display: flex;
+    align-items: center;
+    margin-bottom: 0.5rem;
+}
+
+.info-grid {
+    display: grid;
+    gap: 0.75rem;
+}
+
+.info-item {
+    display: flex;
+    justify-content: between;
+    align-items: center;
+}
+
+.info-item .label {
+    font-weight: 500;
+    color: #6c757d;
+    margin-right: auto;
+}
+
+.info-item .value {
+    font-weight: 500;
+}
+
+.lifecycle-stats {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.stat-item {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.75rem;
+    background: #f8f9fa;
+    border-radius: 0.5rem;
+}
+
+.stat-icon {
+    font-size: 1.25rem;
+}
+
+.stat-content {
+    flex-grow: 1;
+}
+
+.stat-label {
+    font-size: 0.875rem;
+    color: #6c757d;
+    margin-bottom: 0.25rem;
+}
+
+.stat-value {
+    font-weight: 600;
+}
+
+.feedback-content, .reason-content, .interview-notes {
+    background: #fff;
+    padding: 0.75rem;
+    border-radius: 0.375rem;
+    border: 1px solid #e9ecef;
+}
+
+.achievements-list {
+    background: #fff;
+    padding: 0.75rem;
+    border-radius: 0.375rem;
+    border: 1px solid #e9ecef;
+    margin-bottom: 0;
+}
+
+.badge-success { background-color: #28a745; }
+.badge-danger { background-color: #dc3545; }
+.badge-warning { background-color: #ffc107; color: #212529; }
+.badge-info { background-color: #17a2b8; }
+.badge-secondary { background-color: #6c757d; }
+</style>
+{% endblock %}

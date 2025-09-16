@@ -1,0 +1,327 @@
+{% extends "base.html" %}
+
+{% block title %}Lazy Loading Examples - {{ APP_NAME }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">
+        <i class="fas fa-rocket"></i>
+        Lazy Loading System Examples
+    </h1>
+    <p class="page-subtitle">Demonstration of the lazy loading features</p>
+</div>
+
+<div class="container-fluid">
+    <!-- Image Lazy Loading Examples -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="card-title mb-0">
+                <i class="fas fa-images"></i>
+                Image Lazy Loading
+            </h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-4 mb-3">
+                    <h6>Standard Lazy Image</h6>
+                    <img data-lazy-src="{{ url_for('static', filename='images/placeholder.svg') }}" 
+                         src="{{ url_for('static', filename='images/placeholder.svg') }}"
+                         alt="Example Image 1" 
+                         class="img-fluid rounded">
+                </div>
+                <div class="col-md-4 mb-3">
+                    <h6>Profile Picture Example</h6>
+                    <img data-lazy-src="{{ url_for('static', filename='images/placeholder.svg') }}" 
+                         src="{{ url_for('static', filename='images/placeholder.svg') }}"
+                         alt="Profile Picture" 
+                         class="img-fluid rounded-circle"
+                         style="width: 150px; height: 150px;">
+                </div>
+                <div class="col-md-4 mb-3">
+                    <h6>Document Thumbnail</h6>
+                    <img data-lazy-src="{{ url_for('static', filename='images/placeholder.svg') }}" 
+                         src="{{ url_for('static', filename='images/placeholder.svg') }}"
+                         alt="Document Thumbnail" 
+                         class="img-fluid rounded">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Table Lazy Loading Examples -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="card-title mb-0">
+                <i class="fas fa-table"></i>
+                Table Lazy Loading
+            </h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <h6>Students List</h6>
+                    <div id="studentsTable" data-lazy-table="/lazy-demo/api/students/list">
+                        <!-- Table skeleton will be shown here -->
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <h6>Classes Schedule</h6>
+                    <div id="classesTable" data-lazy-table="/lazy-demo/api/classes/schedule">
+                        <!-- Table skeleton will be shown here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Content Block Lazy Loading -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="card-title mb-0">
+                <i class="fas fa-cube"></i>
+                Content Block Lazy Loading
+            </h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-4">
+                    <h6>Dashboard Statistics</h6>
+                    <div id="dashboardStats" data-lazy-content="/lazy-demo/api/dashboard/stats">
+                        <!-- Content skeleton will be shown here -->
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <h6>Recent Notices</h6>
+                    <div id="recentNotices" data-lazy-content="/lazy-demo/api/notices/recent">
+                        <!-- Content skeleton will be shown here -->
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <h6>Upcoming Classes</h6>
+                    <div id="upcomingClasses" data-lazy-content="/lazy-demo/api/classes/upcoming">
+                        <!-- Content skeleton will be shown here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- API Data Lazy Loading -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="card-title mb-0">
+                <i class="fas fa-chart-line"></i>
+                API Data Lazy Loading
+            </h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-3">
+                    <div class="stat-card">
+                        <h6>Total Students</h6>
+                        <div class="stat-value">
+                            <span id="totalStudents" data-lazy-api="/lazy-demo/api/stats/students/count">0</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stat-card">
+                        <h6>Active Classes</h6>
+                        <div class="stat-value">
+                            <span id="activeClasses" data-lazy-api="/lazy-demo/api/stats/classes/active">0</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stat-card">
+                        <h6>Online Tutors</h6>
+                        <div class="stat-value">
+                            <span id="onlineTutors" data-lazy-api="/lazy-demo/api/stats/tutors/online">0</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stat-card">
+                        <h6>Pending Requests</h6>
+                        <div class="stat-value">
+                            <span class="badge bg-warning" data-lazy-api="/lazy-demo/api/stats/requests/pending">0</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Auto-Refresh API Data -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="card-title mb-0">
+                <i class="fas fa-sync-alt"></i>
+                Auto-Refresh Data (Every 5 seconds)
+            </h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="live-stat-card">
+                        <h6>Current Time</h6>
+                        <div id="currentTime" data-lazy-api="/lazy-demo/api/time/current" data-lazy-interval="5000">
+                            Loading...
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="live-stat-card">
+                        <h6>System Status</h6>
+                        <div id="systemStatus" data-lazy-api="/lazy-demo/api/system/status" data-lazy-interval="5000">
+                            Loading...
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="live-stat-card">
+                        <h6>Active Users</h6>
+                        <div id="activeUsers" data-lazy-api="/lazy-demo/api/users/active" data-lazy-interval="5000">
+                            Loading...
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Form Lazy Submit -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="card-title mb-0">
+                <i class="fas fa-paper-plane"></i>
+                Lazy Form Submission
+            </h5>
+        </div>
+        <div class="card-body">
+            <form data-lazy-submit data-loading-text="Saving..." action="/lazy-demo/api/test/form" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="testName" class="form-label">Name</label>
+                            <input type="text" class="form-control" id="testName" name="name" required>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="testEmail" class="form-label">Email</label>
+                            <input type="email" class="form-control" id="testEmail" name="email" required>
+                        </div>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label for="testMessage" class="form-label">Message</label>
+                    <textarea class="form-control" id="testMessage" name="message" rows="3" required></textarea>
+                </div>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save"></i>
+                    Save Form
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Manual Controls -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="card-title mb-0">
+                <i class="fas fa-cogs"></i>
+                Manual Controls
+            </h5>
+        </div>
+        <div class="card-body">
+            <div class="btn-group" role="group">
+                <button type="button" class="btn btn-outline-primary" onclick="refreshLazyLoading()">
+                    <i class="fas fa-sync-alt"></i>
+                    Refresh All
+                </button>
+                <button type="button" class="btn btn-outline-secondary" onclick="refreshLazyLoading('[data-lazy-src]')">
+                    <i class="fas fa-images"></i>
+                    Refresh Images
+                </button>
+                <button type="button" class="btn btn-outline-info" onclick="refreshLazyLoading('[data-lazy-table]')">
+                    <i class="fas fa-table"></i>
+                    Refresh Tables
+                </button>
+                <button type="button" class="btn btn-outline-success" onclick="refreshLazyLoading('[data-lazy-api]')">
+                    <i class="fas fa-chart-line"></i>
+                    Refresh API Data
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.stat-card, .live-stat-card {
+    background: #f8f9fa;
+    padding: 1.5rem;
+    border-radius: 8px;
+    text-align: center;
+    border: 1px solid #e9ecef;
+    height: 100%;
+}
+
+.stat-value {
+    font-size: 2rem;
+    font-weight: 600;
+    color: var(--primary-color);
+    margin-top: 0.5rem;
+}
+
+.live-stat-card {
+    background: linear-gradient(135deg, #e3f2fd, #f3e5f5);
+    border: 1px solid #bbdefb;
+}
+
+.live-stat-card h6 {
+    color: #1976d2;
+}
+
+/* Demo skeleton styles */
+.demo-skeleton {
+    height: 20px;
+    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+    background-size: 200px 100%;
+    animation: skeleton-loading 1.5s infinite;
+    border-radius: 4px;
+    margin-bottom: 8px;
+}
+
+.demo-skeleton:last-child {
+    width: 60%;
+}
+</style>
+
+<!-- Add some dynamic content for demonstration -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Simulate some dynamic content loading
+    setTimeout(() => {
+        // Add more lazy images dynamically
+        const imageContainer = document.querySelector('.card-body .row');
+        if (imageContainer) {
+            const newCol = document.createElement('div');
+            newCol.className = 'col-md-4 mb-3';
+            newCol.innerHTML = `
+                <h6>Dynamically Added Image</h6>
+                <img data-lazy-src="{{ url_for('static', filename='images/placeholder.svg') }}" 
+                     src="{{ url_for('static', filename='images/placeholder.svg') }}"
+                     alt="Dynamic Image" 
+                     class="img-fluid rounded">
+            `;
+            imageContainer.appendChild(newCol);
+            
+            // Refresh lazy loading to pick up new elements
+            refreshLazyLoading();
+        }
+    }, 3000);
+});
+</script>
+{% endblock %}

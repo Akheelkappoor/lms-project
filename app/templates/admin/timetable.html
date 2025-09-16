@@ -1,16 +1,35 @@
 {% extends "base.html" %}
 
-{% block title %}Class Scheduling & Timetable{% endblock %}
+{% block title %}Timetable Management{% endblock %}
 
 {% block extra_css %}
 <style>
-    /* Override base layout for full calendar view */
+    /* ============ MODERN CALENDAR TIMETABLE STYLES - FIXED ============ */
+    :root {
+        --primary: #F1A150;
+        --primary-dark: #C86706;
+        --success: #10b981;
+        --info: #3b82f6;
+        --warning: #f59e0b;
+        --danger: #ef4444;
+        --gray-50: #f9fafb;
+        --gray-100: #f3f4f6;
+        --gray-200: #e5e7eb;
+        --gray-300: #d1d5db;
+        --gray-500: #6b7280;
+        --gray-600: #4b5563;
+        --gray-700: #374151;
+        --gray-800: #1f2937;
+        --white: #ffffff;
+    }
+
+    /* Layout */
     .main-content {
         margin-left: var(--sidebar-width) !important;
         width: calc(100% - var(--sidebar-width)) !important;
         padding: 0 !important;
-        background: #f8fafc;
         min-height: 100vh;
+        background: var(--gray-50);
     }
 
     @media (max-width: 1024px) {
@@ -20,301 +39,695 @@
         }
     }
 
-    /* Calendar specific styles */
-    .calendar-header {
-        background: white;
-        border-bottom: 1px solid #e2e8f0;
-        padding: 1rem 1.5rem;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        flex-wrap: wrap;
-        gap: 1rem;
-    }
-
-    .header-left {
-        display: flex;
-        align-items: center;
-        gap: 1rem;
-    }
-
-    .header-right {
-        display: flex;
-        align-items: center;
-        gap: 1rem;
-    }
-
-    .view-toggle {
-        background: #f1f5f9;
-        border-radius: 0.5rem;
-        padding: 0.25rem;
-        display: flex;
-        gap: 0.25rem;
-    }
-
-    .view-btn {
-        padding: 0.5rem 1rem;
-        font-size: 0.875rem;
-        border-radius: 0.375rem;
-        border: none;
-        background: transparent;
-        color: #64748b;
-        cursor: pointer;
-        transition: all 0.2s;
-    }
-
-    .view-btn.active {
-        background: var(--primary-color);
-        color: white;
-    }
-
-    .calendar-layout {
-        display: flex;
-        height: calc(100vh - 80px);
-    }
-
-    .sidebar-panel {
-        width: 320px;
-        background: white;
-        border-right: 1px solid #e2e8f0;
-        overflow-y: auto;
-        flex-shrink: 0;
-    }
-
-    .calendar-main {
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-        overflow: hidden;
-    }
-
-    .calendar-grid {
-        flex: 1;
-        overflow: auto;
-        background: white;
-    }
-
-    .weekly-view {
-        display: grid;
-        grid-template-columns: 80px 1fr;
-        height: 100%;
-    }
-
-    .time-column {
-        background: #f8fafc;
-        border-right: 1px solid #e2e8f0;
-    }
-
-    .day-columns {
-        display: grid;
-        grid-template-columns: repeat(7, 1fr);
-        grid-template-rows: 60px 1fr;
-    }
-
-    .day-header {
-        background: #f8fafc;
-        border-bottom: 1px solid #e2e8f0;
-        border-right: 1px solid #e2e8f0;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-weight: 600;
-        font-size: 0.875rem;
-    }
-
-    .day-header.today {
-        background: rgba(241, 161, 80, 0.1);
-        color: var(--primary-color);
-    }
-
-    .day-content {
-        border-right: 1px solid #e2e8f0;
+    .timetable-container {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 1.5rem;
         position: relative;
-        min-height: 600px;
     }
 
-    .time-slot {
-        height: 60px;
-        border-bottom: 1px solid #f1f5f9;
-        position: relative;
-        cursor: pointer;
-    }
-
-    .time-slot:hover {
-        background: rgba(241, 161, 80, 0.05);
-    }
-
-    .time-label {
-        position: absolute;
-        top: 8px;
-        left: 8px;
-        font-size: 0.75rem;
-        color: #64748b;
-        width: 60px;
-        text-align: center;
-    }
-
-    .class-block {
-        position: absolute;
-        left: 4px;
-        right: 4px;
-        border-radius: 6px;
-        padding: 8px;
-        cursor: pointer;
-        transition: all 0.2s;
-        z-index: 10;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        margin: 2px 0;
-    }
-
-    .class-block:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 4px 8px rgba(0,0,0,0.15);
-    }
-
-    .class-block.scheduled {
-        background: linear-gradient(135deg, var(--primary-color) 0%, #e8974a 100%);
-        color: white;
-    }
-
-    .class-block.ongoing {
-        background: linear-gradient(135deg, var(--success-color) 0%, #1e7e34 100%);
-        color: white;
-    }
-
-    .class-block.completed {
-        background: linear-gradient(135deg, var(--info-color) 0%, #117a8b 100%);
-        color: white;
-    }
-
-    .class-block.cancelled {
-        background: linear-gradient(135deg, var(--danger-color) 0%, #bd2130 100%);
-        color: white;
-    }
-
-    .class-title {
-        font-size: 0.75rem;
-        font-weight: 600;
-        margin-bottom: 2px;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-
-    .class-details {
-        font-size: 0.625rem;
-        opacity: 0.9;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-
-    .panel-section {
-        padding: 1rem;
-        border-bottom: 1px solid #e2e8f0;
-    }
-
-    .section-title {
-        font-size: 0.875rem;
-        font-weight: 600;
-        color: #374151;
-        margin-bottom: 0.75rem;
-    }
-
-    .stats-grid {
-        display: grid;
-        grid-template-columns: repeat(2, 1fr);
-        gap: 0.5rem;
-    }
-
-    .stat-item {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: 0.5rem;
-        background: #f8fafc;
-        border-radius: 0.375rem;
-    }
-
-    .stat-label {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        font-size: 0.75rem;
-        color: #64748b;
-    }
-
-    .stat-value {
-        font-size: 0.875rem;
-        font-weight: 600;
-        color: #374151;
-    }
-
-    .status-dot {
-        width: 8px;
-        height: 8px;
-        border-radius: 50%;
-    }
-
-    .status-dot.scheduled { background: var(--primary-color); }
-    .status-dot.ongoing { background: var(--success-color); }
-    .status-dot.completed { background: var(--info-color); }
-    .status-dot.cancelled { background: var(--danger-color); }
-
-    /* Daily View */
-    .daily-view {
-        padding: 1rem;
-    }
-
-    .today-classes {
-        display: grid;
-        gap: 1rem;
-    }
-
-    .today-class-card {
-        background: white;
-        border: 1px solid #e2e8f0;
-        border-radius: 0.5rem;
-        padding: 1rem;
-        cursor: pointer;
-        transition: all 0.2s;
-    }
-
-    .today-class-card:hover {
-        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-        transform: translateY(-1px);
-    }
-
-    /* Modal Styles */
-    .modal-overlay {
+    /* ============ FIXED LOADING OVERLAY ============ */
+    .loading-overlay {
         position: fixed;
         top: 0;
         left: 0;
-        right: 0;
-        bottom: 0;
-        background: rgba(0, 0, 0, 0.5);
-        display: flex;
+        width: 100%;
+        height: 100%;
+        background: rgba(249, 250, 251, 0.95);
+        display: none;
         align-items: center;
         justify-content: center;
-        z-index: 1000;
+        z-index: 9999;
+        backdrop-filter: blur(4px);
     }
 
-    .modal-content {
-        background: white;
-        border-radius: 0.5rem;
+    .loading-overlay.show {
+        display: flex;
+    }
+
+    .loading-content {
+        text-align: center;
+        background: var(--white);
         padding: 2rem;
-        max-width: 500px;
-        width: 90%;
-        max-height: 90vh;
-        overflow-y: auto;
+        border-radius: 12px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+        border: 1px solid var(--gray-200);
     }
 
-    .form-grid {
+    .loading-spinner {
+        width: 50px;
+        height: 50px;
+        border: 4px solid var(--gray-200);
+        border-top: 4px solid var(--primary);
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin: 0 auto 1rem;
+    }
+
+    .loading-text {
+        color: var(--gray-600);
+        font-weight: 500;
+        margin: 0;
+    }
+
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+
+    /* ============ HEADER ============ */
+    .timetable-header {
+        background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+        color: white;
+        padding: 2rem;
+        border-radius: 12px;
+        margin-bottom: 2rem;
+        text-align: center;
+    }
+
+    .timetable-title {
+        font-size: 2rem;
+        font-weight: 700;
+        margin: 0 0 0.5rem 0;
+    }
+
+    .timetable-subtitle {
+        font-size: 1rem;
+        opacity: 0.9;
+        margin: 0;
+    }
+
+    /* ============ CONTROLS ============ */
+    .controls-section {
         display: grid;
-        grid-template-columns: repeat(2, 1fr);
+        grid-template-columns: 1fr auto auto;
+        gap: 1rem;
+        margin-bottom: 2rem;
+        align-items: end;
+    }
+
+    .filters-group {
+        display: grid;
+        grid-template-columns: 2fr 1fr 1fr 1fr;
         gap: 1rem;
     }
 
+    .form-control, .form-select {
+        padding: 0.75rem 1rem;
+        border: 1px solid var(--gray-300);
+        border-radius: 8px;
+        font-size: 0.875rem;
+        background: var(--white);
+        transition: all 0.2s ease;
+    }
+
+    .form-control:focus, .form-select:focus {
+        outline: none;
+        border-color: var(--primary);
+        box-shadow: 0 0 0 3px rgba(241, 161, 80, 0.1);
+    }
+
+    .view-selector {
+        display: flex;
+        border: 1px solid var(--gray-300);
+        border-radius: 8px;
+        overflow: hidden;
+    }
+
+    .view-btn {
+        padding: 0.75rem 1rem;
+        background: var(--white);
+        border: none;
+        color: var(--gray-600);
+        cursor: pointer;
+        transition: all 0.2s ease;
+        border-right: 1px solid var(--gray-300);
+    }
+
+    .view-btn:last-child {
+        border-right: none;
+    }
+
+    .view-btn:hover {
+        background: var(--gray-50);
+    }
+
+    .view-btn.active {
+        background: var(--primary);
+        color: white;
+    }
+
+    .action-buttons {
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    .btn {
+        padding: 0.75rem 1rem;
+        border-radius: 8px;
+        font-size: 0.875rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        border: none;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        text-decoration: none;
+    }
+
+    .btn-primary {
+        background: var(--primary);
+        color: white;
+    }
+
+    .btn-primary:hover {
+        background: var(--primary-dark);
+        transform: translateY(-1px);
+    }
+
+    /* ============ NAVIGATION ============ */
+    .date-navigation {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        background: var(--white);
+        padding: 1rem 1.5rem;
+        border-radius: 12px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        margin-bottom: 2rem;
+    }
+
+    .nav-btn {
+        padding: 0.5rem 1rem;
+        background: var(--white);
+        border: 1px solid var(--gray-300);
+        border-radius: 6px;
+        color: var(--gray-600);
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .nav-btn:hover {
+        background: var(--primary);
+        color: white;
+        border-color: var(--primary);
+    }
+
+    .current-date {
+        font-weight: 600;
+        color: var(--gray-800);
+        font-size: 1.125rem;
+        margin: 0 1rem;
+    }
+
+    /* ============ YEAR VIEW CALENDAR - FIXED ============ */
+    .year-calendar {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    .month-calendar {
+        background: var(--white);
+        border-radius: 12px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        border: 1px solid var(--gray-200);
+        overflow: hidden;
+    }
+
+    .month-header {
+        background: var(--primary);
+        color: white;
+        padding: 1rem;
+        text-align: center;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .month-header:hover {
+        background: var(--primary-dark);
+    }
+
+    .month-grid {
+        padding: 0.5rem;
+        min-height: 200px;
+    }
+
+    .weekday-header {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 1px;
+        margin-bottom: 2px;
+    }
+
+    .weekday {
+        text-align: center;
+        font-size: 0.7rem;
+        font-weight: 600;
+        color: var(--gray-600);
+        padding: 0.25rem;
+    }
+
+    .days-grid {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 1px;
+    }
+
+    .day-cell {
+        aspect-ratio: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        border-radius: 4px;
+        transition: all 0.2s ease;
+        font-size: 0.75rem;
+        position: relative;
+        min-height: 32px;
+    }
+
+    .day-cell:hover {
+        background: var(--gray-100);
+    }
+
+    .day-cell.other-month {
+        color: var(--gray-300);
+    }
+
+    .day-cell.today {
+        background: var(--primary);
+        color: white;
+        font-weight: 600;
+    }
+
+    .day-cell.has-classes {
+        background: rgba(241, 161, 80, 0.1);
+        border: 1px solid var(--primary);
+    }
+
+    .day-number {
+        font-weight: 500;
+    }
+
+    .class-count {
+        font-size: 0.6rem;
+        background: var(--primary);
+        color: white;
+        border-radius: 8px;
+        padding: 1px 4px;
+        margin-top: 1px;
+        min-width: 12px;
+        text-align: center;
+    }
+
+    /* ============ MONTH VIEW CALENDAR - FIXED DATE ALIGNMENT ============ */
+    .month-view-calendar {
+        background: var(--white);
+        border-radius: 12px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        border: 1px solid var(--gray-200);
+        overflow: hidden;
+    }
+
+    .month-view-header {
+        background: var(--primary);
+        color: white;
+        padding: 1.5rem;
+        text-align: center;
+        font-size: 1.5rem;
+        font-weight: 600;
+    }
+
+    .month-view-weekdays {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        background: var(--gray-50);
+        border-bottom: 1px solid var(--gray-200);
+    }
+
+    .month-view-weekday {
+        text-align: center;
+        font-weight: 600;
+        color: var(--gray-700);
+        padding: 1rem 0.5rem;
+        border-right: 1px solid var(--gray-200);
+        font-size: 0.875rem;
+    }
+
+    .month-view-weekday:last-child {
+        border-right: none;
+    }
+
+    .month-view-days {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        min-height: 500px;
+    }
+
+    .month-view-day {
+        min-height: 120px;
+        border-right: 1px solid var(--gray-200);
+        border-bottom: 1px solid var(--gray-200);
+        padding: 0.5rem;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        background: var(--white);
+        overflow: hidden;
+        position: relative;
+    }
+
+    .month-view-day:nth-child(7n) {
+        border-right: none;
+    }
+
+    .month-view-day:hover {
+        background: var(--gray-50);
+    }
+
+    .month-view-day.other-month {
+        background: var(--gray-50);
+        color: var(--gray-400);
+    }
+
+    .month-view-day.today {
+        background: rgba(241, 161, 80, 0.1);
+        border: 2px solid var(--primary);
+    }
+
+    .month-day-number {
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+        font-size: 1rem;
+        position: sticky;
+        top: 0;
+        background: inherit;
+        z-index: 1;
+    }
+
+    .month-day-classes {
+        font-size: 0.75rem;
+        max-height: calc(120px - 30px);
+        overflow-y: auto;
+        scrollbar-width: thin;
+        scrollbar-color: var(--gray-300) transparent;
+    }
+
+    .month-class-item {
+        background: var(--primary);
+        color: white;
+        padding: 2px 4px;
+        border-radius: 3px;
+        margin-bottom: 2px;
+        font-size: 0.6rem;
+        text-overflow: ellipsis;
+        overflow: hidden;
+        white-space: nowrap;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .month-class-item:hover {
+        background: var(--primary-dark);
+        transform: scale(1.02);
+    }
+
+    /* ============ DAY VIEW WITH TIME SLOTS - FIXED ============ */
+    .day-view-container {
+        background: var(--white);
+        border-radius: 12px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        border: 1px solid var(--gray-200);
+        overflow: hidden;
+        max-height: 80vh;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .day-view-header {
+        background: var(--primary);
+        color: white;
+        padding: 1.5rem;
+        text-align: center;
+        font-size: 1.5rem;
+        font-weight: 600;
+        flex-shrink: 0;
+    }
+
+    .time-slots {
+        padding: 1rem;
+        overflow-y: auto;
+        flex: 1;
+        scrollbar-width: thin;
+        scrollbar-color: var(--gray-300) transparent;
+    }
+
+    .time-slot {
+        border-bottom: 1px solid var(--gray-200);
+        margin-bottom: 0.5rem;
+    }
+
+    .time-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 1rem;
+        background: var(--gray-50);
+        cursor: pointer;
+        transition: all 0.2s ease;
+        border-radius: 8px;
+    }
+
+    .time-header:hover {
+        background: var(--gray-100);
+    }
+
+    .time-info {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+
+    .time-label {
+        font-weight: 600;
+        color: var(--gray-800);
+        font-size: 1rem;
+    }
+
+    .slot-class-count {
+        background: var(--primary);
+        color: white;
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+
+    .slot-class-count.zero {
+        background: var(--gray-300);
+        color: var(--gray-600);
+    }
+
+    .dropdown-icon {
+        transition: transform 0.2s ease;
+    }
+
+    .time-slot.expanded .dropdown-icon {
+        transform: rotate(180deg);
+    }
+
+    .time-content {
+        padding: 0;
+        max-height: 0;
+        overflow: hidden;
+        transition: max-height 0.3s ease;
+    }
+
+    .time-slot.expanded .time-content {
+        max-height: 500px;
+        overflow-y: auto;
+    }
+
+    .classes-list {
+        padding: 1rem;
+        max-height: 400px;
+        overflow-y: auto;
+    }
+
+    .class-item {
+        background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+        color: white;
+        padding: 1rem;
+        border-radius: 8px;
+        margin-bottom: 1rem;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .class-item:hover {
+        transform: translateX(4px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+
+    .class-subject {
+        font-weight: 600;
+        font-size: 1rem;
+        margin: 0 0 0.5rem 0;
+    }
+
+    .class-details {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 0.875rem;
+        opacity: 0.9;
+    }
+
+    .class-tutor {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .class-actions {
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    .action-icon {
+        width: 24px;
+        height: 24px;
+        border-radius: 4px;
+        background: rgba(255, 255, 255, 0.2);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        font-size: 0.75rem;
+    }
+
+    .action-icon:hover {
+        background: rgba(255, 255, 255, 0.3);
+        transform: scale(1.1);
+    }
+
+    /* ============ STATISTICS ============ */
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    .stat-card {
+        background: var(--white);
+        padding: 1.5rem;
+        border-radius: 12px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        border: 1px solid var(--gray-200);
+        text-align: center;
+        transition: all 0.2s ease;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+
+    .stat-number {
+        font-size: 2.5rem;
+        font-weight: 700;
+        margin: 0 0 0.5rem 0;
+    }
+
+    .stat-label {
+        font-size: 0.875rem;
+        color: var(--gray-600);
+        margin: 0;
+    }
+
+    .stat-card.total .stat-number { color: var(--primary); }
+    .stat-card.scheduled .stat-number { color: var(--info); }
+    .stat-card.completed .stat-number { color: var(--success); }
+    .stat-card.cancelled .stat-number { color: var(--danger); }
+
+    /* ============ MODALS ============ */
+    .modal {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 1000;
+        align-items: center;
+        justify-content: center;
+        padding: 2rem;
+    }
+
+    .modal.show {
+        display: flex;
+    }
+
+    .modal-content {
+        background: var(--white);
+        border-radius: 12px;
+        max-width: 600px;
+        width: 100%;
+        max-height: 80vh;
+        overflow-y: auto;
+        box-shadow: 0 20px 25px rgba(0, 0, 0, 0.1);
+    }
+
+    .modal-header {
+        padding: 1.5rem;
+        border-bottom: 1px solid var(--gray-200);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .modal-title {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: var(--gray-800);
+        margin: 0;
+    }
+
+    .modal-close {
+        background: none;
+        border: none;
+        font-size: 1.5rem;
+        color: var(--gray-400);
+        cursor: pointer;
+        padding: 0.25rem;
+        border-radius: 4px;
+        transition: color 0.2s ease;
+    }
+
+    .modal-close:hover {
+        color: var(--gray-600);
+    }
+
+    .modal-body {
+        padding: 1.5rem;
+    }
+
+    .modal-footer {
+        padding: 1rem 1.5rem;
+        border-top: 1px solid var(--gray-200);
+        display: flex;
+        justify-content: flex-end;
+        gap: 1rem;
+    }
+
+    /* Form Styles */
     .form-group {
         margin-bottom: 1rem;
     }
@@ -323,749 +736,1383 @@
         display: block;
         margin-bottom: 0.5rem;
         font-weight: 500;
-        color: #374151;
+        color: var(--gray-700);
     }
 
-    .form-input {
-        width: 100%;
-        padding: 0.5rem;
-        border: 1px solid #d1d5db;
-        border-radius: 0.375rem;
-        font-size: 0.875rem;
+    .form-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1rem;
     }
 
-    .form-input:focus {
-        outline: none;
-        border-color: var(--primary-color);
-        box-shadow: 0 0 0 3px rgba(241, 161, 80, 0.1);
+    /* ============ RESPONSIVE ============ */
+    @media (max-width: 1024px) {
+        .year-calendar {
+            grid-template-columns: repeat(3, 1fr);
+        }
+        
+        .controls-section {
+            grid-template-columns: 1fr;
+            gap: 1rem;
+        }
+        
+        .filters-group {
+            grid-template-columns: 1fr 1fr;
+        }
+        
+        .stats-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
     }
 
-    .btn {
-        padding: 0.5rem 1rem;
-        border-radius: 0.375rem;
-        font-weight: 500;
-        cursor: pointer;
-        transition: all 0.2s;
-        border: none;
-        display: inline-flex;
-        align-items: center;
-        gap: 0.5rem;
-        text-decoration: none;
-    }
-
-    .btn-primary {
-        background: var(--primary-color);
-        color: white;
-    }
-
-    .btn-primary:hover {
-        background: #e8974a;
-    }
-
-    .btn-secondary {
-        background: #6c757d;
-        color: white;
-    }
-
-    .btn-secondary:hover {
-        background: #5a6268;
-    }
-
-    .btn-success {
-        background: var(--success-color);
-        color: white;
-    }
-
-    .btn-success:hover {
-        background: #1e7e34;
-    }
-
-    .loading {
-        opacity: 0.7;
-        pointer-events: none;
-    }
-
-    /* Responsive */
     @media (max-width: 768px) {
-        .calendar-layout {
-            flex-direction: column;
+        .year-calendar {
+            grid-template-columns: repeat(2, 1fr);
         }
         
-        .sidebar-panel {
-            width: 100%;
-            height: auto;
-            max-height: 300px;
+        .timetable-container {
+            padding: 1rem;
         }
         
-        .form-grid {
+        .filters-group {
             grid-template-columns: 1fr;
         }
         
-        .header-left, .header-right {
+        .stats-grid {
+            grid-template-columns: 1fr;
+        }
+        
+        .date-navigation {
             flex-direction: column;
-            align-items: flex-start;
+            gap: 1rem;
+            text-align: center;
+        }
+        
+        .month-view-weekdays {
+            display: none;
+        }
+        
+        .month-view-days {
+            grid-template-columns: 1fr;
+        }
+
+        .month-view-day {
+            min-height: 80px;
+        }
+    }
+
+    @media (max-width: 480px) {
+        .year-calendar {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    /* ============ TUTOR CALENDAR VIEW MODAL ============ */
+    .tutor-calendar-modal .modal-content {
+        max-width: 1200px;
+        width: 95vw;
+        max-height: 90vh;
+        overflow-y: auto;
+    }
+
+    .tutor-selector {
+        margin-bottom: 2rem;
+        padding: 1rem;
+        background: var(--gray-50);
+        border-radius: 8px;
+        border: 1px solid var(--gray-200);
+    }
+
+    .tutor-options {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+        gap: 1rem;
+        margin-top: 1rem;
+    }
+
+    .tutor-option {
+        padding: 1rem;
+        border: 1px solid var(--gray-200);
+        border-radius: 8px;
+        background: var(--white);
+        cursor: pointer;
+        transition: all 0.2s ease;
+        text-align: center;
+    }
+
+    .tutor-option:hover {
+        border-color: var(--primary);
+        background: rgba(241, 161, 80, 0.05);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+
+    .tutor-option.selected {
+        border-color: var(--primary);
+        background: rgba(241, 161, 80, 0.1);
+        box-shadow: 0 0 0 2px rgba(241, 161, 80, 0.2);
+    }
+
+    .tutor-name {
+        font-weight: 600;
+        color: var(--gray-800);
+        margin-bottom: 0.5rem;
+    }
+
+    .tutor-details {
+        font-size: 0.875rem;
+        color: var(--gray-600);
+        margin-bottom: 0.5rem;
+    }
+
+    .tutor-status {
+        display: inline-block;
+        padding: 0.25rem 0.5rem;
+        border-radius: 12px;
+        font-size: 0.75rem;
+        font-weight: 500;
+        text-transform: uppercase;
+    }
+
+    .tutor-status.active {
+        background: rgba(16, 185, 129, 0.2);
+        color: var(--success);
+    }
+
+    .tutor-status.pending {
+        background: rgba(245, 158, 11, 0.2);
+        color: var(--warning);
+    }
+
+    .tutor-status.inactive {
+        background: rgba(107, 114, 128, 0.2);
+        color: var(--gray-600);
+    }
+
+    /* Search controls styling */
+    .tutor-search-controls {
+        border-bottom: 1px solid var(--gray-200);
+        padding-bottom: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    .tutor-search-controls .form-control,
+    .tutor-search-controls .form-select {
+        border: 1px solid var(--gray-300);
+        border-radius: 6px;
+    }
+
+    .tutor-search-controls .form-control:focus,
+    .tutor-search-controls .form-select:focus {
+        border-color: var(--primary);
+        box-shadow: 0 0 0 2px rgba(241, 161, 80, 0.2);
+    }
+
+    /* Enhanced original theme colors */
+    .timetable-header {
+        background: linear-gradient(135deg, #F1A150, #C86706);
+    }
+    
+    .day-view-header {
+        background: linear-gradient(135deg, #F1A150, #C86706);
+    }
+    
+    .month-header {
+        background: #F1A150;
+    }
+    
+    .month-header:hover {
+        background: #C86706;
+    }
+    
+    .class-item {
+        background: linear-gradient(135deg, #F1A150, #C86706);
+    }
+    
+    .btn-primary {
+        background: #ffffff;
+        border-color: #ffffff;
+    }
+    
+    .btn-primary:hover {
+        background: #ffffff;
+        border-color: #ffffff;
+    }
+    
+    .nav-btn:hover {
+        background: #ffffff;
+        color: white;
+    }
+    
+    .view-btn.active {
+        background: #ffffff;
+    }
+
+    /* ============ AVAILABILITY GRID STYLES ============ */
+    .availability-grid {
+        border: 1px solid var(--gray-200);
+        border-radius: 8px;
+        overflow: hidden;
+        background: var(--white);
+    }
+
+    .availability-header {
+        display: grid;
+        grid-template-columns: 200px repeat(7, 1fr);
+        background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+        color: white;
+        font-weight: 600;
+        font-size: 0.9rem;
+    }
+
+    .tutor-column, .day-column {
+        padding: 1rem 0.75rem;
+        text-align: center;
+        border-right: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .tutor-column {
+        text-align: left;
+        background: rgba(0, 0, 0, 0.1);
+    }
+
+    .day-column:last-child {
+        border-right: none;
+    }
+
+    .tutor-availability-row {
+        display: grid;
+        grid-template-columns: 200px repeat(7, 1fr);
+        border-bottom: 1px solid var(--gray-200);
+        transition: background-color 0.2s ease;
+    }
+
+    .tutor-availability-row:hover {
+        background: rgba(241, 161, 80, 0.05);
+    }
+
+    .tutor-availability-row:last-child {
+        border-bottom: none;
+    }
+
+    .tutor-info {
+        padding: 1rem 0.75rem;
+        border-right: 1px solid var(--gray-200);
+        background: var(--gray-50);
+    }
+
+    .tutor-name {
+        font-weight: 600;
+        color: var(--gray-800);
+        margin-bottom: 0.25rem;
+    }
+
+    .tutor-status {
+        font-size: 0.75rem;
+        padding: 0.25rem 0.5rem;
+        border-radius: 12px;
+        text-transform: uppercase;
+        font-weight: 500;
+    }
+
+    .tutor-status.active {
+        background: rgba(16, 185, 129, 0.2);
+        color: var(--success);
+    }
+
+    .tutor-status.inactive {
+        background: rgba(239, 68, 68, 0.2);
+        color: var(--danger);
+    }
+
+    .tutor-status.pending {
+        background: rgba(245, 158, 11, 0.2);
+        color: var(--warning);
+    }
+
+    .day-availability {
+        padding: 0.75rem;
+        border-right: 1px solid var(--gray-200);
+        min-height: 80px;
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+
+    .day-availability:last-child {
+        border-right: none;
+    }
+
+    .day-availability.has-slots {
+        background: rgba(16, 185, 129, 0.05);
+    }
+
+    .day-availability.no-slots {
+        background: rgba(239, 68, 68, 0.05);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .time-slot {
+        background: var(--primary);
+        color: white;
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+        font-size: 0.75rem;
+        font-weight: 500;
+        text-align: center;
+    }
+
+    .no-availability {
+        color: var(--gray-500);
+        font-size: 0.8rem;
+        font-style: italic;
+        text-align: center;
+    }
+
+    /* Responsive Availability Grid */
+    @media (max-width: 1024px) {
+        .availability-grid {
+            font-size: 0.8rem;
+        }
+        
+        .availability-header,
+        .tutor-availability-row {
+            grid-template-columns: 150px repeat(7, 1fr);
+        }
+        
+        .tutor-column, .day-column, .day-availability {
+            padding: 0.5rem 0.25rem;
+        }
+        
+        .time-slot {
+            font-size: 0.7rem;
+            padding: 0.2rem 0.3rem;
+        }
+    }
+
+    @media (max-width: 768px) {
+        .availability-grid {
+            display: block;
+        }
+        
+        .availability-header {
+            display: none;
+        }
+        
+        .tutor-availability-row {
+            display: block;
+            border: 1px solid var(--gray-200);
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            background: var(--white);
+        }
+        
+        .tutor-info {
+            border-right: none;
+            border-bottom: 1px solid var(--gray-200);
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: white;
+        }
+        
+        .tutor-info .tutor-name {
+            color: white;
+        }
+        
+        .day-availability {
+            border: none;
+            border-bottom: 1px solid var(--gray-200);
+            position: relative;
+            min-height: 60px;
+        }
+        
+        .day-availability::before {
+            content: attr(data-day);
+            position: absolute;
+            top: 0.5rem;
+            left: 0.75rem;
+            font-weight: 600;
+            color: var(--gray-600);
+            font-size: 0.8rem;
+        }
+        
+        .day-availability:last-child {
+            border-bottom: none;
         }
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<!-- Calendar Header -->
-<div class="calendar-header">
-    <div class="header-left">
-        <h1 class="text-xl font-bold text-gray-900">Class Timetable</h1>
-        
-        <!-- Navigation Controls -->
-        <div class="flex items-center gap-2">
-            <button onclick="navigateWeek(-1)" class="btn btn-secondary btn-sm">
-                <i class="fas fa-chevron-left"></i>
-            </button>
-            <button onclick="goToToday()" class="btn btn-primary btn-sm">Today</button>
-            <button onclick="navigateWeek(1)" class="btn btn-secondary btn-sm">
-                <i class="fas fa-chevron-right"></i>
-            </button>
-        </div>
-        
-        <div class="text-lg font-semibold text-gray-700" id="currentMonth">
-            June 2025
-        </div>
-    </div>
-    
-    <div class="header-right">
-        <!-- View Toggle -->
-        <div class="view-toggle">
-            <button class="view-btn" onclick="switchView('today')">Today</button>
-            <button class="view-btn active" onclick="switchView('week')">Week</button>
-            <button class="view-btn" onclick="switchView('month')">Month</button>
-        </div>
-        
-        <!-- Quick Actions -->
-        <button onclick="openQuickClassModal()" class="btn btn-primary">
-            <i class="fas fa-plus"></i>
-            Quick Class
-        </button>
+<!-- Fixed Loading Overlay -->
+<div class="loading-overlay" id="loadingOverlay">
+    <div class="loading-content">
+        <div class="loading-spinner"></div>
+        <p class="loading-text">Loading...</p>
     </div>
 </div>
 
-<!-- Calendar Layout -->
-<div class="calendar-layout">
-    <!-- Sidebar Panel -->
-    <div class="sidebar-panel">
-        <!-- Statistics Section -->
-        <div class="panel-section">
-            <h3 class="section-title">Today's Overview</h3>
-            <div class="stats-grid" id="todayStats">
-                <div class="stat-item">
-                    <span class="stat-label">
-                        <span class="status-dot scheduled"></span>
-                        Scheduled
-                    </span>
-                    <span class="stat-value" id="scheduledCount">0</span>
-                </div>
-                <div class="stat-item">
-                    <span class="stat-label">
-                        <span class="status-dot ongoing"></span>
-                        Ongoing
-                    </span>
-                    <span class="stat-value" id="ongoingCount">0</span>
-                </div>
-                <div class="stat-item">
-                    <span class="stat-label">
-                        <span class="status-dot completed"></span>
-                        Completed
-                    </span>
-                    <span class="stat-value" id="completedCount">0</span>
-                </div>
-                <div class="stat-item">
-                    <span class="stat-label">
-                        <span class="status-dot cancelled"></span>
-                        Cancelled
-                    </span>
-                    <span class="stat-value" id="cancelledCount">0</span>
-                </div>
-            </div>
+<div class="timetable-container">
+    <!-- Header -->
+    <div class="timetable-header">
+        <h1 class="timetable-title">📅 Smart Timetable Management</h1>
+        <p class="timetable-subtitle">Complete calendar view with yearly, monthly, and daily perspectives</p>
+    </div>
+
+    <!-- Controls Section -->
+    <div class="controls-section">
+        <!-- Filters -->
+        <div class="filters-group">
+            <input type="text" class="form-control" placeholder="🔍 Search classes, tutors, students..." id="globalSearch">
+            
+            <select class="form-select" id="tutorFilter">
+                <option value="">👨‍🏫 All Tutors</option>
+                {% for tutor in tutors %}
+                <option value="{{ tutor.id }}">{{ tutor.user.full_name if tutor.user else 'Unknown' }}</option>
+                {% endfor %}
+            </select>
+            
+            <select class="form-select" id="studentFilter">
+                <option value="">👨‍🎓 All Students</option>
+                {% for student in students %}
+                <option value="{{ student.id }}">{{ student.full_name }}</option>
+                {% endfor %}
+            </select>
+            
+            <select class="form-select" id="departmentFilter">
+                <option value="">🏢 All Departments</option>
+                {% for dept in departments %}
+                <option value="{{ dept.id }}">{{ dept.name }}</option>
+                {% endfor %}
+            </select>
         </div>
-        
-        <!-- Filters Section -->
-        <div class="panel-section">
-            <h3 class="section-title">Filters</h3>
-            <div class="space-y-3">
-                <div class="form-group">
-                    <label class="form-label">Filter by:</label>
-                    <select class="form-input" onchange="applyFilter(this.value)">
-                        <option value="all">All Classes</option>
-                        <option value="tutor">By Tutor</option>
-                        <option value="subject">By Subject</option>
-                        <option value="grade">By Grade</option>
-                    </select>
-                </div>
-            </div>
+
+        <!-- View Selector -->
+        <div class="view-selector">
+            <button class="view-btn active" data-view="day">Day</button>
+            <button class="view-btn" data-view="month">Month</button>
+            <button class="view-btn" data-view="year">Year</button>
         </div>
-        
-        <!-- Quick Stats -->
-        <div class="panel-section">
-            <h3 class="section-title">Quick Stats</h3>
-            <div class="space-y-2 text-sm">
-                <div class="flex justify-between">
-                    <span class="text-gray-600">Active Tutors:</span>
-                    <span class="font-medium">{{ tutors|length }}</span>
-                </div>
-                <div class="flex justify-between">
-                    <span class="text-gray-600">Active Students:</span>
-                    <span class="font-medium">{{ students|length }}</span>
-                </div>
-                <div class="flex justify-between">
-                    <span class="text-gray-600">Departments:</span>
-                    <span class="font-medium">{{ departments|length }}</span>
-                </div>
-            </div>
+
+        <!-- Action Buttons -->
+        <div class="action-buttons">
+            <button class="btn btn-primary" onclick="openTutorCalendarView()">
+                <i class="fas fa-calendar-alt"></i> Tutor Filter
+            </button>
+            <button class="btn btn-primary" onclick="openQuickClassModal()">
+                <i class="fas fa-plus"></i> Add Class
+            </button>
+            <a href="/admin/timetable/email" class="btn btn-success">
+                <i class="fas fa-envelope"></i> Send Email
+            </a>
+            <a href="/admin/timetable/export" class="btn btn-info">
+                <i class="fas fa-file-pdf"></i> Export PDF
+            </a>
         </div>
     </div>
-    
-    <!-- Main Calendar Area -->
-    <div class="calendar-main">
-        <!-- Weekly View -->
-        <div id="weeklyView" class="calendar-grid">
-            <div class="weekly-view">
-                <!-- Time Column -->
-                <div class="time-column">
-                    <div class="day-header"></div>
-                    <div id="timeSlots"></div>
-                </div>
 
-                <!-- Day Columns -->
-                <div class="day-columns">
-                    <!-- Day Headers -->
-                    <div class="day-header" data-day="0">
-                        <div class="text-center">
-                            <div class="text-xs text-gray-500">MON</div>
-                            <div class="text-sm font-medium" id="day-0">30</div>
-                        </div>
-                    </div>
-                    <div class="day-header" data-day="1">
-                        <div class="text-center">
-                            <div class="text-xs text-gray-500">TUE</div>
-                            <div class="text-sm font-medium" id="day-1">1</div>
-                        </div>
-                    </div>
-                    <div class="day-header today" data-day="2">
-                        <div class="text-center">
-                            <div class="text-xs">WED</div>
-                            <div class="text-sm font-medium" id="day-2">2</div>
-                        </div>
-                    </div>
-                    <div class="day-header" data-day="3">
-                        <div class="text-center">
-                            <div class="text-xs text-gray-500">THU</div>
-                            <div class="text-sm font-medium" id="day-3">3</div>
-                        </div>
-                    </div>
-                    <div class="day-header" data-day="4">
-                        <div class="text-center">
-                            <div class="text-xs text-gray-500">FRI</div>
-                            <div class="text-sm font-medium" id="day-4">4</div>
-                        </div>
-                    </div>
-                    <div class="day-header" data-day="5">
-                        <div class="text-center">
-                            <div class="text-xs text-gray-500">SAT</div>
-                            <div class="text-sm font-medium" id="day-5">5</div>
-                        </div>
-                    </div>
-                    <div class="day-header" data-day="6">
-                        <div class="text-center">
-                            <div class="text-xs text-gray-500">SUN</div>
-                            <div class="text-sm font-medium" id="day-6">6</div>
-                        </div>
-                    </div>
+    <!-- Date Navigation -->
+    <div class="date-navigation">
+        <button class="nav-btn" onclick="navigateDate(-1)">
+            <i class="fas fa-chevron-left"></i> <span id="prevLabel">Previous</span>
+        </button>
+        <span class="current-date" id="currentDate">Today</span>
+        <button class="nav-btn" onclick="navigateDate(1)" style="display: none;" id="nextWeekBtn">
+            <span id="nextLabel">Next</span> <i class="fas fa-chevron-right"></i>
+        </button>
+        <button class="nav-btn" onclick="goToToday()">
+            <i class="fas fa-calendar-day"></i> Today
+        </button>
+        <button class="nav-btn" onclick="showAvailability()">
+            <i class="fas fa-clock"></i> Availability
+        </button>
+    </div>
 
-                    <!-- Day Content Areas -->
-                    <div class="day-content" data-day="0" id="calendarGrid-0"></div>
-                    <div class="day-content" data-day="1" id="calendarGrid-1"></div>
-                    <div class="day-content" data-day="2" id="calendarGrid-2"></div>
-                    <div class="day-content" data-day="3" id="calendarGrid-3"></div>
-                    <div class="day-content" data-day="4" id="calendarGrid-4"></div>
-                    <div class="day-content" data-day="5" id="calendarGrid-5"></div>
-                    <div class="day-content" data-day="6" id="calendarGrid-6"></div>
-                </div>
+    <!-- Statistics -->
+    <div class="stats-grid" id="statsGrid">
+        <div class="stat-card total">
+            <div class="stat-number" id="totalClasses">0</div>
+            <div class="stat-label">Total Classes</div>
+        </div>
+        <div class="stat-card scheduled">
+            <div class="stat-number" id="scheduledClasses">0</div>
+            <div class="stat-label">Scheduled</div>
+        </div>
+        <div class="stat-card completed">
+            <div class="stat-number" id="completedClasses">0</div>
+            <div class="stat-label">Completed</div>
+        </div>
+        <div class="stat-card cancelled">
+            <div class="stat-number" id="cancelledClasses">0</div>
+            <div class="stat-label">Cancelled</div>
+        </div>
+    </div>
+
+    <!-- Main Content Area -->
+    <div id="mainContent">
+        <!-- Day View (Default) -->
+        <div id="dayView" class="view-content active">
+            <div id="dayViewContainer" class="day-view-container">
+                <!-- Day view will be populated here -->
             </div>
         </div>
 
-        <!-- Daily View -->
-        <div id="dailyView" class="daily-view" style="display: none;">
-            <div class="today-classes" id="dailyClasses">
-                <!-- Daily classes will be loaded here -->
+        <!-- Month View -->
+        <div id="monthView" class="view-content" style="display: none;">
+            <div id="monthCalendar" class="month-view-calendar">
+                <!-- Month calendar will be populated here -->
             </div>
         </div>
 
-        <!-- Monthly View -->
-        <div id="monthlyView" class="daily-view" style="display: none;">
-            <div id="monthGrid">
-                <!-- Monthly calendar will be loaded here -->
+        <!-- Year View -->
+        <div id="yearView" class="view-content" style="display: none;">
+            <div id="yearCalendar" class="year-calendar">
+                <!-- Year calendar will be populated here -->
             </div>
         </div>
     </div>
 </div>
 
 <!-- Quick Class Modal -->
-<div id="quickClassModal" class="modal-overlay" style="display: none;">
+<div class="modal" id="quickClassModal">
     <div class="modal-content">
-        <div class="flex items-center justify-between mb-6">
-            <h2 class="text-xl font-bold text-gray-900">Create Quick Class</h2>
-            <button onclick="closeQuickClassModal()" class="text-gray-500 hover:text-gray-700">
-                <i class="fas fa-times text-xl"></i>
-            </button>
+        <div class="modal-header">
+            <h4 class="modal-title">⚡ Create Quick Class</h4>
+            <button class="modal-close" onclick="closeModal('quickClassModal')">&times;</button>
         </div>
-
-        <form id="quickClassForm" onsubmit="createQuickClass(event)">
-            <!-- Basic Info -->
-            <div class="form-grid">
-                <!-- Subject -->
+        <div class="modal-body">
+            <form id="quickClassForm">
                 <div class="form-group">
                     <label class="form-label">Subject *</label>
-                    <input type="text" name="subject" class="form-input" required placeholder="e.g., Mathematics" />
+                    <input type="text" class="form-control" name="subject" required>
                 </div>
-
-                <!-- Class Type -->
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Tutor *</label>
+                        <select class="form-select" name="tutor_id" required>
+                            <option value="">Select Tutor</option>
+                            {% for tutor in tutors %}
+                            <option value="{{ tutor.id }}">{{ tutor.user.full_name if tutor.user else 'Unknown' }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Student</label>
+                        <select class="form-select" name="primary_student_id">
+                            <option value="">Select Student</option>
+                            {% for student in students %}
+                            <option value="{{ student.id }}">{{ student.full_name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Date *</label>
+                        <input type="date" class="form-control" name="scheduled_date" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Time *</label>
+                        <input type="time" class="form-control" name="scheduled_time" required>
+                        <small class="form-text text-muted" id="availabilityHint" style="display: none;">
+                            <i class="fas fa-info-circle"></i> This time may not be within the tutor's availability
+                        </small>
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Duration (minutes)</label>
+                        <select class="form-select" name="duration">
+                            <option value="30">30 minutes</option>
+                            <option value="45">45 minutes</option>
+                            <option value="60" selected>60 minutes</option>
+                            <option value="90">90 minutes</option>
+                            <option value="120">120 minutes</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Class Type</label>
+                        <select class="form-select" name="class_type">
+                            <option value="one_on_one">One-on-One</option>
+                            <option value="group">Group</option>
+                            <option value="demo">Demo</option>
+                        </select>
+                    </div>
+                </div>
+                
                 <div class="form-group">
-                    <label class="form-label">Type</label>
-                    <select name="class_type" class="form-input">
-                        <option value="regular">Regular Class</option>
-                        <option value="demo">Demo Class</option>
-                        <option value="makeup">Makeup Class</option>
-                        <option value="assessment">Assessment</option>
-                    </select>
+                    <label class="form-label">Grade</label>
+                    <input type="text" class="form-control" name="grade" placeholder="e.g., 10th">
                 </div>
-            </div>
-
-            <!-- Tutor Selection -->
-            <div class="form-group">
-                <label class="form-label">Tutor *</label>
-                <select name="tutor_id" class="form-input" required>
-                    <option value="">Select a tutor</option>
-                    {% for tutor in tutors %}
-                    <option value="{{ tutor.id }}">{{ tutor.full_name or tutor.user.full_name }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-
-            <!-- Grade -->
-            <div class="form-group">
-                <label class="form-label">Grade</label>
-                <select name="grade" class="form-input">
-                    <option value="">Select grade</option>
-                    <option value="6">Grade 6</option>
-                    <option value="7">Grade 7</option>
-                    <option value="8">Grade 8</option>
-                    <option value="9">Grade 9</option>
-                    <option value="10">Grade 10</option>
-                    <option value="11">Grade 11</option>
-                    <option value="12">Grade 12</option>
-                </select>
-            </div>
-
-            <!-- Scheduling -->
-            <div class="form-grid">
-                <!-- Date -->
+                
                 <div class="form-group">
-                    <label class="form-label">Date *</label>
-                    <input type="date" name="scheduled_date" class="form-input" required />
+                    <label class="form-label">Meeting Link</label>
+                    <input type="url" class="form-control" name="meeting_link" placeholder="https://zoom.us/j/...">
                 </div>
-
-                <!-- Time -->
+                
                 <div class="form-group">
-                    <label class="form-label">Time *</label>
-                    <input type="time" name="scheduled_time" class="form-input" required />
+                    <label class="form-label">Notes</label>
+                    <textarea class="form-control" name="class_notes" rows="3" placeholder="Any additional notes..."></textarea>
                 </div>
-            </div>
-
-            <!-- Duration -->
-            <div class="form-group">
-                <label class="form-label">Duration (minutes)</label>
-                <select name="duration" class="form-input">
-                    <option value="30">30 minutes</option>
-                    <option value="45">45 minutes</option>
-                    <option value="60" selected>60 minutes</option>
-                    <option value="90">90 minutes</option>
-                    <option value="120">120 minutes</option>
-                </select>
-            </div>
-
-            <!-- Notes -->
-            <div class="form-group">
-                <label class="form-label">Notes (Optional)</label>
-                <textarea name="notes" class="form-input" rows="3" placeholder="Additional notes..."></textarea>
-            </div>
-
-            <!-- Action Buttons -->
-            <div class="flex justify-end gap-4 pt-4">
-                <button type="button" onclick="closeQuickClassModal()" class="btn btn-secondary">
-                    Cancel
-                </button>
-                <button type="submit" class="btn btn-primary">
-                    <i class="fas fa-plus"></i>
-                    Create Class
-                </button>
-            </div>
-        </form>
+            </form>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-outline" onclick="closeModal('quickClassModal')">Cancel</button>
+            <button class="btn btn-primary" onclick="createQuickClass()">Create Class</button>
+        </div>
     </div>
 </div>
 
-<!-- Class Details Modal -->
-<div id="classDetailsModal" class="modal-overlay" style="display: none;">
+<!-- Tutor Calendar View Modal -->
+<div class="modal tutor-calendar-modal" id="tutorCalendarModal">
     <div class="modal-content">
-        <div class="flex items-center justify-between mb-6">
-            <h2 class="text-xl font-bold text-gray-900">Class Details</h2>
-            <button onclick="closeClassDetailsModal()" class="text-gray-500 hover:text-gray-700">
-                <i class="fas fa-times text-xl"></i>
+        <div class="modal-header">
+            <h4 class="modal-title">📅 Select Tutor for Calendar View</h4>
+            <button class="modal-close" onclick="closeModal('tutorCalendarModal')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="tutor-selector">
+                <h6>Choose a tutor to view their dedicated timetable:</h6>
+                
+                <!-- Search and Filter Controls -->
+                <div class="tutor-search-controls">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <input type="text" class="form-control" id="tutorSearchInput" placeholder="🔍 Search tutors by name or email..." onkeyup="filterTutors()">
+                        </div>
+                        <div class="col-md-3">
+                            <select class="form-select" id="tutorStatusFilter" onchange="filterTutors()">
+                                <option value="">All Status</option>
+                                <option value="active">Active</option>
+                                <option value="pending">Pending</option>
+                                <option value="inactive">Inactive</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <button class="btn btn-outline-secondary" onclick="clearTutorFilters()">
+                                <i class="fas fa-times"></i> Clear
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="tutor-options" id="tutorOptionsGrid">
+                    {% for tutor in tutors %}
+                    <div class="tutor-option" data-name="{{ (tutor.user.full_name if tutor.user else 'Unknown')|lower }}" data-email="{{ (tutor.user.email if tutor.user else '')|lower }}" data-status="{{ tutor.status if tutor.status else 'pending' }}" onclick="selectTutorForCalendar({{ tutor.id }}, '{{ (tutor.user.full_name if tutor.user else 'Unknown')|replace("'", "\\'") }}')">
+                        <div class="tutor-name">{{ tutor.user.full_name if tutor.user else 'Unknown' }}</div>
+                        <div class="tutor-details">{{ tutor.user.email if tutor.user else 'No email' }}</div>
+                        <div class="tutor-status {{ tutor.status if tutor.status else 'pending' }}">{{ (tutor.status if tutor.status else 'pending').title() }}</div>
+                    </div>
+                    {% endfor %}
+                </div>
+                
+                <div id="noTutorsMessage" class="text-center py-4" style="display: none;">
+                    <i class="fas fa-search" style="font-size: 2rem; color: var(--gray-400); margin-bottom: 1rem;"></i>
+                    <p style="color: var(--gray-500);">No tutors match your search criteria</p>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-outline" onclick="closeModal('tutorCalendarModal')">Cancel</button>
+            <button class="btn btn-primary" id="viewTutorCalendarBtn" onclick="viewSelectedTutorCalendar()" disabled>
+                <i class="fas fa-calendar-alt"></i> View Tutor Calendar
             </button>
         </div>
+    </div>
+</div>
 
-        <div id="classDetailsContent">
-            <!-- Content will be loaded dynamically -->
+<!-- Availability Modal -->
+<div class="modal" id="availabilityModal">
+    <div class="modal-content" style="max-width: 900px;">
+        <div class="modal-header">
+            <h4 class="modal-title">🕒 Tutor Availability Overview</h4>
+            <button class="modal-close" onclick="closeModal('availabilityModal')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div id="availabilityContent">
+                <div class="loading-spinner">
+                    <div class="loading-content">
+                        <div class="loading-spinner"></div>
+                        <p class="loading-text">Loading availability data...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-outline" onclick="closeModal('availabilityModal')">Close</button>
+            <button class="btn btn-primary" onclick="refreshAvailability()">
+                <i class="fas fa-refresh"></i> Refresh
+            </button>
         </div>
     </div>
 </div>
 
 <script>
-// Global variables
+// ============ FIXED CALENDAR TIMETABLE SYSTEM ============
+let currentView = 'day';
 let currentDate = new Date();
-let currentView = 'week';
-let classesData = [];
+let classesData = {};
+let searchFilters = {};
+let currentClassId = null;
+let allClassesData = [];
 
-// Initialize the calendar
+const TUTORS_DATA = [
+    {% for tutor in tutors %}
+    {
+        id: {{ tutor.id }},
+        name: "{{ (tutor.user.full_name if tutor.user else 'Unknown')|replace('"', '\\"') }}",
+        email: "{{ (tutor.user.email if tutor.user else 'No email')|replace('"', '\\"') }}"
+    }{% if not loop.last %},{% endif %}
+    {% endfor %}
+];
+
+const STUDENTS_DATA = [
+    {% for student in students %}
+    {
+        id: {{ student.id }},
+        name: "{{ student.full_name|replace('"', '\\"') }}",
+        email: "{{ (student.email or 'No email')|replace('"', '\\"') }}"
+    }{% if not loop.last %},{% endif %}
+    {% endfor %}
+];
+
 document.addEventListener('DOMContentLoaded', function() {
-    initializeCalendar();
-    loadTimetableData();
+    console.log('🚀 Initializing Fixed Calendar Timetable System...');
+    console.log('📊 Loaded tutors:', TUTORS_DATA.length);
+    console.log('📊 Loaded students:', STUDENTS_DATA.length);
+    
+    initializeTimetable();
     setupEventListeners();
+    updateDateDisplay();
+    loadTimetableData();
 });
 
-// Initialize calendar
-function initializeCalendar() {
-    generateTimeSlots();
-    generateCalendarGrid();
-    updateDateDisplay();
+// ============ INITIALIZATION ============
+function initializeTimetable() {
+    const today = new Date().toISOString().split('T')[0];
+    const quickClassForm = document.querySelector('#quickClassForm [name="scheduled_date"]');
+    if (quickClassForm) {
+        quickClassForm.value = today;
+    }
+    
+    const now = new Date();
+    now.setHours(now.getHours() + 1);
+    const timeInput = document.querySelector('#quickClassForm [name="scheduled_time"]');
+    if (timeInput) {
+        timeInput.value = now.toTimeString().slice(0, 5);
+    }
 }
 
-// Setup event listeners
 function setupEventListeners() {
-    // Set default date to today
-    const dateInput = document.querySelector('[name="scheduled_date"]');
-    if (dateInput) {
-        dateInput.value = new Date().toISOString().split('T')[0];
+    document.querySelectorAll('.view-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            switchView(this.dataset.view);
+        });
+    });
+    
+    document.getElementById('globalSearch').addEventListener('input', debounce(handleSearch, 500));
+    document.getElementById('tutorFilter').addEventListener('change', handleFilterChange);
+    document.getElementById('studentFilter').addEventListener('change', handleFilterChange);
+    document.getElementById('departmentFilter').addEventListener('change', handleFilterChange);
+    
+    document.querySelectorAll('.modal').forEach(modal => {
+        modal.addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeModal(this.id);
+            }
+        });
+    });
+}
+
+// ============ LOADING FUNCTIONS ============
+function showLoading(show = true) {
+    const overlay = document.getElementById('loadingOverlay');
+    if (show) {
+        overlay.classList.add('show');
+        console.log('⏳ Loading...');
+    } else {
+        overlay.classList.remove('show');
+        console.log('✅ Loading complete');
     }
 }
 
-// Generate time slots (9 AM to 6 PM)
-function generateTimeSlots() {
-    const container = document.getElementById('timeSlots');
-    if (!container) return;
+// ============ VIEW SWITCHING ============
+function switchView(view) {
+    document.querySelectorAll('.view-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    document.querySelector(`[data-view="${view}"]`).classList.add('active');
     
-    const times = [];
+    document.querySelectorAll('.view-content').forEach(content => {
+        content.style.display = 'none';
+    });
     
-    for (let hour = 9; hour <= 18; hour++) {
-        const time12 = hour > 12 ? `${hour - 12}:00 PM` : `${hour}:00 AM`;
-        times.push(`<div class="time-slot"><div class="time-label">${time12}</div></div>`);
-    }
+    document.getElementById(`${view}View`).style.display = 'block';
     
-    container.innerHTML = times.join('');
+    currentView = view;
+    updateDateDisplay();
+    loadTimetableData();
 }
 
-// Generate calendar grid for weekly view
-function generateCalendarGrid() {
-    for (let day = 0; day < 7; day++) {
-        const container = document.getElementById(`calendarGrid-${day}`);
-        if (!container) continue;
-        
-        const slots = [];
-        for (let hour = 9; hour <= 18; hour++) {
-            slots.push(`<div class="time-slot" data-day="${day}" data-hour="${hour}" onclick="handleTimeSlotClick(${day}, ${hour})"></div>`);
-        }
-        
-        container.innerHTML = slots.join('');
-    }
-}
-
-// Load timetable data from API
+// ============ DATA LOADING ============
 async function loadTimetableData() {
     try {
         showLoading(true);
         
-        // FIX: Add /admin prefix to API endpoints
-        const endpoint = currentView === 'today' ? '/admin/api/v1/timetable/today' : 
-                        currentView === 'month' ? '/admin/api/v1/timetable/month' : 
-                        '/admin/api/v1/timetable/week';
-        
-        const params = new URLSearchParams({
-            date: currentDate.toISOString().split('T')[0],
-            filter_type: 'all',
-            filter_value: ''
-        });
-        
-        console.log('Calling API:', `${endpoint}?${params}`);
-        
-        const response = await fetch(`${endpoint}?${params}`);
-        const data = await response.json();
-        
-        console.log('API Response:', data);
-        
-        if (data.success) {
-            classesData = data.classes || [];
-            updateStats(data.stats || {});
-            renderClasses();
-            console.log('Loaded classes:', classesData.length);
-        } else {
-            console.error('API Error:', data.error);
-            showAlert('Error loading timetable data: ' + (data.error || 'Unknown error'), 'error');
+        if (currentView === 'year') {
+            await loadYearData();
+        } else if (currentView === 'month') {
+            await loadMonthData();
+        } else if (currentView === 'day') {
+            await loadDayData();
         }
+        
     } catch (error) {
-        console.error('Error loading timetable:', error);
-        showAlert('Failed to load timetable data: ' + error.message, 'error');
+        console.error('❌ Error loading timetable:', error);
+        showNotification('Failed to load timetable data: ' + error.message, 'error');
     } finally {
         showLoading(false);
     }
 }
 
-// Update statistics display
-function updateStats(stats) {
-    if (stats.today) {
-        document.getElementById('scheduledCount').textContent = stats.today.scheduled || 0;
-        document.getElementById('ongoingCount').textContent = stats.today.ongoing || 0;
-        document.getElementById('completedCount').textContent = stats.today.completed || 0;
-        document.getElementById('cancelledCount').textContent = stats.today.cancelled || 0;
-    } else {
-        // Use week stats if today stats not available
-        document.getElementById('scheduledCount').textContent = stats.scheduled_classes || 0;
-        document.getElementById('ongoingCount').textContent = 0;
-        document.getElementById('completedCount').textContent = stats.completed_classes || 0;
-        document.getElementById('cancelledCount').textContent = stats.cancelled_classes || 0;
-    }
-}
-
-// Render classes on calendar
-function renderClasses() {
-    // Clear existing classes
-    document.querySelectorAll('.class-block').forEach(el => el.remove());
+async function loadYearData() {
+    console.log('📡 Loading year data...');
     
-    if (currentView === 'week') {
-        renderWeeklyClasses();
-    } else if (currentView === 'today') {
-        renderDailyClasses();
-    } else if (currentView === 'month') {
-        renderMonthlyClasses();
-    }
-}
-
-// Render classes for weekly view
-function renderWeeklyClasses() {
-    classesData.forEach(cls => {
-        const classDate = new Date(cls.scheduled_date);
-        const dayOfWeek = classDate.getDay();
-        
-        // Adjust for Monday start (0 = Monday, 6 = Sunday)
-        const adjustedDay = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
-        
-        const container = document.getElementById(`calendarGrid-${adjustedDay}`);
-        if (!container) return;
-        
-        // Calculate position based on time
-        const timeSlots = container.querySelectorAll('.time-slot');
-        const classHour = parseInt(cls.scheduled_time.split(':')[0]);
-        const slotIndex = classHour - 9; // 9 AM is index 0
-        
-        if (slotIndex >= 0 && slotIndex < timeSlots.length) {
-            const slot = timeSlots[slotIndex];
-            
-            // Create class block
-            const classBlock = document.createElement('div');
-            classBlock.className = `class-block ${cls.status}`;
-            classBlock.innerHTML = `
-                <div class="class-title">${cls.subject}</div>
-                <div class="class-details">${cls.tutor_name}</div>
-                <div class="class-details">${cls.scheduled_time}</div>
-            `;
-            classBlock.onclick = () => openClassDetails(cls.id);
-            
-            // Position the class block
-            const duration = cls.duration || 60;
-            const height = (duration / 60) * 60; // 60px per hour
-            classBlock.style.height = `${height - 4}px`;
-            
-            slot.appendChild(classBlock);
+    const response = await fetch(`/admin/api/v1/timetable/monthly-stats?year=${currentDate.getFullYear()}`, {
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCSRFToken()
         }
     });
+    
+    if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+    
+    const data = await response.json();
+    
+    if (data.success) {
+        const monthlyStats = data.stats;
+        await renderYearView(monthlyStats);
+        updateStats({total_classes: Object.values(monthlyStats).reduce((a, b) => a + b, 0)});
+    } else {
+        throw new Error(data.error || 'Failed to load year data');
+    }
 }
 
-// Switch view
-function switchView(view) {
-    currentView = view;
+async function loadMonthData() {
+    console.log('📡 Loading month data...');
     
-    // Update button states
-    document.querySelectorAll('.view-btn').forEach(btn => btn.classList.remove('active'));
-    event.target.classList.add('active');
+    const response = await fetch(`/admin/api/v1/timetable/month-details/${currentDate.getMonth() + 1}?year=${currentDate.getFullYear()}`, {
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCSRFToken()
+        }
+    });
     
-    // Show/hide views
-    document.getElementById('weeklyView').style.display = view === 'week' ? 'block' : 'none';
-    document.getElementById('monthlyView').style.display = view === 'month' ? 'block' : 'none';
-    document.getElementById('dailyView').style.display = view === 'today' ? 'block' : 'none';
+    if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
     
-    loadTimetableData();
+    const data = await response.json();
+    
+    if (data.success) {
+        classesData = data.classes_by_date || {};
+        renderMonthView(data);
+        updateStats({total_classes: data.total_classes || 0});
+    } else {
+        throw new Error(data.error || 'Failed to load month data');
+    }
 }
 
-// Navigate weeks
-function navigateWeek(direction) {
-    const days = direction * 7;
-    currentDate.setDate(currentDate.getDate() + days);
+async function loadDayData() {
+    console.log('📡 Loading day data...');
+    
+    const params = new URLSearchParams({
+        date: currentDate.toISOString().split('T')[0],
+        ...searchFilters
+    });
+    
+    const response = await fetch(`/admin/api/v1/timetable/today?${params}`, {
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCSRFToken()
+        }
+    });
+    
+    if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+    
+    const data = await response.json();
+    
+    if (data.success) {
+        allClassesData = data.classes || [];
+        renderDayView();
+        updateStats(data.stats || {});
+    } else {
+        throw new Error(data.error || 'Failed to load day data');
+    }
+}
+
+// ============ YEAR VIEW RENDERING ============
+async function renderYearView(monthlyStats) {
+    const container = document.getElementById('yearCalendar');
+    container.innerHTML = '';
+
+    const months = [
+        'January', 'February', 'March', 'April', 'May', 'June',
+        'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+
+    const monthKeys = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+
+    for (let i = 0; i < 12; i++) {
+        const monthName = months[i];
+        const classCount = monthlyStats[monthKeys[i]] || 0;
+
+        const monthDiv = document.createElement('div');
+        monthDiv.classList.add('month-calendar');
+        monthDiv.id = `month-calendar-${i}`;
+
+        monthDiv.innerHTML = `
+            <div class="month-header" onclick="loadAndRenderMonth(${i})">
+                ${monthName}
+                <div style="font-size: 0.8rem; opacity: 0.9;">${classCount} classes</div>
+            </div>
+            <div class="month-grid" id="month-grid-${i}">
+                <div style="text-align:center; color:var(--gray-400); padding:1rem;">Click to load details...</div>
+            </div>
+        `;
+
+        container.appendChild(monthDiv);
+    }
+}
+
+async function loadAndRenderMonth(monthIndex) {
+    const year = currentDate.getFullYear();
+    const gridId = `month-grid-${monthIndex}`;
+    const grid = document.getElementById(gridId);
+
+    if (grid.dataset.loaded === 'true') return;
+
+    grid.innerHTML = `<div style="text-align:center; color:var(--gray-500); padding:1rem;">
+        <div class="loading-spinner-small" style="margin: auto; width: 16px; height: 16px; border: 2px solid var(--gray-300); border-top: 2px solid var(--primary); border-radius: 50%; animation: spin 1s linear infinite;"></div> Loading...
+    </div>`;
+
+    try {
+        const res = await fetch(`/admin/api/v1/timetable/month-details/${monthIndex + 1}?year=${year}`);
+        const data = await res.json();
+
+        if (data.success) {
+            const monthClasses = data.classes_by_date || {};
+            const html = `
+                <div class="weekday-header">
+                    <div class="weekday">S</div>
+                    <div class="weekday">M</div>
+                    <div class="weekday">T</div>
+                    <div class="weekday">W</div>
+                    <div class="weekday">T</div>
+                    <div class="weekday">F</div>
+                    <div class="weekday">S</div>
+                </div>
+                <div class="days-grid">
+                    ${generateMonthDays(year, monthIndex, monthClasses)}
+                </div>
+            `;
+            grid.innerHTML = html;
+            grid.dataset.loaded = 'true';
+        } else {
+            grid.innerHTML = `<div style="color: var(--danger); text-align: center; padding: 1rem;">${data.error || 'Failed to load'}</div>`;
+        }
+    } catch (err) {
+        console.error(`❌ Error loading month ${monthIndex + 1}`, err);
+        grid.innerHTML = `<div style="color: var(--danger); text-align: center; padding: 1rem;">Error loading data</div>`;
+    }
+}
+
+// ============ FIXED DATE CALCULATION ============
+function generateMonthDays(year, month, monthClasses) {
+    // Create first day of the month in local time zone
+    const firstDay = new Date(year, month, 1);
+    const firstDayOfWeek = firstDay.getDay(); // 0 = Sunday
+    
+    // Calculate start date (Sunday before first day)
+    const startDate = new Date(year, month, 1 - firstDayOfWeek);
+    
+    let html = '';
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Reset time for accurate comparison
+    
+    // Generate 6 weeks (42 days)
+    for (let i = 0; i < 42; i++) {
+        const currentDay = new Date(startDate);
+        currentDay.setDate(startDate.getDate() + i);
+        
+        const isCurrentMonth = currentDay.getMonth() === month;
+        const isToday = currentDay.getTime() === today.getTime();
+        
+        // Format date properly for API
+        const dateStr = currentDay.getFullYear() + '-' + 
+                       String(currentDay.getMonth() + 1).padStart(2, '0') + '-' + 
+                       String(currentDay.getDate()).padStart(2, '0');
+        
+        const dayClasses = monthClasses[dateStr] || [];
+        const classCount = dayClasses.length;
+        
+        let cellClass = 'day-cell';
+        if (!isCurrentMonth) cellClass += ' other-month';
+        if (isToday) cellClass += ' today';
+        if (classCount > 0) cellClass += ' has-classes';
+        
+        html += `
+            <div class="${cellClass}" onclick="navigateToDay('${dateStr}')">
+                <div class="day-number">${currentDay.getDate()}</div>
+                ${classCount > 0 ? `<div class="class-count">${classCount}</div>` : ''}
+            </div>
+        `;
+    }
+    
+    return html;
+}
+
+// ============ MONTH VIEW RENDERING - FIXED ============
+function renderMonthView(data) {
+    const container = document.getElementById('monthCalendar');
+    
+    const monthNames = [
+        'January', 'February', 'March', 'April', 'May', 'June',
+        'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+    
+    const monthName = monthNames[currentDate.getMonth()];
+    const year = currentDate.getFullYear();
+    
+    const html = `
+        <div class="month-view-header">
+            ${monthName} ${year}
+        </div>
+        <div class="month-view-weekdays">
+            <div class="month-view-weekday">Sunday</div>
+            <div class="month-view-weekday">Monday</div>
+            <div class="month-view-weekday">Tuesday</div>
+            <div class="month-view-weekday">Wednesday</div>
+            <div class="month-view-weekday">Thursday</div>
+            <div class="month-view-weekday">Friday</div>
+            <div class="month-view-weekday">Saturday</div>
+        </div>
+        <div class="month-view-days">
+            ${generateMonthViewDays(year, currentDate.getMonth(), classesData)}
+        </div>
+    `;
+    
+    container.innerHTML = html;
+}
+
+function generateMonthViewDays(year, month, monthClasses) {
+    // Create first day of the month in local time zone
+    const firstDay = new Date(year, month, 1);
+    const firstDayOfWeek = firstDay.getDay(); // 0 = Sunday
+    
+    // Calculate start date (Sunday before first day)
+    const startDate = new Date(year, month, 1 - firstDayOfWeek);
+    
+    let html = '';
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    // Generate 6 weeks (42 days)
+    for (let i = 0; i < 42; i++) {
+        const currentDay = new Date(startDate);
+        currentDay.setDate(startDate.getDate() + i);
+        
+        const isCurrentMonth = currentDay.getMonth() === month;
+        const isToday = currentDay.getTime() === today.getTime();
+        
+        // Format date properly
+        const dateStr = currentDay.getFullYear() + '-' + 
+                       String(currentDay.getMonth() + 1).padStart(2, '0') + '-' + 
+                       String(currentDay.getDate()).padStart(2, '0');
+        
+        const dayClasses = monthClasses[dateStr] || [];
+        
+        let cellClass = 'month-view-day';
+        if (!isCurrentMonth) cellClass += ' other-month';
+        if (isToday) cellClass += ' today';
+        
+        let classesHtml = '';
+        if (dayClasses.length > 0) {
+            if (dayClasses.length <= 3) {
+                classesHtml = dayClasses.map(cls => 
+                    `<div class="month-class-item" onclick="event.stopPropagation(); openClassDetails(${cls.id})" title="${cls.subject} - ${cls.time}">${cls.subject} (${cls.time})</div>`
+                ).join('');
+            } else {
+                classesHtml = dayClasses.slice(0, 2).map(cls => 
+                    `<div class="month-class-item" onclick="event.stopPropagation(); openClassDetails(${cls.id})" title="${cls.subject} - ${cls.time}">${cls.subject} (${cls.time})</div>`
+                ).join('');
+                classesHtml += `<div class="month-class-count" onclick="event.stopPropagation(); navigateToDay('${dateStr}')" title="Click to view all ${dayClasses.length} classes">+${dayClasses.length - 2} more</div>`;
+            }
+        }
+        
+        html += `
+            <div class="${cellClass}" onclick="navigateToDay('${dateStr}')">
+                <div class="month-day-number">${currentDay.getDate()}</div>
+                <div class="month-day-classes">
+                    ${classesHtml}
+                </div>
+            </div>
+        `;
+    }
+    
+    return html;
+}
+
+// ============ DAY VIEW RENDERING ============
+function renderDayView() {
+    const container = document.getElementById('dayViewContainer');
+    
+    if (!allClassesData || allClassesData.length === 0) {
+        container.innerHTML = `
+            <div class="day-view-header">
+                ${currentDate.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+            </div>
+            <div style="text-align: center; padding: 3rem; color: var(--gray-500);">
+                <i class="fas fa-calendar-times" style="font-size: 3rem; margin-bottom: 1rem; opacity: 0.5;"></i>
+                <h3 style="margin: 0 0 1rem 0;">No Classes Today</h3>
+                <p style="margin: 0;">No classes scheduled for this date.</p>
+            </div>
+        `;
+        return;
+    }
+    
+    // Group classes by hour
+    const classesByTime = {};
+    allClassesData.forEach(cls => {
+        const timeStr = cls.scheduled_time || '00:00';
+        const hour = parseInt(timeStr.split(':')[0]);
+        
+        if (!classesByTime[hour]) {
+            classesByTime[hour] = [];
+        }
+        classesByTime[hour].push(cls);
+    });
+    
+    let timeSlotsHtml = '';
+    
+    // Generate time slots from 6 AM to 11 PM
+    for (let hour = 6; hour <= 23; hour++) {
+        const displayTime = hour === 0 ? '12:00 AM' :
+                           hour < 12 ? `${hour}:00 AM` :
+                           hour === 12 ? '12:00 PM' :
+                           `${hour - 12}:00 PM`;
+        
+        const timeClasses = classesByTime[hour] || [];
+        const classCount = timeClasses.length;
+        
+        if (classCount > 0 || (hour >= 9 && hour <= 21)) {
+            timeSlotsHtml += `
+                <div class="time-slot" data-hour="${hour}">
+                    <div class="time-header" onclick="toggleTimeSlot(${hour})">
+                        <div class="time-info">
+                            <span class="time-label">${displayTime}</span>
+                            <span class="slot-class-count ${classCount === 0 ? 'zero' : ''}">${classCount} classes</span>
+                        </div>
+                        <i class="fas fa-chevron-down dropdown-icon"></i>
+                    </div>
+                    <div class="time-content">
+                        <div class="classes-list">
+                            ${renderTimeClasses(timeClasses)}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+    }
+    
+    container.innerHTML = `
+        <div class="day-view-header">
+            ${currentDate.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+            <div style="font-size: 1rem; opacity: 0.9; margin-top: 0.5rem;">
+                ${allClassesData.length} classes scheduled
+            </div>
+        </div>
+        <div class="time-slots">
+            ${timeSlotsHtml}
+        </div>
+    `;
+}
+
+function renderTimeClasses(classes) {
+    if (classes.length === 0) {
+        return '<p style="color: var(--gray-500); font-style: italic; margin: 0;">No classes scheduled</p>';
+    }
+    
+    let html = '';
+    
+    classes.forEach(cls => {
+        const studentInfo = cls.student_count > 0 ? 
+            `${cls.student_count} student${cls.student_count > 1 ? 's' : ''}` : 
+            'No students';
+        
+        html += `
+            <div class="class-item" onclick="openClassDetails(${cls.id})" title="Click for details">
+                <h4 class="class-subject">${cls.subject}</h4>
+                <div class="class-details">
+                    <div class="class-tutor">
+                        <i class="fas fa-user-tie"></i>
+                        ${cls.tutor_name}
+                    </div>
+                    <div class="class-actions">
+                        <div class="action-icon" onclick="event.stopPropagation(); alert('Reschedule: ${cls.id}')" title="Reschedule">
+                            <i class="fas fa-calendar-alt"></i>
+                        </div>
+                        <div class="action-icon" onclick="event.stopPropagation(); alert('Cancel: ${cls.id}')" title="Cancel">
+                            <i class="fas fa-times"></i>
+                        </div>
+                        <div class="action-icon" onclick="event.stopPropagation(); openClassDetails(${cls.id})" title="Details">
+                            <i class="fas fa-info"></i>
+                        </div>
+                    </div>
+                </div>
+                <div style="font-size: 0.75rem; opacity: 0.8; margin-top: 0.5rem;">
+                    👥 ${studentInfo} • ⏱️ ${cls.duration} min • 📊 ${cls.status}
+                </div>
+            </div>
+        `;
+    });
+    
+    return html;
+}
+
+// ============ NAVIGATION FUNCTIONS ============
+function navigateToMonth(monthIndex) {
+    currentDate.setMonth(monthIndex);
+    switchView('month');
+}
+
+function navigateToDay(dateStr) {
+    const [year, month, day] = dateStr.split('-').map(Number);
+    currentDate = new Date(year, month - 1, day); // month is 0-indexed
+    switchView('day');
+}
+
+function toggleTimeSlot(hour) {
+    const slot = document.querySelector(`[data-hour="${hour}"]`);
+    slot.classList.toggle('expanded');
+}
+
+// ============ DATE NAVIGATION ============
+function navigateDate(direction) {
+    if (currentView === 'day') {
+        currentDate.setDate(currentDate.getDate() + direction);
+    } else if (currentView === 'month') {
+        currentDate.setMonth(currentDate.getMonth() + direction);
+    } else if (currentView === 'year') {
+        currentDate.setFullYear(currentDate.getFullYear() + direction);
+    }
+    
     updateDateDisplay();
     loadTimetableData();
 }
 
-// Go to today
 function goToToday() {
     currentDate = new Date();
     updateDateDisplay();
     loadTimetableData();
 }
 
-// Update date display
 function updateDateDisplay() {
-    const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
-                       'July', 'August', 'September', 'October', 'November', 'December'];
+    let displayText = '';
+    let prevLabel = 'Previous';
+    let nextLabel = 'Next';
     
-    document.getElementById('currentMonth').textContent = 
-        `${monthNames[currentDate.getMonth()]} ${currentDate.getFullYear()}`;
-    
-    // Update day headers for weekly view
-    const startOfWeek = new Date(currentDate);
-    startOfWeek.setDate(currentDate.getDate() - currentDate.getDay() + 1); // Monday start
-    
-    for (let i = 0; i < 7; i++) {
-        const day = new Date(startOfWeek);
-        day.setDate(startOfWeek.getDate() + i);
-        const dayElement = document.getElementById(`day-${i}`);
-        if (dayElement) {
-            dayElement.textContent = day.getDate();
-        }
-        
-        // Mark today
-        const header = document.querySelector(`[data-day="${i}"]`);
-        if (header) {
-            const isToday = day.toDateString() === new Date().toDateString();
-            header.classList.toggle('today', isToday);
-        }
+    if (currentView === 'day') {
+        const options = { 
+            weekday: 'long', 
+            year: 'numeric', 
+            month: 'long', 
+            day: 'numeric' 
+        };
+        displayText = currentDate.toLocaleDateString('en-US', options);
+        prevLabel = 'Previous Day';
+        nextLabel = 'Next Day';
+    } else if (currentView === 'month') {
+        displayText = currentDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long' });
+        prevLabel = 'Previous Month';
+        nextLabel = 'Next Month';
+    } else if (currentView === 'year') {
+        displayText = currentDate.getFullYear().toString();
+        prevLabel = 'Previous Year';
+        nextLabel = 'Next Year';
     }
+    
+    document.getElementById('currentDate').textContent = displayText;
+    document.getElementById('prevLabel').textContent = prevLabel;
+    document.getElementById('nextLabel').textContent = nextLabel;
 }
 
-// Handle time slot clicks
-function handleTimeSlotClick(day, hour) {
-    const startOfWeek = new Date(currentDate);
-    startOfWeek.setDate(currentDate.getDate() - currentDate.getDay() + 1); // Monday start
-    
-    const selectedDate = new Date(startOfWeek);
-    selectedDate.setDate(startOfWeek.getDate() + day);
-    
-    // Pre-fill quick class modal with selected time
-    document.querySelector('[name="scheduled_date"]').value = selectedDate.toISOString().split('T')[0];
-    document.querySelector('[name="scheduled_time"]').value = `${hour.toString().padStart(2, '0')}:00`;
-    
-    openQuickClassModal();
-}
-
-// Modal functions
+// ============ QUICK CLASS CREATION ============
 function openQuickClassModal() {
-    document.getElementById('quickClassModal').style.display = 'flex';
-    // Set default date to today if not set
-    const dateInput = document.querySelector('[name="scheduled_date"]');
-    if (!dateInput.value) {
-        dateInput.value = new Date().toISOString().split('T')[0];
+    console.log('🚀 Opening Quick Class Modal');
+    document.getElementById('quickClassModal').classList.add('show');
+    
+    const form = document.getElementById('quickClassForm');
+    if (currentView === 'day') {
+        form.querySelector('[name="scheduled_date"]').value = currentDate.toISOString().split('T')[0];
+    } else {
+        form.querySelector('[name="scheduled_date"]').value = new Date().toISOString().split('T')[0];
     }
+    
+    const now = new Date();
+    now.setHours(now.getHours() + 1);
+    form.querySelector('[name="scheduled_time"]').value = now.toTimeString().slice(0, 5);
 }
 
-function closeQuickClassModal() {
-    document.getElementById('quickClassModal').style.display = 'none';
-    document.getElementById('quickClassForm').reset();
-}
-
-function openClassDetails(classId) {
-    document.getElementById('classDetailsModal').style.display = 'flex';
-    loadClassDetails(classId);
-}
-
-function closeClassDetailsModal() {
-    document.getElementById('classDetailsModal').style.display = 'none';
-}
-
-// Load class details
-async function loadClassDetails(classId) {
+async function createQuickClass() {
     try {
-        // FIX: Add /admin prefix
-        const response = await fetch(`/admin/api/v1/classes/${classId}`);
-        const data = await response.json();
+        const form = document.getElementById('quickClassForm');
+        const formData = new FormData(form);
         
-        if (data.success) {
-            const cls = data.data;
-            document.getElementById('classDetailsContent').innerHTML = `
-                <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
-                    <h3 class="font-semibold text-blue-900 mb-2">${cls.subject}</h3>
-                    <div class="space-y-2 text-sm">
-                        <div class="flex justify-between">
-                            <span class="text-gray-600">Tutor:</span>
-                            <span class="font-medium">${cls.tutor_name}</span>
-                        </div>
-                        <div class="flex justify-between">
-                            <span class="text-gray-600">Date:</span>
-                            <span class="font-medium">${cls.scheduled_date}</span>
-                        </div>
-                        <div class="flex justify-between">
-                            <span class="text-gray-600">Time:</span>
-                            <span class="font-medium">${cls.scheduled_time}</span>
-                        </div>
-                        <div class="flex justify-between">
-                            <span class="text-gray-600">Duration:</span>
-                            <span class="font-medium">${cls.duration} minutes</span>
-                        </div>
-                        <div class="flex justify-between">
-                            <span class="text-gray-600">Status:</span>
-                            <span class="font-medium capitalize">${cls.status}</span>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="flex gap-3 mb-4">
-                    <button class="btn btn-primary" onclick="window.open('/admin/classes/${cls.id}', '_blank')">
-                        <i class="fas fa-external-link-alt"></i>
-                        View Details
-                    </button>
-                    <button class="btn btn-secondary" onclick="cancelClass(${cls.id})">
-                        <i class="fas fa-times"></i>
-                        Cancel
-                    </button>
-                </div>
-            `;
-        } else {
-            showAlert('Error loading class details', 'error');
+        if (!formData.get('subject') || !formData.get('tutor_id') || !formData.get('scheduled_date') || !formData.get('scheduled_time')) {
+            showNotification('Please fill in all required fields', 'error');
+            return;
         }
-    } catch (error) {
-        console.error('Error loading class details:', error);
-        showAlert('Failed to load class details', 'error');
-    }
-}
-
-// Create quick class
-async function createQuickClass(event) {
-    event.preventDefault();
-    
-    const formData = new FormData(event.target);
-    const classData = Object.fromEntries(formData.entries());
-    
-    try {
+        
+        // Check availability before creating
+        const tutorId = formData.get('tutor_id');
+        const date = formData.get('scheduled_date');
+        const time = formData.get('scheduled_time');
+        
+        const availabilityCheck = await checkTutorAvailability(tutorId, date, time);
+        
+        if (!availabilityCheck.available) {
+            const proceed = confirm(`⚠️ Warning: This time (${time}) may not be within the tutor's availability schedule.\n\nTutor available times: ${availabilityCheck.available_times || 'Not set'}\n\nDo you want to proceed anyway?`);
+            if (!proceed) {
+                return;
+            }
+        }
+        
         showLoading(true);
         
-        // FIX: Add /admin prefix
-        const response = await fetch('/admin/api/v1/classes/create', {
+        const classData = {};
+        for (let [key, value] of formData.entries()) {
+            classData[key] = value;
+        }
+        
+        console.log('📡 Creating class with API:', classData);
+        
+        const response = await fetch('/admin/api/v1/timetable/quick-class', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
+                'X-CSRFToken': getCSRFToken()
             },
             body: JSON.stringify(classData)
         });
@@ -1073,149 +2120,696 @@ async function createQuickClass(event) {
         const result = await response.json();
         
         if (result.success) {
-            showAlert('Class created successfully', 'success');
-            closeQuickClassModal();
-            loadTimetableData(); // Refresh the calendar
+            showNotification('Class created successfully!', 'success');
+            closeModal('quickClassModal');
+            form.reset();
+            loadTimetableData();
         } else {
-            showAlert(result.error || 'Failed to create class', 'error');
+            showNotification(result.error || 'Failed to create class', 'error');
         }
+        
     } catch (error) {
-        console.error('Error creating class:', error);
-        showAlert('Failed to create class', 'error');
+        console.error('❌ Error creating class:', error);
+        showNotification('Failed to create class: ' + error.message, 'error');
     } finally {
         showLoading(false);
     }
 }
 
-// Cancel class
-async function cancelClass(classId) {
-    if (!confirm('Are you sure you want to cancel this class?')) return;
-    
+// ============ AVAILABILITY CHECKING ============
+async function checkTutorAvailability(tutorId, date, time) {
     try {
-        // FIX: Add /admin prefix
-        const response = await fetch(`/admin/api/v1/classes/${classId}/cancel`, {
-            method: 'POST'
+        const response = await fetch(`/admin/api/tutor/${tutorId}/check-availability?date=${date}&time=${time}`, {
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCSRFToken()
+            }
         });
         
-        const result = await response.json();
-        
-        if (result.success) {
-            showAlert('Class cancelled successfully', 'success');
-            closeClassDetailsModal();
-            loadTimetableData();
-        } else {
-            showAlert(result.error || 'Failed to cancel class', 'error');
+        if (!response.ok) {
+            return { available: true }; // Default to available if check fails
         }
+        
+        const data = await response.json();
+        return data;
+        
     } catch (error) {
-        console.error('Error cancelling class:', error);
-        showAlert('Failed to cancel class', 'error');
+        console.error('❌ Error checking availability:', error);
+        return { available: true }; // Default to available if check fails
     }
 }
 
-// Utility functions
-function showLoading(show) {
-    const buttons = document.querySelectorAll('.btn');
-    buttons.forEach(btn => {
-        if (show) {
-            btn.classList.add('loading');
-            btn.disabled = true;
-        } else {
-            btn.classList.remove('loading');
-            btn.disabled = false;
+// Enhanced form validation with availability hints
+document.addEventListener('change', function(e) {
+    if (e.target.name === 'tutor_id' || e.target.name === 'scheduled_date' || e.target.name === 'scheduled_time') {
+        const form = e.target.closest('form');
+        const tutorId = form.querySelector('[name="tutor_id"]').value;
+        const date = form.querySelector('[name="scheduled_date"]').value;
+        const time = form.querySelector('[name="scheduled_time"]').value;
+        
+        if (tutorId && date && time) {
+            checkTutorAvailability(tutorId, date, time).then(result => {
+                const hint = document.getElementById('availabilityHint');
+                if (hint) {
+                    if (!result.available) {
+                        hint.style.display = 'block';
+                        hint.className = 'form-text text-warning';
+                        hint.innerHTML = '<i class="fas fa-exclamation-triangle"></i> This time may not be within the tutor\'s availability';
+                    } else {
+                        hint.style.display = 'block';
+                        hint.className = 'form-text text-success';
+                        hint.innerHTML = '<i class="fas fa-check-circle"></i> Time is within tutor\'s availability';
+                    }
+                }
+            });
         }
+    }
+});
+
+// ============ CLASS DETAILS PLACEHOLDER ============
+// ============ CLASS DETAILS MODAL - USING EXISTING API ============
+async function openClassDetails(classId) {
+    try {
+        showLoading(true);
+        console.log('📡 Loading class details for ID:', classId);
+        
+        // Use your existing API endpoint
+        const response = await fetch(`/admin/api/v1/timetable/class/${classId}`, {
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCSRFToken()
+            }
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            createClassDetailsModal(data.class);
+        } else {
+            throw new Error(data.error || 'Failed to load class details');
+        }
+        
+    } catch (error) {
+        console.error('❌ Error loading class details:', error);
+        showNotification('Failed to load class details: ' + error.message, 'error');
+    } finally {
+        showLoading(false);
+    }
+}
+
+function createClassDetailsModal(classData) {
+    // Remove any existing modal
+    const existingModal = document.getElementById('classDetailsModal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+    
+    // Format students list - using your patterns
+    const studentsHtml = classData.students && classData.students.length > 0 ? 
+        classData.students.map(student => `
+            <div class="student-item">
+                <i class="fas fa-user"></i>
+                <span>${student.name}</span>
+                <small class="text-muted">(${student.type})</small>
+            </div>
+        `).join('') : 
+        '<div class="text-muted">No students assigned</div>';
+    
+    // Format status badge - using your color scheme
+    const statusMap = {
+        'scheduled': { class: 'info', icon: 'clock' },
+        'ongoing': { class: 'warning', icon: 'play' },
+        'completed': { class: 'success', icon: 'check' },
+        'cancelled': { class: 'danger', icon: 'times' }
+    };
+    const status = statusMap[classData.status] || { class: 'secondary', icon: 'question' };
+    
+    // Create modal HTML - following your modal structure
+    const modalHtml = `
+        <div class="modal show" id="classDetailsModal">
+            <div class="modal-content" style="max-width: 800px;">
+                <div class="modal-header">
+                    <h4 class="modal-title">
+                        <i class="fas fa-chalkboard-teacher"></i>
+                        ${classData.subject} - Class Details
+                    </h4>
+                    <button class="modal-close" onclick="closeModal('classDetailsModal')">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <!-- Status Badge -->
+                    <div style="text-align: center; margin-bottom: 2rem;">
+                        <span style="background: var(--${status.class}); color: white; padding: 0.5rem 1rem; border-radius: 20px; font-weight: 600;">
+                            <i class="fas fa-${status.icon}"></i> ${classData.status.toUpperCase()}
+                        </span>
+                    </div>
+                    
+                    <!-- Main Info Grid -->
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Subject</label>
+                            <div class="detail-value">${classData.subject}</div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Class Type</label>
+                            <div class="detail-value">${classData.class_type}</div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Grade</label>
+                            <div class="detail-value">${classData.grade || 'Not specified'}</div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Board</label>
+                            <div class="detail-value">${classData.board || 'Not specified'}</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Schedule Info -->
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">📅 Date & Time</label>
+                            <div class="detail-value">
+                                ${new Date(classData.scheduled_date).toLocaleDateString('en-US', { 
+                                    weekday: 'long', 
+                                    year: 'numeric', 
+                                    month: 'long', 
+                                    day: 'numeric' 
+                                })} at ${classData.scheduled_time}
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">⏱️ Duration</label>
+                            <div class="detail-value">${classData.duration} minutes</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Tutor Info -->
+                    <div style="background: var(--gray-50); padding: 1rem; border-radius: 8px; margin: 1rem 0;">
+                        <div class="form-group">
+                            <label class="form-label">👨‍🏫 Tutor</label>
+                            <div class="tutor-info">
+                                <div style="font-weight: 600; color: var(--gray-800);">${classData.tutor.name}</div>
+                                <small style="color: var(--gray-600);">${classData.tutor.email}</small>
+                                ${classData.tutor.phone ? `<br><small style="color: var(--gray-600);">${classData.tutor.phone}</small>` : ''}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Students Info -->
+                    <div style="background: var(--gray-50); padding: 1rem; border-radius: 8px; margin: 1rem 0;">
+                        <div class="form-group">
+                            <label class="form-label">👥 Students (${classData.students.length})</label>
+                            <div class="students-list">
+                                ${studentsHtml}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Meeting Info -->
+                    ${classData.meeting_link ? `
+                    <div class="form-group">
+                        <label class="form-label">🔗 Meeting Link</label>
+                        <div style="display: flex; gap: 0.5rem;">
+                            <input type="text" value="${classData.meeting_link}" readonly class="form-control" style="flex: 1;">
+                            <button class="btn btn-primary" onclick="copyToClipboard('${classData.meeting_link}')" style="padding: 0.75rem;">
+                                <i class="fas fa-copy"></i>
+                            </button>
+                        </div>
+                    </div>
+                    ` : ''}
+                    
+                    <!-- Platform Info -->
+                    ${classData.platform ? `
+                    <div class="form-group">
+                        <label class="form-label">Platform</label>
+                        <div class="detail-value">${classData.platform}</div>
+                    </div>
+                    ` : ''}
+                    
+                    <!-- Class Notes -->
+                    ${classData.class_notes ? `
+                    <div class="form-group">
+                        <label class="form-label">📝 Class Notes</label>
+                        <div style="background: var(--gray-50); padding: 1rem; border-radius: 8px; border-left: 4px solid var(--primary);">
+                            ${classData.class_notes}
+                        </div>
+                    </div>
+                    ` : ''}
+                    
+                    <!-- Additional Info -->
+                    ${classData.topics_covered ? `
+                    <div class="form-group">
+                        <label class="form-label">Topics Covered</label>
+                        <div class="detail-value">${classData.topics_covered}</div>
+                    </div>
+                    ` : ''}
+                    
+                    ${classData.homework_assigned ? `
+                    <div class="form-group">
+                        <label class="form-label">Homework Assigned</label>
+                        <div class="detail-value">${classData.homework_assigned}</div>
+                    </div>
+                    ` : ''}
+                    
+                    <!-- Timestamps -->
+                    <div style="border-top: 1px solid var(--gray-200); padding-top: 1rem; margin-top: 2rem;">
+                        <small style="color: var(--gray-500);">
+                            Created: ${classData.created_at || 'Unknown'}
+                            ${classData.actual_start_time ? `<br>Started: ${classData.actual_start_time}` : ''}
+                            ${classData.actual_end_time ? `<br>Ended: ${classData.actual_end_time}` : ''}
+                        </small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-outline" onclick="closeModal('classDetailsModal')">
+                        Close
+                    </button>
+                    <button class="btn btn-primary" onclick="window.location.href='/admin/classes/${classData.id}'">
+                        <i class="fas fa-external-link-alt"></i>
+                        Full Page View
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <style>
+        .detail-value {
+            color: var(--gray-800);
+            font-weight: 500;
+            margin-top: 0.25rem;
+        }
+        .student-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 0.5rem;
+            padding: 0.5rem;
+            background: var(--white);
+            border-radius: 6px;
+            border: 1px solid var(--gray-200);
+        }
+        .student-item i {
+            color: var(--primary);
+        }
+        #classDetailsModal .modal-content {
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        </style>
+    `;
+    
+    // Add modal to page
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    
+    console.log('✅ Class details modal created successfully');
+}
+
+function copyToClipboard(text) {
+    navigator.clipboard.writeText(text).then(() => {
+        showNotification('Meeting link copied to clipboard!', 'success');
+    }).catch(() => {
+        showNotification('Failed to copy link', 'error');
     });
 }
 
-function showAlert(message, type = 'info') {
-    // Create alert element
-    const alert = document.createElement('div');
-    alert.className = `alert alert-${type === 'error' ? 'danger' : type}`;
-    alert.innerHTML = `
-        <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle'}"></i>
-        <span>${message}</span>
-        <button class="alert-close" onclick="this.parentElement.remove()">
-            <i class="fas fa-times"></i>
-        </button>
-    `;
+// ============ SEARCH & FILTERS ============
+function handleSearch(event) {
+    const searchTerm = event.target.value.trim();
+    if (searchTerm.length >= 3) {
+        searchFilters.search = searchTerm;
+        loadTimetableData();
+    } else if (searchTerm.length === 0) {
+        delete searchFilters.search;
+        loadTimetableData();
+    }
+}
+
+function handleFilterChange() {
+    // Keep existing search term if any
+    const currentSearch = searchFilters.search;
+    searchFilters = {};
     
-    // Add to flash messages container
-    let container = document.querySelector('.flash-messages');
-    if (!container) {
-        container = document.createElement('div');
-        container.className = 'flash-messages';
-        document.body.appendChild(container);
+    if (currentSearch) {
+        searchFilters.search = currentSearch;
     }
     
-    container.appendChild(alert);
+    const tutorId = document.getElementById('tutorFilter').value;
+    const studentId = document.getElementById('studentFilter').value;
+    const deptId = document.getElementById('departmentFilter').value;
     
-    // Auto remove after 5 seconds
+    if (tutorId) searchFilters.tutor_id = tutorId;
+    if (studentId) searchFilters.student_id = studentId;
+    if (deptId) searchFilters.department_id = deptId;
+    
+    console.log('📊 Applied filters:', searchFilters);
+    loadTimetableData();
+}
+
+// ============ STATISTICS ============
+function updateStats(stats) {
+    // Handle different stat formats from different views
+    const totalClasses = stats.total_classes || 
+                        (stats.scheduled || 0) + (stats.completed || 0) + (stats.cancelled || 0) ||
+                        allClassesData.length || 0;
+    
+    const scheduledClasses = stats.scheduled || stats.today?.scheduled || 
+                           (allClassesData.filter(cls => cls.status === 'scheduled').length) || 0;
+    
+    const completedClasses = stats.completed || stats.today?.completed || 
+                           (allClassesData.filter(cls => cls.status === 'completed').length) || 0;
+    
+    const cancelledClasses = stats.cancelled || stats.today?.cancelled || 
+                           (allClassesData.filter(cls => cls.status === 'cancelled').length) || 0;
+    
+    document.getElementById('totalClasses').textContent = totalClasses;
+    document.getElementById('scheduledClasses').textContent = scheduledClasses;
+    document.getElementById('completedClasses').textContent = completedClasses;
+    document.getElementById('cancelledClasses').textContent = cancelledClasses;
+    
+    console.log('📊 Stats updated:', { totalClasses, scheduledClasses, completedClasses, cancelledClasses });
+}
+
+// ============ UTILITY FUNCTIONS ============
+function showNotification(message, type = 'info') {
+    const existingNotifications = document.querySelectorAll('.notification');
+    existingNotifications.forEach(n => n.remove());
+    
+    const notification = document.createElement('div');
+    notification.className = `notification ${type}`;
+    notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        max-width: 400px;
+        background: var(--white);
+        border: 1px solid var(--gray-200);
+        border-radius: 8px;
+        padding: 1rem;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        z-index: 1001;
+        animation: slideIn 0.3s ease-out;
+        border-left: 4px solid var(--${type === 'error' ? 'danger' : type === 'success' ? 'success' : 'info'});
+    `;
+    
+    const iconMap = {
+        'success': 'fa-check-circle',
+        'error': 'fa-exclamation-circle',
+        'info': 'fa-info-circle',
+        'warning': 'fa-exclamation-triangle'
+    };
+    
+    notification.innerHTML = `
+        <i class="fas ${iconMap[type] || 'fa-info-circle'}"></i>
+        <span style="margin-left: 0.75rem;">${message}</span>
+    `;
+    
+    document.body.appendChild(notification);
+    
     setTimeout(() => {
-        if (alert.parentElement) {
-            alert.remove();
+        if (notification.parentNode) {
+            notification.parentNode.removeChild(notification);
         }
     }, 5000);
 }
 
-// Apply filter
-function applyFilter(filterValue) {
-    console.log('Applying filter:', filterValue);
-    loadTimetableData();
+// Enhanced closeModal function - REPLACE THE EXISTING ONE
+function closeModal(modalId) {
+    const modal = document.getElementById(modalId);
+    if (modal) {
+        modal.classList.remove('show');
+        
+        // Remove dynamic modals completely
+        if (modalId === 'classDetailsModal') {
+            setTimeout(() => {
+                if (modal.parentNode) {
+                    modal.remove();
+                }
+            }, 300);
+        }
+    }
 }
 
-// Render daily classes
-function renderDailyClasses() {
-    const container = document.getElementById('dailyClasses');
-    if (!container) return;
+function getCSRFToken() {
+    return document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+}
+
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
+
+// ============ TUTOR CALENDAR VIEW FUNCTIONS ============
+let selectedTutorId = null;
+let selectedTutorName = null;
+
+function openTutorCalendarView() {
+    console.log('📅 Opening Tutor Calendar View');
+    document.getElementById('tutorCalendarModal').classList.add('show');
+    // Reset selection
+    selectedTutorId = null;
+    selectedTutorName = null;
+    document.querySelectorAll('.tutor-option').forEach(option => {
+        option.classList.remove('selected');
+    });
+    document.getElementById('viewTutorCalendarBtn').disabled = true;
+}
+
+function selectTutorForCalendar(tutorId, tutorName) {
+    // Remove previous selection
+    document.querySelectorAll('.tutor-option').forEach(option => {
+        option.classList.remove('selected');
+    });
     
-    const today = new Date().toISOString().split('T')[0];
-    const todayClasses = classesData.filter(cls => cls.scheduled_date === today);
+    // Add selection to clicked option
+    event.currentTarget.classList.add('selected');
     
-    if (todayClasses.length === 0) {
+    // Store selected tutor
+    selectedTutorId = tutorId;
+    selectedTutorName = tutorName;
+    
+    // Enable the view button
+    document.getElementById('viewTutorCalendarBtn').disabled = false;
+    
+    console.log('📋 Selected tutor:', tutorName, 'ID:', tutorId);
+}
+
+function viewSelectedTutorCalendar() {
+    if (!selectedTutorId) {
+        showNotification('Please select a tutor first', 'warning');
+        return;
+    }
+    
+    console.log('🔄 Redirecting to tutor calendar view for:', selectedTutorName);
+    
+    // Redirect to the dedicated tutor calendar view page
+    window.location.href = `/admin/tutor/${selectedTutorId}/calendar`;
+}
+
+function resetToAllTutorsView() {
+    // Clear tutor filter
+    delete searchFilters.tutor_id;
+    
+    // Reset header
+    document.querySelector('.timetable-title').innerHTML = `📅 Smart Timetable Management`;
+    document.querySelector('.timetable-subtitle').innerHTML = `Complete calendar view with yearly, monthly, and daily perspectives`;
+    
+    // Remove back button
+    const backBtn = document.getElementById('backToAllTutorsBtn');
+    if (backBtn) {
+        backBtn.remove();
+    }
+    
+    // Reload all data
+    loadTimetableData();
+    
+    showNotification('Viewing all tutors', 'info');
+}
+
+// ============ TUTOR SEARCH AND FILTER FUNCTIONS ============
+function filterTutors() {
+    const searchTerm = document.getElementById('tutorSearchInput').value.toLowerCase();
+    const statusFilter = document.getElementById('tutorStatusFilter').value;
+    
+    const tutorOptions = document.querySelectorAll('.tutor-option');
+    let visibleCount = 0;
+    
+    tutorOptions.forEach(option => {
+        const name = option.getAttribute('data-name') || '';
+        const email = option.getAttribute('data-email') || '';
+        const status = option.getAttribute('data-status') || '';
+        
+        // Check search term match
+        const searchMatch = !searchTerm || 
+                           name.includes(searchTerm) || 
+                           email.includes(searchTerm);
+        
+        // Check status filter match
+        const statusMatch = !statusFilter || status === statusFilter;
+        
+        // Show/hide based on filters
+        if (searchMatch && statusMatch) {
+            option.style.display = 'block';
+            visibleCount++;
+        } else {
+            option.style.display = 'none';
+        }
+    });
+    
+    // Show/hide no results message
+    const noResultsMsg = document.getElementById('noTutorsMessage');
+    if (visibleCount === 0) {
+        noResultsMsg.style.display = 'block';
+    } else {
+        noResultsMsg.style.display = 'none';
+    }
+    
+    console.log(`🔍 Filtered tutors: ${visibleCount} visible`);
+}
+
+function clearTutorFilters() {
+    document.getElementById('tutorSearchInput').value = '';
+    document.getElementById('tutorStatusFilter').value = '';
+    
+    // Show all tutors
+    document.querySelectorAll('.tutor-option').forEach(option => {
+        option.style.display = 'block';
+    });
+    
+    // Hide no results message
+    document.getElementById('noTutorsMessage').style.display = 'none';
+    
+    console.log('🧹 Cleared tutor filters');
+}
+
+// ============ AVAILABILITY FUNCTIONS ============
+async function showAvailability() {
+    console.log('🕒 Opening Availability Modal');
+    document.getElementById('availabilityModal').classList.add('show');
+    
+    // Load availability data
+    await loadAvailabilityData();
+}
+
+async function loadAvailabilityData() {
+    try {
+        const response = await fetch('/admin/api/v1/timetable/tutor-availability', {
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCSRFToken()
+            }
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            renderAvailabilityData(data.availability);
+        } else {
+            throw new Error(data.error || 'Failed to load availability data');
+        }
+        
+    } catch (error) {
+        console.error('❌ Error loading availability:', error);
+        document.getElementById('availabilityContent').innerHTML = `
+            <div class="text-center py-4">
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    Failed to load availability data: ${error.message}
+                </div>
+            </div>
+        `;
+    }
+}
+
+function renderAvailabilityData(availability) {
+    const container = document.getElementById('availabilityContent');
+    
+    if (!availability || availability.length === 0) {
         container.innerHTML = `
-            <div class="text-center py-8">
-                <i class="fas fa-calendar-times text-4xl text-gray-400 mb-4"></i>
-                <h3 class="text-lg font-medium text-gray-900 mb-2">No classes today</h3>
-                <p class="text-gray-600">Enjoy your free day!</p>
+            <div class="text-center py-4">
+                <i class="fas fa-calendar-times" style="font-size: 3rem; color: var(--gray-400); margin-bottom: 1rem;"></i>
+                <h3 style="color: var(--gray-500);">No Availability Data</h3>
+                <p style="color: var(--gray-400);">No tutors have set their availability yet.</p>
             </div>
         `;
         return;
     }
     
-    const classesHtml = todayClasses.map(cls => `
-        <div class="today-class-card" onclick="openClassDetails(${cls.id})">
-            <div class="flex items-center justify-between">
-                <div>
-                    <h3 class="font-semibold text-gray-900">${cls.subject}</h3>
-                    <p class="text-sm text-gray-600">${cls.tutor_name}</p>
-                    <div class="flex items-center gap-2 mt-1">
-                        <span class="status-dot ${cls.status}"></span>
-                        <span class="text-xs text-gray-500 capitalize">${cls.status}</span>
-                    </div>
-                </div>
-                <div class="text-right">
-                    <div class="text-sm font-medium">${cls.scheduled_time}</div>
-                    <div class="text-xs text-gray-500">${cls.duration || 60} min</div>
-                </div>
-            </div>
-        </div>
-    `).join('');
+    const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
     
-    container.innerHTML = classesHtml;
+    let html = `
+        <div class="availability-grid">
+            <div class="availability-header">
+                <div class="tutor-column">Tutor</div>
+                ${daysOfWeek.map(day => `<div class="day-column">${day.substr(0, 3)}</div>`).join('')}
+            </div>
+    `;
+    
+    availability.forEach(tutorData => {
+        const tutorName = tutorData.name || 'Unknown Tutor';
+        html += `
+            <div class="tutor-availability-row">
+                <div class="tutor-info">
+                    <div class="tutor-name">${tutorName}</div>
+                    <div class="tutor-status ${tutorData.status}">${tutorData.status}</div>
+                </div>
+        `;
+        
+        daysOfWeek.forEach(day => {
+            const dayKey = day.toLowerCase();
+            const daySlots = tutorData.schedule?.[dayKey] || [];
+            
+            html += `<div class="day-availability ${daySlots.length > 0 ? 'has-slots' : 'no-slots'}">`;
+            
+            if (daySlots.length > 0) {
+                daySlots.forEach(slot => {
+                    html += `<div class="time-slot">${slot.start} - ${slot.end}</div>`;
+                });
+            } else {
+                html += `<span class="no-availability">Not Available</span>`;
+            }
+            
+            html += `</div>`;
+        });
+        
+        html += `</div>`;
+    });
+    
+    html += `</div>`;
+    
+    container.innerHTML = html;
 }
 
-// Render monthly classes (placeholder)
-function renderMonthlyClasses() {
-    const container = document.getElementById('monthGrid');
-    if (!container) return;
-    
-    container.innerHTML = `
-        <div class="text-center py-8">
-            <i class="fas fa-calendar-alt text-4xl text-gray-400 mb-4"></i>
-            <h3 class="text-lg font-medium text-gray-900 mb-2">Monthly View</h3>
-            <p class="text-gray-600">Monthly calendar view will be implemented here</p>
-            <p class="text-sm text-gray-500 mt-2">Classes this month: ${classesData.length}</p>
+async function refreshAvailability() {
+    document.getElementById('availabilityContent').innerHTML = `
+        <div class="loading-spinner">
+            <div class="loading-content">
+                <div class="loading-spinner"></div>
+                <p class="loading-text">Refreshing availability data...</p>
+            </div>
         </div>
     `;
+    
+    await loadAvailabilityData();
+    showNotification('Availability data refreshed', 'info');
 }
+
+console.log('✅ Fixed Calendar Timetable System loaded! 🚀');
 </script>
 {% endblock %}

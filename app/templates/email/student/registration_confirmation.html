@@ -1,0 +1,141 @@
+{% extends "email/base_email.html" %}
+
+{% block title %}Registration Confirmed - Welcome to LMS{% endblock %}
+{% block email_title %}Welcome to LMS!{% endblock %}
+{% block email_subtitle %}Registration Successfully Completed{% endblock %}
+
+{% block recipient_name %}{{ student.full_name }}{% endblock %}
+
+{% block email_content %}
+<div class="alert-box alert-success">
+    <strong>🎉 Congratulations!</strong> Your registration with {{ department.name if department else 'LMS' }} has been successfully completed.
+</div>
+
+<div class="content-section">
+    <h2>Your Registration Details</h2>
+    <div class="info-grid">
+        <div class="info-row">
+            <div class="info-label">Student Name:</div>
+            <div class="info-value">{{ student.full_name }}</div>
+        </div>
+        <div class="info-row">
+            <div class="info-label">Student ID:</div>
+            <div class="info-value">{{ student.student_id or student.id }}</div>
+        </div>
+        <div class="info-row">
+            <div class="info-label">Department:</div>
+            <div class="info-value">{{ department.name if department else 'Not Assigned' }}</div>
+        </div>
+        <div class="info-row">
+            <div class="info-label">Grade/Class:</div>
+            <div class="info-value">{{ student.grade }} {{ student.board }}</div>
+        </div>
+        <div class="info-row">
+            <div class="info-label">Registration Date:</div>
+            <div class="info-value">{{ student.created_at.strftime('%B %d, %Y') if student.created_at else 'Today' }}</div>
+        </div>
+    </div>
+</div>
+
+{% if subjects %}
+<div class="content-section">
+    <h2>Enrolled Subjects</h2>
+    <ul class="action-list">
+        {% for subject in subjects %}
+        <li>{{ subject }}</li>
+        {% endfor %}
+    </ul>
+</div>
+{% endif %}
+
+{% if fee_structure %}
+<div class="content-section">
+    <h2>Fee Structure</h2>
+    <div class="info-grid">
+        {% for key, value in fee_structure.items() %}
+        <div class="info-row">
+            <div class="info-label">{{ key.replace('_', ' ').title() }}:</div>
+            <div class="info-value">
+                {% if key in ['total_fee', 'monthly_fee', 'admission_fee'] %}
+                    ₹{{ "%.2f"|format(value) }}
+                {% else %}
+                    {{ value }}
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<div class="content-section">
+    <h2>What Happens Next?</h2>
+    <ul class="action-list">
+        <li>Our coordination team will review your application within 24 hours</li>
+        <li>You will be assigned a dedicated tutor based on your subjects and preferences</li>
+        <li>Your first class will be scheduled within 2-3 business days</li>
+        <li>You'll receive login credentials to access your student portal</li>
+        <li>Our team will contact you to finalize your class schedule</li>
+    </ul>
+</div>
+
+{% if parent_details %}
+<div class="content-section">
+    <h2>Parent/Guardian Information</h2>
+    {% if parent_details.father %}
+    <h3>Father's Details</h3>
+    <div class="info-grid">
+        <div class="info-row">
+            <div class="info-label">Name:</div>
+            <div class="info-value">{{ parent_details.father.name or 'Not Provided' }}</div>
+        </div>
+        <div class="info-row">
+            <div class="info-label">Phone:</div>
+            <div class="info-value">{{ parent_details.father.phone or 'Not Provided' }}</div>
+        </div>
+        <div class="info-row">
+            <div class="info-label">Email:</div>
+            <div class="info-value">{{ parent_details.father.email or 'Not Provided' }}</div>
+        </div>
+    </div>
+    {% endif %}
+    
+    {% if parent_details.mother %}
+    <h3>Mother's Details</h3>
+    <div class="info-grid">
+        <div class="info-row">
+            <div class="info-label">Name:</div>
+            <div class="info-value">{{ parent_details.mother.name or 'Not Provided' }}</div>
+        </div>
+        <div class="info-row">
+            <div class="info-label">Phone:</div>
+            <div class="info-value">{{ parent_details.mother.phone or 'Not Provided' }}</div>
+        </div>
+        <div class="info-row">
+            <div class="info-label">Email:</div>
+            <div class="info-value">{{ parent_details.mother.email or 'Not Provided' }}</div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endif %}
+
+<div class="alert-box alert-info">
+    <strong>Important:</strong> Please keep this email for your records. Your Student ID will be required for all future communications and login purposes.
+</div>
+{% endblock %}
+
+{% block email_actions %}
+<div class="text-center">
+    <a href="#" class="button button-success">Access Student Portal</a>
+    <a href="#" class="button button-secondary">Download Welcome Guide</a>
+</div>
+{% endblock %}
+
+{% block email_closing %}
+<div class="mt-20">
+    <p>We're excited to have you join our learning community! Our team is committed to providing you with the best possible educational experience.</p>
+    <p>If you have any questions about your registration or need assistance, please contact our support team.</p>
+    <p>Welcome aboard!<br>The LMS Team</p>
+</div>
+{% endblock %}

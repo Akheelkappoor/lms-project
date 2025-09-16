@@ -1,0 +1,528 @@
+{% extends "base.html" %}
+{% set active_page = "students" %}
+
+{% block title %}Drop Student - {{ APP_NAME }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h1 class="page-title">
+                <i class="fas fa-user-times"></i>
+                Drop Student
+            </h1>
+            <p class="page-subtitle">Process student withdrawal for {{ student.full_name }}</p>
+        </div>
+        <div class="header-actions">
+            <a href="{{ url_for('admin.student_details', student_id=student.id) }}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i>
+                Back to Student
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-user-times text-danger"></i>
+                        Student Drop Form
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <strong>Warning:</strong> This action will withdraw the student from their course and cannot be easily undone. Please ensure all details are accurate.
+                    </div>
+
+                    <form method="POST">
+                        {{ form.hidden_tag() }}
+                        
+                        <!-- Basic Drop Information -->
+                        <div class="section-header">
+                            <h6><i class="fas fa-info-circle"></i> Drop Information</h6>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    {{ form.drop_reason.label(class="form-label") }}
+                                    {{ form.drop_reason(class="form-select") }}
+                                    {% for error in form.drop_reason.errors %}
+                                        <div class="text-danger small">{{ error }}</div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    {{ form.drop_date.label(class="form-label") }}
+                                    {{ form.drop_date(class="form-control") }}
+                                    {% for error in form.drop_date.errors %}
+                                        <div class="text-danger small">{{ error }}</div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            {{ form.detailed_reason.label(class="form-label") }}
+                            {{ form.detailed_reason(class="form-control") }}
+                            {% for error in form.detailed_reason.errors %}
+                                <div class="text-danger small">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        
+                        <!-- Financial Information -->
+                        <div class="section-header">
+                            <h6><i class="fas fa-rupee-sign"></i> Financial Details</h6>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    {{ form.refund_amount.label(class="form-label") }}
+                                    <div class="input-group">
+                                        <span class="input-group-text">₹</span>
+                                        {{ form.refund_amount(class="form-control") }}
+                                    </div>
+                                    {% for error in form.refund_amount.errors %}
+                                        <div class="text-danger small">{{ error }}</div>
+                                    {% endfor %}
+                                    <div class="form-text">
+                                        Current fee balance: ₹{{ "%.2f"|format(student.get_balance_amount()) }}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            {{ form.refund_reason.label(class="form-label") }}
+                            {{ form.refund_reason(class="form-control") }}
+                            {% for error in form.refund_reason.errors %}
+                                <div class="text-danger small">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        
+                        <!-- Exit Interview -->
+                        <div class="section-header">
+                            <h6><i class="fas fa-comments"></i> Exit Interview</h6>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <div class="form-check">
+                                {{ form.exit_interview_conducted(class="form-check-input") }}
+                                {{ form.exit_interview_conducted.label(class="form-check-label") }}
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            {{ form.exit_interview_notes.label(class="form-label") }}
+                            {{ form.exit_interview_notes(class="form-control") }}
+                            {% for error in form.exit_interview_notes.errors %}
+                                <div class="text-danger small">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        
+                        <!-- Notifications and Actions -->
+                        <div class="section-header">
+                            <h6><i class="fas fa-bell"></i> Notifications & Actions</h6>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <div class="form-check">
+                                        {{ form.cancel_future_classes(class="form-check-input") }}
+                                        {{ form.cancel_future_classes.label(class="form-check-label") }}
+                                    </div>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <div class="form-check">
+                                        {{ form.notify_tutor(class="form-check-input") }}
+                                        {{ form.notify_tutor.label(class="form-check-label") }}
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <div class="form-check">
+                                        {{ form.notify_parents(class="form-check-input") }}
+                                        {{ form.notify_parents.label(class="form-check-label") }}
+                                    </div>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <div class="form-check">
+                                        {{ form.re_enrollment_allowed(class="form-check-input") }}
+                                        {{ form.re_enrollment_allowed.label(class="form-check-label") }}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Advanced Options -->
+                        <div class="section-header">
+                            <h6><i class="fas fa-cog"></i> Advanced Options</h6>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <div class="form-check">
+                                {{ form.blacklist_student(class="form-check-input", id="blacklistCheck") }}
+                                {{ form.blacklist_student.label(class="form-check-label text-danger") }}
+                            </div>
+                            <div class="form-text text-danger">
+                                <strong>Warning:</strong> Blacklisted students cannot re-enroll in the future.
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            {{ form.internal_notes.label(class="form-label") }}
+                            {{ form.internal_notes(class="form-control") }}
+                            {% for error in form.internal_notes.errors %}
+                                <div class="text-danger small">{{ error }}</div>
+                            {% endfor %}
+                            <div class="form-text">These notes are for internal use only and will not be shared with the student or parents.</div>
+                        </div>
+
+                        <!-- Manual Override Section -->
+                        {% set can_drop, drop_reason = student.can_drop() %}
+                        {% if not can_drop %}
+                        <div class="card border-warning mb-3">
+                            <div class="card-header bg-warning text-dark">
+                                <h6 class="mb-0">
+                                    <i class="fas fa-exclamation-triangle"></i>
+                                    Manual Override Required
+                                </h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="alert alert-warning">
+                                    <strong>Cannot drop student:</strong> {{ drop_reason }}<br>
+                                    You can use manual override to drop the student anyway.
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <div class="form-check">
+                                        {{ form.manual_override(class="form-check-input", **{'onchange': 'toggleDropOverrideReason()'}) }}
+                                        {{ form.manual_override.label(class="form-check-label") }}
+                                    </div>
+                                </div>
+                                
+                                <div class="mb-3" id="drop-override-reason-section" style="display: none;">
+                                    {{ form.override_reason.label(class="form-label text-danger") }}
+                                    {{ form.override_reason(class="form-control") }}
+                                    {% for error in form.override_reason.errors %}
+                                        <div class="text-danger small">{{ error }}</div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        <div class="d-flex justify-content-end gap-2">
+                            <a href="{{ url_for('admin.student_details', student_id=student.id) }}" class="btn btn-secondary">
+                                <i class="fas fa-times"></i>
+                                Cancel
+                            </a>
+                            <button type="submit" class="btn btn-danger" id="dropBtn">
+                                <i class="fas fa-user-times"></i>
+                                Drop Student
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-4">
+            <!-- Student Summary -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="card-title mb-0">
+                        <i class="fas fa-user-graduate"></i>
+                        Student Information
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="student-info">
+                        <div class="student-avatar mb-3 text-center">
+                            <div class="avatar-lg mx-auto">
+                                {{ student.get_initials() }}
+                            </div>
+                            <h6 class="mt-2 mb-1">{{ student.full_name }}</h6>
+                            <small class="text-muted">{{ student.email }}</small>
+                        </div>
+                        
+                        <div class="info-grid">
+                            <div class="info-item">
+                                <span class="label">Current Status:</span>
+                                <span class="value">
+                                    <span class="badge badge-{{ 'success' if student.enrollment_status == 'active' else 'secondary' }}">
+                                        {{ student.enrollment_status.title() }}
+                                    </span>
+                                </span>
+                            </div>
+                            <div class="info-item">
+                                <span class="label">Grade/Board:</span>
+                                <span class="value">{{ student.grade }} ({{ student.board }})</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="label">Attendance:</span>
+                                <span class="value">{{ "%.1f"|format(student.get_attendance_percentage()) }}%</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="label">Classes:</span>
+                                <span class="value">{{ student.attended_classes }}/{{ student.total_classes }}</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="label">Fee Status:</span>
+                                <span class="value">
+                                    <span class="badge badge-{{ 'success' if student.get_fee_status() == 'paid' else 'warning' }}">
+                                        {{ student.get_fee_status().title() }}
+                                    </span>
+                                </span>
+                            </div>
+                            <div class="info-item">
+                                <span class="label">Outstanding:</span>
+                                <span class="value">₹{{ "%.2f"|format(student.get_balance_amount()) }}</span>
+                            </div>
+                            {% if student.course_start_date %}
+                            <div class="info-item">
+                                <span class="label">Course Started:</span>
+                                <span class="value">{{ student.course_start_date.strftime('%d %b %Y') }}</span>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Drop Impact Summary -->
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="card-title mb-0">
+                        <i class="fas fa-exclamation-triangle text-warning"></i>
+                        Drop Impact
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="impact-list">
+                        <div class="impact-item">
+                            <i class="fas fa-calendar-times text-warning"></i>
+                            <div>
+                                <strong>Future Classes</strong>
+                                <small class="text-muted d-block">All scheduled classes will be cancelled</small>
+                            </div>
+                        </div>
+                        
+                        <div class="impact-item">
+                            <i class="fas fa-user-slash text-warning"></i>
+                            <div>
+                                <strong>Account Status</strong>
+                                <small class="text-muted d-block">Student account will be deactivated</small>
+                            </div>
+                        </div>
+                        
+                        <div class="impact-item">
+                            <i class="fas fa-bell text-info"></i>
+                            <div>
+                                <strong>Notifications</strong>
+                                <small class="text-muted d-block">Student and tutors will be notified</small>
+                            </div>
+                        </div>
+                        
+                        {% if student.get_balance_amount() == 0 and student.get_fee_status() == 'paid' %}
+                        <div class="impact-item">
+                            <i class="fas fa-undo text-success"></i>
+                            <div>
+                                <strong>Refund Eligible</strong>
+                                <small class="text-muted d-block">Student may be eligible for partial refund</small>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.avatar-lg {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #dc3545 0%, #fd7e14 100%);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    font-weight: 600;
+}
+
+.section-header {
+    border-bottom: 1px solid #dee2e6;
+    padding-bottom: 0.5rem;
+    margin: 1.5rem 0 1rem 0;
+}
+
+.section-header h6 {
+    color: #495057;
+    font-weight: 600;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.info-grid {
+    display: grid;
+    gap: 0.75rem;
+}
+
+.info-item {
+    display: flex;
+    justify-content: between;
+    align-items: center;
+}
+
+.info-item .label {
+    font-weight: 500;
+    color: #6c757d;
+    margin-right: auto;
+}
+
+.info-item .value {
+    font-weight: 500;
+}
+
+.impact-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.impact-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+}
+
+.impact-item i {
+    margin-top: 0.25rem;
+    width: 16px;
+    text-align: center;
+}
+
+.badge-success {
+    background-color: #28a745;
+    color: white;
+}
+
+.badge-warning {
+    background-color: #ffc107;
+    color: #212529;
+}
+
+.badge-secondary {
+    background-color: #6c757d;
+    color: white;
+}
+
+#dropBtn:hover {
+    background-color: #c82333;
+    border-color: #bd2130;
+}
+
+.form-check-input:checked + .text-danger {
+    font-weight: 600;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const blacklistCheck = document.getElementById('blacklistCheck');
+    const dropBtn = document.getElementById('dropBtn');
+    const reEnrollmentCheck = document.querySelector('input[name="re_enrollment_allowed"]');
+    
+    // Handle blacklist checkbox
+    if (blacklistCheck) {
+        blacklistCheck.addEventListener('change', function() {
+            if (this.checked) {
+                // Uncheck re-enrollment when blacklisted
+                if (reEnrollmentCheck) {
+                    reEnrollmentCheck.checked = false;
+                    reEnrollmentCheck.disabled = true;
+                }
+                
+                // Change button text to emphasize severity
+                dropBtn.innerHTML = '<i class="fas fa-ban"></i> Drop & Blacklist Student';
+                dropBtn.classList.remove('btn-danger');
+                dropBtn.classList.add('btn-dark');
+            } else {
+                // Re-enable re-enrollment checkbox
+                if (reEnrollmentCheck) {
+                    reEnrollmentCheck.disabled = false;
+                    reEnrollmentCheck.checked = true;
+                }
+                
+                // Reset button text
+                dropBtn.innerHTML = '<i class="fas fa-user-times"></i> Drop Student';
+                dropBtn.classList.remove('btn-dark');
+                dropBtn.classList.add('btn-danger');
+            }
+        });
+    }
+    
+    // Manual override toggle function
+    window.toggleDropOverrideReason = function() {
+        const checkbox = document.getElementById('manual_override');
+        const reasonSection = document.getElementById('drop-override-reason-section');
+        
+        if (checkbox && reasonSection) {
+            if (checkbox.checked) {
+                reasonSection.style.display = 'block';
+                reasonSection.querySelector('textarea').required = true;
+            } else {
+                reasonSection.style.display = 'none';
+                reasonSection.querySelector('textarea').required = false;
+                reasonSection.querySelector('textarea').value = '';
+            }
+        }
+    };
+
+    // Initialize override section on page load
+    const overrideCheckbox = document.getElementById('manual_override');
+    if (overrideCheckbox && overrideCheckbox.checked) {
+        toggleDropOverrideReason();
+    }
+
+    // Confirmation before submission
+    document.querySelector('form').addEventListener('submit', function(e) {
+        const isBlacklist = blacklistCheck && blacklistCheck.checked;
+        const isOverride = overrideCheckbox && overrideCheckbox.checked;
+        const studentName = '{{ student.full_name }}';
+        
+        let confirmMessage = `Are you sure you want to drop ${studentName}? This action cannot be easily undone.`;
+        
+        if (isBlacklist && isOverride) {
+            confirmMessage = `CRITICAL ACTION: Are you sure you want to FORCE DROP AND BLACKLIST ${studentName}? This uses manual override and will permanently prevent re-enrollment.`;
+        } else if (isBlacklist) {
+            confirmMessage = `CRITICAL ACTION: Are you sure you want to drop AND BLACKLIST ${studentName}? This will permanently prevent re-enrollment.`;
+        } else if (isOverride) {
+            confirmMessage = `OVERRIDE ACTION: Are you sure you want to force drop ${studentName} using manual override? This bypasses normal drop restrictions.`;
+        }
+        
+        if (!confirm(confirmMessage)) {
+            e.preventDefault();
+        }
+    });
+});
+</script>
+{% endblock %}

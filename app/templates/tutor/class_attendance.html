@@ -45,12 +45,12 @@
                                     <tr>
                                         <td>{{ record.student.full_name }}</td>
                                         <td>
-                                            <span class="badge badge-{{ 'success' if record.student_present else 'danger' }}">
+                                            <span class="badge bg-{{ 'success' if record.student_present else 'danger' }}">
                                                 {{ 'Present' if record.student_present else 'Absent' }}
                                             </span>
                                         </td>
-                                        <td>{{ record.student_join_time.strftime('%H:%M') if record.student_join_time else '-' }}</td>
-                                        <td>{{ record.student_leave_time.strftime('%H:%M') if record.student_leave_time else '-' }}</td>
+                                        <td>{{ record.student_join_time.strftime('%I:%M %p') if record.student_join_time else '-' }}</td>
+                                        <td>{{ record.student_leave_time.strftime('%I:%M %p') if record.student_leave_time else '-' }}</td>
                                         <td>{{ record.actual_duration }} min</td>
                                         <td>{{ record.student_engagement or '-' }}</td>
                                     </tr>

@@ -1,0 +1,115 @@
+{% extends "email/base_email.html" %}
+
+{% block title %}Fee Payment Reminder - ₹{{ balance_amount }}{% endblock %}
+{% block email_title %}Payment Reminder{% endblock %}
+{% block email_subtitle %}₹{{ "%.2f"|format(balance_amount) }} fee payment due{% endblock %}
+
+{% block recipient_name %}{{ student.full_name }}{% endblock %}
+
+{% block email_content %}
+<div class="alert-box alert-warning">
+    <strong>📋 Payment Reminder!</strong> You have an outstanding fee balance of ₹{{ "%.2f"|format(balance_amount) }} that requires your attention.
+</div>
+
+<div class="content-section">
+    <h2>Outstanding Amount</h2>
+    <div style="text-align: center; background: #fff3cd; border: 2px solid #ffc107; border-radius: 8px; padding: 20px; margin: 20px 0;">
+        <div style="font-size: 32px; font-weight: bold; color: #856404; margin-bottom: 10px;">
+            ₹{{ "%.2f"|format(balance_amount) }}
+        </div>
+        <div style="color: #856404; text-transform: uppercase; letter-spacing: 1px;">
+            Amount Due
+        </div>
+    </div>
+</div>
+
+<div class="content-section">
+    <h2>Payment Details</h2>
+    <div class="info-grid">
+        <div class="info-row">
+            <div class="info-label">Student Name:</div>
+            <div class="info-value">{{ student.full_name }}</div>
+        </div>
+        <div class="info-row">
+            <div class="info-label">Student ID:</div>
+            <div class="info-value">{{ student.student_id or student.id }}</div>
+        </div>
+        <div class="info-row">
+            <div class="info-label">Due Date:</div>
+            <div class="info-value">
+                <strong style="color: #dc3545;">{{ due_date.strftime('%B %d, %Y') }}</strong>
+            </div>
+        </div>
+        <div class="info-row">
+            <div class="info-label">Payment Type:</div>
+            <div class="info-value">{{ fee_structure.payment_type or 'Course Fee' }}</div>
+        </div>
+    </div>
+</div>
+
+{% if fee_structure %}
+<div class="content-section">
+    <h2>Fee Breakdown</h2>
+    <div class="info-grid">
+        {% for key, value in fee_structure.items() %}
+            {% if key != 'payment_methods' %}
+            <div class="info-row">
+                <div class="info-label">{{ key.replace('_', ' ').title() }}:</div>
+                <div class="info-value">
+                    {% if key in ['total_fee', 'monthly_fee', 'admission_fee', 'balance_amount'] %}
+                        ₹{{ "%.2f"|format(value) }}
+                    {% else %}
+                        {{ value }}
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<div class="content-section">
+    <h2>Payment Methods Available</h2>
+    <ul class="action-list">
+        {% for method in payment_methods %}
+        <li>{{ method }}</li>
+        {% endfor %}
+    </ul>
+</div>
+
+<div class="content-section">
+    <h2>Why Timely Payment Matters</h2>
+    <ul style="list-style: none; padding: 0;">
+        <li style="padding: 8px 0; color: #28a745;">✅ Ensures uninterrupted access to classes</li>
+        <li style="padding: 8px 0; color: #28a745;">✅ Maintains your active enrollment status</li>
+        <li style="padding: 8px 0; color: #28a745;">✅ Avoids late payment fees</li>
+        <li style="padding: 8px 0; color: #28a745;">✅ Keeps your learning schedule on track</li>
+        <li style="padding: 8px 0; color: #28a745;">✅ Ensures certificate eligibility</li>
+    </ul>
+</div>
+
+<div class="alert-box alert-info">
+    <strong>Need Help?</strong> If you're facing any difficulties with payment or need to discuss payment options, please contact our support team immediately.
+</div>
+
+<div class="alert-box alert-warning">
+    <strong>Important:</strong> Overdue payments may result in temporary suspension of classes. Please clear your dues at the earliest to avoid any disruption to your learning.
+</div>
+{% endblock %}
+
+{% block email_actions %}
+<div class="text-center">
+    <a href="#" class="button button-success">Pay Now</a>
+    <a href="#" class="button button-secondary">View Payment Options</a>
+    <a href="#" class="button button-secondary">Contact Support</a>
+</div>
+{% endblock %}
+
+{% block email_closing %}
+<div class="mt-20">
+    <p>We value your education and want to ensure your learning continues without interruption. Please make your payment at your earliest convenience.</p>
+    <p>If you have any questions about your fee structure or payment options, our team is here to help.</p>
+    <p>Thank you for your prompt attention!<br>Finance Team</p>
+</div>
+{% endblock %}

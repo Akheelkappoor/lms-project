@@ -1,0 +1,475 @@
+{% extends "base.html" %}
+
+{% block title %}{{ notice.title }} - {{ APP_NAME }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h1 class="page-title">
+                <i class="fas fa-{{ 'exclamation-triangle' if notice.is_urgent() else 'bell' }}"></i>
+                Notice
+            </h1>
+            <p class="page-subtitle">Organizational communication</p>
+        </div>
+        <div class="header-actions">
+            <a href="{{ url_for('notice.user_notices') }}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i>
+                Back to Inbox
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-lg-8 col-md-10">
+            <div class="card notice-card {{ 'urgent-notice' if notice.is_urgent() else '' }}">
+                <div class="card-header notice-header">
+                    <div class="notice-badges mb-2">
+                        <span class="badge badge-category-{{ notice.category }}">
+                            {{ notice.category.title() }}
+                        </span>
+                        {% if notice.priority == 'urgent' %}
+                        <span class="badge bg-danger">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            Urgent
+                        </span>
+                        {% elif notice.priority == 'high' %}
+                        <span class="badge bg-warning">High Priority</span>
+                        {% endif %}
+                        
+                        {% if notice.requires_acknowledgment %}
+                        <span class="badge bg-info">
+                            <i class="fas fa-hand-paper"></i>
+                            Acknowledgment Required
+                        </span>
+                        {% endif %}
+                    </div>
+                    
+                    <h2 class="notice-title">{{ notice.title }}</h2>
+                    
+                    <div class="notice-meta">
+                        <div class="meta-item">
+                            <i class="fas fa-user"></i>
+                            <span>{{ notice.author.full_name }}</span>
+                        </div>
+                        <div class="meta-item">
+                            <i class="fas fa-calendar"></i>
+                            <span>{{ notice.created_at|safe_date }}</span>
+                        </div>
+                        {% if notice.publish_date and notice.publish_date != notice.created_at %}
+                        <div class="meta-item">
+                            <i class="fas fa-share"></i>
+                            <span>Published {{ notice.publish_date|safe_date }}</span>
+                        </div>
+                        {% endif %}
+                        {% if notice.expiry_date %}
+                        <div class="meta-item">
+                            <i class="fas fa-clock"></i>
+                            <span>Expires {{ notice.expiry_date|safe_date }}</span>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <div class="card-body">
+                    <!-- Notice Content -->
+                    <div class="notice-content">
+                        <div class="formatted-text">
+                            {{ notice.content|nl2br }}
+                        </div>
+                    </div>
+                    
+                    <!-- Attachments -->
+                    {% if notice.attachments %}
+                    <div class="attachments-section mt-4">
+                        <h6 class="section-title">
+                            <i class="fas fa-paperclip"></i>
+                            Attachments ({{ notice.attachments.count() }})
+                        </h6>
+                        <div class="row">
+                            {% for attachment in notice.attachments %}
+                            <div class="col-md-6 mb-3">
+                                <div class="attachment-card">
+                                    <div class="attachment-icon">
+                                        {% if attachment.is_image() %}
+                                        <i class="fas fa-image text-primary"></i>
+                                        {% elif attachment.is_document() %}
+                                        <i class="fas fa-file-pdf text-danger"></i>
+                                        {% else %}
+                                        <i class="fas fa-file text-secondary"></i>
+                                        {% endif %}
+                                    </div>
+                                    <div class="attachment-info">
+                                        <h6 class="attachment-name">{{ attachment.original_filename }}</h6>
+                                        <small class="text-muted">
+                                            {{ attachment.get_file_size_formatted() }}
+                                            • {{ attachment.file_type }}
+                                        </small>
+                                    </div>
+                                    <div class="attachment-actions">
+                                        <a href="{{ url_for('notice.download_attachment', attachment_id=attachment.id) }}" 
+                                           class="btn btn-sm btn-primary" target="_blank">
+                                            <i class="fas fa-download"></i>
+                                            Download
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Status and Actions -->
+                    <div class="notice-status-section mt-4">
+                        <div class="status-info">
+                            <h6 class="section-title">
+                                <i class="fas fa-info-circle"></i>
+                                Notice Status
+                            </h6>
+                            
+                            <div class="status-items">
+                                <div class="status-item">
+                                    <div class="status-icon {{ 'text-success' if distribution.delivered_at else 'text-muted' }}">
+                                        <i class="fas fa-{{ 'check' if distribution.delivered_at else 'clock' }}"></i>
+                                    </div>
+                                    <div class="status-content">
+                                        <div class="status-label">Delivered</div>
+                                        <div class="status-value">
+                                            {% if distribution.delivered_at %}
+                                            {{ distribution.delivered_at|safe_date }}
+                                            {% else %}
+                                            Pending
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="status-item">
+                                    <div class="status-icon {{ 'text-info' if distribution.is_read else 'text-muted' }}">
+                                        <i class="fas fa-{{ 'eye' if distribution.is_read else 'eye-slash' }}"></i>
+                                    </div>
+                                    <div class="status-content">
+                                        <div class="status-label">Read</div>
+                                        <div class="status-value">
+                                            {% if distribution.is_read %}
+                                            {{ distribution.read_at|safe_date }}
+                                            {% else %}
+                                            Not read
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                {% if notice.requires_acknowledgment %}
+                                <div class="status-item">
+                                    <div class="status-icon {{ 'text-warning' if distribution.is_acknowledged else 'text-muted' }}">
+                                        <i class="fas fa-{{ 'check-circle' if distribution.is_acknowledged else 'hand-paper' }}"></i>
+                                    </div>
+                                    <div class="status-content">
+                                        <div class="status-label">Acknowledged</div>
+                                        <div class="status-value">
+                                            {% if distribution.is_acknowledged %}
+                                            {{ distribution.acknowledged_at|safe_date }}
+                                            {% else %}
+                                            Pending acknowledgment
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <!-- Action Buttons -->
+                        {% if notice.requires_acknowledgment and not distribution.is_acknowledged %}
+                        <div class="action-section mt-4">
+                            <div class="alert alert-warning">
+                                <i class="fas fa-exclamation-triangle"></i>
+                                <strong>Action Required:</strong> This notice requires your acknowledgment to confirm you have read and understood the content.
+                            </div>
+                            
+                            <div class="acknowledgment-actions">
+                                <button type="button" class="btn btn-warning btn-lg" onclick="acknowledgeNotice()">
+                                    <i class="fas fa-check-circle"></i>
+                                    I Acknowledge This Notice
+                                </button>
+                                <small class="form-text text-muted d-block mt-2">
+                                    By clicking this button, you confirm that you have read and understood this notice.
+                                </small>
+                            </div>
+                        </div>
+                        {% elif notice.requires_acknowledgment and distribution.is_acknowledged %}
+                        <div class="alert alert-success mt-4">
+                            <i class="fas fa-check-circle"></i>
+                            <strong>Acknowledged:</strong> You acknowledged this notice on {{ distribution.acknowledged_at|safe_date }}.
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Navigation -->
+            <div class="notice-navigation mt-3">
+                <div class="d-flex justify-content-between">
+                    <a href="{{ url_for('notice.user_notices') }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left"></i>
+                        Back to Inbox
+                    </a>
+                    
+                    <div class="btn-group">
+                        <button type="button" class="btn btn-outline-primary" onclick="shareNotice()">
+                            <i class="fas fa-share"></i>
+                            Share
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary" onclick="printNotice()">
+                            <i class="fas fa-print"></i>
+                            Print
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.badge-category-academic { background-color: #17a2b8; }
+.badge-category-administrative { background-color: #6c757d; }
+.badge-category-emergency { background-color: #dc3545; }
+.badge-category-celebration { background-color: #28a745; }
+
+.notice-card {
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.urgent-notice {
+    border-left: 5px solid #dc3545;
+}
+
+.notice-header {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border-bottom: 1px solid #dee2e6;
+}
+
+.notice-title {
+    color: #495057;
+    margin: 1rem 0 0.5rem 0;
+    font-weight: 600;
+}
+
+.notice-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-top: 0.75rem;
+}
+
+.meta-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: #6c757d;
+    font-size: 0.875rem;
+}
+
+.meta-item i {
+    font-size: 0.75rem;
+}
+
+.notice-content {
+    font-size: 1rem;
+    line-height: 1.6;
+    color: #495057;
+}
+
+/* Formatted text styling for proper line breaks and spacing */
+.formatted-text {
+    line-height: 1.6;
+    word-wrap: break-word;
+    white-space: pre-wrap;
+    overflow-wrap: break-word;
+    text-align: left;
+    direction: ltr;
+}
+
+.formatted-text br {
+    line-height: 1.6;
+}
+
+.section-title {
+    color: #495057;
+    margin-bottom: 1rem;
+    font-weight: 600;
+    font-size: 1rem;
+}
+
+.attachment-card {
+    display: flex;
+    align-items: center;
+    padding: 1rem;
+    border: 1px solid #dee2e6;
+    border-radius: 0.5rem;
+    background-color: #f8f9fa;
+    transition: all 0.2s ease;
+}
+
+.attachment-card:hover {
+    border-color: #007bff;
+    background-color: #f0f7ff;
+}
+
+.attachment-icon {
+    font-size: 1.5rem;
+    margin-right: 1rem;
+}
+
+.attachment-info {
+    flex-grow: 1;
+}
+
+.attachment-name {
+    margin-bottom: 0.25rem;
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+.status-items {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.status-item {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.75rem;
+    background-color: #f8f9fa;
+    border-radius: 0.375rem;
+}
+
+.status-icon {
+    font-size: 1.25rem;
+    width: 20px;
+    text-align: center;
+}
+
+.status-content {
+    flex-grow: 1;
+}
+
+.status-label {
+    font-weight: 500;
+    color: #495057;
+}
+
+.status-value {
+    font-size: 0.875rem;
+    color: #6c757d;
+}
+
+.acknowledgment-actions {
+    text-align: center;
+    padding: 1rem;
+}
+
+.notice-navigation {
+    margin-bottom: 2rem;
+}
+
+@media (max-width: 768px) {
+    .notice-meta {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    
+    .status-items {
+        gap: 0.75rem;
+    }
+    
+    .attachment-card {
+        flex-direction: column;
+        text-align: center;
+        gap: 0.75rem;
+    }
+    
+    .attachment-icon {
+        margin-right: 0;
+    }
+}
+
+@media print {
+    .page-header,
+    .notice-navigation,
+    .header-actions,
+    .btn {
+        display: none !important;
+    }
+    
+    .notice-card {
+        box-shadow: none;
+        border: 1px solid #000;
+    }
+}
+</style>
+
+<script>
+function acknowledgeNotice() {
+    if (confirm('Are you sure you want to acknowledge this notice? This action cannot be undone.')) {
+        fetch(`/api/notices/{{ notice.id }}/acknowledge`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token() }}'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Notice acknowledged successfully');
+                location.reload();
+            } else {
+                alert('Error acknowledging notice: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Network error occurred');
+        });
+    }
+}
+
+function shareNotice() {
+    if (navigator.share) {
+        navigator.share({
+            title: '{{ notice.title }}',
+            text: '{{ notice.content[:100] }}...',
+            url: window.location.href
+        });
+    } else {
+        // Fallback - copy URL to clipboard
+        navigator.clipboard.writeText(window.location.href).then(() => {
+            alert('Notice URL copied to clipboard');
+        }).catch(() => {
+            alert('Unable to copy URL');
+        });
+    }
+}
+
+function printNotice() {
+    window.print();
+}
+
+// Mark as read when page loads (if not already read)
+{% if not distribution.is_read %}
+fetch(`/api/notices/{{ notice.id }}/read`, {
+    method: 'POST',
+    headers: {
+        'X-CSRFToken': '{{ csrf_token() }}'
+    }
+});
+{% endif %}
+</script>
+{% endblock %}

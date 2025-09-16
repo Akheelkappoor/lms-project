@@ -1,0 +1,388 @@
+// Global Error Handler and Performance Monitor
+class ErrorHandler {
+    constructor() {
+        this.errorQueue = [];
+        this.performanceMetrics = {};
+        this.initErrorHandling();
+        this.initPerformanceMonitoring();
+    }
+
+    initErrorHandling() {
+        // Global error handler
+        window.addEventListener('error', (event) => {
+            this.handleError({
+                type: 'javascript',
+                message: event.message,
+                filename: event.filename,
+                lineno: event.lineno,
+                colno: event.colno,
+                stack: event.error ? event.error.stack : null,
+                timestamp: new Date().toISOString(),
+                url: window.location.href,
+                userAgent: navigator.userAgent
+            });
+        });
+
+        // Promise rejection handler
+        window.addEventListener('unhandledrejection', (event) => {
+            this.handleError({
+                type: 'promise_rejection',
+                message: event.reason ? event.reason.message : 'Unhandled promise rejection',
+                stack: event.reason ? event.reason.stack : null,
+                timestamp: new Date().toISOString(),
+                url: window.location.href
+            });
+        });
+
+        // AJAX error handler
+        this.setupAjaxErrorHandling();
+    }
+
+    setupAjaxErrorHandling() {
+        // Override fetch for error handling
+        const originalFetch = window.fetch;
+        window.fetch = async (...args) => {
+            try {
+                const response = await originalFetch(...args);
+                if (!response.ok) {
+                    this.handleError({
+                        type: 'fetch_error',
+                        message: `HTTP ${response.status}: ${response.statusText}`,
+                        url: args[0],
+                        status: response.status,
+                        timestamp: new Date().toISOString()
+                    });
+                }
+                return response;
+            } catch (error) {
+                this.handleError({
+                    type: 'network_error',
+                    message: error.message,
+                    url: args[0],
+                    timestamp: new Date().toISOString()
+                });
+                throw error;
+            }
+        };
+
+        // jQuery AJAX error handling if jQuery is available
+        if (typeof $ !== 'undefined') {
+            $(document).ajaxError((event, jqXHR, ajaxSettings, thrownError) => {
+                this.handleError({
+                    type: 'ajax_error',
+                    message: thrownError || `HTTP ${jqXHR.status}`,
+                    url: ajaxSettings.url,
+                    status: jqXHR.status,
+                    responseText: jqXHR.responseText,
+                    timestamp: new Date().toISOString()
+                });
+            });
+        }
+    }
+
+    initPerformanceMonitoring() {
+        // Page load performance
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                const perfData = performance.timing;
+                const loadTime = perfData.loadEventEnd - perfData.navigationStart;
+                const domReadyTime = perfData.domContentLoadedEventEnd - perfData.navigationStart;
+                
+                this.performanceMetrics = {
+                    loadTime,
+                    domReadyTime,
+                    firstPaint: this.getFirstPaint(),
+                    timestamp: new Date().toISOString(),
+                    url: window.location.href
+                };
+
+                // Send performance data if load time is slow
+                if (loadTime > 5000) {
+                    this.reportSlowLoading();
+                }
+            }, 0);
+        });
+    }
+
+    getFirstPaint() {
+        try {
+            const paintMetrics = performance.getEntriesByType('paint');
+            const firstPaint = paintMetrics.find(metric => metric.name === 'first-paint');
+            return firstPaint ? firstPaint.startTime : null;
+        } catch (e) {
+            return null;
+        }
+    }
+
+    handleError(errorData) {
+        console.error('Application Error:', errorData);
+        
+        // Add to error queue
+        this.errorQueue.push(errorData);
+        
+        // Show user-friendly notification
+        this.showErrorNotification(errorData);
+        
+        // Send error report (batched)
+        this.queueErrorReport(errorData);
+    }
+
+    showErrorNotification(errorData) {
+        // Only show notifications for certain types of errors
+        if (errorData.type === 'network_error' || errorData.type === 'fetch_error') {
+            this.showToast('Connection issue detected. Please check your internet connection.', 'warning');
+        } else if (errorData.type === 'javascript' && errorData.message.toLowerCase().includes('network')) {
+            this.showToast('Network error occurred. Some features may not work properly.', 'error');
+        }
+    }
+
+    showToast(message, type = 'error') {
+        // Create toast notification
+        const toast = document.createElement('div');
+        toast.className = `toast align-items-center text-white bg-${type === 'error' ? 'danger' : 'warning'} border-0`;
+        toast.style.cssText = 'position: fixed; top: 20px; right: 20px; z-index: 9999;';
+        toast.setAttribute('role', 'alert');
+        toast.innerHTML = `
+            <div class="d-flex">
+                <div class="toast-body">
+                    <i class="fas fa-${type === 'error' ? 'exclamation-circle' : 'exclamation-triangle'} me-2"></i>
+                    ${message}
+                </div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+            </div>
+        `;
+
+        document.body.appendChild(toast);
+        
+        // Use Bootstrap toast if available
+        if (typeof bootstrap !== 'undefined') {
+            const bsToast = new bootstrap.Toast(toast);
+            bsToast.show();
+        } else {
+            // Fallback: auto-remove after 5 seconds
+            setTimeout(() => {
+                if (toast.parentNode) {
+                    toast.parentNode.removeChild(toast);
+                }
+            }, 5000);
+        }
+    }
+
+    queueErrorReport(errorData) {
+        // Batch error reports to avoid overwhelming the server
+        if (this.errorQueue.length >= 5 || !this.reportTimer) {
+            this.reportTimer = setTimeout(() => {
+                this.sendErrorReports();
+            }, 2000);
+        }
+    }
+
+    async sendErrorReports() {
+        if (this.errorQueue.length === 0) return;
+
+        const reports = [...this.errorQueue];
+        this.errorQueue = [];
+        this.reportTimer = null;
+
+        try {
+            await fetch('/api/error-report', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': this.getCSRFToken()
+                },
+                body: JSON.stringify({
+                    errors: reports,
+                    performance: this.performanceMetrics,
+                    timestamp: new Date().toISOString()
+                })
+            });
+        } catch (error) {
+            console.warn('Failed to send error report:', error);
+            // Re-queue errors for later
+            this.errorQueue = reports.concat(this.errorQueue);
+        }
+    }
+
+    reportSlowLoading() {
+        fetch('/api/performance-report', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': this.getCSRFToken()
+            },
+            body: JSON.stringify(this.performanceMetrics)
+        }).catch(error => {
+            console.warn('Failed to send performance report:', error);
+        });
+    }
+
+    getCSRFToken() {
+        const meta = document.querySelector('meta[name="csrf-token"]');
+        return meta ? meta.getAttribute('content') : '';
+    }
+}
+
+// Dashboard-specific error handling
+class DashboardErrorHandler extends ErrorHandler {
+    constructor() {
+        super();
+        this.dashboardSpecificInit();
+    }
+
+    dashboardSpecificInit() {
+        // Monitor dashboard-specific elements
+        this.monitorDashboardElements();
+        this.setupRetryMechanisms();
+    }
+
+    monitorDashboardElements() {
+        // Monitor for missing dashboard data
+        const checkDashboardData = () => {
+            const statsCards = document.querySelectorAll('.stats-card, .dashboard-card');
+            const emptyCards = Array.from(statsCards).filter(card => 
+                !card.textContent.trim() || card.textContent.includes('0') || card.textContent.includes('--')
+            );
+
+            if (emptyCards.length > statsCards.length * 0.5) {
+                this.handleError({
+                    type: 'dashboard_data_missing',
+                    message: 'Multiple dashboard cards showing empty data',
+                    affectedElements: emptyCards.length,
+                    timestamp: new Date().toISOString()
+                });
+            }
+        };
+
+        // Check after page load
+        setTimeout(checkDashboardData, 3000);
+    }
+
+    setupRetryMechanisms() {
+        // Add retry buttons to failed dashboard sections
+        this.addRetryButton = (element, retryFunction) => {
+            const retryBtn = document.createElement('button');
+            retryBtn.className = 'btn btn-sm btn-outline-primary retry-btn';
+            retryBtn.innerHTML = '<i class="fas fa-redo me-1"></i>Retry';
+            retryBtn.onclick = retryFunction;
+            
+            element.appendChild(retryBtn);
+        };
+    }
+
+    handleDashboardError(section, error) {
+        console.error(`Dashboard ${section} error:`, error);
+        
+        // Show section-specific error
+        const sectionElement = document.querySelector(`[data-section="${section}"]`);
+        if (sectionElement) {
+            sectionElement.innerHTML = `
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    Failed to load ${section}. 
+                    <button class="btn btn-sm btn-outline-primary ms-2" onclick="location.reload()">
+                        <i class="fas fa-redo me-1"></i>Retry
+                    </button>
+                </div>
+            `;
+        }
+
+        // Report error
+        this.handleError({
+            type: 'dashboard_section_error',
+            section: section,
+            message: error.message || error,
+            timestamp: new Date().toISOString()
+        });
+    }
+}
+
+// Loading performance optimizer
+class LoadingOptimizer {
+    constructor() {
+        this.initLazyLoading();
+        this.initImageOptimization();
+        this.initContentPrioritization();
+    }
+
+    initLazyLoading() {
+        // Lazy load non-critical dashboard sections
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const element = entry.target;
+                    const src = element.dataset.src;
+                    
+                    if (src) {
+                        element.src = src;
+                        element.removeAttribute('data-src');
+                    }
+                    
+                    if (element.dataset.load) {
+                        this.loadDashboardSection(element.dataset.load);
+                    }
+                    
+                    observer.unobserve(element);
+                }
+            });
+        }, { threshold: 0.1 });
+
+        // Observe lazy elements
+        document.querySelectorAll('[data-lazy], [data-load]').forEach(el => {
+            observer.observe(el);
+        });
+    }
+
+    initImageOptimization() {
+        // Optimize images for different screen sizes
+        const images = document.querySelectorAll('img');
+        images.forEach(img => {
+            if (!img.loading) {
+                img.loading = 'lazy';
+            }
+        });
+    }
+
+    initContentPrioritization() {
+        // Load critical content first
+        const criticalSections = document.querySelectorAll('[data-priority="high"]');
+        criticalSections.forEach(section => {
+            section.style.willChange = 'transform';
+        });
+    }
+
+    loadDashboardSection(sectionName) {
+        // Dynamically load dashboard sections
+        fetch(`/api/dashboard-section/${sectionName}`)
+            .then(response => response.json())
+            .then(data => {
+                const element = document.querySelector(`[data-section="${sectionName}"]`);
+                if (element && data.html) {
+                    element.innerHTML = data.html;
+                }
+            })
+            .catch(error => {
+                if (window.dashboardErrorHandler) {
+                    window.dashboardErrorHandler.handleDashboardError(sectionName, error);
+                }
+            });
+    }
+}
+
+// Initialize error handling when DOM is ready
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize global error handlers
+    window.errorHandler = new ErrorHandler();
+    
+    // Initialize dashboard-specific error handling if on dashboard page
+    if (document.body.classList.contains('dashboard-page') || 
+        window.location.pathname.includes('dashboard')) {
+        window.dashboardErrorHandler = new DashboardErrorHandler();
+        window.loadingOptimizer = new LoadingOptimizer();
+    }
+});
+
+// Export for use in other scripts
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = { ErrorHandler, DashboardErrorHandler, LoadingOptimizer };
+}

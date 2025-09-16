@@ -1,0 +1,87 @@
+{% extends "email/base_email.html" %}
+
+{% block title %}New Class Assigned - {{ class.subject }}{% endblock %}
+{% block email_title %}New Class Assigned{% endblock %}
+{% block email_subtitle %}{{ class.subject }} - {{ class.scheduled_date.strftime('%B %d, %Y') }}{% endblock %}
+
+{% block recipient_name %}{{ student.full_name }}{% endblock %}
+
+{% block email_content %}
+<div class="alert-box alert-success">
+    <strong>📚 Great News!</strong> You have been assigned to a new {{ class.class_type }} class for {{ class.subject }}.
+</div>
+
+<div class="content-section">
+    <h2>Class Details</h2>
+    <div class="info-grid">
+        <div class="info-row">
+            <div class="info-label">Subject:</div>
+            <div class="info-value"><strong>{{ class.subject }}</strong></div>
+        </div>
+        <div class="info-row">
+            <div class="info-label">Class Type:</div>
+            <div class="info-value">{{ class.class_type.title() }}</div>
+        </div>
+        <div class="info-row">
+            <div class="info-label">Date & Time:</div>
+            <div class="info-value">{{ class.scheduled_date.strftime('%A, %B %d, %Y') }} at {{ class.scheduled_time.strftime('%I:%M %p') if class.scheduled_time else 'TBD' }}</div>
+        </div>
+        <div class="info-row">
+            <div class="info-label">Duration:</div>
+            <div class="info-value">{{ class.duration or '60' }} minutes</div>
+        </div>
+        <div class="info-row">
+            <div class="info-label">Class ID:</div>
+            <div class="info-value">{{ class.id }}</div>
+        </div>
+    </div>
+</div>
+
+{% if tutor and tutor_user %}
+<div class="content-section">
+    <h2>Your Tutor</h2>
+    <div class="info-grid">
+        <div class="info-row">
+            <div class="info-label">Name:</div>
+            <div class="info-value"><strong>{{ tutor_user.full_name }}</strong></div>
+        </div>
+        <div class="info-row">
+            <div class="info-label">Department:</div>
+            <div class="info-value">{{ tutor_user.department.name if tutor_user.department else 'Not specified' }}</div>
+        </div>
+        <div class="info-row">
+            <div class="info-label">Experience:</div>
+            <div class="info-value">{{ tutor.experience_years or 'Not specified' }} years</div>
+        </div>
+        <div class="info-row">
+            <div class="info-label">Rating:</div>
+            <div class="info-value">{{ tutor.rating or 'New tutor' }}/5.0</div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<div class="content-section">
+    <h2>How to Prepare</h2>
+    <ul class="action-list">
+        <li>Ensure you have a stable internet connection</li>
+        <li>Prepare your notebooks and study materials</li>
+        <li>Join the class 5-10 minutes early</li>
+        <li>Find a quiet place for better concentration</li>
+        <li>Have your questions ready from previous lessons</li>
+        <li>Keep a positive attitude and be ready to learn</li>
+    </ul>
+</div>
+
+<div class="alert-box alert-info">
+    <strong>First Class?</strong> Don't worry! Your tutor will guide you through everything and ensure you're comfortable with the learning platform.
+</div>
+{% endblock %}
+
+{% block email_actions %}
+<div class="text-center">
+    <a href="#" class="button button-success">Join Class</a>
+    <a href="#" class="button button-secondary">View Class Details</a>
+    <a href="#" class="button button-secondary">Contact Tutor</a>
+</div>
+{% endblock %}

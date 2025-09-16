@@ -1,0 +1,332 @@
+{% extends "base.html" %}
+
+{% block title %}Create Emergency Notification{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <h1 class="h3 mb-0 text-gray-800">
+                    <i class="fas fa-exclamation-triangle text-danger"></i> Create Emergency Notification
+                </h1>
+                <a href="{{ url_for('system_notifications.admin_notifications') }}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left"></i> Back to Notifications
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Emergency Alert -->
+    <div class="alert alert-danger border-danger" role="alert">
+        <h5 class="alert-heading">
+            <i class="fas fa-exclamation-triangle mr-2"></i>Emergency Notification
+        </h5>
+        <p class="mb-0">
+            Emergency notifications are sent with <strong>CRITICAL priority</strong> and include immediate popup alerts and email delivery to ensure maximum reach.
+        </p>
+    </div>
+
+    <!-- Emergency Notification Card -->
+    <div class="card shadow mb-4 border-danger">
+        <div class="card-header py-3 bg-danger text-white">
+            <h6 class="m-0 font-weight-bold">
+                <i class="fas fa-siren"></i> Emergency Details
+            </h6>
+        </div>
+        <div class="card-body">
+            <form method="POST">
+                {{ form.hidden_tag() }}
+                
+                <!-- Emergency Information -->
+                <div class="row">
+                    <div class="col-md-8">
+                        <div class="form-group">
+                            {{ form.title.label(class="font-weight-bold text-danger") }}
+                            {{ form.title(class="form-control form-control-lg border-danger", placeholder="e.g., Emergency: Classes Suspended, Security Alert") }}
+                            <small class="form-text text-muted">Keep it clear and actionable. Avoid panic-inducing language.</small>
+                            {% if form.title.errors %}
+                                <small class="text-danger">{{ form.title.errors[0] }}</small>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="form-group">
+                            {{ form.message.label(class="font-weight-bold text-danger") }}
+                            {{ form.message(class="form-control border-danger", rows="6", placeholder="Provide clear instructions and important information...") }}
+                            <small class="form-text text-muted">
+                                Include: What happened, immediate actions required, safety instructions, and contact information.
+                            </small>
+                            {% if form.message.errors %}
+                                <small class="text-danger">{{ form.message.errors[0] }}</small>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-4">
+                        <div class="alert alert-warning">
+                            <h6 class="font-weight-bold">Emergency Checklist:</h6>
+                            <div class="form-check">
+                                <input type="checkbox" class="form-check-input" id="check-clear">
+                                <label class="form-check-label" for="check-clear">Message is clear and specific</label>
+                            </div>
+                            <div class="form-check">
+                                <input type="checkbox" class="form-check-input" id="check-instructions">
+                                <label class="form-check-label" for="check-instructions">Includes action instructions</label>
+                            </div>
+                            <div class="form-check">
+                                <input type="checkbox" class="form-check-input" id="check-contact">
+                                <label class="form-check-label" for="check-contact">Emergency contact included</label>
+                            </div>
+                            <div class="form-check">
+                                <input type="checkbox" class="form-check-input" id="check-calm">
+                                <label class="form-check-label" for="check-calm">Language promotes calm response</label>
+                            </div>
+                        </div>
+                        
+                        <div class="alert alert-info">
+                            <h6 class="font-weight-bold">Auto-Features:</h6>
+                            <ul class="list-unstyled mb-0">
+                                <li><i class="fas fa-check text-success mr-2"></i> Critical Priority</li>
+                                <li><i class="fas fa-check text-success mr-2"></i> Immediate Popups</li>
+                                <li><i class="fas fa-check text-success mr-2"></i> Email + SMS*</li>
+                                <li><i class="fas fa-check text-success mr-2"></i> Parent Notifications</li>
+                                <li><i class="fas fa-check text-success mr-2"></i> Sound Alerts</li>
+                            </ul>
+                            <small>*SMS requires configuration</small>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Target Audience -->
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            {{ form.target_type.label(class="font-weight-bold") }}
+                            {{ form.target_type(class="form-control", onchange="updateEmergencyTargets()") }}
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6" id="departments-section" style="display: none;">
+                        <div class="form-group">
+                            <label class="font-weight-bold">Select Departments</label>
+                            <div class="border p-3 bg-light rounded" style="max-height: 150px; overflow-y: auto;">
+                                {% for subfield in form.target_departments %}
+                                    <div class="form-check">
+                                        {{ subfield(class="form-check-input") }}
+                                        {{ subfield.label(class="form-check-label") }}
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Emergency Templates -->
+                <div class="mt-4">
+                    <h6 class="font-weight-bold text-danger">Emergency Templates:</h6>
+                    <div class="row">
+                        <div class="col-md-3">
+                            <div class="card border-danger">
+                                <div class="card-body p-2 text-center">
+                                    <i class="fas fa-cloud-rain fa-2x text-primary mb-2"></i>
+                                    <h6>Weather Emergency</h6>
+                                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="fillEmergencyTemplate('weather')">
+                                        Use Template
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card border-danger">
+                                <div class="card-body p-2 text-center">
+                                    <i class="fas fa-shield-alt fa-2x text-warning mb-2"></i>
+                                    <h6>Security Alert</h6>
+                                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="fillEmergencyTemplate('security')">
+                                        Use Template
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card border-danger">
+                                <div class="card-body p-2 text-center">
+                                    <i class="fas fa-laptop fa-2x text-info mb-2"></i>
+                                    <h6>System Outage</h6>
+                                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="fillEmergencyTemplate('system')">
+                                        Use Template
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card border-danger">
+                                <div class="card-body p-2 text-center">
+                                    <i class="fas fa-medkit fa-2x text-success mb-2"></i>
+                                    <h6>Health Emergency</h6>
+                                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="fillEmergencyTemplate('health')">
+                                        Use Template
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Preview -->
+                <div class="mt-4">
+                    <h6 class="font-weight-bold">Live Preview:</h6>
+                    <div class="border border-danger rounded p-3" style="background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);">
+                        <div class="card">
+                            <div class="card-header bg-danger text-white">
+                                <div class="d-flex align-items-center">
+                                    <i class="fas fa-exclamation-triangle fa-2x mr-3 animated-pulse"></i>
+                                    <div>
+                                        <h5 class="mb-0" id="preview-title">EMERGENCY ALERT</h5>
+                                        <small>Critical Priority • Immediate Action Required</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <div id="preview-message" class="mb-3">Emergency message will appear here...</div>
+                                <div class="alert alert-warning mb-0">
+                                    <small>
+                                        <i class="fas fa-info-circle mr-2"></i>
+                                        <strong>This is an emergency notification.</strong> Please read carefully and take appropriate action.
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Submit -->
+                <div class="mt-4">
+                    <hr>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <a href="{{ url_for('system_notifications.admin_notifications') }}" class="btn btn-secondary">
+                            <i class="fas fa-times"></i> Cancel
+                        </a>
+                        <div>
+                            <button type="button" class="btn btn-warning mr-2" onclick="validateEmergency()">
+                                <i class="fas fa-check"></i> Validate Message
+                            </button>
+                            <button type="submit" class="btn btn-danger btn-lg" id="submit-btn" disabled>
+                                <i class="fas fa-siren"></i> Send Emergency Alert
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<style>
+.animated-pulse {
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.5; }
+    100% { opacity: 1; }
+}
+</style>
+
+<script>
+const emergencyTemplates = {
+    weather: {
+        title: "Emergency: Classes Suspended Due to Severe Weather",
+        message: "🌩️ WEATHER EMERGENCY ALERT\n\nDue to severe weather conditions in our area, all classes and activities are IMMEDIATELY SUSPENDED until further notice.\n\n⚠️ IMMEDIATE ACTIONS:\n• Stay indoors if you're already at home\n• If on campus, proceed to designated safe areas\n• Do not attempt to travel unless absolutely necessary\n• Monitor official communication channels\n\n📞 EMERGENCY CONTACTS:\nSecurity: [Phone Number]\nAdministration: [Phone Number]\n\n🔄 UPDATES: We will provide regular updates every 2 hours or as conditions change.\n\nYour safety is our top priority. Please stay safe!"
+    },
+    security: {
+        title: "Security Alert: Campus Security Measures in Effect",
+        message: "🚨 SECURITY ALERT\n\nWe are implementing enhanced security measures on campus effective immediately.\n\n⚠️ REQUIRED ACTIONS:\n• All individuals must show valid ID at entry points\n• Report any suspicious activity immediately\n• Follow all security personnel instructions\n• Avoid isolated areas\n\n📞 SECURITY HOTLINE: [Phone Number]\n📧 EMAIL: security@institution.edu\n\n🔒 These measures are precautionary and temporary. Normal operations will resume once the situation is resolved.\n\nThank you for your cooperation in keeping our community safe."
+    },
+    system: {
+        title: "System Emergency: Critical IT Infrastructure Outage",
+        message: "💻 SYSTEM EMERGENCY ALERT\n\nWe are experiencing a critical IT infrastructure outage affecting:\n• Learning management systems\n• Email services\n• Online class platforms\n• Administrative systems\n\n⚠️ IMMEDIATE ACTIONS:\n• Save your work offline\n• Check this portal for updates\n• Contact instructors via alternate methods\n• Postpone online submissions until resolved\n\n🛠️ OUR RESPONSE:\n• IT team is working around the clock\n• Regular updates every hour\n• Expected resolution: [Time Frame]\n\n📞 IT HELPDESK: [Phone Number]\n\nWe apologize for the inconvenience and appreciate your patience."
+    },
+    health: {
+        title: "Health Emergency: Important Safety Protocol Update",
+        message: "🏥 HEALTH EMERGENCY PROTOCOL\n\nWe have been advised to implement enhanced health and safety measures effective immediately.\n\n⚠️ REQUIRED ACTIONS:\n• Follow all health screening procedures\n• Maintain recommended safety precautions\n• Report any symptoms to health services\n• Comply with all safety guidelines\n\n🏥 HEALTH SERVICES:\nPhone: [Phone Number]\nEmergency: [Emergency Number]\nEmail: health@institution.edu\n\n📋 Additional information and updates available at: [Website]\n\nYour health and safety are our highest priority. Thank you for your cooperation."
+    }
+};
+
+function fillEmergencyTemplate(templateName) {
+    const template = emergencyTemplates[templateName];
+    if (template) {
+        document.getElementById('title').value = template.title;
+        document.getElementById('message').value = template.message;
+        updatePreview();
+        validateEmergency();
+    }
+}
+
+function updateEmergencyTargets() {
+    const targetType = document.getElementById('target_type').value;
+    const departmentsSection = document.getElementById('departments-section');
+    
+    if (targetType === 'department') {
+        departmentsSection.style.display = 'block';
+    } else {
+        departmentsSection.style.display = 'none';
+    }
+}
+
+function updatePreview() {
+    const title = document.getElementById('title').value || 'EMERGENCY ALERT';
+    const message = document.getElementById('message').value || 'Emergency message will appear here...';
+    
+    document.getElementById('preview-title').textContent = title.toUpperCase();
+    document.getElementById('preview-message').textContent = message;
+}
+
+function validateEmergency() {
+    const title = document.getElementById('title').value;
+    const message = document.getElementById('message').value;
+    const submitBtn = document.getElementById('submit-btn');
+    
+    // Check if all checklist items are checked
+    const checkboxes = document.querySelectorAll('#check-clear, #check-instructions, #check-contact, #check-calm');
+    const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+    
+    // Validate content
+    const hasTitle = title.length > 10;
+    const hasMessage = message.length > 50;
+    const hasContact = message.toLowerCase().includes('phone') || message.toLowerCase().includes('contact') || message.toLowerCase().includes('email');
+    
+    if (allChecked && hasTitle && hasMessage && hasContact) {
+        submitBtn.disabled = false;
+        submitBtn.classList.remove('btn-secondary');
+        submitBtn.classList.add('btn-danger');
+    } else {
+        submitBtn.disabled = true;
+        submitBtn.classList.add('btn-secondary');
+        submitBtn.classList.remove('btn-danger');
+    }
+}
+
+// Event listeners
+document.addEventListener('DOMContentLoaded', function() {
+    document.getElementById('title').addEventListener('input', updatePreview);
+    document.getElementById('message').addEventListener('input', updatePreview);
+    
+    // Add listeners to checkboxes
+    document.querySelectorAll('#check-clear, #check-instructions, #check-contact, #check-calm').forEach(cb => {
+        cb.addEventListener('change', validateEmergency);
+    });
+    
+    updateEmergencyTargets();
+    updatePreview();
+});
+
+// Confirmation before sending
+document.querySelector('form').addEventListener('submit', function(e) {
+    if (!confirm('⚠️ WARNING: You are about to send an EMERGENCY notification to all selected recipients.\n\nThis will:\n• Send immediate popup alerts\n• Send urgent emails\n• Notify parents (for students)\n• Trigger sound alerts\n\nAre you absolutely sure you want to proceed?')) {
+        e.preventDefault();
+    }
+});
+</script>
+{% endblock %}

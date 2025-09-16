@@ -1,0 +1,542 @@
+{% extends "base.html" %}
+
+{% block title %}Error Monitoring Dashboard{% endblock %}
+
+{% block extra_css %}
+<style>
+    .error-card {
+        border-left: 4px solid #dc3545;
+        margin-bottom: 15px;
+        transition: transform 0.2s;
+    }
+    .error-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+    .severity-critical { border-left-color: #dc3545; }
+    .severity-high { border-left-color: #fd7e14; }
+    .severity-medium { border-left-color: #ffc107; }
+    .severity-low { border-left-color: #28a745; }
+    
+    .stat-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 10px;
+        padding: 20px;
+        text-align: center;
+    }
+    
+    .live-indicator {
+        display: inline-block;
+        width: 10px;
+        height: 10px;
+        background-color: #28a745;
+        border-radius: 50%;
+        animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+        0% { opacity: 1; }
+        50% { opacity: 0.5; }
+        100% { opacity: 1; }
+    }
+    
+    .health-good { color: #28a745; }
+    .health-warning { color: #ffc107; }
+    .health-critical { color: #dc3545; }
+    
+    .quick-actions {
+        position: fixed;
+        top: 100px;
+        right: 20px;
+        z-index: 1000;
+    }
+    
+    .auto-refresh {
+        background: rgba(40, 167, 69, 0.1);
+        border: 1px solid #28a745;
+        border-radius: 5px;
+        padding: 10px;
+        margin-bottom: 20px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <h1><i class="fas fa-shield-alt"></i> Error Monitoring Dashboard</h1>
+                <div class="auto-refresh">
+                    <span class="live-indicator"></span>
+                    <small>Live monitoring active</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="stat-card">
+                <h3>{{ stats.today }}</h3>
+                <p>Errors Today</p>
+                <small><i class="fas fa-calendar-day"></i> Last 24 hours</small>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card">
+                <h3>{{ stats.critical_today }}</h3>
+                <p>Critical Today</p>
+                <small><i class="fas fa-exclamation-triangle"></i> Needs attention</small>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card">
+                <h3>{{ stats.unresolved }}</h3>
+                <p>Unresolved</p>
+                <small><i class="fas fa-clock"></i> Open issues</small>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card">
+                <h3 class="health-{{ system_health.overall_health }}">
+                    {% if system_health.overall_health == 'healthy' %}
+                        <i class="fas fa-heart"></i>
+                    {% elif system_health.overall_health == 'warning' %}
+                        <i class="fas fa-exclamation-triangle"></i>
+                    {% else %}
+                        <i class="fas fa-times-circle"></i>
+                    {% endif %}
+                </h3>
+                <p>System Health</p>
+                <small>{{ system_health.overall_health|title }}</small>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="quick-actions">
+        <div class="btn-group-vertical">
+            <button class="btn btn-primary btn-sm" onclick="refreshDashboard()">
+                <i class="fas fa-sync"></i> Refresh
+            </button>
+            <button class="btn btn-info btn-sm" onclick="showLiveErrors()">
+                <i class="fas fa-eye"></i> Live Feed
+            </button>
+            <button class="btn btn-warning btn-sm" onclick="exportErrors()">
+                <i class="fas fa-download"></i> Export
+            </button>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Recent Errors -->
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-bug"></i> Recent Errors</h5>
+                    <div class="card-tools">
+                        <button class="btn btn-sm btn-outline-primary" onclick="toggleAutoRefresh()">
+                            <i class="fas fa-play" id="autoRefreshIcon"></i> Auto Refresh
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body" style="max-height: 600px; overflow-y: auto;" id="recentErrorsContainer">
+                    {% for error in recent_errors %}
+                    <div class="error-card card severity-{{ error.severity }}">
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-8">
+                                    <h6 class="card-title">
+                                        <span class="badge badge-{{ 'danger' if error.severity == 'critical' else 'warning' if error.severity == 'high' else 'info' if error.severity == 'medium' else 'success' }}">
+                                            {{ error.severity|upper }}
+                                        </span>
+                                        {{ error.error_type }}
+                                    </h6>
+                                    <p class="card-text">{{ error.error_message[:100] }}{% if error.error_message|length > 100 %}...{% endif %}</p>
+                                    <small class="text-muted">
+                                        <i class="fas fa-user"></i> 
+                                        {% if error.user %}
+                                            {{ error.user.full_name }} ({{ error.user_role }})
+                                        {% else %}
+                                            Anonymous
+                                        {% endif %}
+                                        | <i class="fas fa-globe"></i> {{ error.ip_address }}
+                                    </small>
+                                </div>
+                                <div class="col-md-4 text-right">
+                                    <small class="text-muted">
+                                        <i class="fas fa-clock"></i> {{ error.created_at.strftime('%H:%M:%S') }}<br>
+                                        {{ error.created_at.strftime('%Y-%m-%d') }}
+                                    </small><br>
+                                    <div class="btn-group btn-group-sm mt-2">
+                                        <a href="{{ url_for('error_monitoring.error_detail', error_id=error.error_id) }}" 
+                                           class="btn btn-outline-primary">
+                                            <i class="fas fa-eye"></i> View
+                                        </a>
+                                        {% if error.status == 'open' %}
+                                        <button class="btn btn-outline-success" 
+                                                onclick="quickResolve('{{ error.error_id }}')">
+                                            <i class="fas fa-check"></i> Resolve
+                                        </button>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- System Health & Stats -->
+        <div class="col-lg-4">
+            <!-- System Health -->
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h6><i class="fas fa-heartbeat"></i> System Health</h6>
+                </div>
+                <div class="card-body">
+                    <div class="progress mb-3">
+                        <div class="progress-bar bg-info" style="width: {{ system_health.cpu_usage }}%">
+                            CPU: {{ "%.1f"|format(system_health.cpu_usage or 0) }}%
+                        </div>
+                    </div>
+                    <div class="progress mb-3">
+                        <div class="progress-bar bg-warning" style="width: {{ system_health.memory_usage }}%">
+                            Memory: {{ "%.1f"|format(system_health.memory_usage or 0) }}%
+                        </div>
+                    </div>
+                    <div class="progress mb-3">
+                        <div class="progress-bar bg-danger" style="width: {{ system_health.error_rate }}%">
+                            Error Rate: {{ "%.1f"|format(system_health.error_rate or 0) }}%
+                        </div>
+                    </div>
+                    <small class="text-muted">
+                        Last updated: {{ system_health.created_at[:19] if system_health.created_at else 'Never' }}
+                    </small>
+                </div>
+            </div>
+
+            <!-- Error Categories -->
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h6><i class="fas fa-chart-pie"></i> Error Categories (7 days)</h6>
+                </div>
+                <div class="card-body">
+                    {% for category, count in stats.by_category.items() %}
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="badge badge-secondary">{{ category|title }}</span>
+                        <strong>{{ count }}</strong>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Severity Breakdown -->
+            <div class="card">
+                <div class="card-header">
+                    <h6><i class="fas fa-exclamation-triangle"></i> Severity Breakdown</h6>
+                </div>
+                <div class="card-body">
+                    {% for severity, count in stats.by_severity.items() %}
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="badge badge-{{ 'danger' if severity == 'critical' else 'warning' if severity == 'high' else 'info' if severity == 'medium' else 'success' }}">
+                            {{ severity|title }}
+                        </span>
+                        <strong>{{ count }}</strong>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Navigation Links -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body text-center">
+                    <div class="btn-group">
+                        <a href="{{ url_for('error_monitoring.search_errors') }}" class="btn btn-primary">
+                            <i class="fas fa-search"></i> Advanced Search
+                        </a>
+                        <a href="{{ url_for('error_monitoring.analytics') }}" class="btn btn-info">
+                            <i class="fas fa-chart-line"></i> Analytics
+                        </a>
+                        <a href="{{ url_for('error_monitoring.system_health') }}" class="btn btn-success">
+                            <i class="fas fa-heartbeat"></i> System Health
+                        </a>
+                        <button class="btn btn-warning" onclick="bulkResolve()">
+                            <i class="fas fa-tasks"></i> Bulk Actions
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Resolve Modal -->
+<div class="modal fade" id="quickResolveModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Resolve Error</h5>
+                <button type="button" class="close" data-dismiss="modal">
+                    <span>&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Resolution Notes:</label>
+                    <textarea class="form-control" id="resolutionNotes" rows="3" 
+                              placeholder="Describe how this error was resolved..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-success" onclick="confirmResolve()">
+                    <i class="fas fa-check"></i> Mark Resolved
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let autoRefreshInterval;
+let currentErrorId;
+
+// Auto refresh functionality
+function toggleAutoRefresh() {
+    const icon = document.getElementById('autoRefreshIcon');
+    
+    if (autoRefreshInterval) {
+        clearInterval(autoRefreshInterval);
+        autoRefreshInterval = null;
+        icon.className = 'fas fa-play';
+    } else {
+        autoRefreshInterval = setInterval(refreshRecentErrors, 30000); // 30 seconds
+        icon.className = 'fas fa-pause';
+    }
+}
+
+function refreshRecentErrors() {
+    fetch('{{ url_for("error_monitoring.live_errors") }}')
+        .then(response => response.json())
+        .then(data => {
+            updateErrorsContainer(data.errors);
+        })
+        .catch(error => console.error('Error fetching live errors:', error));
+}
+
+function updateErrorsContainer(errors) {
+    const container = document.getElementById('recentErrorsContainer');
+    if (errors.length === 0) return;
+    
+    // Add new errors to the top
+    errors.slice(0, 5).forEach(error => {
+        const errorHtml = createErrorCard(error);
+        container.insertAdjacentHTML('afterbegin', errorHtml);
+    });
+    
+    // Remove old errors (keep only 20)
+    const cards = container.querySelectorAll('.error-card');
+    if (cards.length > 20) {
+        for (let i = 20; i < cards.length; i++) {
+            cards[i].remove();
+        }
+    }
+}
+
+function createErrorCard(error) {
+    const severityClass = error.severity === 'critical' ? 'danger' : 
+                         error.severity === 'high' ? 'warning' : 
+                         error.severity === 'medium' ? 'info' : 'success';
+                         
+    return `
+    <div class="error-card card severity-${error.severity}" style="animation: slideIn 0.5s;">
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-8">
+                    <h6 class="card-title">
+                        <span class="badge badge-${severityClass}">${error.severity.toUpperCase()}</span>
+                        ${error.error_type}
+                    </h6>
+                    <p class="card-text">${error.error_message.substring(0, 100)}${error.error_message.length > 100 ? '...' : ''}</p>
+                    <small class="text-muted">
+                        <i class="fas fa-user"></i> ${error.user_name || 'Anonymous'}
+                        | <i class="fas fa-globe"></i> ${error.ip_address || 'Unknown'}
+                    </small>
+                </div>
+                <div class="col-md-4 text-right">
+                    <small class="text-muted">
+                        <i class="fas fa-clock"></i> Just now
+                    </small><br>
+                    <div class="btn-group btn-group-sm mt-2">
+                        <a href="/admin/errors/error/${error.error_id}" class="btn btn-outline-primary">
+                            <i class="fas fa-eye"></i> View
+                        </a>
+                        ${error.status === 'open' ? `
+                        <button class="btn btn-outline-success" onclick="quickResolve('${error.error_id}')">
+                            <i class="fas fa-check"></i> Resolve
+                        </button>` : ''}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>`;
+}
+
+function quickResolve(errorId) {
+    currentErrorId = errorId;
+    $('#quickResolveModal').modal('show');
+}
+
+function confirmResolve() {
+    const resolution = document.getElementById('resolutionNotes').value;
+    
+    fetch(`{{ url_for('error_monitoring.resolve_error', error_id='PLACEHOLDER') }}`.replace('PLACEHOLDER', currentErrorId), {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            resolution: resolution
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            $('#quickResolveModal').modal('hide');
+            location.reload(); // Refresh to show updated status
+        } else {
+            alert('Error resolving: ' + (data.message || 'Unknown error'));
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error resolving the issue');
+    });
+}
+
+function refreshDashboard() {
+    location.reload();
+}
+
+function showLiveErrors() {
+    window.open('{{ url_for("error_monitoring.live_errors") }}', '_blank');
+}
+
+function exportErrors() {
+    window.open('{{ url_for("error_monitoring.export_errors") }}?format=json&days=7', '_blank');
+}
+
+function bulkResolve() {
+    // Implement bulk actions functionality
+    alert('Bulk actions feature coming soon!');
+}
+
+// Quick resolve functionality
+let currentQuickResolveId = null;
+
+function quickResolve(errorId) {
+    currentQuickResolveId = errorId;
+    const modal = document.getElementById('quickResolveModal');
+    if (modal) {
+        // Use Bootstrap 4 modal method if available, otherwise fallback
+        if (typeof bootstrap !== 'undefined') {
+            new bootstrap.Modal(modal).show();
+        } else if (window.jQuery && window.jQuery.fn.modal) {
+            window.jQuery(modal).modal('show');
+        } else {
+            modal.style.display = 'block';
+            modal.classList.add('show');
+        }
+    }
+}
+
+function submitQuickResolution() {
+    const resolution = document.getElementById('quickResolutionText').value || 'Resolved from dashboard';
+    
+    fetch(`/admin/errors/resolve/${currentQuickResolveId}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token() }}'
+        },
+        body: JSON.stringify({
+            resolution: resolution
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const modal = document.getElementById('quickResolveModal');
+            if (modal) {
+                if (typeof bootstrap !== 'undefined') {
+                    bootstrap.Modal.getInstance(modal).hide();
+                } else if (window.jQuery && window.jQuery.fn.modal) {
+                    window.jQuery(modal).modal('hide');
+                } else {
+                    modal.style.display = 'none';
+                    modal.classList.remove('show');
+                }
+            }
+            location.reload();
+        } else {
+            alert('Error resolving: ' + (data.message || 'Unknown error'));
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error resolving the issue');
+    });
+}
+
+// Start auto-refresh by default
+document.addEventListener('DOMContentLoaded', function() {
+    // Optional: Start auto-refresh automatically
+    // toggleAutoRefresh();
+});
+</script>
+
+<!-- Quick Resolve Modal -->
+<div class="modal fade" id="quickResolveModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Quick Resolve Error</h5>
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <textarea class="form-control" id="quickResolutionText" placeholder="Brief resolution note (optional)..." rows="3"></textarea>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-success" onclick="submitQuickResolution()">Mark as Resolved</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+</style>
+{% endblock %}

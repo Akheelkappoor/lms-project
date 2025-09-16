@@ -1,0 +1,34 @@
+{% extends "email/notifications/base_notification.html" %}
+
+{% block type_specific_content %}
+{% if notification.priority in ['urgent', 'critical'] %}
+<div class="info-box" style="background-color: #fff3cd; border-left: 4px solid #ffc107;">
+    <h4 style="color: #856404;">⚠️ Action Required</h4>
+    <p style="color: #856404; margin-bottom: 0;">
+        This is a {{ notification.priority }} notification that may require your immediate attention. 
+        Please review the message above carefully and take any necessary action.
+    </p>
+</div>
+{% endif %}
+
+{% if user.role == 'student' %}
+<div class="info-box">
+    <h4>📚 Student Information</h4>
+    <p><strong>Department:</strong> {{ user.department.name if user.department else 'Not assigned' }}</p>
+    <p><strong>Role:</strong> {{ user.get_role_display() }}</p>
+    <p style="margin-bottom: 0;"><em>This notification has been sent to your parent/guardian as well for their information.</em></p>
+</div>
+{% elif user.role == 'tutor' %}
+<div class="info-box">
+    <h4>👨‍🏫 Tutor Information</h4>
+    <p><strong>Department:</strong> {{ user.department.name if user.department else 'Not assigned' }}</p>
+    <p style="margin-bottom: 0;"><em>Please ensure to communicate relevant information to your students as needed.</em></p>
+</div>
+{% elif user.role in ['coordinator', 'admin', 'superadmin'] %}
+<div class="info-box">
+    <h4>👑 Administrative Notice</h4>
+    <p><strong>Your Role:</strong> {{ user.get_role_display() }}</p>
+    <p style="margin-bottom: 0;"><em>Please ensure this information is communicated to relevant staff and students under your supervision.</em></p>
+</div>
+{% endif %}
+{% endblock %}

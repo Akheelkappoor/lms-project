@@ -82,6 +82,51 @@
         padding: 2rem;
     }
 
+    /* Enhanced Form Error Display */
+    .form-errors-summary {
+        background: linear-gradient(135deg, #dc3545, #c82333);
+        color: white;
+        padding: 1.5rem;
+        border-radius: 12px;
+        margin-bottom: 2rem;
+        display: none;
+        box-shadow: 0 4px 12px rgba(220, 53, 69, 0.3);
+    }
+
+    .form-errors-summary.show {
+        display: block;
+        animation: slideDown 0.5s ease-out;
+    }
+
+    @keyframes slideDown {
+        from {
+            opacity: 0;
+            transform: translateY(-20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .form-errors-summary h4 {
+        margin: 0 0 1rem 0;
+        font-size: 1.2rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .form-errors-summary ul {
+        margin: 0;
+        padding-left: 1.5rem;
+    }
+
+    .form-errors-summary li {
+        margin-bottom: 0.5rem;
+        line-height: 1.4;
+    }
+
     /* Simple Form Styling */
     .form-section {
         background: white;
@@ -174,24 +219,77 @@
         font-style: italic;
     }
 
+    /* Salary Fields Transition */
+    #monthly-salary-group, #hourly-rate-group {
+        transition: all 0.3s ease;
+    }
+
+    /* Test Score Specific Styling */
+    .test-score-indicator {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-top: 0.5rem;
+        padding: 0.5rem 1rem;
+        border-radius: 6px;
+        font-size: 0.85rem;
+        font-weight: 600;
+    }
+
+    .test-score-excellent {
+        background: rgba(40, 167, 69, 0.1);
+        color: #28a745;
+        border: 1px solid rgba(40, 167, 69, 0.3);
+    }
+
+    .test-score-good {
+        background: rgba(255, 193, 7, 0.1);
+        color: #ffc107;
+        border: 1px solid rgba(255, 193, 7, 0.3);
+    }
+
+    .test-score-average {
+        background: rgba(255, 152, 0, 0.1);
+        color: #ff9800;
+        border: 1px solid rgba(255, 152, 0, 0.3);
+    }
+
+    .test-score-poor {
+        background: rgba(220, 53, 69, 0.1);
+        color: #dc3545;
+        border: 1px solid rgba(220, 53, 69, 0.3);
+    }
+
+    /* Enhanced Error Display */
     .invalid-feedback {
         color: var(--danger-color);
         font-size: 0.85rem;
         margin-top: 0.5rem;
         font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .invalid-feedback::before {
+        content: '\f071';
+        font-family: 'Font Awesome 5 Free';
+        font-weight: 900;
     }
 
     .form-control.is-invalid {
         border-color: var(--danger-color);
         box-shadow: 0 0 0 3px rgba(220, 53, 69, 0.15);
+        background-color: rgba(220, 53, 69, 0.02);
     }
 
     .form-control.is-valid {
         border-color: var(--success-color);
         box-shadow: 0 0 0 3px rgba(40, 167, 69, 0.15);
+        background-color: rgba(40, 167, 69, 0.02);
     }
 
-    /* File Upload */
+    /* Enhanced File Upload */
     .file-upload-area {
         border: 2px dashed var(--border-color);
         border-radius: 8px;
@@ -208,10 +306,29 @@
         background: rgba(241, 161, 80, 0.05);
     }
 
+    .file-upload-area.has-error {
+        border-color: var(--danger-color);
+        background: rgba(220, 53, 69, 0.05);
+    }
+
+    .file-upload-area.has-file {
+        border-color: var(--success-color);
+        background: rgba(40, 167, 69, 0.05);
+    }
+
     .file-upload-icon {
         font-size: 2rem;
         color: var(--text-muted);
         margin-bottom: 1rem;
+        transition: all 0.3s ease;
+    }
+
+    .file-upload-area.has-file .file-upload-icon {
+        color: var(--success-color);
+    }
+
+    .file-upload-area.has-error .file-upload-icon {
+        color: var(--danger-color);
     }
 
     .file-upload-area input[type="file"] {
@@ -228,6 +345,13 @@
         margin: 0;
         color: var(--text-muted);
         font-size: 0.9rem;
+    }
+
+    .file-info {
+        font-size: 0.8rem;
+        color: var(--text-muted);
+        margin-top: 0.5rem;
+        font-style: italic;
     }
 
     /* Submit Button */
@@ -309,7 +433,13 @@
 </div>
 
 <div class="content-container">
-    <form method="POST" enctype="multipart/form-data" id="tutorRegistrationForm">
+    <!-- Form Errors Summary -->
+    <div id="formErrorsSummary" class="form-errors-summary">
+        <h4><i class="fas fa-exclamation-triangle"></i> Please fix the following errors:</h4>
+        <ul id="errorsList"></ul>
+    </div>
+
+    <form method="POST" enctype="multipart/form-data" id="tutorRegistrationForm" novalidate>
         {{ form.hidden_tag() }}
         
         <!-- Personal Information -->
@@ -485,18 +615,6 @@
                         </div>
                     {% endif %}
                 </div>
-                
-                <div class="form-group">
-                    <label for="{{ form.salary_type.id }}">{{ form.salary_type.label.text }} <span class="required">*</span></label>
-                    {{ form.salary_type(class="form-control form-select", required=true) }}
-                    {% if form.salary_type.errors %}
-                        <div class="invalid-feedback">
-                            {% for error in form.salary_type.errors %}
-                                {{ error }}
-                            {% endfor %}
-                        </div>
-                    {% endif %}
-                </div>
             </div>
             
             <div class="form-row single">
@@ -515,6 +633,61 @@
             </div>
         </div>
 
+        <!-- Test Score Section -->
+        <div class="form-section">
+            <div class="section-title">
+                <i class="fas fa-clipboard-check"></i>
+                Test Score Information
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="{{ form.test_score.id }}">{{ form.test_score.label.text }} <span class="required">*</span></label>
+                    {{ form.test_score(class="form-control", required=true, id="testScore") }}
+                    {% if form.test_score.errors %}
+                        <div class="invalid-feedback">
+                            {% for error in form.test_score.errors %}
+                                {{ error }}
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                    <div class="help-text">Enter total test score out of 100</div>
+                    <div id="testScoreIndicator" class="test-score-indicator" style="display: none;">
+                        <i class="fas fa-star"></i>
+                        <span id="scoreGrade"></span>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="{{ form.test_date.id }}">{{ form.test_date.label.text }} <span class="required">*</span></label>
+                    {{ form.test_date(class="form-control", required=true) }}
+                    {% if form.test_date.errors %}
+                        <div class="invalid-feedback">
+                            {% for error in form.test_date.errors %}
+                                {{ error }}
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                    <div class="help-text">Date when the test was conducted</div>
+                </div>
+            </div>
+            
+            <div class="form-row single">
+                <div class="form-group">
+                    <label for="{{ form.test_notes.id }}">{{ form.test_notes.label.text }}</label>
+                    {{ form.test_notes(class="form-control", rows="3") }}
+                    {% if form.test_notes.errors %}
+                        <div class="invalid-feedback">
+                            {% for error in form.test_notes.errors %}
+                                {{ error }}
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                    <div class="help-text">Optional notes about test performance or special circumstances</div>
+                </div>
+            </div>
+        </div>
+
         <!-- Teaching Details -->
         <div class="form-section">
             <div class="section-title">
@@ -522,6 +695,53 @@
                 Teaching Details
             </div>
             
+            <!-- Salary Type Selection -->
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="{{ form.salary_type.id }}">{{ form.salary_type.label.text }} <span class="required">*</span></label>
+                    {{ form.salary_type(class="form-control form-select", id="salary_type", required=true, onchange="toggleSalaryFields()") }}
+                    {% if form.salary_type.errors %}
+                        <div class="invalid-feedback">
+                            {% for error in form.salary_type.errors %}
+                                {{ error }}
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <!-- Salary Amount Fields -->
+            <div class="form-row" id="monthly-salary-group">
+                <div class="form-group">
+                    <label for="{{ form.monthly_salary.id }}">Monthly Salary (₹) <span class="required">*</span></label>
+                    {{ form.monthly_salary(class="form-control", id="monthly_salary", placeholder="Enter monthly salary") }}
+                    {% if form.monthly_salary.errors %}
+                        <div class="invalid-feedback">
+                            {% for error in form.monthly_salary.errors %}
+                                {{ error }}
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                    <div class="help-text">Fixed monthly salary amount</div>
+                </div>
+            </div>
+            
+            <div class="form-row" id="hourly-rate-group" style="display: none;">
+                <div class="form-group">
+                    <label for="{{ form.hourly_rate.id }}">Hourly Rate (₹) <span class="required">*</span></label>
+                    {{ form.hourly_rate(class="form-control", id="hourly_rate", placeholder="Enter hourly rate") }}
+                    {% if form.hourly_rate.errors %}
+                        <div class="invalid-feedback">
+                            {% for error in form.hourly_rate.errors %}
+                                {{ error }}
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                    <div class="help-text">Rate per hour</div>
+                </div>
+            </div>
+            
+            <!-- Subject and Grade Fields -->
             <div class="form-row">
                 <div class="form-group">
                     <label for="{{ form.subjects.id }}">{{ form.subjects.label.text }} <span class="required">*</span></label>
@@ -563,30 +783,6 @@
                     {% endif %}
                     <div class="help-text">Comma-separated list (e.g., CBSE, ICSE, State Board)</div>
                 </div>
-                
-                <div class="form-group">
-                    {% if form.salary_type.data == 'monthly' or not form.salary_type.data %}
-                        <label for="{{ form.monthly_salary.id }}">{{ form.monthly_salary.label.text }} <span class="required">*</span></label>
-                        {{ form.monthly_salary(class="form-control", required=true) }}
-                        {% if form.monthly_salary.errors %}
-                            <div class="invalid-feedback">
-                                {% for error in form.monthly_salary.errors %}
-                                    {{ error }}
-                                {% endfor %}
-                            </div>
-                        {% endif %}
-                    {% else %}
-                        <label for="{{ form.hourly_rate.id }}">{{ form.hourly_rate.label.text }} <span class="required">*</span></label>
-                        {{ form.hourly_rate(class="form-control", required=true) }}
-                        {% if form.hourly_rate.errors %}
-                            <div class="invalid-feedback">
-                                {% for error in form.hourly_rate.errors %}
-                                    {{ error }}
-                                {% endfor %}
-                            </div>
-                        {% endif %}
-                    {% endif %}
-                </div>
             </div>
         </div>
 
@@ -600,12 +796,13 @@
             <div class="form-row">
                 <div class="form-group">
                     <label for="{{ form.aadhaar_card.id }}">{{ form.aadhaar_card.label.text }} <span class="required">*</span></label>
-                    <div class="file-upload-area">
+                    <div class="file-upload-area" data-field="aadhaar_card">
                         <div class="file-upload-icon">
                             <i class="fas fa-id-card"></i>
                         </div>
-                        {{ form.aadhaar_card(class="form-control", required=true) }}
+                        {{ form.aadhaar_card(class="form-control", required=true, accept=".jpg,.jpeg,.png,.pdf") }}
                         <p>Upload Aadhaar Card (JPG, PNG, PDF)</p>
+                        <div class="file-info">Max size: 5MB</div>
                     </div>
                     {% if form.aadhaar_card.errors %}
                         <div class="invalid-feedback">
@@ -618,12 +815,13 @@
                 
                 <div class="form-group">
                     <label for="{{ form.pan_card.id }}">{{ form.pan_card.label.text }} <span class="required">*</span></label>
-                    <div class="file-upload-area">
+                    <div class="file-upload-area" data-field="pan_card">
                         <div class="file-upload-icon">
                             <i class="fas fa-credit-card"></i>
                         </div>
-                        {{ form.pan_card(class="form-control", required=true) }}
+                        {{ form.pan_card(class="form-control", required=true, accept=".jpg,.jpeg,.png,.pdf") }}
                         <p>Upload PAN Card (JPG, PNG, PDF)</p>
+                        <div class="file-info">Max size: 5MB</div>
                     </div>
                     {% if form.pan_card.errors %}
                         <div class="invalid-feedback">
@@ -638,12 +836,13 @@
             <div class="form-row">
                 <div class="form-group">
                     <label for="{{ form.resume.id }}">{{ form.resume.label.text }} <span class="required">*</span></label>
-                    <div class="file-upload-area">
+                    <div class="file-upload-area" data-field="resume">
                         <div class="file-upload-icon">
                             <i class="fas fa-file-pdf"></i>
                         </div>
-                        {{ form.resume(class="form-control", required=true) }}
+                        {{ form.resume(class="form-control", required=true, accept=".pdf,.doc,.docx") }}
                         <p>Upload Resume/CV (PDF, DOC, DOCX)</p>
+                        <div class="file-info">Max size: 10MB</div>
                     </div>
                     {% if form.resume.errors %}
                         <div class="invalid-feedback">
@@ -656,12 +855,13 @@
                 
                 <div class="form-group">
                     <label for="{{ form.degree_certificate.id }}">{{ form.degree_certificate.label.text }} <span class="required">*</span></label>
-                    <div class="file-upload-area">
+                    <div class="file-upload-area" data-field="degree_certificate">
                         <div class="file-upload-icon">
                             <i class="fas fa-certificate"></i>
                         </div>
-                        {{ form.degree_certificate(class="form-control", required=true) }}
+                        {{ form.degree_certificate(class="form-control", required=true, accept=".jpg,.jpeg,.png,.pdf") }}
                         <p>Upload Degree Certificate (JPG, PNG, PDF)</p>
+                        <div class="file-info">Max size: 5MB</div>
                     </div>
                     {% if form.degree_certificate.errors %}
                         <div class="invalid-feedback">
@@ -678,18 +878,19 @@
         <div class="form-section">
             <div class="section-title">
                 <i class="fas fa-video"></i>
-                Required Videos
+                Videos
             </div>
             
             <div class="form-row">
                 <div class="form-group">
-                    <label for="{{ form.demo_video.id }}">{{ form.demo_video.label.text }} <span class="required">*</span></label>
-                    <div class="file-upload-area">
+                    <label for="{{ form.demo_video.id }}">{{ form.demo_video.label.text }}</label>
+                    <div class="file-upload-area" data-field="demo_video">
                         <div class="file-upload-icon">
                             <i class="fas fa-play-circle"></i>
                         </div>
-                        {{ form.demo_video(class="form-control", required=true) }}
+                        {{ form.demo_video(class="form-control", accept=".mp4,.avi,.mov,.wmv") }}
                         <p>Upload Demo Teaching Video (MP4, AVI, MOV)</p>
+                        <div class="file-info">Max size: 100MB | Duration: 5-10 minutes</div>
                     </div>
                     {% if form.demo_video.errors %}
                         <div class="invalid-feedback">
@@ -698,17 +899,17 @@
                             {% endfor %}
                         </div>
                     {% endif %}
-                    <div class="help-text">5-10 minute demo class video</div>
                 </div>
                 
                 <div class="form-group">
-                    <label for="{{ form.interview_video.id }}">{{ form.interview_video.label.text }} <span class="required">*</span></label>
-                    <div class="file-upload-area">
+                    <label for="{{ form.interview_video.id }}">{{ form.interview_video.label.text }}</label>
+                    <div class="file-upload-area" data-field="interview_video">
                         <div class="file-upload-icon">
                             <i class="fas fa-video"></i>
                         </div>
-                        {{ form.interview_video(class="form-control", required=true) }}
+                        {{ form.interview_video(class="form-control", accept=".mp4,.avi,.mov,.wmv") }}
                         <p>Upload Interview Video (MP4, AVI, MOV)</p>
+                        <div class="file-info">Max size: 100MB | Duration: 3-5 minutes</div>
                     </div>
                     {% if form.interview_video.errors %}
                         <div class="invalid-feedback">
@@ -717,7 +918,6 @@
                             {% endfor %}
                         </div>
                     {% endif %}
-                    <div class="help-text">Introduction and background video</div>
                 </div>
             </div>
         </div>
@@ -798,89 +998,302 @@
 
         <!-- Submit Button -->
         <div class="form-actions">
-            {{ form.submit(class="btn-primary") }}
+            {{ form.submit(class="btn-primary", id="submitBtn") }}
         </div>
     </form>
 </div>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // File upload feedback
-    const fileInputs = document.querySelectorAll('input[type="file"]');
+    console.log('=== TUTOR REGISTRATION FORM INITIALIZED ===');
     
+    // Get all file inputs and setup validation
+    const fileInputs = document.querySelectorAll('input[type="file"]');
+    const form = document.getElementById('tutorRegistrationForm');
+    const submitBtn = document.getElementById('submitBtn');
+    const errorsSummary = document.getElementById('formErrorsSummary');
+    const errorsList = document.getElementById('errorsList');
+    const testScoreField = document.getElementById('testScore');
+    const testScoreIndicator = document.getElementById('testScoreIndicator');
+    const scoreGrade = document.getElementById('scoreGrade');
+    
+    // Test Score Real-time Feedback
+    if (testScoreField) {
+        testScoreField.addEventListener('input', function() {
+            const score = parseFloat(this.value);
+            
+            if (isNaN(score) || score < 0 || score > 100) {
+                testScoreIndicator.style.display = 'none';
+                return;
+            }
+            
+            testScoreIndicator.style.display = 'flex';
+            testScoreIndicator.className = 'test-score-indicator';
+            
+            if (score >= 90) {
+                testScoreIndicator.classList.add('test-score-excellent');
+                scoreGrade.textContent = 'Excellent (A+)';
+            } else if (score >= 85) {
+                testScoreIndicator.classList.add('test-score-excellent');
+                scoreGrade.textContent = 'Excellent (A)';
+            } else if (score >= 75) {
+                testScoreIndicator.classList.add('test-score-good');
+                scoreGrade.textContent = 'Good (B+/B)';
+            } else if (score >= 65) {
+                testScoreIndicator.classList.add('test-score-average');
+                scoreGrade.textContent = 'Average (C+/C)';
+            } else if (score >= 60) {
+                testScoreIndicator.classList.add('test-score-poor');
+                scoreGrade.textContent = 'Below Average (D)';
+            } else {
+                testScoreIndicator.classList.add('test-score-poor');
+                scoreGrade.textContent = 'Poor (F)';
+            }
+        });
+    }
+    
+    // File type validation rules
+    const fileValidation = {
+        aadhaar_card: {
+            types: ['image/jpeg', 'image/jpg', 'image/png', 'application/pdf'],
+            maxSize: 5 * 1024 * 1024, // 5MB
+            extensions: ['.jpg', '.jpeg', '.png', '.pdf']
+        },
+        pan_card: {
+            types: ['image/jpeg', 'image/jpg', 'image/png', 'application/pdf'],
+            maxSize: 5 * 1024 * 1024, // 5MB
+            extensions: ['.jpg', '.jpeg', '.png', '.pdf']
+        },
+        resume: {
+            types: ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
+            maxSize: 10 * 1024 * 1024, // 10MB
+            extensions: ['.pdf', '.doc', '.docx']
+        },
+        degree_certificate: {
+            types: ['image/jpeg', 'image/jpg', 'image/png', 'application/pdf'],
+            maxSize: 5 * 1024 * 1024, // 5MB
+            extensions: ['.jpg', '.jpeg', '.png', '.pdf']
+        },
+        demo_video: {
+            types: ['video/mp4', 'video/avi', 'video/mov', 'video/wmv'],
+            maxSize: 100 * 1024 * 1024, // 100MB
+            extensions: ['.mp4', '.avi', '.mov', '.wmv']
+        },
+        interview_video: {
+            types: ['video/mp4', 'video/avi', 'video/mov', 'video/wmv'],
+            maxSize: 100 * 1024 * 1024, // 100MB
+            extensions: ['.mp4', '.avi', '.mov', '.wmv']
+        }
+    };
+
+    // Enhanced file upload feedback
     fileInputs.forEach(input => {
         input.addEventListener('change', function(e) {
+            const fieldName = this.name;
+            const uploadArea = this.closest('.file-upload-area');
+            const icon = uploadArea.querySelector('.file-upload-icon i');
+            const text = uploadArea.querySelector('p');
+            const validation = fileValidation[fieldName];
+            
+            // Clear previous states
+            uploadArea.classList.remove('has-error', 'has-file');
+            this.classList.remove('is-invalid', 'is-valid');
+            
+            // Remove existing error messages
+            const existingError = uploadArea.parentNode.querySelector('.invalid-feedback.js-error');
+            if (existingError) {
+                existingError.remove();
+            }
+            
             if (e.target.files.length > 0) {
-                const uploadArea = input.closest('.file-upload-area');
-                const icon = uploadArea.querySelector('.file-upload-icon i');
-                const text = uploadArea.querySelector('p');
+                const file = e.target.files[0];
+                let isValid = true;
+                let errorMessage = '';
                 
-                icon.className = 'fas fa-check-circle';
-                icon.style.color = 'var(--success-color)';
-                text.textContent = `Selected: ${e.target.files[0].name}`;
+                // Validate file type
+                if (validation && !validation.types.includes(file.type)) {
+                    const ext = '.' + file.name.split('.').pop().toLowerCase();
+                    if (!validation.extensions.includes(ext)) {
+                        isValid = false;
+                        errorMessage = `Invalid file type. Allowed: ${validation.extensions.join(', ')}`;
+                    }
+                }
+                
+                // Validate file size
+                if (validation && file.size > validation.maxSize) {
+                    isValid = false;
+                    const maxSizeMB = (validation.maxSize / (1024 * 1024)).toFixed(0);
+                    errorMessage = `File too large. Max size: ${maxSizeMB}MB`;
+                }
+                
+                if (isValid) {
+                    // File is valid
+                    uploadArea.classList.add('has-file');
+                    this.classList.add('is-valid');
+                    icon.className = 'fas fa-check-circle';
+                    icon.style.color = 'var(--success-color)';
+                    text.textContent = `✓ Selected: ${file.name}`;
+                    text.style.color = 'var(--success-color)';
+                } else {
+                    // File is invalid
+                    uploadArea.classList.add('has-error');
+                    this.classList.add('is-invalid');
+                    icon.className = 'fas fa-exclamation-triangle';
+                    icon.style.color = 'var(--danger-color)';
+                    text.textContent = `✗ ${errorMessage}`;
+                    text.style.color = 'var(--danger-color)';
+                    
+                    // Add error message
+                    const errorDiv = document.createElement('div');
+                    errorDiv.className = 'invalid-feedback js-error';
+                    errorDiv.textContent = errorMessage;
+                    uploadArea.parentNode.appendChild(errorDiv);
+                    
+                    // Clear the invalid file
+                    this.value = '';
+                }
             }
         });
     });
 
-    // Form submission with validation
-    const form = document.getElementById('tutorRegistrationForm');
+    // Salary Type Toggle Function
+    function toggleSalaryFields() {
+        const salaryType = document.getElementById('salary_type').value;
+        const monthlyGroup = document.getElementById('monthly-salary-group');
+        const hourlyGroup = document.getElementById('hourly-rate-group');
+        const monthlyField = document.getElementById('monthly_salary');
+        const hourlyField = document.getElementById('hourly_rate');
+
+        if (salaryType === 'monthly') {
+            monthlyGroup.style.display = 'block';
+            hourlyGroup.style.display = 'none';
+            monthlyField.required = true;
+            hourlyField.required = false;
+            hourlyField.value = ''; // Clear hourly field
+        } else if (salaryType === 'hourly') {
+            monthlyGroup.style.display = 'none';
+            hourlyGroup.style.display = 'block';
+            monthlyField.required = false;
+            hourlyField.required = true;
+            monthlyField.value = ''; // Clear monthly field
+        }
+    }
+
+    // Initialize salary fields toggle
+    toggleSalaryFields();
+    const salaryTypeField = document.getElementById('salary_type');
+    if (salaryTypeField) {
+        salaryTypeField.addEventListener('change', toggleSalaryFields);
+    }
+
+    // Form submission with comprehensive validation
     form.addEventListener('submit', function(e) {
-        console.log('=== TUTOR FORM SUBMIT DEBUG ===');
+        console.log('=== FORM SUBMISSION STARTED ===');
         
-        // Disable submit button to prevent double submission
-        const submitBtn = form.querySelector('.btn-primary');
+        // Disable submit button immediately
         submitBtn.disabled = true;
         submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Registering...';
+        
+        // Collect all validation errors
+        const errors = [];
+        let hasFileErrors = false;
+        
+        // Check required fields
+        const requiredFields = this.querySelectorAll('[required]');
+        requiredFields.forEach(field => {
+            if (field.type === 'file') {
+                if (!field.files || field.files.length === 0) {
+                    errors.push(`${field.name.replace('_', ' ').toUpperCase()} is required`);
+                    field.classList.add('is-invalid');
+                    field.closest('.file-upload-area').classList.add('has-error');
+                    hasFileErrors = true;
+                } else {
+                    // Check if file validation passed
+                    if (field.classList.contains('is-invalid')) {
+                        hasFileErrors = true;
+                    }
+                }
+            } else if (!field.value.trim()) {
+                errors.push(`${field.name.replace('_', ' ').toUpperCase()} is required`);
+                field.classList.add('is-invalid');
+            }
+        });
+        
+        // Check password match
+        const password = document.getElementById('password').value;
+        const passwordConfirm = document.getElementById('password_confirm').value;
+        
+        if (password !== passwordConfirm) {
+            errors.push('Passwords do not match');
+            document.getElementById('password_confirm').classList.add('is-invalid');
+        }
+        
+        // Validate test score
+        const testScore = parseFloat(testScoreField.value);
+        if (isNaN(testScore) || testScore < 0 || testScore > 100) {
+            errors.push('Test score must be between 0 and 100');
+            testScoreField.classList.add('is-invalid');
+        }
+        
+        // Check file validation errors
+        if (hasFileErrors) {
+            errors.push('Please fix file upload errors');
+        }
+        
+        // If there are errors, prevent submission and show them
+        if (errors.length > 0 || hasFileErrors) {
+            console.log('=== VALIDATION ERRORS ===', errors);
+            
+            // Show errors summary
+            errorsList.innerHTML = errors.map(error => `<li>${error}</li>`).join('');
+            errorsSummary.classList.add('show');
+            errorsSummary.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            
+            // Re-enable submit button
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="fas fa-save"></i> Register Tutor';
+            
+            e.preventDefault();
+            return false;
+        }
+        
+        // Hide errors summary if visible
+        errorsSummary.classList.remove('show');
+        
+        console.log('=== FORM VALIDATION PASSED ===');
         
         // Log form data for debugging
         const formData = new FormData(this);
         console.log('Form data being submitted:');
         for (let [key, value] of formData.entries()) {
-            console.log(key + ':', value);
-        }
-        
-        // Check for required fields
-        const requiredFields = this.querySelectorAll('[required]');
-        let missingFields = [];
-        
-        requiredFields.forEach(field => {
-            if (!field.value.trim()) {
-                missingFields.push(field.name);
-                field.classList.add('is-invalid');
+            if (value instanceof File) {
+                console.log(key + ':', value.name, '(' + value.size + ' bytes)');
             } else {
-                field.classList.remove('is-invalid');
+                console.log(key + ':', value);
             }
-        });
-        
-        if (missingFields.length > 0) {
-            console.log('Missing required fields:', missingFields);
-            alert('Please fill in all required fields: ' + missingFields.join(', '));
-            
-            // Re-enable submit button
-            submitBtn.innerHTML = '<i class="fas fa-save"></i> Register Tutor';
-            submitBtn.disabled = false;
-            
-            e.preventDefault();
-            return false;
         }
         
-        // Check if passwords match
-        const password = document.getElementById('password').value;
-        const passwordConfirm = document.getElementById('password_confirm').value;
-        
-        if (password !== passwordConfirm) {
-            alert('Passwords do not match!');
-            document.getElementById('password_confirm').classList.add('is-invalid');
+        return true;
+    });
+
+    // Real-time validation for other fields
+    document.querySelectorAll('.form-control, .form-select').forEach(function(input) {
+        if (input.type !== 'file') {
+            input.addEventListener('blur', function() {
+                validateField(this);
+            });
             
-            // Re-enable submit button
-            submitBtn.innerHTML = '<i class="fas fa-save"></i> Register Tutor';
-            submitBtn.disabled = false;
-            
-            e.preventDefault();
-            return false;
+            input.addEventListener('input', function() {
+                if (this.classList.contains('is-invalid')) {
+                    validateField(this);
+                }
+                
+                // Hide errors summary when user starts fixing errors
+                if (errorsSummary.classList.contains('show')) {
+                    errorsSummary.classList.remove('show');
+                }
+            });
         }
-        
-        console.log('Form validation passed, submitting...');
     });
 
     // Real-time password match validation
@@ -893,25 +1306,12 @@ document.addEventListener('DOMContentLoaded', function() {
             if (passwordConfirmValue && password !== passwordConfirmValue) {
                 this.classList.add('is-invalid');
                 this.classList.remove('is-valid');
-            } else if (passwordConfirmValue && password === passwordConfirmValue && passwordConfirmValue.length >= 6) {
+            } else if (passwordConfirmValue && password === passwordConfirmValue && passwordConfirmValue.length >= 8) {
                 this.classList.add('is-valid');
                 this.classList.remove('is-invalid');
             }
         });
     }
-
-    // Real-time validation for other fields
-    document.querySelectorAll('.form-control, .form-select').forEach(function(input) {
-        input.addEventListener('blur', function() {
-            validateField(this);
-        });
-        
-        input.addEventListener('input', function() {
-            if (this.classList.contains('is-invalid')) {
-                validateField(this);
-            }
-        });
-    });
 
     function validateField(field) {
         const value = field.value.trim();
@@ -946,13 +1346,50 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Password validation
         if (field.type === 'password' && value) {
-            if (value.length >= 6) {
+            if (value.length >= 8) {
+                field.classList.add('is-valid');
+            } else {
+                field.classList.add('is-invalid');
+            }
+        }
+        
+        // Test score validation
+        if (field.id === 'testScore' && value) {
+            const score = parseFloat(value);
+            if (!isNaN(score) && score >= 0 && score <= 100) {
                 field.classList.add('is-valid');
             } else {
                 field.classList.add('is-invalid');
             }
         }
     }
+
+    // Show server-side errors if any exist
+    const serverErrors = document.querySelectorAll('.invalid-feedback:not(.js-error)');
+    if (serverErrors.length > 0) {
+        const errors = [];
+        serverErrors.forEach(errorDiv => {
+            const errorText = errorDiv.textContent.trim();
+            if (errorText) {
+                errors.push(errorText);
+                // Mark the associated field as invalid
+                const field = errorDiv.parentNode.querySelector('.form-control');
+                if (field) {
+                    field.classList.add('is-invalid');
+                    if (field.type === 'file') {
+                        field.closest('.file-upload-area').classList.add('has-error');
+                    }
+                }
+            }
+        });
+        
+        if (errors.length > 0) {
+            errorsList.innerHTML = errors.map(error => `<li>${error}</li>`).join('');
+            errorsSummary.classList.add('show');
+        }
+    }
+    
+    console.log('=== INITIALIZATION COMPLETE ===');
 });
 </script>
 {% endblock %}

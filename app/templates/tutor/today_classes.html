@@ -100,7 +100,7 @@
                     <div class="class-item" data-class-id="{{ class.id }}" data-status="{{ class.status }}">
                         <div class="class-time">
                             <div class="time-badge {% if class.status == 'ongoing' %}ongoing{% elif class.status == 'completed' %}completed{% endif %}">
-                                <span class="time">{{ class.scheduled_time.strftime('%H:%M') }}</span>
+                                <span class="time">{{ class.scheduled_time.strftime('%I:%M %p') }}</span>
                                 <span class="duration">{{ class.duration }}min</span>
                             </div>
                             {% if class.status == 'ongoing' %}
@@ -273,7 +273,7 @@
                             <div class="upcoming-item">
                                 <div class="upcoming-date">
                                     <strong>{{ class.scheduled_date.strftime('%a, %b %d') }}</strong>
-                                    <small>{{ class.scheduled_time.strftime('%H:%M') }}</small>
+                                    <small>{{ class.scheduled_time.strftime('%I:%M %p') }}</small>
                                 </div>
                                 <div class="upcoming-subject">{{ class.subject }}</div>
                             </div>
@@ -614,10 +614,12 @@ let currentClassId = null;
 
 function startClass(classId) {
     if (confirm('Are you ready to start this class?')) {
+        const csrfToken = document.querySelector('meta[name=csrf-token]').getAttribute('content');
         fetch(`/tutor/class/${classId}/start`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken,
             }
         })
         .then(response => response.json())
@@ -638,10 +640,12 @@ function startClass(classId) {
 
 function completeClass(classId) {
     if (confirm('Mark this class as completed?')) {
+        const csrfToken = document.querySelector('meta[name=csrf-token]').getAttribute('content');
         fetch(`/tutor/class/${classId}/complete`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken,
             },
             body: JSON.stringify({
                 completion_status: 'completed',
@@ -686,6 +690,10 @@ function saveAttendance() {
     
     const form = document.getElementById('attendanceForm');
     const formData = new FormData(form);
+    
+    // Add CSRF token to form data
+    const csrfToken = document.querySelector('meta[name=csrf-token]').getAttribute('content');
+    formData.append('csrf_token', csrfToken);
     
     fetch(`/tutor/class/${currentClassId}/attendance`, {
         method: 'POST',

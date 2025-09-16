@@ -1,0 +1,117 @@
+{% extends "email/base_email.html" %}
+
+{% block title %}Application Received - Welcome to LMS{% endblock %}
+{% block email_title %}Application Received{% endblock %}
+{% block email_subtitle %}Welcome to the LMS Teaching Team{% endblock %}
+
+{% block recipient_name %}{{ user.full_name }}{% endblock %}
+
+{% block email_content %}
+<div class="alert-box alert-success">
+    <strong>🎉 Application Received!</strong> Thank you for your interest in joining our teaching team. Your application has been successfully submitted and is under review.
+</div>
+
+<div class="content-section">
+    <h2>Application Details</h2>
+    <div class="info-grid">
+        <div class="info-row">
+            <div class="info-label">Applicant Name:</div>
+            <div class="info-value"><strong>{{ user.full_name }}</strong></div>
+        </div>
+        <div class="info-row">
+            <div class="info-label">Email:</div>
+            <div class="info-value">{{ user.email }}</div>
+        </div>
+        <div class="info-row">
+            <div class="info-label">Department:</div>
+            <div class="info-value">{{ user.department.name if user.department else 'To be assigned' }}</div>
+        </div>
+        <div class="info-row">
+            <div class="info-label">Application Date:</div>
+            <div class="info-value">{{ application_date.strftime('%B %d, %Y') }}</div>
+        </div>
+        <div class="info-row">
+            <div class="info-label">Application ID:</div>
+            <div class="info-value">{{ tutor.id }}</div>
+        </div>
+        <div class="info-row">
+            <div class="info-label">Expected Timeline:</div>
+            <div class="info-value"><strong>{{ timeline }}</strong></div>
+        </div>
+    </div>
+</div>
+
+<div class="content-section">
+    <h2>What Happens Next?</h2>
+    <ul class="action-list">
+        {% for step in next_steps %}
+        <li>{{ step }}</li>
+        {% endfor %}
+    </ul>
+</div>
+
+<div class="content-section">
+    <h2>Review Process Timeline</h2>
+    <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; border-left: 4px solid #007bff;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin: 10px 0; padding: 10px; background: white; border-radius: 4px;">
+            <span><strong>Day 1-2:</strong> Document Verification</span>
+            <span style="color: #28a745;">📄</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin: 10px 0; padding: 10px; background: white; border-radius: 4px;">
+            <span><strong>Day 3-4:</strong> Background Check</span>
+            <span style="color: #17a2b8;">🔍</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin: 10px 0; padding: 10px; background: white; border-radius: 4px;">
+            <span><strong>Day 5-6:</strong> Interview (if required)</span>
+            <span style="color: #ffc107;">💬</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin: 10px 0; padding: 10px; background: white; border-radius: 4px;">
+            <span><strong>Day 7:</strong> Final Decision</span>
+            <span style="color: #28a745;">✅</span>
+        </div>
+    </div>
+</div>
+
+<div class="content-section">
+    <h2>Important Information</h2>
+    <div class="alert-box alert-info">
+        <ul style="margin: 0; padding-left: 20px;">
+            <li>You will receive email updates at each stage of the review process</li>
+            <li>Please ensure your phone is available for potential interview scheduling</li>
+            <li>Keep all submitted documents and certificates ready for verification</li>
+            <li>Check your email regularly for important updates</li>
+        </ul>
+    </div>
+</div>
+
+<div class="content-section">
+    <h2>While You Wait</h2>
+    <ul class="action-list">
+        <li>Familiarize yourself with our teaching methodology</li>
+        <li>Review our tutor guidelines and expectations</li>
+        <li>Prepare for potential interview questions</li>
+        <li>Think about your teaching approach and philosophy</li>
+        <li>Get comfortable with online teaching platforms</li>
+    </ul>
+</div>
+
+<div class="alert-box alert-info">
+    <strong>Questions?</strong> If you have any questions during the review process, please don't hesitate to contact our HR team.
+</div>
+{% endblock %}
+
+{% block email_actions %}
+<div class="text-center">
+    <a href="#" class="button button-success">Check Application Status</a>
+    <a href="#" class="button button-secondary">View Tutor Guidelines</a>
+    <a href="#" class="button button-secondary">Contact HR</a>
+</div>
+{% endblock %}
+
+{% block email_closing %}
+<div class="mt-20">
+    <p>We're excited about the possibility of you joining our teaching team! Our educators play a crucial role in shaping students' futures, and we're looking for passionate individuals who share our commitment to excellence.</p>
+    <p>We'll keep you updated throughout the review process. Thank you for your patience.</p>
+    <p>Best regards,<br>HR & Recruitment Team</p>
+</div>
+{% endblock %}

@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+
+{% block title %}Error Monitoring{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1><i class="fas fa-shield-alt"></i> Error Monitoring Dashboard</h1>
+            <p class="text-muted">Track and monitor system errors</p>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body text-center">
+                    <h3 class="text-primary">{{ stats.total_errors }}</h3>
+                    <p>Total Errors</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body text-center">
+                    <h3 class="text-warning">{{ stats.today_errors }}</h3>
+                    <p>Errors Today</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body text-center">
+                    <h3 class="text-info">{{ stats.recent_count }}</h3>
+                    <p>Recent Errors</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Navigation -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="btn-group">
+                <a href="{{ url_for('error_monitoring.dashboard') }}" class="btn btn-primary">
+                    <i class="fas fa-home"></i> Dashboard
+                </a>
+                <a href="{{ url_for('error_monitoring.search') }}" class="btn btn-outline-primary">
+                    <i class="fas fa-search"></i> Search Errors
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Errors -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-list"></i> Recent Errors</h5>
+                </div>
+                <div class="card-body">
+                    {% if recent_errors %}
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Time</th>
+                                    <th>Type</th>
+                                    <th>Severity</th>
+                                    <th>User</th>
+                                    <th>Message</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for error in recent_errors %}
+                                <tr>
+                                    <td>
+                                        <small>{{ error.created_at.strftime('%Y-%m-%d %H:%M') if error.created_at else 'N/A' }}</small>
+                                    </td>
+                                    <td>
+                                        <span class="badge badge-secondary">{{ error.error_type }}</span>
+                                    </td>
+                                    <td>
+                                        <span class="badge badge-{% if error.severity == 'critical' %}danger{% elif error.severity == 'high' %}warning{% elif error.severity == 'medium' %}info{% else %}success{% endif %}">
+                                            {{ error.severity|title }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        {% if error.user %}
+                                            {{ error.user.full_name }}
+                                            <small class="text-muted">({{ error.user_role }})</small>
+                                        {% else %}
+                                            <span class="text-muted">Anonymous</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <small>{{ error.error_message[:100] }}{% if error.error_message|length > 100 %}...{% endif %}</small>
+                                    </td>
+                                    <td>
+                                        <span class="badge badge-{% if error.status == 'resolved' %}success{% elif error.status == 'open' %}danger{% else %}secondary{% endif %}">
+                                            {{ error.status|title }}
+                                        </span>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-info-circle fa-3x text-muted mb-3"></i>
+                        <p class="text-muted">No errors found. This is good news!</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.card {
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    border: none;
+    border-radius: 8px;
+    margin-bottom: 20px;
+}
+
+.badge {
+    font-size: 0.8em;
+    padding: 0.4em 0.8em;
+}
+
+.table th {
+    background-color: #f8f9fa;
+    font-weight: 600;
+    border-top: none;
+}
+
+.btn-group .btn {
+    margin-right: 5px;
+}
+</style>
+{% endblock %}

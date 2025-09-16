@@ -1,0 +1,244 @@
+{% extends "base.html" %}
+
+{% block title %}Create Holiday Notification{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <h1 class="h3 mb-0 text-gray-800">
+                    <i class="fas fa-calendar-day text-warning"></i> Create Holiday Notification
+                </h1>
+                <a href="{{ url_for('system_notifications.admin_notifications') }}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left"></i> Back to Notifications
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Holiday Notification Card -->
+    <div class="card shadow mb-4 border-warning">
+        <div class="card-header py-3 bg-warning text-dark">
+            <h6 class="m-0 font-weight-bold">
+                <i class="fas fa-star"></i> Holiday Notice Details
+            </h6>
+        </div>
+        <div class="card-body">
+            <div class="alert alert-info" role="alert">
+                <i class="fas fa-info-circle mr-2"></i>
+                <strong>Holiday notifications</strong> are automatically sent with high priority and include popup alerts. 
+                Parent emails are included for student notifications.
+            </div>
+            
+            <form method="POST">
+                {{ form.hidden_tag() }}
+                
+                <!-- Holiday Information -->
+                <div class="row">
+                    <div class="col-md-8">
+                        <div class="form-group">
+                            {{ form.title.label(class="font-weight-bold") }}
+                            {{ form.title(class="form-control form-control-lg", placeholder="e.g., Diwali Holiday, Christmas Break") }}
+                            {% if form.title.errors %}
+                                <small class="text-danger">{{ form.title.errors[0] }}</small>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="form-group">
+                            {{ form.message.label(class="font-weight-bold") }}
+                            {{ form.message(class="form-control", rows="5", placeholder="Describe the holiday, any special instructions, and when normal activities will resume...") }}
+                            <small class="form-text text-muted">Include details about class cancellations, office closures, and resumption dates.</small>
+                            {% if form.message.errors %}
+                                <small class="text-danger">{{ form.message.errors[0] }}</small>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            {{ form.holiday_date.label(class="font-weight-bold") }}
+                            {{ form.holiday_date(class="form-control form-control-lg") }}
+                            {% if form.holiday_date.errors %}
+                                <small class="text-danger">{{ form.holiday_date.errors[0] }}</small>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="alert alert-light border">
+                            <h6 class="font-weight-bold">Automatic Features:</h6>
+                            <ul class="list-unstyled mb-0">
+                                <li><i class="fas fa-check text-success mr-2"></i> High priority</li>
+                                <li><i class="fas fa-check text-success mr-2"></i> Popup notifications</li>
+                                <li><i class="fas fa-check text-success mr-2"></i> Email delivery</li>
+                                <li><i class="fas fa-check text-success mr-2"></i> Parent emails (students)</li>
+                                <li><i class="fas fa-check text-success mr-2"></i> Holiday-themed template</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Target Departments -->
+                <div class="row">
+                    <div class="col-12">
+                        <div class="form-group">
+                            <label class="font-weight-bold">Target Departments (Optional)</label>
+                            <div class="border p-3 bg-light rounded" style="max-height: 200px; overflow-y: auto;">
+                                <div class="row">
+                                    {% for subfield in form.target_departments %}
+                                        <div class="col-md-4 mb-2">
+                                            <div class="form-check">
+                                                {{ subfield(class="form-check-input") }}
+                                                {{ subfield.label(class="form-check-label") }}
+                                            </div>
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            <small class="form-text text-muted">Leave empty to send to all departments</small>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Parent Notification Option -->
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-check">
+                            {{ form.include_parents(class="form-check-input", checked=True) }}
+                            {{ form.include_parents.label(class="form-check-label font-weight-bold") }}
+                        </div>
+                        <small class="form-text text-muted">Recommended for holiday notifications</small>
+                    </div>
+                </div>
+                
+                <!-- Holiday Templates -->
+                <div class="mt-4">
+                    <h6 class="font-weight-bold">Quick Templates:</h6>
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="card border-primary">
+                                <div class="card-body p-3">
+                                    <h6 class="card-title text-primary">Diwali Holiday</h6>
+                                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="fillTemplate('diwali')">
+                                        Use Template
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card border-success">
+                                <div class="card-body p-3">
+                                    <h6 class="card-title text-success">Christmas Break</h6>
+                                    <button type="button" class="btn btn-sm btn-outline-success" onclick="fillTemplate('christmas')">
+                                        Use Template
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card border-info">
+                                <div class="card-body p-3">
+                                    <h6 class="card-title text-info">General Holiday</h6>
+                                    <button type="button" class="btn btn-sm btn-outline-info" onclick="fillTemplate('general')">
+                                        Use Template
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Preview -->
+                <div class="mt-4">
+                    <h6 class="font-weight-bold">Preview:</h6>
+                    <div class="border p-3 rounded" style="background: linear-gradient(135deg, #feca57 0%, #ff9ff3 20%);">
+                        <div class="card bg-white">
+                            <div class="card-body">
+                                <div class="d-flex align-items-center mb-3">
+                                    <i class="fas fa-calendar-day fa-2x text-warning mr-3"></i>
+                                    <div>
+                                        <h5 class="mb-0" id="preview-title">Holiday Title</h5>
+                                        <small class="text-muted">Holiday Notification • High Priority</small>
+                                    </div>
+                                </div>
+                                <div id="preview-message" class="mb-3">Holiday message will appear here...</div>
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <small class="text-muted">
+                                        <i class="fas fa-user"></i> From: {{ current_user.full_name }}
+                                    </small>
+                                    <small class="text-muted">
+                                        <i class="fas fa-clock"></i> <span id="preview-date">Holiday Date</span>
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Submit -->
+                <div class="mt-4">
+                    <hr>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <a href="{{ url_for('system_notifications.admin_notifications') }}" class="btn btn-secondary">
+                            <i class="fas fa-times"></i> Cancel
+                        </a>
+                        <button type="submit" class="btn btn-warning btn-lg text-dark">
+                            <i class="fas fa-paper-plane"></i> Send Holiday Notification
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+// Holiday templates
+const templates = {
+    diwali: {
+        title: "Diwali Holiday - Institution Closed",
+        message: "🪔 Wishing everyone a Happy and Prosperous Diwali! 🪔\n\nThe institution will be closed tomorrow for Diwali celebrations. All classes and administrative activities are suspended.\n\n✨ May this festival of lights bring joy, prosperity, and happiness to you and your families!\n\nRegular activities will resume as per the normal schedule on the day after. Have a wonderful celebration!\n\n🎆 Happy Diwali! 🎆"
+    },
+    christmas: {
+        title: "Christmas Break - Holiday Schedule",
+        message: "🎄 Merry Christmas and Happy Holidays! 🎄\n\nWe're excited to announce our Christmas break schedule:\n\n📅 Holiday Period: [Start Date] to [End Date]\n🏫 Institution closed for all activities\n📚 Online resources remain accessible\n📧 Emergency contact: [Contact Information]\n\n🎅 May this festive season bring you peace, joy, and wonderful memories with your loved ones!\n\nClasses will resume on [Resume Date]. Enjoy your holidays!"
+    },
+    general: {
+        title: "[Holiday Name] - Institution Holiday",
+        message: "We hope this message finds you well.\n\nWe would like to inform you that the institution will be closed tomorrow in observance of [Holiday Name].\n\n📋 What this means:\n• All classes are canceled\n• Administrative offices will be closed\n• Online resources remain available\n• Regular schedule resumes the next working day\n\n🙏 We wish you and your family a wonderful [Holiday Name]!\n\nThank you for your understanding."
+    }
+};
+
+function fillTemplate(templateName) {
+    const template = templates[templateName];
+    if (template) {
+        document.getElementById('title').value = template.title;
+        document.getElementById('message').value = template.message;
+        updatePreview();
+    }
+}
+
+function updatePreview() {
+    const title = document.getElementById('title').value || 'Holiday Title';
+    const message = document.getElementById('message').value || 'Holiday message will appear here...';
+    const date = document.getElementById('holiday_date').value || 'Holiday Date';
+    
+    document.getElementById('preview-title').textContent = title;
+    document.getElementById('preview-message').textContent = message;
+    document.getElementById('preview-date').textContent = date ? new Date(date).toLocaleDateString() : 'Holiday Date';
+}
+
+// Event listeners
+document.addEventListener('DOMContentLoaded', function() {
+    document.getElementById('title').addEventListener('input', updatePreview);
+    document.getElementById('message').addEventListener('input', updatePreview);
+    document.getElementById('holiday_date').addEventListener('change', updatePreview);
+    
+    // Set minimum date to today
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('holiday_date').min = today;
+    
+    updatePreview();
+});
+</script>
+{% endblock %}

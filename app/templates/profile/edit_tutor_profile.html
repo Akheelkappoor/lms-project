@@ -1,0 +1,422 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Tutor Profile{% endblock %}
+
+{% block extra_css %}
+<style>
+    .profile-edit-container {
+        max-width: 1000px;
+        margin: 0 auto;
+        padding: 2rem;
+    }
+    
+    .profile-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 2rem;
+        border-radius: 10px 10px 0 0;
+        margin-bottom: 0;
+    }
+    
+    .profile-form {
+        background: white;
+        padding: 2rem;
+        border-radius: 0 0 10px 10px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+    
+    .section-header {
+        background: #f8f9fa;
+        padding: 1rem;
+        margin: 2rem -2rem 1.5rem -2rem;
+        border-left: 4px solid #007bff;
+    }
+    
+    .section-header h5 {
+        margin: 0;
+        color: #495057;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .form-group {
+        margin-bottom: 1.5rem;
+    }
+    
+    .form-label {
+        font-weight: 600;
+        color: #495057;
+        margin-bottom: 0.5rem;
+    }
+    
+    .form-control, .form-select {
+        border: 2px solid #e9ecef;
+        border-radius: 8px;
+        padding: 0.75rem;
+        transition: all 0.3s ease;
+    }
+    
+    .form-control:focus, .form-select:focus {
+        border-color: #007bff;
+        box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+    }
+    
+    .btn-primary {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+        padding: 0.75rem 2rem;
+        border-radius: 8px;
+        font-weight: 600;
+    }
+    
+    .btn-secondary {
+        background: #6c757d;
+        border: none;
+        padding: 0.75rem 2rem;
+        border-radius: 8px;
+        font-weight: 600;
+    }
+    
+    .current-image {
+        max-width: 150px;
+        border-radius: 8px;
+        margin-bottom: 1rem;
+    }
+    
+    .salary-fields {
+        display: none;
+    }
+    
+    .salary-fields.show {
+        display: block;
+    }
+    
+    @media (max-width: 768px) {
+        .profile-edit-container {
+            padding: 1rem;
+        }
+        
+        .profile-header, .profile-form {
+            padding: 1.5rem;
+        }
+        
+        .section-header {
+            margin: 1.5rem -1.5rem 1rem -1.5rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="profile-edit-container">
+    <div class="profile-header">
+        <h2><i class="fas fa-user-edit"></i> 
+            {% if is_admin_edit %}
+                Edit Tutor Profile: {{ editing_user.full_name }}
+            {% else %}
+                Edit Tutor Profile
+            {% endif %}
+        </h2>
+        <p>
+            {% if is_admin_edit %}
+                Update tutor's personal and professional information
+            {% else %}
+                Update your personal and professional information
+            {% endif %}
+        </p>
+    </div>
+    
+    <div class="profile-form">
+        <form method="POST" enctype="multipart/form-data" id="tutorProfileForm">
+            {{ form.hidden_tag() }}
+            
+            <!-- Personal Information Section -->
+            <div class="section-header">
+                <h5><i class="fas fa-user"></i> Personal Information</h5>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="form-group">
+                        {{ form.full_name.label(class="form-label") }}
+                        {{ form.full_name(class="form-control") }}
+                        {% if form.full_name.errors %}
+                            <div class="text-danger small mt-1">
+                                {% for error in form.full_name.errors %}
+                                    <div>{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-group">
+                        {{ form.phone.label(class="form-label") }}
+                        {{ form.phone(class="form-control") }}
+                        {% if form.phone.errors %}
+                            <div class="text-danger small mt-1">
+                                {% for error in form.phone.errors %}
+                                    <div>{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                {{ form.address.label(class="form-label") }}
+                {{ form.address(class="form-control") }}
+                {% if form.address.errors %}
+                    <div class="text-danger small mt-1">
+                        {% for error in form.address.errors %}
+                            <div>{{ error }}</div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            </div>
+            
+            <div class="form-group">
+                {{ form.profile_picture.label(class="form-label") }}
+                {% if editing_user.profile_picture %}
+                    <div>
+                        <img src="{{ url_for('static', filename='uploads/profiles/' + editing_user.profile_picture) }}" 
+                             alt="Current Profile Picture" class="current-image">
+                        <p class="text-muted small">Current profile picture</p>
+                    </div>
+                {% endif %}
+                {{ form.profile_picture(class="form-control") }}
+                {% if form.profile_picture.errors %}
+                    <div class="text-danger small mt-1">
+                        {% for error in form.profile_picture.errors %}
+                            <div>{{ error }}</div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            </div>
+            
+            <!-- Professional Information Section -->
+            <div class="section-header">
+                <h5><i class="fas fa-graduation-cap"></i> Professional Information</h5>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="form-group">
+                        {{ form.qualification.label(class="form-label") }}
+                        {{ form.qualification(class="form-control") }}
+                        {% if form.qualification.errors %}
+                            <div class="text-danger small mt-1">
+                                {% for error in form.qualification.errors %}
+                                    <div>{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-group">
+                        {{ form.salary_type.label(class="form-label") }}
+                        {{ form.salary_type(class="form-select", onchange="toggleSalaryFields()") }}
+                        {% if form.salary_type.errors %}
+                            <div class="text-danger small mt-1">
+                                {% for error in form.salary_type.errors %}
+                                    <div>{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                {{ form.experience.label(class="form-label") }}
+                {{ form.experience(class="form-control") }}
+                {% if form.experience.errors %}
+                    <div class="text-danger small mt-1">
+                        {% for error in form.experience.errors %}
+                            <div>{{ error }}</div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            </div>
+            
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="form-group">
+                        {{ form.subjects.label(class="form-label") }}
+                        {{ form.subjects(class="form-control") }}
+                        {% if form.subjects.errors %}
+                            <div class="text-danger small mt-1">
+                                {% for error in form.subjects.errors %}
+                                    <div>{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="form-group">
+                        {{ form.grades.label(class="form-label") }}
+                        {{ form.grades(class="form-control") }}
+                        {% if form.grades.errors %}
+                            <div class="text-danger small mt-1">
+                                {% for error in form.grades.errors %}
+                                    <div>{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="form-group">
+                        {{ form.boards.label(class="form-label") }}
+                        {{ form.boards(class="form-control") }}
+                        {% if form.boards.errors %}
+                            <div class="text-danger small mt-1">
+                                {% for error in form.boards.errors %}
+                                    <div>{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Salary Information Section -->
+            <div class="section-header">
+                <h5><i class="fas fa-money-bill-wave"></i> Salary Information</h5>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="form-group salary-fields" id="monthlySalaryField">
+                        {{ form.monthly_salary.label(class="form-label") }}
+                        {{ form.monthly_salary(class="form-control") }}
+                        {% if form.monthly_salary.errors %}
+                            <div class="text-danger small mt-1">
+                                {% for error in form.monthly_salary.errors %}
+                                    <div>{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-group salary-fields" id="hourlyRateField">
+                        {{ form.hourly_rate.label(class="form-label") }}
+                        {{ form.hourly_rate(class="form-control") }}
+                        {% if form.hourly_rate.errors %}
+                            <div class="text-danger small mt-1">
+                                {% for error in form.hourly_rate.errors %}
+                                    <div>{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Emergency Contact Section -->
+            <div class="section-header">
+                <h5><i class="fas fa-phone-alt"></i> Emergency Contact</h5>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="form-group">
+                        {{ form.emergency_name.label(class="form-label") }}
+                        {{ form.emergency_name(class="form-control") }}
+                        {% if form.emergency_name.errors %}
+                            <div class="text-danger small mt-1">
+                                {% for error in form.emergency_name.errors %}
+                                    <div>{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-group">
+                        {{ form.emergency_phone.label(class="form-label") }}
+                        {{ form.emergency_phone(class="form-control") }}
+                        {% if form.emergency_phone.errors %}
+                            <div class="text-danger small mt-1">
+                                {% for error in form.emergency_phone.errors %}
+                                    <div>{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="form-group">
+                        {{ form.emergency_relationship.label(class="form-label") }}
+                        {{ form.emergency_relationship(class="form-select") }}
+                        {% if form.emergency_relationship.errors %}
+                            <div class="text-danger small mt-1">
+                                {% for error in form.emergency_relationship.errors %}
+                                    <div>{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-group">
+                        {{ form.emergency_email.label(class="form-label") }}
+                        {{ form.emergency_email(class="form-control") }}
+                        {% if form.emergency_email.errors %}
+                            <div class="text-danger small mt-1">
+                                {% for error in form.emergency_email.errors %}
+                                    <div>{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Form Actions -->
+            <div class="form-group mt-4">
+                <div class="d-flex gap-3">
+                    {{ form.submit(class="btn btn-primary") }}
+                    {% if is_admin_edit %}
+                        <a href="{{ url_for('admin.tutor_details', tutor_id=tutor.id) }}" class="btn btn-secondary">Cancel</a>
+                    {% else %}
+                        <a href="{{ url_for('profile.view_profile') }}" class="btn btn-secondary">Cancel</a>
+                    {% endif %}
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function toggleSalaryFields() {
+    const salaryType = document.getElementById('salary_type').value;
+    const monthlyField = document.getElementById('monthlySalaryField');
+    const hourlyField = document.getElementById('hourlyRateField');
+    
+    // Hide all salary fields first
+    monthlyField.classList.remove('show');
+    hourlyField.classList.remove('show');
+    
+    // Show relevant field based on selection
+    if (salaryType === 'monthly') {
+        monthlyField.classList.add('show');
+    } else if (salaryType === 'hourly') {
+        hourlyField.classList.add('show');
+    }
+}
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+    toggleSalaryFields();
+});
+</script>
+{% endblock %}

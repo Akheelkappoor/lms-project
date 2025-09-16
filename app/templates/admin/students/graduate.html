@@ -1,0 +1,356 @@
+{% extends "base.html" %}
+{% set active_page = "students" %}
+
+{% block title %}Graduate Student - {{ APP_NAME }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h1 class="page-title">
+                <i class="fas fa-graduation-cap"></i>
+                Graduate Student
+            </h1>
+            <p class="page-subtitle">Complete graduation process for {{ student.full_name }}</p>
+        </div>
+        <div class="header-actions">
+            <a href="{{ url_for('admin.student_details', student_id=student.id) }}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i>
+                Back to Student
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-graduation-cap text-primary"></i>
+                        Graduation Form
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <!-- Eligibility Check -->
+                    <div class="eligibility-section mb-4">
+                        <h6 class="section-title">
+                            <i class="fas fa-check-circle"></i>
+                            Graduation Eligibility
+                        </h6>
+                        {% if can_graduate %}
+                            <div class="alert alert-success">
+                                <i class="fas fa-check-circle"></i>
+                                <strong>Eligible for Graduation</strong><br>
+                                {{ eligibility_reason }}
+                            </div>
+                        {% else %}
+                            <div class="alert alert-danger">
+                                <i class="fas fa-exclamation-triangle"></i>
+                                <strong>Not Eligible for Graduation</strong><br>
+                                {{ eligibility_reason }}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    {% if can_graduate %}
+                        <form method="POST">
+                            {{ form.hidden_tag() }}
+                            
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        {{ form.graduation_date.label(class="form-label") }}
+                                        {{ form.graduation_date(class="form-control") }}
+                                        {% for error in form.graduation_date.errors %}
+                                            <div class="text-danger small">{{ error }}</div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                                
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        {{ form.final_grade.label(class="form-label") }}
+                                        {{ form.final_grade(class="form-select") }}
+                                        {% for error in form.final_grade.errors %}
+                                            <div class="text-danger small">{{ error }}</div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                {{ form.overall_performance.label(class="form-label") }}
+                                {{ form.overall_performance(class="form-select") }}
+                                {% for error in form.overall_performance.errors %}
+                                    <div class="text-danger small">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                            
+                            <div class="mb-3">
+                                {{ form.feedback.label(class="form-label") }}
+                                {{ form.feedback(class="form-control") }}
+                                {% for error in form.feedback.errors %}
+                                    <div class="text-danger small">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                            
+                            <div class="mb-3">
+                                {{ form.achievements.label(class="form-label") }}
+                                {{ form.achievements(class="form-control") }}
+                                {% for error in form.achievements.errors %}
+                                    <div class="text-danger small">{{ error }}</div>
+                                {% endfor %}
+                                <div class="form-text">Enter each achievement on a new line</div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <div class="form-check">
+                                    {{ form.issue_certificate(class="form-check-input") }}
+                                    {{ form.issue_certificate.label(class="form-check-label") }}
+                                </div>
+                            </div>
+
+                            <!-- Manual Override Section -->
+                            {% if not can_graduate %}
+                            <div class="card border-warning mb-3">
+                                <div class="card-header bg-warning text-dark">
+                                    <h6 class="mb-0">
+                                        <i class="fas fa-exclamation-triangle"></i>
+                                        Manual Override Options
+                                    </h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="alert alert-warning">
+                                        <strong>Student is not eligible for graduation:</strong> {{ reason }}<br>
+                                        You can use manual override to graduate the student anyway.
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <div class="form-check">
+                                            {{ form.manual_override(class="form-check-input", **{'onchange': 'toggleOverrideReason()'}) }}
+                                            {{ form.manual_override.label(class="form-check-label") }}
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="mb-3" id="override-reason-section" style="display: none;">
+                                        {{ form.override_reason.label(class="form-label text-danger") }}
+                                        {{ form.override_reason(class="form-control") }}
+                                        {% for error in form.override_reason.errors %}
+                                            <div class="text-danger small">{{ error }}</div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                            </div>
+                            {% endif %}
+                            
+                            <div class="d-flex justify-content-end gap-2">
+                                <a href="{{ url_for('admin.student_details', student_id=student.id) }}" class="btn btn-secondary">
+                                    <i class="fas fa-times"></i>
+                                    Cancel
+                                </a>
+                                <button type="submit" class="btn btn-success">
+                                    <i class="fas fa-graduation-cap"></i>
+                                    Graduate Student
+                                </button>
+                            </div>
+                        </form>
+                    {% else %}
+                        <div class="text-center">
+                            <p class="text-muted">Student cannot be graduated at this time. Please resolve the eligibility issues above.</p>
+                            <a href="{{ url_for('admin.student_details', student_id=student.id) }}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left"></i>
+                                Return to Student Details
+                            </a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-4">
+            <!-- Student Summary -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="card-title mb-0">
+                        <i class="fas fa-user-graduate"></i>
+                        Student Summary
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="student-info">
+                        <div class="student-avatar mb-3 text-center">
+                            <div class="avatar-lg mx-auto">
+                                {{ student.get_initials() }}
+                            </div>
+                            <h6 class="mt-2 mb-1">{{ student.full_name }}</h6>
+                            <small class="text-muted">{{ student.email }}</small>
+                        </div>
+                        
+                        <div class="info-grid">
+                            <div class="info-item">
+                                <span class="label">Grade:</span>
+                                <span class="value">{{ student.grade }}</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="label">Board:</span>
+                                <span class="value">{{ student.board }}</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="label">Attendance:</span>
+                                <span class="value">{{ "%.1f"|format(student.get_attendance_percentage()) }}%</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="label">Classes Attended:</span>
+                                <span class="value">{{ student.attended_classes }}/{{ student.total_classes }}</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="label">Fee Status:</span>
+                                <span class="value">
+                                    <span class="badge badge-{{ 'success' if student.get_fee_status() == 'paid' else 'warning' }}">
+                                        {{ student.get_fee_status().title() }}
+                                    </span>
+                                </span>
+                            </div>
+                            {% if student.course_start_date %}
+                            <div class="info-item">
+                                <span class="label">Course Started:</span>
+                                <span class="value">{{ student.course_start_date.strftime('%d %b %Y') }}</span>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Graduation Checklist -->
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="card-title mb-0">
+                        <i class="fas fa-clipboard-check"></i>
+                        Graduation Checklist
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="checklist">
+                        <div class="checklist-item {{ 'completed' if student.get_fee_status() in ['paid', 'unknown'] else 'pending' }}">
+                            <i class="fas {{ 'fa-check-circle text-success' if student.get_fee_status() in ['paid', 'unknown'] else 'fa-times-circle text-danger' }}"></i>
+                            <span>Fees Cleared</span>
+                            <small class="text-muted d-block">Status: {{ student.get_fee_status().title() }}</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.avatar-lg {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    font-weight: 600;
+}
+
+.info-grid {
+    display: grid;
+    gap: 0.75rem;
+}
+
+.info-item {
+    display: flex;
+    justify-content: between;
+    align-items: center;
+}
+
+.info-item .label {
+    font-weight: 500;
+    color: #6c757d;
+    margin-right: auto;
+}
+
+.info-item .value {
+    font-weight: 500;
+}
+
+.checklist {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.checklist-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+}
+
+.checklist-item i {
+    margin-top: 0.125rem;
+}
+
+.checklist-item.completed {
+    opacity: 1;
+}
+
+.checklist-item.pending {
+    opacity: 0.7;
+}
+
+.section-title {
+    font-weight: 600;
+    margin-bottom: 1rem;
+    color: #495057;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.eligibility-section {
+    border-bottom: 1px solid #dee2e6;
+    padding-bottom: 1.5rem;
+}
+
+.badge-success {
+    background-color: #28a745;
+    color: white;
+}
+
+.badge-warning {
+    background-color: #ffc107;
+    color: #212529;
+}
+</style>
+
+<script>
+function toggleOverrideReason() {
+    const checkbox = document.getElementById('manual_override');
+    const reasonSection = document.getElementById('override-reason-section');
+    
+    if (checkbox.checked) {
+        reasonSection.style.display = 'block';
+        reasonSection.querySelector('textarea').required = true;
+    } else {
+        reasonSection.style.display = 'none';
+        reasonSection.querySelector('textarea').required = false;
+        reasonSection.querySelector('textarea').value = '';
+    }
+}
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+    const checkbox = document.getElementById('manual_override');
+    if (checkbox && checkbox.checked) {
+        toggleOverrideReason();
+    }
+});
+</script>
+{% endblock %}

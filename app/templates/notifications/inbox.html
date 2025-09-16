@@ -1,0 +1,411 @@
+{% extends "base.html" %}
+
+{% block title %}Notifications{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <h1 class="h3 mb-0 text-gray-800">
+                    <i class="fas fa-bell"></i> My Notifications
+                </h1>
+                <div>
+                    <button class="btn btn-outline-primary" onclick="markAllAsRead()">
+                        <i class="fas fa-check-double"></i> Mark All Read
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col-xl-4 col-md-6 mb-4">
+            <div class="card border-left-info shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                                Total Notifications
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ stats.total }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-bell fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-4 col-md-6 mb-4">
+            <div class="card border-left-warning shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                                Unread
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ stats.unread }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-envelope fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-4 col-md-6 mb-4">
+            <div class="card border-left-danger shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">
+                                Urgent
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ stats.urgent }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-exclamation-triangle fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filter Tabs -->
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <ul class="nav nav-tabs card-header-tabs" role="tablist">
+                <li class="nav-item">
+                    <a class="nav-link {% if not request.args.get('read_status') %}active{% endif %}" 
+                       href="{{ url_for('system_notifications.user_notifications') }}">
+                        All Notifications
+                        {% if stats.total > 0 %}
+                            <span class="badge badge-secondary ml-1">{{ stats.total }}</span>
+                        {% endif %}
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if request.args.get('read_status') == 'unread' %}active{% endif %}" 
+                       href="{{ url_for('system_notifications.user_notifications', read_status='unread') }}">
+                        Unread
+                        {% if stats.unread > 0 %}
+                            <span class="badge badge-warning ml-1">{{ stats.unread }}</span>
+                        {% endif %}
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if request.args.get('type') == 'emergency' %}active{% endif %}" 
+                       href="{{ url_for('system_notifications.user_notifications', type='emergency') }}">
+                        Emergency
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if request.args.get('type') == 'holiday' %}active{% endif %}" 
+                       href="{{ url_for('system_notifications.user_notifications', type='holiday') }}">
+                        Holiday
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if request.args.get('type') == 'academic' %}active{% endif %}" 
+                       href="{{ url_for('system_notifications.user_notifications', type='academic') }}">
+                        Academic
+                    </a>
+                </li>
+            </ul>
+        </div>
+        
+        <div class="card-body">
+            {% if notifications.items %}
+                <!-- Notifications List -->
+                <div class="list-group">
+                    {% for user_notification in notifications.items %}
+                        {% set notification = user_notification.system_notification %}
+                        <div class="list-group-item list-group-item-action {% if not user_notification.is_read %}list-group-item-light{% endif %}"
+                             onclick="viewNotification({{ notification.id }})">
+                            
+                            <div class="d-flex w-100 justify-content-between align-items-start">
+                                <div class="flex-grow-1">
+                                    <div class="d-flex align-items-center mb-2">
+                                        <!-- Notification Icon -->
+                                        {% if notification.type == 'emergency' %}
+                                            <i class="fas fa-exclamation-triangle text-danger fa-lg mr-2"></i>
+                                        {% elif notification.type == 'holiday' %}
+                                            <i class="fas fa-calendar-day text-warning fa-lg mr-2"></i>
+                                        {% elif notification.type == 'academic' %}
+                                            <i class="fas fa-graduation-cap text-primary fa-lg mr-2"></i>
+                                        {% elif notification.type == 'maintenance' %}
+                                            <i class="fas fa-tools text-secondary fa-lg mr-2"></i>
+                                        {% else %}
+                                            <i class="fas fa-bullhorn text-info fa-lg mr-2"></i>
+                                        {% endif %}
+                                        
+                                        <!-- Priority Badge -->
+                                        {% if notification.priority == 'critical' %}
+                                            <span class="badge badge-danger mr-2 animated-pulse">CRITICAL</span>
+                                        {% elif notification.priority == 'urgent' %}
+                                            <span class="badge badge-warning mr-2">URGENT</span>
+                                        {% elif notification.priority == 'high' %}
+                                            <span class="badge badge-info mr-2">HIGH</span>
+                                        {% endif %}
+                                        
+                                        <!-- Unread Indicator -->
+                                        {% if not user_notification.is_read %}
+                                            <span class="badge badge-primary mr-2">NEW</span>
+                                        {% endif %}
+                                        
+                                        <!-- Title -->
+                                        <h6 class="mb-0 {% if not user_notification.is_read %}font-weight-bold{% else %}font-weight-normal{% endif %}">
+                                            {{ notification.title }}
+                                        </h6>
+                                    </div>
+                                    
+                                    <!-- Message Preview -->
+                                    <p class="mb-2 text-muted">
+                                        {{ notification.message[:150] }}{% if notification.message|length > 150 %}...{% endif %}
+                                    </p>
+                                    
+                                    <!-- Meta Information -->
+                                    <div class="d-flex align-items-center text-muted">
+                                        <small>
+                                            <i class="fas fa-user fa-sm mr-1"></i>
+                                            {{ notification.author.full_name }}
+                                        </small>
+                                        <small class="mx-2">•</small>
+                                        <small>
+                                            <i class="fas fa-clock fa-sm mr-1"></i>
+                                            {{ notification.created_at.strftime('%B %d, %Y at %I:%M %p') }}
+                                        </small>
+                                        {% if user_notification.email_sent %}
+                                            <small class="mx-2">•</small>
+                                            <small class="text-success">
+                                                <i class="fas fa-envelope fa-sm mr-1"></i>
+                                                Email sent
+                                            </small>
+                                        {% endif %}
+                                        {% if user_notification.popup_shown %}
+                                            <small class="mx-2">•</small>
+                                            <small class="text-info">
+                                                <i class="fas fa-window-restore fa-sm mr-1"></i>
+                                                Popup shown
+                                            </small>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                
+                                <!-- Actions -->
+                                <div class="ml-3">
+                                    {% if not user_notification.is_read %}
+                                        <button class="btn btn-sm btn-outline-primary" 
+                                                onclick="event.stopPropagation(); markAsRead({{ notification.id }})">
+                                            <i class="fas fa-check"></i> Mark Read
+                                        </button>
+                                    {% endif %}
+                                    <button class="btn btn-sm btn-outline-secondary ml-1" 
+                                            onclick="event.stopPropagation(); dismissNotification({{ notification.id }})">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+                
+                <!-- Pagination -->
+                {% if notifications.pages > 1 %}
+                <nav aria-label="Notifications pagination" class="mt-4">
+                    <ul class="pagination justify-content-center">
+                        {% if notifications.has_prev %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('system_notifications.user_notifications', page=notifications.prev_num, **request.args.to_dict(flat=False)) }}">Previous</a>
+                            </li>
+                        {% endif %}
+                        
+                        {% for page_num in notifications.iter_pages() %}
+                            {% if page_num %}
+                                {% if page_num != notifications.page %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="{{ url_for('system_notifications.user_notifications', page=page_num, **request.args.to_dict(flat=False)) }}">{{ page_num }}</a>
+                                    </li>
+                                {% else %}
+                                    <li class="page-item active">
+                                        <span class="page-link">{{ page_num }}</span>
+                                    </li>
+                                {% endif %}
+                            {% else %}
+                                <li class="page-item disabled">
+                                    <span class="page-link">...</span>
+                                </li>
+                            {% endif %}
+                        {% endfor %}
+                        
+                        {% if notifications.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('system_notifications.user_notifications', page=notifications.next_num, **request.args.to_dict(flat=False)) }}">Next</a>
+                            </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+                {% endif %}
+                
+            {% else %}
+                <!-- Empty State -->
+                <div class="text-center py-5">
+                    {% if request.args.get('read_status') == 'unread' %}
+                        <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+                        <h5 class="text-gray-500">All caught up!</h5>
+                        <p class="text-gray-400">You have no unread notifications.</p>
+                    {% elif request.args.get('type') %}
+                        <i class="fas fa-filter fa-3x text-gray-300 mb-3"></i>
+                        <h5 class="text-gray-500">No {{ request.args.get('type') }} notifications</h5>
+                        <p class="text-gray-400">There are no {{ request.args.get('type') }} notifications to display.</p>
+                    {% else %}
+                        <i class="fas fa-bell fa-3x text-gray-300 mb-3"></i>
+                        <h5 class="text-gray-500">No notifications yet</h5>
+                        <p class="text-gray-400">You'll see your notifications here when you receive them.</p>
+                    {% endif %}
+                    
+                    <a href="{{ url_for('system_notifications.user_notifications') }}" class="btn btn-primary">
+                        <i class="fas fa-refresh"></i> Refresh
+                    </a>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<style>
+.animated-pulse {
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.5; }
+    100% { opacity: 1; }
+}
+
+.list-group-item-action:hover {
+    background-color: #f8f9fa;
+    cursor: pointer;
+}
+
+.list-group-item.list-group-item-light {
+    background-color: #e3f2fd;
+    border-left: 4px solid #2196f3;
+}
+</style>
+
+<script>
+function viewNotification(notificationId) {
+    window.location.href = `/notifications/${notificationId}`;
+}
+
+function markAsRead(notificationId) {
+    fetch(`/api/notifications/${notificationId}/read`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('meta[name=csrf-token]').content
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('Error marking notification as read');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error marking notification as read');
+    });
+}
+
+function dismissNotification(notificationId) {
+    if (confirm('Are you sure you want to dismiss this notification?')) {
+        fetch(`/api/notifications/${notificationId}/dismiss`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('meta[name=csrf-token]').content
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Error dismissing notification');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error dismissing notification');
+        });
+    }
+}
+
+function markAllAsRead() {
+    if (confirm('Mark all notifications as read?')) {
+        const unreadNotifications = document.querySelectorAll('.list-group-item.list-group-item-light');
+        let promises = [];
+        
+        unreadNotifications.forEach(item => {
+            const notificationId = item.onclick.toString().match(/\d+/)[0];
+            promises.push(
+                fetch(`/api/notifications/${notificationId}/read`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': document.querySelector('meta[name=csrf-token]').content
+                    }
+                })
+            );
+        });
+        
+        Promise.all(promises)
+            .then(() => {
+                location.reload();
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error marking notifications as read');
+            });
+    }
+}
+
+// Auto-refresh every 30 seconds to check for new notifications
+setInterval(() => {
+    // Only refresh if user is viewing all notifications (not filtered)
+    if (!window.location.search || window.location.search === '') {
+        fetch('/api/notifications/unread-count')
+            .then(response => response.json())
+            .then(data => {
+                const currentUnread = parseInt('{{ stats.unread }}');
+                if (data.unread_count > currentUnread) {
+                    // New notifications available
+                    const refreshBanner = document.createElement('div');
+                    refreshBanner.className = 'alert alert-info alert-dismissible fade show';
+                    refreshBanner.innerHTML = `
+                        <i class="fas fa-info-circle mr-2"></i>
+                        New notifications available. 
+                        <a href="#" onclick="location.reload()" class="alert-link">Click here to refresh</a>
+                        <button type="button" class="close" data-dismiss="alert">
+                            <span>&times;</span>
+                        </button>
+                    `;
+                    document.querySelector('.container-fluid').insertBefore(refreshBanner, document.querySelector('.row'));
+                }
+            })
+            .catch(error => console.error('Error checking for new notifications:', error));
+    }
+}, 30000);
+</script>
+{% endblock %}

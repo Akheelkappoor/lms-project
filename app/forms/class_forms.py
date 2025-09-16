@@ -36,7 +36,7 @@ class CreateClassForm(FlaskForm):
                            render_kw={'placeholder': '60'})
     
     # Tutor Assignment
-    tutor_id = SelectField('Assign Tutor', validators=[DataRequired()], coerce=int)
+    tutor_id = SelectField('Assign Tutor', validators=[DataRequired()],coerce=int)
     
     # Student Assignment
     primary_student_id = SelectField('Primary Student', validators=[Optional()], coerce=int)
@@ -228,62 +228,47 @@ class ClassFeedbackForm(FlaskForm):
     
     submit = SubmitField('Submit Feedback')
 
+# Fix in app/forms/class_forms.py - Replace the incomplete BulkClassForm
+
 class BulkClassForm(FlaskForm):
-    # Template Information
-    template_name = StringField('Template Name', validators=[DataRequired(), Length(max=100)], 
-                               render_kw={'placeholder': 'e.g., Weekly Math Classes'})
-    
+    # Basic Information
     subject = StringField('Subject', validators=[DataRequired(), Length(max=100)])
-    
     grade = StringField('Grade', validators=[DataRequired(), Length(max=10)])
-    
-    board = StringField('Board', validators=[Optional(), Length(max=50)])
-    
     class_type = SelectField('Class Type', validators=[DataRequired()], 
                             choices=[('one_on_one', 'One-on-One'), ('group', 'Group Class')])
-    
     duration = IntegerField('Duration (minutes)', validators=[DataRequired(), NumberRange(min=15, max=300)])
     
     # Assignment
     tutor_id = SelectField('Tutor', validators=[DataRequired()], coerce=int)
-    
     students = MultiCheckboxField('Students', validators=[DataRequired()], coerce=int)
+    meeting_id = StringField('Meeting ID', validators=[Optional(), Length(max=100)], 
+                            render_kw={'placeholder': 'Meeting ID or Room Number'})
+    class_notes = TextAreaField('Class Notes', validators=[Optional()], 
+                               render_kw={'placeholder': 'Any additional notes for this class', 'rows': 3})
     
-    # Schedule Pattern
-    days_of_week = MultiCheckboxField('Days of Week', validators=[DataRequired()], 
+    # Schedule Pattern - THESE ARE THE MISSING FIELDS
+    start_date = DateField('Start Date', validators=[DataRequired()])
+    end_date = DateField('End Date', validators=[DataRequired()])
+    start_time = TimeField('Start Time', validators=[DataRequired()])
+    days_of_week = MultiCheckboxField('Days of Week', validators=[DataRequired()], coerce=int,
                                      choices=[(0, 'Monday'), (1, 'Tuesday'), (2, 'Wednesday'), 
                                             (3, 'Thursday'), (4, 'Friday'), (5, 'Saturday'), (6, 'Sunday')])
-    
-    start_time = TimeField('Start Time', validators=[DataRequired()])
-    
-    start_date = DateField('Start Date', validators=[DataRequired()])
-    
-    end_date = DateField('End Date', validators=[DataRequired()])
-    
-    # Platform
-    platform = SelectField('Platform', validators=[Optional()], 
-                           choices=[('', 'Select Platform'), ('zoom', 'Zoom'), ('google_meet', 'Google Meet'), 
-                                  ('teams', 'Microsoft Teams')])
-    
-    # Skip Options
-    skip_holidays = BooleanField('Skip Holidays', default=True)
-    
-    skip_weekends = BooleanField('Skip Weekends', default=False)
     
     submit = SubmitField('Create Bulk Classes')
     
     def __init__(self, department_id=None, *args, **kwargs):
         super(BulkClassForm, self).__init__(*args, **kwargs)
         
-        # Populate choices similar to CreateClassForm
+        # Populate tutor choices
         tutor_query = Tutor.query.join(Tutor.user).filter(Tutor.status == 'active')
         if department_id:
             tutor_query = tutor_query.filter(Tutor.user.has(department_id=department_id))
         
         tutors = tutor_query.all()
         self.tutor_id.choices = [(0, 'Select Tutor')] + \
-            [(t.id, f"{t.user.full_name} - {', '.join(t.get_subjects()[:2])}") for t in tutors]
+            [(t.id, f"{t.user.full_name}") for t in tutors]
         
+        # Populate student choices
         student_query = Student.query.filter(Student.is_active == True)
         if department_id:
             student_query = student_query.filter_by(department_id=department_id)
@@ -340,3 +325,181 @@ class ClassSearchForm(FlaskForm):
         departments = Department.query.filter(Department.is_active == True).all()
         self.department_id.choices = [(0, 'All Departments')] + \
             [(d.id, d.name) for d in departments]
+            
+# ADD THESE FORMS TO YOUR EXISTING app/forms/class_forms.py
+# Don't replace the file - just append these at the bottom
+
+class EditClassForm(FlaskForm):
+    """Form for editing existing classes - ADD THIS TO YOUR FILE"""
+    
+    # Hidden field to store class ID
+    class_id = HiddenField()
+    
+    # Basic Information (same as create but for editing)
+    subject = StringField('Subject', validators=[DataRequired()], 
+                         render_kw={'placeholder': 'e.g., Mathematics'})
+    class_type = SelectField('Class Type', validators=[DataRequired()],
+                            choices=[('one_on_one', 'One-on-One'), 
+                                   ('group', 'Group'), ('demo', 'Demo')])
+    grade = StringField('Grade', validators=[Optional()], 
+                       render_kw={'placeholder': 'e.g., 10, 12'})
+    board = StringField('Board', validators=[Optional()], 
+                       render_kw={'placeholder': 'e.g., CBSE, ICSE'})
+    
+    # Scheduling
+    scheduled_date = DateField('Scheduled Date', validators=[DataRequired()])
+    scheduled_time = TimeField('Scheduled Time', validators=[DataRequired()])
+    duration = IntegerField('Duration (minutes)', validators=[DataRequired(), NumberRange(min=15, max=480)])
+    
+    # Assignments
+    tutor_id = SelectField('Tutor', validators=[DataRequired()], coerce=int)
+    primary_student_id = SelectField('Primary Student', validators=[Optional()], coerce=int)
+    students = SelectMultipleField('Students (for group classes)', coerce=int)
+    
+    # Platform and Links
+    platform = SelectField('Platform', validators=[Optional()],
+                          choices=[('', 'Select Platform'), ('zoom', 'Zoom'), 
+                                 ('google_meet', 'Google Meet'), ('teams', 'Microsoft Teams')])
+    meeting_link = StringField('Meeting Link', validators=[Optional()], 
+                              render_kw={'placeholder': 'https://...'})
+    meeting_id = StringField('Meeting ID', validators=[Optional()], 
+                            render_kw={'placeholder': 'Meeting ID'})
+    meeting_password = StringField('Meeting Password', validators=[Optional()], 
+                                  render_kw={'placeholder': 'Meeting Password'})
+    
+    # Content
+    class_notes = TextAreaField('Class Notes', validators=[Optional()], 
+                               render_kw={'placeholder': 'Any additional notes', 'rows': 3})
+    
+    submit = SubmitField('Update Class')
+    
+    def __init__(self, class_obj=None, department_id=None, *args, **kwargs):
+        super(EditClassForm, self).__init__(*args, **kwargs)
+        
+        # Same tutor/student population as your CreateClassForm
+        tutor_query = Tutor.query.join(Tutor.user).filter(Tutor.status == 'active')
+        if department_id:
+            tutor_query = tutor_query.filter(Tutor.user.has(department_id=department_id))
+        
+        tutors = tutor_query.all()
+        self.tutor_id.choices = [(t.id, f"{t.user.full_name} - {', '.join(t.get_subjects()[:2])}") for t in tutors]
+        
+        student_query = Student.query.filter(Student.is_active == True)
+        if department_id:
+            student_query = student_query.filter_by(department_id=department_id)
+        
+        students = student_query.all()
+        self.primary_student_id.choices = [(0, 'No Primary Student')] + \
+            [(s.id, f"{s.full_name} - Grade {s.grade}") for s in students]
+        
+        self.students.choices = [(s.id, f"{s.full_name} - Grade {s.grade}") for s in students]
+        
+        # Pre-populate form if class object provided
+        if class_obj:
+            self.class_id.data = class_obj.id
+            self.subject.data = class_obj.subject
+            self.class_type.data = class_obj.class_type
+            self.grade.data = class_obj.grade
+            self.board.data = class_obj.board
+            self.scheduled_date.data = class_obj.scheduled_date
+            self.scheduled_time.data = class_obj.scheduled_time
+            self.duration.data = class_obj.duration
+            self.tutor_id.data = class_obj.tutor_id
+            self.primary_student_id.data = class_obj.primary_student_id or 0
+            self.platform.data = class_obj.platform
+            self.meeting_link.data = class_obj.meeting_link
+            self.meeting_id.data = class_obj.meeting_id
+            self.meeting_password.data = class_obj.meeting_password
+            self.class_notes.data = class_obj.class_notes
+            
+            # Handle students for group classes
+            if class_obj.students:
+                try:
+                    import json
+                    student_ids = json.loads(class_obj.students)
+                    self.students.data = [int(sid) for sid in student_ids]
+                except:
+                    self.students.data = []
+    
+    # EDIT-SPECIFIC VALIDATION (different from create validation)
+    def validate_tutor_id(self, tutor_id):
+        """Check tutor availability for the new time slot"""
+        if not tutor_id.data:
+            raise ValidationError('Tutor is required.')
+        
+        # Import here to avoid circular imports
+        from app.models.class_model import Class
+        
+        # Check for conflicts with other classes
+        class_obj = Class.query.get(self.class_id.data) if self.class_id.data else None
+        exclude_class_id = class_obj.id if class_obj else None
+        
+        conflict_exists, conflicting_class = Class.check_time_conflict(
+            tutor_id.data, 
+            self.scheduled_date.data, 
+            self.scheduled_time.data, 
+            self.duration.data,
+            exclude_class_id
+        )
+        
+        if conflict_exists:
+            raise ValidationError(f'Tutor has a conflicting class: {conflicting_class.subject} at {conflicting_class.scheduled_time}')
+
+
+class BulkEditClassForm(FlaskForm):
+    """Form for bulk editing multiple classes - ADD THIS TO YOUR FILE"""
+    
+    # Fields that can be bulk updated
+    tutor_id = SelectField('Change Tutor', validators=[Optional()], coerce=int)
+    platform = SelectField('Change Platform', validators=[Optional()],
+                          choices=[('', 'Keep Current'), ('zoom', 'Zoom'), 
+                                 ('google_meet', 'Google Meet'), ('teams', 'Microsoft Teams')])
+    
+    # Time adjustments
+    time_adjustment = SelectField('Time Adjustment', validators=[Optional()],
+                                choices=[('', 'No Change'), 
+                                       ('add_15', 'Add 15 minutes'), 
+                                       ('subtract_15', 'Subtract 15 minutes'),
+                                       ('add_30', 'Add 30 minutes'), 
+                                       ('subtract_30', 'Subtract 30 minutes')])
+    
+    # Duration changes
+    new_duration = IntegerField('New Duration (minutes)', validators=[Optional(), NumberRange(min=15, max=480)])
+    
+    # Meeting link updates
+    meeting_link = StringField('New Meeting Link', validators=[Optional()], 
+                              render_kw={'placeholder': 'https://...'})
+    
+    # Additional notes
+    bulk_notes = TextAreaField('Add Notes to All Classes', validators=[Optional()], 
+                              render_kw={'placeholder': 'These notes will be appended to existing notes', 'rows': 3})
+    
+    # Selected classes (hidden field populated by JavaScript)
+    selected_classes = HiddenField('Selected Classes')
+    
+    submit = SubmitField('Apply Bulk Changes')
+    
+    def __init__(self, department_id=None, *args, **kwargs):
+        super(BulkEditClassForm, self).__init__(*args, **kwargs)
+        
+        # Same tutor population as your existing forms
+        tutor_query = Tutor.query.join(Tutor.user).filter(Tutor.status == 'active')
+        if department_id:
+            tutor_query = tutor_query.filter(Tutor.user.has(department_id=department_id))
+        
+        tutors = tutor_query.all()
+        self.tutor_id.choices = [(0, 'Keep Current Tutor')] + \
+            [(t.id, f"{t.user.full_name} - {', '.join(t.get_subjects()[:2])}") for t in tutors]
+    
+    def validate_selected_classes(self, selected_classes):
+        """Validate that classes are selected"""
+        if not selected_classes.data:
+            raise ValidationError('No classes selected for bulk edit.')
+        
+        try:
+            import json
+            class_ids = json.loads(selected_classes.data)
+            if not class_ids:
+                raise ValidationError('No classes selected for bulk edit.')
+        except:
+            raise ValidationError('Invalid class selection data.')

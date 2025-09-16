@@ -1,0 +1,856 @@
+{% extends "base.html" %}
+
+{% block title %}{{ tutor_name }}'s Timetable{% endblock %}
+
+{% block extra_css %}
+<style>
+    .timetable-container {
+        background: var(--bg-white);
+        border-radius: var(--border-radius);
+        box-shadow: var(--shadow-lg);
+        overflow: hidden;
+    }
+    
+    .week-navigation {
+        background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
+        color: white;
+        padding: 20px;
+    }
+    
+    .week-nav-btn {
+        background: rgba(255,255,255,0.2);
+        border: none;
+        color: white;
+        padding: 8px 15px;
+        border-radius: var(--border-radius);
+        cursor: pointer;
+        transition: var(--transition);
+    }
+    
+    .week-nav-btn:hover {
+        background: rgba(255,255,255,0.3);
+        color: white;
+        transform: translateY(-1px);
+    }
+    
+    .week-title {
+        font-size: 1.5rem;
+        font-weight: 600;
+        margin: 0;
+    }
+    
+    .calendar-grid {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 0;
+        background: var(--bg-light);
+    }
+    
+    .day-column {
+        background: var(--bg-white);
+        border-right: 1px solid var(--border-color);
+        min-height: 500px;
+        position: relative;
+    }
+    
+    .day-column:last-child {
+        border-right: none;
+    }
+    
+    .day-header {
+        background: var(--secondary-color);
+        color: white;
+        padding: 15px 10px;
+        text-align: center;
+        font-weight: 600;
+        position: sticky;
+        top: 0;
+        z-index: 10;
+    }
+    
+    .day-date {
+        font-size: 0.9rem;
+        opacity: 0.9;
+        margin-top: 2px;
+    }
+    
+    .day-content {
+        padding: 10px;
+        max-height: 500px;
+        overflow-y: auto;
+    }
+    
+    .class-item {
+        background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
+        color: white;
+        padding: 12px;
+        margin-bottom: 8px;
+        border-radius: var(--border-radius);
+        cursor: pointer;
+        transition: var(--transition);
+        border-left: 4px solid var(--primary-light);
+        box-shadow: var(--shadow);
+    }
+    
+    .class-item:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-lg);
+    }
+    
+    .class-item.completed {
+        background: linear-gradient(135deg, var(--success-color) 0%, #20c997 100%);
+        border-left-color: #fff;
+    }
+    
+    .class-item.cancelled {
+        background: linear-gradient(135deg, var(--danger-color) 0%, #e83e8c 100%);
+        border-left-color: #fff;
+    }
+    
+    .class-item.ongoing {
+        background: linear-gradient(135deg, var(--warning-color) 0%, #fd7e14 100%);
+        border-left-color: #fff;
+        animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+        0% { opacity: 1; }
+        50% { opacity: 0.8; }
+        100% { opacity: 1; }
+    }
+    
+    .class-time {
+        font-weight: 600;
+        font-size: 0.95rem;
+        margin-bottom: 5px;
+    }
+    
+    .class-subject {
+        font-size: 1rem;
+        font-weight: 500;
+        margin-bottom: 3px;
+    }
+    
+    .class-student {
+        font-size: 0.85rem;
+        opacity: 0.9;
+        margin-bottom: 3px;
+    }
+    
+    .class-details {
+        font-size: 0.8rem;
+        opacity: 0.8;
+    }
+    
+    .no-classes {
+        color: var(--text-secondary);
+        text-align: center;
+        padding: 40px 10px;
+        font-style: italic;
+    }
+    
+    .availability-slot {
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        border: 2px dashed rgba(255, 255, 255, 0.4);
+        color: white;
+        padding: 12px;
+        margin-bottom: 8px;
+        border-radius: var(--border-radius);
+        cursor: pointer;
+        transition: var(--transition);
+        text-align: center;
+        font-size: 0.85rem;
+        box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+    }
+    
+    .availability-slot:hover {
+        background: linear-gradient(135deg, #059669 0%, #047857 100%);
+        border-color: rgba(255, 255, 255, 0.6);
+        color: white;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+    }
+    
+    .loading-spinner {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 200px;
+    }
+    
+    .spinner-border {
+        width: 3rem;
+        height: 3rem;
+        color: var(--primary-color);
+    }
+    
+    .stats-row {
+        background: var(--bg-light);
+        padding: 20px;
+        border-top: 1px solid var(--border-color);
+    }
+    
+    .stat-item {
+        text-align: center;
+    }
+    
+    .stat-number {
+        font-size: 2rem;
+        font-weight: 600;
+        color: var(--primary-color);
+    }
+    
+    .stat-label {
+        color: var(--text-secondary);
+        font-size: 0.9rem;
+    }
+    
+    /* Enhanced visual improvements */
+    .day-column:nth-child(6), .day-column:nth-child(7) {
+        background: rgba(241, 161, 80, 0.02);
+    }
+    
+    .today-highlight {
+        background: rgba(241, 161, 80, 0.05) !important;
+        border: 2px solid var(--primary-light);
+    }
+    
+    /* Tutor info header */
+    .tutor-info-header {
+        background: var(--bg-light);
+        padding: 1rem;
+        border-bottom: 1px solid var(--border-color);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .tutor-info {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+    
+    .tutor-avatar {
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        background: var(--primary-color);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: 600;
+        font-size: 1.2rem;
+    }
+    
+    .tutor-details h4 {
+        margin: 0;
+        color: var(--text-primary);
+    }
+    
+    .tutor-details small {
+        color: var(--text-secondary);
+    }
+    
+    .action-buttons {
+        display: flex;
+        gap: 0.5rem;
+    }
+    
+    .btn {
+        padding: 0.5rem 1rem;
+        border-radius: var(--border-radius);
+        border: none;
+        cursor: pointer;
+        transition: var(--transition);
+        text-decoration: none;
+        font-size: 0.875rem;
+        font-weight: 500;
+    }
+    
+    .btn-primary {
+        background: var(--primary-color);
+        color: white;
+    }
+    
+    .btn-primary:hover {
+        background: var(--primary-dark);
+        transform: translateY(-1px);
+    }
+    
+    .btn-outline {
+        background: transparent;
+        border: 1px solid var(--border-color);
+        color: var(--text-primary);
+    }
+    
+    .btn-outline:hover {
+        background: var(--bg-light);
+    }
+    
+    @media (max-width: 768px) {
+        .calendar-grid {
+            grid-template-columns: 1fr;
+            gap: 10px;
+            padding: 10px;
+        }
+        
+        .day-column {
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius);
+        }
+        
+        .week-navigation {
+            padding: 15px;
+        }
+        
+        .week-title {
+            font-size: 1.2rem;
+        }
+        
+        .class-item, .availability-slot {
+            margin-bottom: 12px;
+        }
+        
+        .tutor-info-header {
+            flex-direction: column;
+            gap: 1rem;
+            text-align: center;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Tutor Info Header -->
+    <div class="tutor-info-header">
+        <div class="tutor-info">
+            <div class="tutor-avatar">
+                {{ tutor_name[0].upper() if tutor_name else 'T' }}
+            </div>
+            <div class="tutor-details">
+                <h4>{{ tutor_name }}'s Timetable</h4>
+                <small>{{ tutor_email if tutor_email else 'No email available' }}</small>
+            </div>
+        </div>
+        <div class="action-buttons">
+            <button class="btn btn-primary" onclick="addClassForTutor()">
+                <i class="fas fa-plus"></i> Add Class
+            </button>
+            <button class="btn btn-outline" onclick="viewTutorAvailability()">
+                <i class="fas fa-clock"></i> Availability
+            </button>
+            <a href="/admin/timetable" class="btn btn-outline">
+                <i class="fas fa-arrow-left"></i> Back
+            </a>
+        </div>
+    </div>
+
+    <div class="timetable-container">
+        <!-- Week Navigation -->
+        <div class="week-navigation">
+            <div class="row align-items-center">
+                <div class="col-md-3">
+                    <button class="week-nav-btn" onclick="changeWeek(-1)">
+                        <i class="fas fa-chevron-left me-2"></i>Previous Week
+                    </button>
+                </div>
+                <div class="col-md-6 text-center">
+                    <h2 class="week-title" id="weekTitle">Loading...</h2>
+                </div>
+                <div class="col-md-3 text-end">
+                    <button class="week-nav-btn" onclick="changeWeek(1)">
+                        Next Week<i class="fas fa-chevron-right ms-2"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Calendar Grid -->
+        <div id="calendarGrid" class="calendar-grid">
+            <div class="loading-spinner">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Statistics -->
+        <div class="stats-row">
+            <div class="row">
+                <div class="col-md-3">
+                    <div class="stat-item">
+                        <div class="stat-number" id="totalClasses">0</div>
+                        <div class="stat-label">Classes This Week</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stat-item">
+                        <div class="stat-number" id="todayClasses">0</div>
+                        <div class="stat-label">Classes Today</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stat-item">
+                        <div class="stat-number" id="completedClasses">0</div>
+                        <div class="stat-label">Completed</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stat-item">
+                        <div class="stat-number" id="availableSlots">0</div>
+                        <div class="stat-label">Available Slots</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Class Modal -->
+<div class="modal fade" id="addClassModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Add Class for {{ tutor_name }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addClassForm">
+                    <input type="hidden" name="tutor_id" value="{{ tutor_id }}">
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Subject *</label>
+                                <input type="text" class="form-control" name="subject" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Student</label>
+                                <select class="form-select" name="student_id">
+                                    <option value="">Select Student</option>
+                                    {% for student in students %}
+                                    <option value="{{ student.id }}">{{ student.full_name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label">Date *</label>
+                                <input type="date" class="form-control" name="scheduled_date" required>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label">Time *</label>
+                                <select class="form-select" name="scheduled_time" id="availableTimeSlots" required>
+                                    <option value="">Select Time</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label">Duration</label>
+                                <select class="form-select" name="duration">
+                                    <option value="30">30 minutes</option>
+                                    <option value="45">45 minutes</option>
+                                    <option value="60" selected>60 minutes</option>
+                                    <option value="90">90 minutes</option>
+                                    <option value="120">120 minutes</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Grade</label>
+                                <input type="text" class="form-control" name="grade" placeholder="e.g., 10th, 12th">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Class Type</label>
+                                <select class="form-select" name="class_type">
+                                    <option value="one_on_one">One-on-One</option>
+                                    <option value="group">Group</option>
+                                    <option value="demo">Demo</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Notes</label>
+                        <textarea class="form-control" name="class_notes" rows="3" placeholder="Any additional notes..."></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="createClassForTutor()">
+                    <i class="fas fa-plus"></i> Add Class
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Class Details Modal -->
+<div class="modal fade" id="classModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalTitle">Class Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="modalBody">
+                <!-- Class details will be loaded here -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let currentWeekOffset = 0;
+let currentData = null;
+const tutorId = {{ tutor_id }};
+
+document.addEventListener('DOMContentLoaded', function() {
+    loadTimetable();
+});
+
+function changeWeek(offset) {
+    currentWeekOffset += offset;
+    loadTimetable();
+}
+
+function loadTimetable() {
+    // Show loading
+    document.getElementById('calendarGrid').innerHTML = `
+        <div class="loading-spinner">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+        </div>
+    `;
+    
+    // Fetch tutor-specific timetable data
+    fetch(`/admin/api/v1/timetable/tutor/${tutorId}/weekly?week_offset=${currentWeekOffset}`, {
+        method: 'GET',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token() }}'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            currentData = data.data;
+            renderTimetable(data.data);
+            updateStats(data.data);
+        } else {
+            showError('Failed to load timetable: ' + (data.error || 'Unknown error'));
+        }
+    })
+    .catch(error => {
+        console.error('Error loading timetable:', error);
+        showError('Failed to load timetable. Please try again.');
+    });
+}
+
+function renderTimetable(data) {
+    const grid = document.getElementById('calendarGrid');
+    const weekTitle = document.getElementById('weekTitle');
+    
+    // Update week title
+    weekTitle.textContent = data.week_title;
+    
+    // Clear grid
+    grid.innerHTML = '';
+    
+    // Create day columns
+    data.week_dates.forEach((dayData, index) => {
+        const dayClasses = data.schedule[dayData.day] || [];
+        const dayAvailability = data.availability?.[dayData.day] || [];
+        
+        const dayColumn = document.createElement('div');
+        dayColumn.className = 'day-column';
+        
+        // Highlight today's column
+        const today = new Date().toISOString().split('T')[0];
+        if (dayData.date === today) {
+            dayColumn.classList.add('today-highlight');
+        }
+        
+        // Day header
+        const dayHeader = document.createElement('div');
+        dayHeader.className = 'day-header';
+        dayHeader.innerHTML = `
+            <div class="day-name">${dayData.day_short}</div>
+            <div class="day-date">${dayData.formatted}</div>
+        `;
+        dayColumn.appendChild(dayHeader);
+        
+        // Day content
+        const dayContent = document.createElement('div');
+        dayContent.className = 'day-content';
+        
+        // Render classes
+        dayClasses.forEach(cls => {
+            const classItem = document.createElement('div');
+            let statusClass = cls.status;
+            classItem.className = `class-item ${statusClass}`;
+            classItem.onclick = () => showClassDetails(cls);
+            
+            classItem.innerHTML = `
+                <div class="class-time">${cls.time} - ${cls.end_time}</div>
+                <div class="class-subject">${cls.subject}</div>
+                <div class="class-student">${cls.student}</div>
+                <div class="class-details">
+                    ${cls.grade ? cls.grade + ' • ' : ''}${cls.class_type.replace('_', ' ').toUpperCase()}
+                    ${cls.duration ? ' • ' + cls.duration + ' min' : ''}
+                </div>
+            `;
+            
+            dayContent.appendChild(classItem);
+        });
+        
+        // Render availability slots
+        dayAvailability.forEach(slot => {
+            const availabilitySlot = document.createElement('div');
+            availabilitySlot.className = 'availability-slot';
+            availabilitySlot.onclick = () => addClassAtSlot(dayData.date, slot.start);
+            
+            availabilitySlot.innerHTML = `
+                <div><i class="fas fa-plus-circle"></i> Available</div>
+                <div>${slot.start} - ${slot.end}</div>
+            `;
+            
+            dayContent.appendChild(availabilitySlot);
+        });
+        
+        if (dayClasses.length === 0 && dayAvailability.length === 0) {
+            dayContent.innerHTML = '<div class="no-classes">No classes or availability</div>';
+        }
+        
+        dayColumn.appendChild(dayContent);
+        grid.appendChild(dayColumn);
+    });
+}
+
+function updateStats(data) {
+    const today = new Date().toISOString().split('T')[0];
+    let totalClasses = 0;
+    let todayClasses = 0;
+    let completedClasses = 0;
+    let availableSlots = 0;
+    
+    Object.keys(data.schedule).forEach(day => {
+        const dayClasses = data.schedule[day];
+        totalClasses += dayClasses.length;
+        
+        dayClasses.forEach(cls => {
+            if (cls.date === today) {
+                todayClasses++;
+            }
+            if (cls.status === 'completed') {
+                completedClasses++;
+            }
+        });
+    });
+    
+    // Count available slots
+    if (data.availability) {
+        Object.keys(data.availability).forEach(day => {
+            availableSlots += data.availability[day].length;
+        });
+    }
+    
+    document.getElementById('totalClasses').textContent = totalClasses;
+    document.getElementById('todayClasses').textContent = todayClasses;
+    document.getElementById('completedClasses').textContent = completedClasses;
+    document.getElementById('availableSlots').textContent = availableSlots;
+}
+
+function addClassForTutor() {
+    const modal = new bootstrap.Modal(document.getElementById('addClassModal'));
+    modal.show();
+    
+    // Set default date to today
+    const today = new Date().toISOString().split('T')[0];
+    document.querySelector('[name="scheduled_date"]').value = today;
+    
+    // Load available time slots for today
+    loadAvailableTimeSlots(today);
+}
+
+function addClassAtSlot(date, time) {
+    const modal = new bootstrap.Modal(document.getElementById('addClassModal'));
+    
+    // Pre-fill date and time
+    document.querySelector('[name="scheduled_date"]').value = date;
+    loadAvailableTimeSlots(date, time);
+    
+    modal.show();
+}
+
+function loadAvailableTimeSlots(date, selectedTime = null) {
+    const timeSelect = document.getElementById('availableTimeSlots');
+    timeSelect.innerHTML = '<option value="">Loading...</option>';
+    
+    fetch(`/admin/api/v1/timetable/tutor/${tutorId}/slots?date=${date}`, {
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token() }}'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        timeSelect.innerHTML = '<option value="">Select Time</option>';
+        
+        if (data.success && data.slots) {
+            data.slots.forEach(slot => {
+                const option = document.createElement('option');
+                option.value = slot.start;
+                option.textContent = `${slot.start} - ${slot.end}`;
+                if (selectedTime && slot.start === selectedTime) {
+                    option.selected = true;
+                }
+                timeSelect.appendChild(option);
+            });
+        } else {
+            const option = document.createElement('option');
+            option.value = '';
+            option.textContent = 'No available slots';
+            timeSelect.appendChild(option);
+        }
+    })
+    .catch(error => {
+        console.error('Error loading time slots:', error);
+        timeSelect.innerHTML = '<option value="">Error loading slots</option>';
+    });
+}
+
+// Listen for date changes to update available time slots
+document.addEventListener('change', function(e) {
+    if (e.target.name === 'scheduled_date') {
+        loadAvailableTimeSlots(e.target.value);
+    }
+});
+
+function createClassForTutor() {
+    const form = document.getElementById('addClassForm');
+    const formData = new FormData(form);
+    
+    // Validate required fields
+    if (!formData.get('subject') || !formData.get('scheduled_date') || !formData.get('scheduled_time')) {
+        alert('Please fill in all required fields');
+        return;
+    }
+    
+    const classData = {};
+    for (let [key, value] of formData.entries()) {
+        classData[key] = value;
+    }
+    
+    fetch('/admin/api/v1/timetable/quick-class', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token() }}'
+        },
+        body: JSON.stringify(classData)
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            alert('Class created successfully!');
+            bootstrap.Modal.getInstance(document.getElementById('addClassModal')).hide();
+            form.reset();
+            loadTimetable();
+        } else {
+            alert('Failed to create class: ' + (result.error || 'Unknown error'));
+        }
+    })
+    .catch(error => {
+        console.error('Error creating class:', error);
+        alert('Failed to create class. Please try again.');
+    });
+}
+
+function showClassDetails(cls) {
+    const modal = new bootstrap.Modal(document.getElementById('classModal'));
+    const modalTitle = document.getElementById('modalTitle');
+    const modalBody = document.getElementById('modalBody');
+    
+    modalTitle.textContent = cls.subject + ' - ' + cls.student;
+    
+    let statusBadge = '';
+    switch(cls.status) {
+        case 'completed':
+            statusBadge = '<span class="badge bg-success">Completed</span>';
+            break;
+        case 'ongoing':
+            statusBadge = '<span class="badge bg-warning">Ongoing</span>';
+            break;
+        case 'cancelled':
+            statusBadge = '<span class="badge bg-danger">Cancelled</span>';
+            break;
+        default:
+            statusBadge = '<span class="badge bg-primary">Scheduled</span>';
+    }
+    
+    modalBody.innerHTML = `
+        <div class="row">
+            <div class="col-md-6">
+                <p><strong>Time:</strong> ${cls.time} - ${cls.end_time}</p>
+                <p><strong>Duration:</strong> ${cls.duration} minutes</p>
+                <p><strong>Subject:</strong> ${cls.subject}</p>
+                <p><strong>Student:</strong> ${cls.student}</p>
+            </div>
+            <div class="col-md-6">
+                <p><strong>Class Type:</strong> ${cls.class_type.replace('_', ' ').toUpperCase()}</p>
+                <p><strong>Grade:</strong> ${cls.grade || 'Not specified'}</p>
+                <p><strong>Status:</strong> ${statusBadge}</p>
+            </div>
+        </div>
+        ${cls.class_notes ? `<p><strong>Notes:</strong> ${cls.class_notes}</p>` : ''}
+    `;
+    
+    modal.show();
+}
+
+function viewTutorAvailability() {
+    // This could open a modal showing detailed availability or redirect to availability management
+    alert('Tutor availability viewer - to be implemented');
+}
+
+function showError(message) {
+    document.getElementById('calendarGrid').innerHTML = `
+        <div class="text-center py-5">
+            <div class="alert alert-danger" role="alert">
+                <i class="fas fa-exclamation-triangle me-2"></i>${message}
+            </div>
+            <button class="btn btn-primary" onclick="loadTimetable()">
+                <i class="fas fa-refresh me-2"></i>Retry
+            </button>
+        </div>
+    `;
+}
+</script>
+{% endblock %}

@@ -12,45 +12,24 @@
     }
 
     /* Main layout container */
-    .app-layout {
-        display: flex;
-        min-height: 100vh;
-        width: 100%;
-    }
-
-    /* Sidebar styles */
-    .sidebar {
-        width: 250px;
-        background: #f8f9fa;
-        flex-shrink: 0;
-        /* Sidebar content styles here */
-    }
-
-    /* Main content area - takes remaining space */
-    .main-content {
-        flex: 1;
-        width: calc(100% - 250px);
-        min-width: 0; /* Prevents flex overflow */
-        background: #ffffff;
-        padding: 0;
-        margin: 0;
-    }
-
-    /* Page content wrapper */
     .page-content {
         padding: 1.5rem;
         width: 100%;
         max-width: none;
+        background: #f8f9fa;
+        min-height: 100vh;
     }
 
     .page-header {
-        width: 100%;
+        background: #ffffff;
+        border-radius: 12px;
+        padding: 1.5rem;
         margin-bottom: 2rem;
-        padding: 0;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+        border: 1px solid #e9ecef;
     }
 
     .page-header-content {
-        width: 100%;
         display: flex;
         justify-content: space-between;
         align-items: center;
@@ -58,11 +37,68 @@
         gap: 1rem;
     }
     
-    .students-container {
-        width: 100%;
-        max-width: none;
+    .page-title h1 {
+        margin: 0;
+        color: #2c3e50;
+        font-size: 1.75rem;
+        font-weight: 600;
     }
     
+    .page-title p {
+        margin: 0.5rem 0 0 0;
+        color: #6c757d;
+        font-size: 1rem;
+    }
+
+    .page-actions {
+        display: flex;
+        gap: 0.75rem;
+        align-items: center;
+    }
+    
+    /* Stats Section */
+    .stats-section {
+        background: #ffffff;
+        border-radius: 12px;
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+        border: 1px solid #e9ecef;
+    }
+    
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1.5rem;
+    }
+    
+    .stat-card {
+        text-align: center;
+        padding: 1.5rem;
+        background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+        border-radius: 10px;
+        border: 1px solid #dee2e6;
+    }
+    
+    .stat-value {
+        font-size: 2.5rem;
+        font-weight: 700;
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        display: block;
+        line-height: 1.2;
+    }
+    
+    .stat-label {
+        font-size: 0.875rem;
+        color: #6c757d;
+        margin-top: 0.5rem;
+        font-weight: 500;
+    }
+
+    /* Filter Section */
     .filter-section {
         background: #ffffff;
         border-radius: 12px;
@@ -70,7 +106,6 @@
         margin-bottom: 2rem;
         box-shadow: 0 2px 10px rgba(0,0,0,0.08);
         border: 1px solid #e9ecef;
-        width: 100%;
     }
     
     .filter-row {
@@ -78,14 +113,12 @@
         grid-template-columns: 2fr 1fr 1fr auto;
         gap: 1.5rem;
         align-items: end;
-        width: 100%;
     }
     
     .form-group {
         display: flex;
         flex-direction: column;
         gap: 0.5rem;
-        width: 100%;
     }
     
     .form-label {
@@ -96,7 +129,6 @@
     }
     
     .form-control, .form-select {
-        width: 100%;
         padding: 0.75rem 1rem;
         border: 2px solid #e9ecef;
         border-radius: 8px;
@@ -104,7 +136,6 @@
         transition: all 0.3s ease;
         background: #ffffff;
         min-height: 44px;
-        box-sizing: border-box;
     }
     
     .form-control:focus, .form-select:focus {
@@ -113,27 +144,18 @@
         box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
     }
     
-    .filter-buttons {
-        display: flex;
-        gap: 0.75rem;
-        align-items: end;
-        height: fit-content;
-    }
-    
     .search-group {
         position: relative;
-        width: 100%;
     }
     
     .search-input {
-        width: 100%;
         padding: 0.75rem 1rem 0.75rem 3rem;
         border: 2px solid #e9ecef;
         border-radius: 8px;
         font-size: 0.875rem;
         transition: all 0.3s ease;
         min-height: 44px;
-        box-sizing: border-box;
+        width: 100%;
     }
     
     .search-input:focus {
@@ -151,57 +173,91 @@
         z-index: 1;
     }
     
-    .students-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-        gap: 1.5rem;
-        margin-bottom: 2rem;
-        width: 100%;
+    .filter-buttons {
+        display: flex;
+        gap: 0.75rem;
+        align-items: end;
+        height: fit-content;
     }
-    
-    .student-card {
+
+    /* Students Grid Table */
+    .students-section {
         background: #ffffff;
         border-radius: 12px;
-        padding: 1.5rem;
-        box-shadow: 0 2px 15px rgba(0,0,0,0.08);
-        transition: all 0.3s ease;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.08);
         border: 1px solid #e9ecef;
+        overflow: hidden;
+    }
+
+    .students-table {
         width: 100%;
+        border-collapse: collapse;
     }
-    
-    .student-card:hover {
-        transform: translateY(-3px);
-        box-shadow: 0 8px 25px rgba(0,0,0,0.12);
+
+    .students-table thead {
+        background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+        border-bottom: 2px solid #dee2e6;
     }
-    
-    .student-header {
-        display: flex;
-        align-items: center;
-        gap: 1rem;
-        margin-bottom: 1rem;
-    }
-    
-    .student-avatar {
-        width: 50px;
-        height: 50px;
-        border-radius: 50%;
-        background: linear-gradient(135deg, #667eea, #764ba2);
-        color: white;
-        display: flex;
-        align-items: center;
-        justify-content: center;
+
+    .students-table th {
+        padding: 1rem 0.75rem;
+        text-align: left;
         font-weight: 600;
-        font-size: 1.25rem;
+        color: #2c3e50;
+        font-size: 0.875rem;
+        position: sticky;
+        top: 0;
+        background: inherit;
+        z-index: 10;
+    }
+
+    .students-table tbody tr {
+        border-bottom: 1px solid #f1f3f5;
+        transition: all 0.3s ease;
+    }
+
+    .students-table tbody tr:hover {
+        background: rgba(0, 123, 255, 0.03);
+        transform: scale(1.01);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+
+    .students-table td {
+        padding: 1rem 0.75rem;
+        vertical-align: middle;
+        font-size: 0.875rem;
+    }
+
+    /* Student Info Cell */
+    .student-info-cell {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        min-width: 200px;
+    }
+
+    .student-avatar {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 2px solid #e9ecef;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
         flex-shrink: 0;
     }
     
-    .student-info {
-        flex: 1;
-        min-width: 0;
+    .student-avatar:hover {
+        transform: scale(1.1);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        border-color: #28a745;
     }
-    
-    .student-info h3 {
-        font-size: 1.1rem;
+
+    .student-details {
+        min-width: 0;
+        flex: 1;
+    }
+
+    .student-name {
         font-weight: 600;
         color: #2c3e50;
         margin: 0 0 0.25rem 0;
@@ -209,57 +265,23 @@
         text-overflow: ellipsis;
         white-space: nowrap;
     }
-    
-    .student-info p {
-        font-size: 0.875rem;
+
+    .student-email {
         color: #6c757d;
+        font-size: 0.8rem;
         margin: 0;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
     }
-    
-    .student-details {
-        margin-bottom: 1rem;
-    }
-    
-    .detail-row {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 0.25rem 0;
-        font-size: 0.875rem;
-    }
-    
-    .detail-label {
-        color: #6c757d;
-        font-weight: 500;
-        flex-shrink: 0;
-    }
-    
-    .detail-value {
-        color: #2c3e50;
-        font-weight: 500;
-        text-align: right;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-        margin-left: 1rem;
-    }
-    
-    .student-badges {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0.5rem;
-        margin-bottom: 1rem;
-    }
-    
+
+    /* Status Badges */
     .status-badge {
         padding: 0.25rem 0.75rem;
         border-radius: 20px;
         font-size: 0.75rem;
         font-weight: 500;
-        display: flex;
+        display: inline-flex;
         align-items: center;
         gap: 0.25rem;
     }
@@ -298,12 +320,13 @@
         background: rgba(220, 53, 69, 0.1);
         color: #dc3545;
     }
-    
+
+    /* Subjects List */
     .subjects-list {
         display: flex;
         flex-wrap: wrap;
         gap: 0.25rem;
-        margin-top: 0.5rem;
+        max-width: 150px;
     }
     
     .subject-tag {
@@ -311,33 +334,58 @@
         color: #495057;
         padding: 0.125rem 0.5rem;
         border-radius: 15px;
-        font-size: 0.75rem;
+        font-size: 0.7rem;
         font-weight: 500;
+        white-space: nowrap;
     }
-    
-    .student-actions {
+
+    /* Progress Bar */
+    .progress-bar-container {
+        width: 100%;
+        background: #f1f3f5;
+        border-radius: 10px;
+        height: 6px;
+        overflow: hidden;
+    }
+
+    .progress-bar {
+        height: 100%;
+        border-radius: 10px;
+        transition: width 0.3s ease;
+    }
+
+    .progress-good {
+        background: linear-gradient(90deg, #28a745, #20c997);
+    }
+
+    .progress-average {
+        background: linear-gradient(90deg, #ffc107, #fd7e14);
+    }
+
+    .progress-poor {
+        background: linear-gradient(90deg, #dc3545, #e83e8c);
+    }
+
+    /* Action Buttons */
+    .action-buttons {
         display: flex;
-        gap: 0.5rem;
-        justify-content: space-between;
+        gap: 0.25rem;
+        justify-content: center;
+        min-width: 120px;
     }
-    
-    .btn-group {
-        display: flex;
-        gap: 0.5rem;
-    }
-    
+
     .btn {
-        padding: 0.5rem 1rem;
+        padding: 0.375rem 0.75rem;
         border-radius: 6px;
         font-weight: 500;
         text-decoration: none;
         display: inline-flex;
         align-items: center;
-        gap: 0.5rem;
+        gap: 0.25rem;
         border: 2px solid transparent;
         cursor: pointer;
         transition: all 0.3s ease;
-        font-size: 0.875rem;
+        font-size: 0.75rem;
     }
     
     .btn-primary {
@@ -364,12 +412,6 @@
         transform: translateY(-1px);
     }
     
-    .btn-sm {
-        padding: 0.375rem 0.75rem;
-        font-size: 0.75rem;
-        border-radius: 4px;
-    }
-    
     .btn-warning {
         background: #ffc107;
         color: #856404;
@@ -387,50 +429,8 @@
         color: white;
         border-color: #dc3545;
     }
-    
-    .stats-section {
-        background: #ffffff;
-        border-radius: 12px;
-        padding: 1.5rem;
-        margin-bottom: 2rem;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.08);
-        border: 1px solid #e9ecef;
-        width: 100%;
-    }
-    
-    .stats-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-        gap: 1.5rem;
-        width: 100%;
-    }
-    
-    .stat-card {
-        text-align: center;
-        padding: 1.5rem;
-        background: linear-gradient(135deg, #f8f9fa, #e9ecef);
-        border-radius: 10px;
-        border: 1px solid #dee2e6;
-    }
-    
-    .stat-value {
-        font-size: 2.5rem;
-        font-weight: 700;
-        background: linear-gradient(135deg, #667eea, #764ba2);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
-        display: block;
-        line-height: 1.2;
-    }
-    
-    .stat-label {
-        font-size: 0.875rem;
-        color: #6c757d;
-        margin-top: 0.5rem;
-        font-weight: 500;
-    }
-    
+
+    /* No Students */
     .no-students {
         text-align: center;
         padding: 4rem 2rem;
@@ -447,23 +447,14 @@
         color: #495057;
         margin-bottom: 1rem;
     }
-    
-    .page-title h1 {
-        margin: 0;
-        color: #2c3e50;
-        font-size: 1.75rem;
-    }
-    
-    .page-title p {
-        margin: 0.5rem 0 0 0;
-        color: #6c757d;
-        font-size: 1rem;
-    }
-    
+
+    /* Pagination */
     .pagination-section {
         display: flex;
         justify-content: center;
-        margin-top: 2rem;
+        padding: 1.5rem;
+        background: #f8f9fa;
+        border-top: 1px solid #e9ecef;
     }
     
     .pagination {
@@ -498,8 +489,8 @@
         color: white;
         border-color: #007bff;
     }
-    
-    /* Responsive design */
+
+    /* Responsive Design */
     @media (max-width: 1200px) {
         .filter-row {
             grid-template-columns: 1fr 1fr 1fr;
@@ -509,21 +500,9 @@
         .filter-row .form-group:first-child {
             grid-column: 1 / -1;
         }
-        
-        .students-grid {
-            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-        }
     }
     
     @media (max-width: 768px) {
-        .sidebar {
-            width: 200px;
-        }
-        
-        .main-content {
-            width: calc(100% - 200px);
-        }
-        
         .page-content {
             padding: 1rem;
         }
@@ -542,29 +521,34 @@
             justify-content: center;
         }
         
-        .students-grid {
-            grid-template-columns: 1fr;
-        }
-        
         .stats-grid {
             grid-template-columns: repeat(2, 1fr);
         }
+
+        /* Make table responsive */
+        .students-section {
+            overflow-x: auto;
+        }
+
+        .students-table {
+            min-width: 800px;
+        }
         
-        .student-actions {
-            flex-direction: column;
-            gap: 0.75rem;
+        .students-table th,
+        .students-table td {
+            padding: 0.5rem 0.375rem;
+        }
+
+        .student-info-cell {
+            min-width: 150px;
+        }
+
+        .subjects-list {
+            max-width: 100px;
         }
     }
     
     @media (max-width: 480px) {
-        .sidebar {
-            width: 60px;
-        }
-        
-        .main-content {
-            width: calc(100% - 60px);
-        }
-        
         .page-content {
             padding: 0.75rem;
         }
@@ -581,20 +565,12 @@
             font-size: 2rem;
         }
     }
-
-    /* Override any base template styles that might cause gaps */
-    .container-fluid,
-    .container {
-        padding: 0 !important;
-        margin: 0 !important;
-        max-width: none !important;
-        width: 100% !important;
-    }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="page-content">
+    <!-- Page Header -->
     <div class="page-header">
         <div class="page-header-content">
             <div class="page-title">
@@ -605,217 +581,246 @@
                 <a href="{{ url_for('admin.register_student') }}" class="btn btn-primary">
                     <i class="fas fa-plus"></i> Add New Student
                 </a>
+                <a href="{{ url_for('demo.register_demo_student') }}" class="btn btn-primary">
+                    <i class="fas fa-plus"></i> Add Demo Student
+                </a>
             </div>
         </div>
     </div>
 
-    <div class="students-container">
-        <div class="stats-section">
-            <div class="stats-grid">
-                <div class="stat-card">
-                    <span class="stat-value">{{ students.total }}</span>
-                    <span class="stat-label">Total Students</span>
-                </div>
-                <div class="stat-card">
-                    <span class="stat-value">
-                        {{ students.items | selectattr('enrollment_status', 'equalto', 'active') | list | length }}
-                    </span>
-                    <span class="stat-label">Active Students</span>
-                </div>
-                <div class="stat-card">
-                    <span class="stat-value">
-                        {{ students.items | selectattr('enrollment_status', 'equalto', 'paused') | list | length }}
-                    </span>
-                    <span class="stat-label">Paused Students</span>
-                </div>
-                <div class="stat-card">
-                    <span class="stat-value">
-                        {{ departments | length }}
-                    </span>
-                    <span class="stat-label">Departments</span>
-                </div>
+    <!-- Stats Section - Shows filtered results -->
+    <div class="stats-section">
+        <div class="stats-grid">
+            <div class="stat-card">
+                <span class="stat-value">{{ stats.total_students }}</span>
+                <span class="stat-label">Total Students</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-value">{{ stats.active_students }}</span>
+                <span class="stat-label">Active Students</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-value">{{ stats.paused_students }}</span>
+                <span class="stat-label">Paused Students</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-value">{{ departments | length }}</span>
+                <span class="stat-label">Departments</span>
             </div>
         </div>
+    </div>
 
-        <div class="filter-section">
-            <form method="GET" action="{{ url_for('admin.students') }}" class="filter-form">
-                <div class="filter-row">
-                    <div class="form-group">
-                        <label class="form-label">Search Students</label>
-                        <div class="search-group">
-                            <i class="fas fa-search search-icon"></i>
-                            <input type="text" name="search" class="search-input" 
-                                   placeholder="Search by name or email..." 
-                                   value="{{ request.args.get('search', '') }}">
+    <!-- Filter Section -->
+    <div class="filter-section">
+        <form method="GET" action="{{ url_for('admin.students') }}" class="filter-form">
+            <div class="filter-row">
+                <div class="form-group">
+                    <label class="form-label">Search Students</label>
+                    <div class="search-group">
+                        <i class="fas fa-search search-icon"></i>
+                        <input type="text" name="search" class="search-input" 
+                               placeholder="Search by name or email..." 
+                               value="{{ request.args.get('search', '') }}">
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Grade Level</label>
+                    <select name="grade" class="form-control form-select">
+                        <option value="">All Grades</option>
+                        {% for i in range(1, 13) %}
+                            <option value="{{ i }}" {% if request.args.get('grade') == i|string %}selected{% endif %}>
+                                Grade {{ i }}
+                            </option>
+                        {% endfor %}
+                        <option value="PG" {% if request.args.get('grade') == 'PG' %}selected{% endif %}>Post Graduate</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Department</label>
+                    <select name="department" class="form-control form-select">
+                        <option value="">All Departments</option>
+                        {% for dept in departments %}
+                            <option value="{{ dept.id }}" {% if request.args.get('department')|string == dept.id|string %}selected{% endif %}>
+                                {{ dept.name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="filter-buttons">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-filter"></i> Filter
+                    </button>
+                    
+                    <a href="{{ url_for('admin.students') }}" class="btn btn-outline">
+                        <i class="fas fa-times"></i> Clear
+                    </a>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <!-- Students Grid Table -->
+    {% if students.items %}
+    <div class="students-section">
+        <table class="students-table">
+            <thead>
+                <tr>
+                    <th>Student</th>
+                    <th>Grade & Board</th>
+                    <th>Department</th>
+                    <th>Status</th>
+                    <th>Fee Status</th>
+                    <th>Attendance</th>
+                    <th>Subjects</th>
+                    <th>Contact</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for student in students.items %}
+                <tr>
+                    <!-- Student Info -->
+                    <td>
+                        <div class="student-info-cell">
+                            <img src="{{ student.get_avatar_url() }}" 
+                                 alt="{{ student.full_name }}" 
+                                 class="student-avatar rounded-circle"
+                                 onerror="this.onerror=null; this.src='https://ui-avatars.com/api/?name={{ student.get_initials() }}&background=28a745&color=fff&size=80';"
+                                 loading="lazy">
+                            <div class="student-details">
+                                <div class="student-name">{{ student.full_name }}</div>
+                                <div class="student-email">{{ student.email }}</div>
+                            </div>
                         </div>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label class="form-label">Grade Level</label>
-                        <select name="grade" class="form-control form-select">
-                            <option value="">All Grades</option>
-                            {% for i in range(1, 13) %}
-                                <option value="{{ i }}" {% if request.args.get('grade') == i|string %}selected{% endif %}>
-                                    Grade {{ i }}
-                                </option>
+                    </td>
+
+                    <!-- Grade & Board -->
+                    <td>
+                        <div>Grade {{ student.grade }}</div>
+                        <small class="text-muted">({{ student.board }})</small>
+                    </td>
+
+                    <!-- Department -->
+                    <td>
+                        <div>{{ student.department.name if student.department else 'Not assigned' }}</div>
+                        {% if student.relationship_manager %}
+                            <small class="text-muted">RM: {{ student.relationship_manager }}</small>
+                        {% endif %}
+                    </td>
+
+                    <!-- Status -->
+                    <td>
+                        <div class="status-badge {{ student.enrollment_status }}">
+                            {% if student.enrollment_status == 'active' %}
+                                <i class="fas fa-check-circle"></i>
+                            {% elif student.enrollment_status == 'paused' %}
+                                <i class="fas fa-pause-circle"></i>
+                            {% elif student.enrollment_status == 'completed' %}
+                                <i class="fas fa-graduation-cap"></i>
+                            {% else %}
+                                <i class="fas fa-times-circle"></i>
+                            {% endif %}
+                            {{ student.enrollment_status.title() }}
+                        </div>
+                    </td>
+
+                    <!-- Fee Status -->
+                    <td>
+                        <div class="status-badge fee-badge {{ student.get_fee_status() }}">
+                            {% if student.get_fee_status() == 'paid' %}
+                                <i class="fas fa-check-circle"></i> Paid
+                            {% elif student.get_fee_status() == 'partial' %}
+                                <i class="fas fa-clock"></i> Partial
+                            {% else %}
+                                <i class="fas fa-exclamation-circle"></i> Pending
+                            {% endif %}
+                        </div>
+                    </td>
+
+                    <!-- Attendance -->
+                    <td>
+                        <div style="text-align: center;">
+                            <div style="font-weight: 600; margin-bottom: 0.25rem;">
+                                {{ "%.1f"|format(student.get_attendance_percentage()) }}%
+                            </div>
+                            <div class="progress-bar-container">
+                                {% set attendance = student.get_attendance_percentage() %}
+                                <div class="progress-bar {% if attendance >= 80 %}progress-good{% elif attendance >= 60 %}progress-average{% else %}progress-poor{% endif %}" 
+                                     style="width: {{ attendance }}%"></div>
+                            </div>
+                            <small class="text-muted">{{ student.attended_classes }}/{{ student.total_classes }}</small>
+                        </div>
+                    </td>
+
+                    <!-- Subjects -->
+                    <td>
+                        {% if student.get_subjects_enrolled() %}
+                        <div class="subjects-list">
+                            {% for subject in student.get_subjects_enrolled()[:2] %}
+                                <span class="subject-tag">{{ subject }}</span>
                             {% endfor %}
-                            <option value="PG" {% if request.args.get('grade') == 'PG' %}selected{% endif %}>Post Graduate</option>
-                        </select>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label class="form-label">Department</label>
-                        <select name="department" class="form-control form-select">
-                            <option value="">All Departments</option>
-                            {% for dept in departments %}
-                                <option value="{{ dept.id }}" {% if request.args.get('department')|int == dept.id %}selected{% endif %}>
-                                    {{ dept.name }}
-                                </option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    
-                    <div class="filter-buttons">
-                        <button type="submit" class="btn btn-primary">
-                            <i class="fas fa-filter"></i> Filter
-                        </button>
-                        
-                        <a href="{{ url_for('admin.students') }}" class="btn btn-outline">
-                            <i class="fas fa-times"></i> Clear
-                        </a>
-                    </div>
-                </div>
-            </form>
-        </div>
-
-        {% if students.items %}
-        <div class="students-grid">
-            {% for student in students.items %}
-            <div class="student-card">
-                <div class="student-header">
-                    <div class="student-avatar">
-                        {{ student.full_name[0].upper() }}
-                    </div>
-                    <div class="student-info">
-                        <h3>{{ student.full_name }}</h3>
-                        <p>{{ student.email }}</p>
-                    </div>
-                </div>
-
-                <div class="student-details">
-                    <div class="detail-row">
-                        <span class="detail-label">Grade & Board:</span>
-                        <span class="detail-value">Grade {{ student.grade }} ({{ student.board }})</span>
-                    </div>
-                    
-                    <div class="detail-row">
-                        <span class="detail-label">Department:</span>
-                        <span class="detail-value">{{ student.department.name if student.department else 'Not assigned' }}</span>
-                    </div>
-                    
-                    <div class="detail-row">
-                        <span class="detail-label">Contact:</span>
-                        <span class="detail-value">{{ student.phone or 'Not provided' }}</span>
-                    </div>
-                    
-                    <div class="detail-row">
-                        <span class="detail-label">RM:</span>
-                        <span class="detail-value">{{ student.relationship_manager or 'Not assigned' }}</span>
-                    </div>
-                    
-                    <div class="detail-row">
-                        <span class="detail-label">Attendance:</span>
-                        <span class="detail-value">{{ "%.1f"|format(student.get_attendance_percentage()) }}%</span>
-                    </div>
-                    
-                    <div class="detail-row">
-                        <span class="detail-label">Classes:</span>
-                        <span class="detail-value">{{ student.attended_classes }}/{{ student.total_classes }}</span>
-                    </div>
-                    
-                    <div class="detail-row">
-                        <span class="detail-label">Age:</span>
-                        <span class="detail-value">{{ student.get_age() or 'Unknown' }} years</span>
-                    </div>
-                </div>
-
-                <div class="student-badges">
-                    <div class="status-badge {{ student.enrollment_status }}">
-                        {% if student.enrollment_status == 'active' %}
-                            <i class="fas fa-check-circle"></i>
-                        {% elif student.enrollment_status == 'paused' %}
-                            <i class="fas fa-pause-circle"></i>
-                        {% elif student.enrollment_status == 'completed' %}
-                            <i class="fas fa-graduation-cap"></i>
+                            {% if student.get_subjects_enrolled()|length > 2 %}
+                                <span class="subject-tag">+{{ student.get_subjects_enrolled()|length - 2 }}</span>
+                            {% endif %}
+                        </div>
                         {% else %}
-                            <i class="fas fa-times-circle"></i>
+                        <small class="text-muted">No subjects</small>
                         {% endif %}
-                        {{ student.enrollment_status.title() }}
-                    </div>
-                    
-                    <div class="status-badge fee-badge {{ student.get_fee_status() }}">
-                        {% if student.get_fee_status() == 'paid' %}
-                            <i class="fas fa-check-circle"></i> Paid
-                        {% elif student.get_fee_status() == 'partial' %}
-                            <i class="fas fa-clock"></i> Partial
-                        {% else %}
-                            <i class="fas fa-exclamation-circle"></i> Pending
+                    </td>
+
+                    <!-- Contact -->
+                    <td>
+                        <div>{{ student.phone or 'Not provided' }}</div>
+                        {% if student.get_age() %}
+                            <small class="text-muted">Age: {{ student.get_age() }} years</small>
                         {% endif %}
-                    </div>
-                </div>
+                    </td>
 
-                {% if student.get_subjects_enrolled() %}
-                <div class="subjects-list">
-                    {% for subject in student.get_subjects_enrolled()[:3] %}
-                        <span class="subject-tag">{{ subject }}</span>
-                    {% endfor %}
-                    {% if student.get_subjects_enrolled()|length > 3 %}
-                        <span class="subject-tag">+{{ student.get_subjects_enrolled()|length - 3 }} more</span>
-                    {% endif %}
-                </div>
-                {% endif %}
+                    <!-- Actions -->
+                    <td>
+                        <div class="action-buttons">
+                            <a href="{{ url_for('admin.student_details', student_id=student.id) }}" 
+                               class="btn btn-primary" title="View Details">
+                                <i class="fas fa-eye"></i>
+                            </a>
+                            
+                            <a href="{{ url_for('admin.edit_student', student_id=student.id) }}" 
+                               class="btn btn-outline" title="Edit Student">
+                                <i class="fas fa-edit"></i>
+                            </a>
 
-                <div class="student-actions">
-                    <div class="btn-group">
-                        <a href="{{ url_for('admin.student_details', student_id=student.id) }}" 
-                           class="btn btn-primary btn-sm" title="View Details">
-                            <i class="fas fa-eye"></i>
-                        </a>
-                        
-                        <a href="{{ url_for('admin.edit_student', student_id=student.id) }}" 
-                           class="btn btn-outline btn-sm" title="Edit Student">
-                            <i class="fas fa-edit"></i>
-                        </a>
-                    </div>
-                    
-                    <div class="btn-group">
-                        {% if student.is_active %}
-                            <button type="button" class="btn btn-warning btn-sm" 
-                                    onclick="toggleStudentStatus({{ student.id }}, false)"
-                                    title="Deactivate Student">
-                                <i class="fas fa-pause"></i>
+                            {% if student.is_active %}
+                                <button type="button" class="btn btn-warning" 
+                                        onclick="toggleStudentStatus({{ student.id }}, false)"
+                                        title="Deactivate Student">
+                                    <i class="fas fa-pause"></i>
+                                </button>
+                            {% else %}
+                                <button type="button" class="btn btn-success" 
+                                        onclick="toggleStudentStatus({{ student.id }}, true)"
+                                        title="Activate Student">
+                                    <i class="fas fa-play"></i>
+                                </button>
+                            {% endif %}
+                            
+                            {% if current_user.role == 'superadmin' %}
+                            <button type="button" class="btn btn-danger" 
+                                    onclick="deleteStudent({{ student.id }}, '{{ student.full_name }}')"
+                                    title="Delete Student">
+                                <i class="fas fa-trash"></i>
                             </button>
-                        {% else %}
-                            <button type="button" class="btn btn-success btn-sm" 
-                                    onclick="toggleStudentStatus({{ student.id }}, true)"
-                                    title="Activate Student">
-                                <i class="fas fa-play"></i>
-                            </button>
-                        {% endif %}
-                        
-                        {% if current_user.role == 'superadmin' %}
-                        <button type="button" class="btn btn-danger btn-sm" 
-                                onclick="deleteStudent({{ student.id }}, '{{ student.full_name }}')"
-                                title="Delete Student">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                        {% endif %}
-                    </div>
-                </div>
-            </div>
-            {% endfor %}
-        </div>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
 
+        <!-- Pagination -->
         {% if students.pages > 1 %}
         <div class="pagination-section">
             <nav aria-label="Students pagination">
@@ -868,8 +873,11 @@
             </nav>
         </div>
         {% endif %}
+    </div>
 
-        {% else %}
+    {% else %}
+    <!-- No Students -->
+    <div class="students-section">
         <div class="no-students">
             <i class="fas fa-user-graduate"></i>
             <h3>No Students Found</h3>
@@ -883,8 +891,8 @@
                 </a>
             {% endif %}
         </div>
-        {% endif %}
     </div>
+    {% endif %}
 </div>
 {% endblock %}
 
@@ -908,9 +916,38 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!confirm(`Are you sure you want to ${action} this student?`)) {
             return;
         }
-        
-        // Add your AJAX call here
-        console.log(`${action} student ${studentId}`);
+
+        const button = event.target.closest('button');
+        const originalHTML = button.innerHTML;
+        button.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        button.disabled = true;
+
+        fetch(`/admin/students/${studentId}/toggle-status`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('meta[name=csrf-token]')?.getAttribute('content') || ''
+            },
+            body: JSON.stringify({})
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(data.message);
+                window.location.reload();
+            } else {
+                alert('Error: ' + (data.error || `Failed to ${action} student`));
+                button.innerHTML = originalHTML;
+                button.disabled = false;
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert(`Error ${action}ing student`);
+            button.innerHTML = originalHTML;
+            button.disabled = false;
+        });        
+
     };
     
     // Delete student
@@ -925,20 +962,56 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
-        // Add your AJAX call here
-        console.log(`Delete student ${studentId}`);
+        const button = event.target.closest('button');
+        const originalHTML = button.innerHTML;
+        button.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        button.disabled = true;
+
+        fetch(`/admin/students/${studentId}/delete`, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('meta[name=csrf-token]')?.getAttribute('content') || ''
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(data.message);
+                window.location.reload();
+            } else {
+                alert('Error: ' + (data.error || 'Failed to delete student'));
+                button.innerHTML = originalHTML;
+                button.disabled = false;
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error deleting student');
+            button.innerHTML = originalHTML;
+            button.disabled = false;
+        });
+
     };
     
     // Search with debounce
     const searchInput = document.querySelector('input[name="search"]');
     let searchTimeout;
-    
-    searchInput?.addEventListener('input', function() {
-        clearTimeout(searchTimeout);
-        searchTimeout = setTimeout(() => {
-            filterForm.submit();
-        }, 500);
-    });
+
+    if (searchInput) {
+        searchInput.addEventListener('input', function() {
+            clearTimeout(searchTimeout);
+             searchTimeout = setTimeout(() => {
+                filterForm.submit();
+            }, 1200);
+        });
+        searchInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                clearTimeout(searchTimeout);
+                filterForm.submit();
+            }
+        });
+    }
 });
 </script>
 {% endblock %}

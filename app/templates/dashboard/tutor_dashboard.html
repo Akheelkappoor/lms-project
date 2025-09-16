@@ -10,7 +10,7 @@
             <div>
                 <h1 class="page-title">
                     <i class="fas fa-chalkboard-teacher"></i>
-                    Welcome, {{ tutor.user.full_name }}!
+                    Welcome, {{ tutor.user.full_name if tutor and tutor.user else 'Tutor' }}!
                 </h1>
                 <p class="page-subtitle">Here's your teaching overview for today</p>
             </div>
@@ -90,7 +90,7 @@
                         <i class="fas fa-calendar-alt"></i>
                         Today's Schedule
                     </h5>
-                    <span class="badge badge-primary">{{ todays_classes|length }} classes</span>
+                    <span class="badge bg-primary">{{ todays_classes|length }} classes</span>
                 </div>
                 <div class="card-body">
                     {% if todays_classes %}
@@ -98,7 +98,7 @@
                             {% for class in todays_classes %}
                             <div class="schedule-item">
                                 <div class="schedule-time">
-                                    <span class="time">{{ class.scheduled_time.strftime('%H:%M') }}</span>
+                                    <span class="time">{{ class.scheduled_time.strftime('%I:%M %p') }}</span>
                                     <span class="duration">{{ class.get_duration_display() }}</span>
                                 </div>
                                 <div class="schedule-content">
@@ -140,7 +140,7 @@
                                             Complete
                                         </button>
                                     {% else %}
-                                        <span class="badge badge-{{ 'success' if class.status == 'completed' else 'secondary' }}">
+                                        <span class="badge bg-{{ 'success' if class.status == 'completed' else 'secondary' }}">
                                             {{ class.status|title }}
                                         </span>
                                     {% endif %}
@@ -275,7 +275,7 @@
                                         <td>
                                             <div class="class-datetime">
                                                 <strong>{{ class.scheduled_date.strftime('%d %b') }}</strong><br>
-                                                <small class="text-muted">{{ class.scheduled_time.strftime('%H:%M') }}</small>
+                                                <small class="text-muted">{{ class.scheduled_time.strftime('%I:%M %p') }}</small>
                                             </div>
                                         </td>
                                         <td>
@@ -292,12 +292,12 @@
                                                     One-on-One
                                                 {% endif %}
                                             {% else %}
-                                                <span class="badge badge-info">Group ({{ class.get_students()|length }})</span>
+                                                <span class="badge bg-info">Group ({{ class.get_students()|length }})</span>
                                             {% endif %}
                                         </td>
                                         <td>{{ class.get_duration_display() }}</td>
                                         <td>
-                                            <span class="badge badge-primary">{{ class.status|title }}</span>
+                                            <span class="badge bg-primary">{{ class.status|title }}</span>
                                         </td>
                                         <td>
                                             <div class="btn-group btn-group-sm">

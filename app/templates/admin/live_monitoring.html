@@ -1,0 +1,1026 @@
+<!-- app/templates/admin/live_monitoring.html -->
+{% extends "base.html" %}
+
+{% block title %}Live Class Monitoring - {{ APP_NAME }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h1 class="page-title">
+                <i class="fas fa-tv"></i>
+                Live Class Monitoring
+            </h1>
+            <p class="page-subtitle">Real-time monitoring of classes, attendance, and video compliance</p>
+        </div>
+        <div class="header-actions">
+            <div class="btn-group">
+                <button class="btn btn-outline-primary" onclick="refreshDashboard()">
+                    <i class="fas fa-sync-alt" id="refreshIcon"></i>
+                    Refresh
+                </button>
+                <button class="btn btn-outline-info" data-bs-toggle="modal" data-bs-target="#settingsModal">
+                    <i class="fas fa-cog"></i>
+                    Settings
+                </button>
+                <div class="btn-group">
+                    <button class="btn btn-primary dropdown-toggle" data-bs-toggle="dropdown">
+                        <i class="fas fa-download"></i>
+                        Export
+                    </button>
+                    <ul class="dropdown-menu">
+                        <li><a class="dropdown-item" href="#" onclick="exportReport('daily')">Daily Report</a></li>
+                        <li><a class="dropdown-item" href="#" onclick="exportReport('weekly')">Weekly Report</a></li>
+                        <li><a class="dropdown-item" href="#" onclick="exportReport('compliance')">Compliance Report</a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="container-fluid">
+    <!-- Real-time Stats -->
+    <div class="row g-4 mb-4">
+        <div class="col-lg-3 col-md-6">
+            <div class="stat-card live-stat">
+                <div class="stat-icon danger">
+                    <i class="fas fa-play-circle"></i>
+                </div>
+                <div class="stat-content">
+                    <h3 id="liveClassesCount">{{ live_stats.ongoing_classes }}</h3>
+                    <p>Live Classes</p>
+                    <div class="stat-trend">
+                        <small class="text-muted">
+                            <i class="fas fa-clock"></i>
+                            Last updated: <span id="lastUpdate">{{ current_time.strftime('%H:%M') }}</span>
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-3 col-md-6">
+            <div class="stat-card">
+                <div class="stat-icon warning">
+                    <i class="fas fa-video"></i>
+                </div>
+                <div class="stat-content">
+                    <h3 id="pendingVideosCount">{{ live_stats.pending_videos }}</h3>
+                    <p>Videos Pending</p>
+                    <div class="stat-trend">
+                        {% if live_stats.overdue_videos > 0 %}
+                        <span class="badge bg-danger">{{ live_stats.overdue_videos }} overdue</span>
+                        {% else %}
+                        <span class="badge bg-success">All on time</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-3 col-md-6">
+            <div class="stat-card">
+                <div class="stat-icon success">
+                    <i class="fas fa-robot"></i>
+                </div>
+                <div class="stat-content">
+                    <h3 id="autoAttendanceCount">{{ live_stats.auto_attendance_today }}</h3>
+                    <p>Auto-Attendance Today</p>
+                    <div class="stat-trend">
+                        <small class="text-success">
+                            {{ ((live_stats.auto_attendance_today / live_stats.total_classes_today * 100) if live_stats.total_classes_today > 0 else 0)|round(1) }}% automated
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-3 col-md-6">
+            <div class="stat-card">
+                <div class="stat-icon info">
+                    <i class="fas fa-exclamation-triangle"></i>
+                </div>
+                <div class="stat-content">
+                    <h3 id="alertsCount">{{ live_stats.active_alerts }}</h3>
+                    <p>Active Alerts</p>
+                    <div class="stat-trend">
+                        {% if live_stats.critical_alerts > 0 %}
+                        <span class="badge bg-danger">{{ live_stats.critical_alerts }} critical</span>
+                        {% else %}
+                        <span class="badge bg-success">All good</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Live Classes Monitor -->
+        <div class="col-xl-8">
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-broadcast-tower"></i>
+                        Live Classes Monitor
+                    </h5>
+                    <div class="live-indicator">
+                        <span class="badge bg-success">
+                            <span class="live-dot"></span>
+                            LIVE
+                        </span>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0" id="liveClassesTable">
+                            <thead>
+                                <tr>
+                                    <th>Class</th>
+                                    <th>Tutor</th>
+                                    <th>Students</th>
+                                    <th>Status</th>
+                                    <th>Duration</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for class in live_classes %}
+                                <tr class="live-class-row" data-class-id="{{ class.id }}">
+                                    <td>
+                                        <div>
+                                            <strong>{{ class.subject }}</strong><br>
+                                            <small class="text-muted">
+                                                {{ class.scheduled_time.strftime('%H:%M') }}
+                                                {% if class.meeting_link %}
+                                                    <i class="fas fa-video text-success ms-1" title="Meeting active"></i>
+                                                {% endif %}
+                                            </small>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="tutor-info">
+                                            <strong>{{ class.tutor.user.full_name if class.tutor else 'Unknown' }}</strong><br>
+                                            <small class="text-muted">
+                                                {% if class.tutor and class.tutor.rating %}
+                                                    ⭐ {{ class.tutor.rating }}/5
+                                                {% endif %}
+                                            </small>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-info">
+                                            {{ class.get_students()|length }} enrolled
+                                        </span>
+                                        {% set present_count = attendance_stats.get(class.id, {}).get('present', 0) %}
+                                        {% if present_count > 0 %}
+                                            <br><small class="text-success">{{ present_count }} present</small>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if class.status == 'ongoing' %}
+                                            <span class="badge bg-success">
+                                                <span class="pulse"></span>
+                                                Live
+                                            </span>
+                                        {% elif class.status == 'scheduled' %}
+                                            <span class="badge bg-warning">Starting Soon</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">{{ class.status|title }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if class.actual_start_time %}
+                                            {# Calculate duration using Python datetime operations instead of moment() #}
+                                            {% set current_time = now() %}
+                                            {% set duration_seconds = (current_time - class.actual_start_time).total_seconds() %}
+                                            {% set duration_minutes = (duration_seconds / 60)|int %}
+                                            <span class="duration-live">{{ duration_minutes }}m</span>
+                                            <br><small class="text-muted">of {{ class.duration }}m</small>
+                                        {% else %}
+                                            <span class="text-muted">{{ class.duration }}m</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            <button class="btn btn-outline-primary" onclick="viewClassDetails({{ class.id }})">
+                                                <i class="fas fa-eye"></i>
+                                            </button>
+                                            {% if class.meeting_link %}
+                                                <a href="{{ class.meeting_link }}" target="_blank" class="btn btn-outline-info">
+                                                    <i class="fas fa-video"></i>
+                                                </a>
+                                            {% endif %}
+                                            <button class="btn btn-outline-warning" onclick="sendAlert({{ class.id }})">
+                                                <i class="fas fa-bell"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="6" class="text-center py-4">
+                                        <i class="fas fa-moon fa-2x text-muted mb-2"></i>
+                                        <h6 class="text-muted">No live classes at the moment</h6>
+                                        <p class="text-muted mb-0">All quiet on the learning front!</p>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Video Upload Compliance -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-video"></i>
+                        Video Upload Compliance
+                    </h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Class</th>
+                                    <th>Tutor</th>
+                                    <th>Completed</th>
+                                    <th>Deadline</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for class in pending_videos %}
+                                <tr class="{{ 'table-danger' if class.is_video_upload_overdue() else 'table-warning' }}">
+                                    <td>
+                                        <strong>{{ class.subject }}</strong><br>
+                                        <small class="text-muted">{{ class.scheduled_date.strftime('%d %b') }}</small>
+                                    </td>
+                                    <td>{{ class.tutor.user.full_name if class.tutor else 'Unknown' }}</td>
+                                    <td>{{ class.actual_end_time.strftime('%H:%M') if class.actual_end_time else '-' }}</td>
+                                    <td>
+                                        {% if class.video_upload_deadline %}
+                                            {{ class.video_upload_deadline.strftime('%H:%M') }}<br>
+                                            {% set time_remaining = class.get_video_upload_time_remaining() %}
+                                            {% if time_remaining > 0 %}
+                                                <small class="text-warning">{{ time_remaining }}m left</small>
+                                            {% else %}
+                                                <small class="text-danger">{{ (time_remaining * -1) }}m overdue</small>
+                                            {% endif %}
+                                        {% else %}
+                                            <span class="text-muted">Not set</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if class.is_video_upload_overdue() %}
+                                            <span class="badge bg-danger">
+                                                <i class="fas fa-exclamation-triangle"></i>
+                                                Overdue
+                                            </span>
+                                        {% else %}
+                                            <span class="badge bg-warning">
+                                                <i class="fas fa-clock"></i>
+                                                Pending
+                                            </span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            <button class="btn btn-outline-primary" onclick="contactTutor({{ class.tutor.id if class.tutor else 0 }})">
+                                                <i class="fas fa-phone"></i>
+                                            </button>
+                                            <button class="btn btn-outline-warning" onclick="sendReminder({{ class.id }})">
+                                                <i class="fas fa-bell"></i>
+                                            </button>
+                                            <button class="btn btn-outline-danger" onclick="markIncomplete({{ class.id }})">
+                                                <i class="fas fa-times"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="6" class="text-center py-4">
+                                        <i class="fas fa-check-circle fa-2x text-success mb-2"></i>
+                                        <h6 class="text-success">All videos uploaded on time!</h6>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="col-xl-4">
+            <!-- Today's Summary -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-calendar-day"></i>
+                        Today's Summary
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="summary-items">
+                        <div class="summary-item">
+                            <div class="summary-icon">
+                                <i class="fas fa-chalkboard text-primary"></i>
+                            </div>
+                            <div class="summary-content">
+                                <h6>{{ today_summary.total_classes }}</h6>
+                                <span>Total Classes</span>
+                            </div>
+                        </div>
+                        
+                        <div class="summary-item">
+                            <div class="summary-icon">
+                                <i class="fas fa-check-circle text-success"></i>
+                            </div>
+                            <div class="summary-content">
+                                <h6>{{ today_summary.completed_classes }}</h6>
+                                <span>Completed</span>
+                            </div>
+                        </div>
+                        
+                        <div class="summary-item">
+                            <div class="summary-icon">
+                                <i class="fas fa-robot text-info"></i>
+                            </div>
+                            <div class="summary-content">
+                                <h6>{{ today_summary.auto_attendance }}</h6>
+                                <span>Auto-Attendance</span>
+                            </div>
+                        </div>
+                        
+                        <div class="summary-item">
+                            <div class="summary-icon">
+                                <i class="fas fa-video text-warning"></i>
+                            </div>
+                            <div class="summary-content">
+                                <h6>{{ today_summary.videos_uploaded }}</h6>
+                                <span>Videos Uploaded</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- System Alerts -->
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        System Alerts
+                    </h6>
+                    <button class="btn btn-sm btn-outline-secondary" onclick="refreshAlerts()">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
+                </div>
+                <div class="card-body p-0">
+                    <div class="alerts-list" id="alertsList">
+                        {% for alert in system_alerts %}
+                        <div class="alert-item {{ alert.severity }}">
+                            <div class="alert-icon">
+                                <i class="fas {{ alert.icon }}"></i>
+                            </div>
+                            <div class="alert-content">
+                                <h6>{{ alert.title }}</h6>
+                                <p>{{ alert.message }}</p>
+                                <small class="text-muted">{{ alert.timestamp.strftime('%H:%M') }}</small>
+                            </div>
+                            {% if alert.action_url %}
+                            <div class="alert-action">
+                                <a href="{{ alert.action_url }}" class="btn btn-sm btn-outline-primary">
+                                    Fix
+                                </a>
+                            </div>
+                            {% endif %}
+                        </div>
+                        {% else %}
+                        <div class="text-center py-4">
+                            <i class="fas fa-check-circle fa-2x text-success mb-2"></i>
+                            <h6 class="text-success">All Clear!</h6>
+                            <p class="text-muted mb-0">No active alerts</p>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Performance Metrics -->
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-chart-line"></i>
+                        Performance Metrics
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="metrics-grid">
+                        <div class="metric-item">
+                            <div class="metric-value">{{ performance_metrics.avg_completion_rate }}%</div>
+                            <div class="metric-label">Completion Rate</div>
+                            <div class="metric-progress">
+                                <div class="progress">
+                                    <div class="progress-bar bg-success" style="width: {{ performance_metrics.avg_completion_rate }}%"></div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="metric-item">
+                            <div class="metric-value">{{ performance_metrics.avg_punctuality }}%</div>
+                            <div class="metric-label">Punctuality</div>
+                            <div class="metric-progress">
+                                <div class="progress">
+                                    <div class="progress-bar bg-info" style="width: {{ performance_metrics.avg_punctuality }}%"></div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="metric-item">
+                            <div class="metric-value">{{ performance_metrics.video_compliance }}%</div>
+                            <div class="metric-label">Video Compliance</div>
+                            <div class="metric-progress">
+                                <div class="progress">
+                                    <div class="progress-bar bg-warning" style="width: {{ performance_metrics.video_compliance }}%"></div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="metric-item">
+                            <div class="metric-value">{{ performance_metrics.avg_rating }}/5</div>
+                            <div class="metric-label">Avg Tutor Rating</div>
+                            <div class="metric-progress">
+                                <div class="progress">
+                                    <div class="progress-bar bg-primary" style="width: {{ (performance_metrics.avg_rating / 5 * 100) }}%"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Settings Modal -->
+<div class="modal fade" id="settingsModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-cog"></i>
+                    Monitoring Settings
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="settingsForm">
+                    <div class="mb-3">
+                        <label class="form-label">Auto-refresh interval</label>
+                        <select class="form-select" id="refreshInterval">
+                            <option value="30">30 seconds</option>
+                            <option value="60" selected>1 minute</option>
+                            <option value="120">2 minutes</option>
+                            <option value="300">5 minutes</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Alert notifications</label>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="enableAlerts" checked>
+                            <label class="form-check-label" for="enableAlerts">
+                                Enable browser notifications
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Sound alerts</label>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="enableSounds">
+                            <label class="form-check-label" for="enableSounds">
+                                Play sound for critical alerts
+                            </label>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="saveSettings()">Save Changes</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+/* Live monitoring styles */
+.live-stat {
+    position: relative;
+    overflow: visible;
+}
+
+.live-stat::before {
+    content: '';
+    position: absolute;
+    top: -2px;
+    left: -2px;
+    right: -2px;
+    bottom: -2px;
+    background: linear-gradient(45deg, #ff6b6b, #4ecdc4, #45b7d1, #96ceb4, #feca57);
+    border-radius: 12px;
+    z-index: -1;
+    animation: gradientShift 3s ease infinite;
+    background-size: 300% 300%;
+}
+
+@keyframes gradientShift {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+
+.live-indicator .live-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    background: #28a745;
+    border-radius: 50%;
+    margin-right: 6px;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.2); opacity: 0.7; }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+.pulse {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    background: currentColor;
+    border-radius: 50%;
+    margin-right: 4px;
+    animation: pulse 1.5s infinite;
+}
+
+.duration-live {
+    color: #28a745;
+    font-weight: bold;
+}
+
+/* Summary items */
+.summary-items {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.summary-item {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.75rem;
+    background: #f8f9fa;
+    border-radius: 8px;
+}
+
+.summary-icon {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: white;
+}
+
+.summary-content h6 {
+    margin-bottom: 0;
+    font-size: 1.25rem;
+    font-weight: bold;
+}
+
+.summary-content span {
+    font-size: 0.875rem;
+    color: #6c757d;
+}
+
+/* Alerts */
+.alerts-list {
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.alert-item {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.alert-item:last-child {
+    border-bottom: none;
+}
+
+.alert-item.critical {
+    background: rgba(220, 53, 69, 0.05);
+}
+
+.alert-item.warning {
+    background: rgba(255, 193, 7, 0.05);
+}
+
+.alert-icon {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.alert-item.critical .alert-icon {
+    background: #dc3545;
+    color: white;
+}
+
+.alert-item.warning .alert-icon {
+    background: #ffc107;
+    color: #212529;
+}
+
+.alert-content {
+    flex: 1;
+}
+
+.alert-content h6 {
+    margin-bottom: 0.25rem;
+    font-size: 0.875rem;
+}
+
+.alert-content p {
+    margin-bottom: 0.25rem;
+    font-size: 0.8rem;
+    color: #6c757d;
+}
+
+/* Performance metrics */
+.metrics-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+}
+
+.metric-item {
+    text-align: center;
+    padding: 1rem;
+    background: #f8f9fa;
+    border-radius: 8px;
+}
+
+.metric-value {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: #495057;
+}
+
+.metric-label {
+    font-size: 0.8rem;
+    color: #6c757d;
+    margin-bottom: 0.5rem;
+}
+
+.metric-progress .progress {
+    height: 4px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .metrics-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .summary-item {
+        flex-direction: column;
+        text-align: center;
+    }
+    
+    .alert-item {
+        flex-direction: column;
+        text-align: center;
+    }
+}
+</style>
+
+<script>
+// Live monitoring JavaScript
+let refreshInterval = 60000; // 1 minute default
+let autoRefreshEnabled = true;
+let intervalId;
+
+// Initialize monitoring
+document.addEventListener('DOMContentLoaded', function() {
+    // Request notification permission
+    if ('Notification' in window && Notification.permission === 'default') {
+        Notification.requestPermission();
+    }
+    
+    // Start auto-refresh
+    startAutoRefresh();
+    
+    // Load saved settings
+    loadSettings();
+});
+
+function startAutoRefresh() {
+    if (intervalId) clearInterval(intervalId);
+    
+    intervalId = setInterval(() => {
+        if (autoRefreshEnabled) {
+            refreshDashboard();
+        }
+    }, refreshInterval);
+}
+
+function refreshDashboard() {
+    const refreshIcon = document.getElementById('refreshIcon');
+    refreshIcon.classList.add('fa-spin');
+    
+    fetch('/admin/api/live-monitoring-data')
+        .then(response => response.json())
+        .then(data => {
+            updateDashboardData(data);
+            updateLastRefreshTime();
+        })
+        .catch(error => {
+            console.error('Error refreshing dashboard:', error);
+        })
+        .finally(() => {
+            refreshIcon.classList.remove('fa-spin');
+        });
+}
+
+function updateDashboardData(data) {
+    // Update stats
+    document.getElementById('liveClassesCount').textContent = data.live_stats.ongoing_classes;
+    document.getElementById('pendingVideosCount').textContent = data.live_stats.pending_videos;
+    document.getElementById('autoAttendanceCount').textContent = data.live_stats.auto_attendance_today;
+    document.getElementById('alertsCount').textContent = data.live_stats.active_alerts;
+    
+    // Update live classes table
+    updateLiveClassesTable(data.live_classes);
+    
+    // Update alerts
+    updateAlertsList(data.system_alerts);
+    
+    // Check for new critical alerts
+    checkForNewAlerts(data.system_alerts);
+}
+
+function updateLiveClassesTable(liveClasses) {
+    const tbody = document.querySelector('#liveClassesTable tbody');
+    
+    if (liveClasses.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="6" class="text-center py-4">
+                    <i class="fas fa-moon fa-2x text-muted mb-2"></i>
+                    <h6 class="text-muted">No live classes at the moment</h6>
+                    <p class="text-muted mb-0">All quiet on the learning front!</p>
+                </td>
+            </tr>
+        `;
+        return;
+    }
+    
+    tbody.innerHTML = liveClasses.map(cls => `
+        <tr class="live-class-row" data-class-id="${cls.id}">
+            <td>
+                <div>
+                    <strong>${cls.subject}</strong><br>
+                    <small class="text-muted">
+                        ${cls.scheduled_time}
+                        ${cls.meeting_link ? '<i class="fas fa-video text-success ms-1" title="Meeting active"></i>' : ''}
+                    </small>
+                </div>
+            </td>
+            <td>
+                <div class="tutor-info">
+                    <strong>${cls.tutor_name}</strong><br>
+                    <small class="text-muted">⭐ ${cls.tutor_rating}/5</small>
+                </div>
+            </td>
+            <td>
+                <span class="badge bg-info">${cls.student_count} enrolled</span>
+                ${cls.present_count > 0 ? `<br><small class="text-success">${cls.present_count} present</small>` : ''}
+            </td>
+            <td>
+                <span class="badge bg-success">
+                    <span class="pulse"></span>
+                    Live
+                </span>
+            </td>
+            <td>
+                <span class="duration-live">${cls.duration_minutes}m</span>
+                <br><small class="text-muted">of ${cls.scheduled_duration}m</small>
+            </td>
+            <td>
+                <div class="btn-group btn-group-sm">
+                    <button class="btn btn-outline-primary" onclick="viewClassDetails(${cls.id})">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                    ${cls.meeting_link ? `<a href="${cls.meeting_link}" target="_blank" class="btn btn-outline-info"><i class="fas fa-video"></i></a>` : ''}
+                    <button class="btn btn-outline-warning" onclick="sendAlert(${cls.id})">
+                        <i class="fas fa-bell"></i>
+                    </button>
+                </div>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function updateAlertsList(alerts) {
+    const alertsList = document.getElementById('alertsList');
+    
+    if (alerts.length === 0) {
+        alertsList.innerHTML = `
+            <div class="text-center py-4">
+                <i class="fas fa-check-circle fa-2x text-success mb-2"></i>
+                <h6 class="text-success">All Clear!</h6>
+                <p class="text-muted mb-0">No active alerts</p>
+            </div>
+        `;
+        return;
+    }
+    
+    alertsList.innerHTML = alerts.map(alert => `
+        <div class="alert-item ${alert.severity}">
+            <div class="alert-icon">
+                <i class="fas ${alert.icon}"></i>
+            </div>
+            <div class="alert-content">
+                <h6>${alert.title}</h6>
+                <p>${alert.message}</p>
+                <small class="text-muted">${alert.timestamp}</small>
+            </div>
+            ${alert.action_url ? `
+                <div class="alert-action">
+                    <a href="${alert.action_url}" class="btn btn-sm btn-outline-primary">Fix</a>
+                </div>
+            ` : ''}
+        </div>
+    `).join('');
+}
+
+function checkForNewAlerts(alerts) {
+    const criticalAlerts = alerts.filter(alert => alert.severity === 'critical');
+    
+    if (criticalAlerts.length > 0 && 'Notification' in window && Notification.permission === 'granted') {
+        criticalAlerts.forEach(alert => {
+            new Notification('LMS Critical Alert', {
+                body: alert.message,
+                icon: '/static/img/logo.png'
+            });
+        });
+    }
+}
+
+function updateLastRefreshTime() {
+    const now = new Date();
+    document.getElementById('lastUpdate').textContent = 
+        now.getHours().toString().padStart(2, '0') + ':' + 
+        now.getMinutes().toString().padStart(2, '0');
+}
+
+// Action functions
+function viewClassDetails(classId) {
+    window.open(`/admin/class/${classId}`, '_blank');
+}
+
+function sendAlert(classId) {
+    // Implement alert sending
+    console.log('Sending alert for class:', classId);
+}
+
+function contactTutor(tutorId) {
+    window.open(`/admin/tutor/${tutorId}/contact`, '_blank');
+}
+
+function sendReminder(classId) {
+    if (confirm('Send urgent video upload reminder?')) {
+        fetch(`/admin/api/send-video-reminder/${classId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                LMS.showAlert('Reminder sent successfully', 'success');
+            } else {
+                LMS.showAlert('Error sending reminder', 'error');
+            }
+        });
+    }
+}
+
+function markIncomplete(classId) {
+    if (confirm('Mark this class as incomplete due to missing video?')) {
+        fetch(`/admin/api/mark-class-incomplete/${classId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                reason: 'video_upload_deadline_missed'
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                LMS.showAlert('Class marked as incomplete', 'success');
+                refreshDashboard();
+            } else {
+                LMS.showAlert('Error marking class incomplete', 'error');
+            }
+        });
+    }
+}
+
+// Settings functions
+function saveSettings() {
+    const newInterval = parseInt(document.getElementById('refreshInterval').value) * 1000;
+    const alertsEnabled = document.getElementById('enableAlerts').checked;
+    const soundsEnabled = document.getElementById('enableSounds').checked;
+    
+    refreshInterval = newInterval;
+    
+    // Save to localStorage
+    localStorage.setItem('lms_monitoring_refresh_interval', newInterval);
+    localStorage.setItem('lms_monitoring_alerts_enabled', alertsEnabled);
+    localStorage.setItem('lms_monitoring_sounds_enabled', soundsEnabled);
+    
+    // Restart auto-refresh with new interval
+    startAutoRefresh();
+    
+    // Close modal
+    bootstrap.Modal.getInstance(document.getElementById('settingsModal')).hide();
+    
+    LMS.showAlert('Settings saved successfully', 'success');
+}
+
+function loadSettings() {
+    const savedInterval = localStorage.getItem('lms_monitoring_refresh_interval');
+    const savedAlerts = localStorage.getItem('lms_monitoring_alerts_enabled');
+    const savedSounds = localStorage.getItem('lms_monitoring_sounds_enabled');
+    
+    if (savedInterval) {
+        refreshInterval = parseInt(savedInterval);
+        document.getElementById('refreshInterval').value = refreshInterval / 1000;
+    }
+    
+    if (savedAlerts !== null) {
+        document.getElementById('enableAlerts').checked = savedAlerts === 'true';
+    }
+    
+    if (savedSounds !== null) {
+        document.getElementById('enableSounds').checked = savedSounds === 'true';
+    }
+}
+
+function exportReport(type) {
+    window.location.href = `/admin/api/export-monitoring-report?type=${type}`;
+}
+
+function refreshAlerts() {
+    fetch('/admin/api/system-alerts')
+        .then(response => response.json())
+        .then(data => {
+            updateAlertsList(data.alerts);
+        });
+}
+
+// Cleanup on page unload
+window.addEventListener('beforeunload', function() {
+    if (intervalId) {
+        clearInterval(intervalId);
+    }
+});
+</script>
+{% endblock %}

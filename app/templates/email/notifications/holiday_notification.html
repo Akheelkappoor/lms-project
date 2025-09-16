@@ -1,0 +1,44 @@
+{% extends "email/notifications/base_notification.html" %}
+
+{% block type_specific_content %}
+<div class="info-box" style="background-color: #fff8e1; border-left: 4px solid #ffc107;">
+    <h4 style="color: #f57f17;">🎉 Holiday Information</h4>
+    <p style="margin-bottom: 10px;"><strong>What this means for you:</strong></p>
+    <ul style="margin-bottom: 0; color: #f57f17;">
+        {% if user.role == 'student' %}
+        <li>No classes scheduled on this date</li>
+        <li>Study materials and assignments remain accessible online</li>
+        <li>Make-up classes (if any) will be scheduled separately</li>
+        <li>Emergency contact numbers remain active</li>
+        {% elif user.role == 'tutor' %}
+        <li>No classes to conduct on this date</li>
+        <li>Please reschedule any planned assessments</li>
+        <li>Update your calendar and inform students if needed</li>
+        <li>Administrative offices will be closed</li>
+        {% elif user.role in ['coordinator', 'admin', 'superadmin'] %}
+        <li>Administrative offices will be closed</li>
+        <li>Please inform your department staff and students</li>
+        <li>Emergency protocols remain in effect</li>
+        <li>Plan ahead for any urgent matters</li>
+        {% endif %}
+    </ul>
+</div>
+
+{% if notification.expires_at %}
+<div class="info-box">
+    <h4>📅 Schedule Information</h4>
+    <p><strong>Holiday Date:</strong> {{ notification.expires_at.strftime('%A, %B %d, %Y') }}</p>
+    <p><strong>Classes Resume:</strong> {{ (notification.expires_at + timedelta(days=1)).strftime('%A, %B %d, %Y') if notification.expires_at else 'As per regular schedule' }}</p>
+    <p style="margin-bottom: 0;"><em>Regular activities will resume as per the standard timetable unless otherwise notified.</em></p>
+</div>
+{% endif %}
+
+<div style="text-align: center; margin: 30px 0;">
+    <p style="font-size: 18px; color: #f57f17; font-weight: bold;">
+        🌟 Enjoy your holiday! 🌟
+    </p>
+    <p style="color: #666; font-style: italic;">
+        We wish you a wonderful time with your family and friends.
+    </p>
+</div>
+{% endblock %}

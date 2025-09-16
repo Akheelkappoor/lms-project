@@ -10,9 +10,16 @@
                 <i class="fas fa-building"></i>
                 Department Management
             </h1>
-            <p class="page-subtitle">Manage departments and their permissions</p>
+            <p class="page-subtitle">Create departments and control what each department can do in the system</p>
         </div>
         <div class="header-actions">
+            <!-- Advanced Permission Management Button -->
+            {% if departments %}
+            <a href="{{ url_for('admin.permission_management', dept_id=departments[0].id) }}" class="btn btn-outline-primary me-2">
+                <i class="fas fa-cogs"></i>
+                Advanced Permissions
+            </a>
+            {% endif %}
             {% if current_user.role in ['superadmin', 'admin'] %}
             <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createDepartmentModal">
                 <i class="fas fa-plus"></i>
@@ -23,7 +30,15 @@
     </div>
 </div>
 
+<!-- Help Section -->
 <div class="container-fluid">
+    <div class="alert alert-info alert-dismissible fade show mb-4" role="alert">
+        <i class="fas fa-info-circle me-2"></i>
+        <strong>How it works:</strong> 
+        Create departments (like Math, Science, English), then set permissions to control what each department can do.
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    
     <div class="row g-4">
         {% for department in departments %}
         <div class="col-lg-4 col-md-6">
@@ -35,29 +50,47 @@
                             {{ department.name }}
                         </h5>
                         <div class="dropdown">
-                            <button class="btn btn-sm btn-outline-secondary" type="button" 
-                                    data-bs-toggle="dropdown" aria-expanded="false">
+                            <button class="btn btn-sm btn-outline-secondary dropdown-toggle-custom" type="button" 
+                                    data-bs-toggle="dropdown" aria-expanded="false" title="More Actions">
                                 <i class="fas fa-ellipsis-v"></i>
                             </button>
-                            <ul class="dropdown-menu">
+                            <ul class="dropdown-menu dropdown-menu-end">
                                 <li>
                                     <a class="dropdown-item" href="{{ url_for('admin.department_permissions', dept_id=department.id) }}">
-                                        <i class="fas fa-key"></i>
-                                        Manage Permissions
+                                        <i class="fas fa-key text-primary"></i>
+                                        <div>
+                                            <strong>Set Permissions</strong>
+                                            <small class="text-muted d-block">Control what this department can do</small>
+                                        </div>
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item" href="{{ url_for('admin.permission_management', dept_id=department.id) }}">
+                                        <i class="fas fa-cogs text-info"></i>
+                                        <div>
+                                            <strong>Advanced Permissions</strong>
+                                            <small class="text-muted d-block">Enhanced permission management</small>
+                                        </div>
                                     </a>
                                 </li>
                                 {% if current_user.role in ['superadmin', 'admin'] %}
-                                <li>
-                                    <a class="dropdown-item" href="#" onclick="editDepartment('{{ department.id }}')">
-                                        <i class="fas fa-edit"></i>
-                                        Edit Department
-                                    </a>
-                                </li>
                                 <li><hr class="dropdown-divider"></li>
                                 <li>
-                                    <a class="dropdown-item text-danger" href="#" onclick="toggleDepartmentStatus('{{ department.id }}')">
+                                    <a class="dropdown-item" href="#" onclick="editDepartment('{{ department.id }}', '{{ department.name }}', '{{ department.code }}', '{{ department.description or '' }}')">
+                                        <i class="fas fa-edit text-warning"></i>
+                                        <div>
+                                            <strong>Edit Department</strong>
+                                            <small class="text-muted d-block">Change name, code, description</small>
+                                        </div>
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item text-danger" href="#" onclick="toggleDepartmentStatus('{{ department.id }}', {{ department.is_active|lower }})">
                                         <i class="fas fa-{{ 'ban' if department.is_active else 'check' }}"></i>
-                                        {{ 'Deactivate' if department.is_active else 'Activate' }}
+                                        <div>
+                                            <strong>{{ 'Deactivate' if department.is_active else 'Activate' }}</strong>
+                                            <small class="text-muted d-block">{{ 'Hide this department' if department.is_active else 'Show this department' }}</small>
+                                        </div>
                                     </a>
                                 </li>
                                 {% endif %}
@@ -66,7 +99,7 @@
                     </div>
                 </div>
                 <div class="card-body">
-                    <p class="text-muted mb-3">{{ department.description or 'No description available' }}</p>
+                    <p class="text-muted mb-3">{{ department.description or 'No description provided' }}</p>
                     
                     <!-- Department Statistics -->
                     <div class="dept-stats">
@@ -94,23 +127,49 @@
                     
                     <!-- Permission Preview -->
                     <div class="permissions-preview mt-3">
-                        <h6 class="mb-2">Active Permissions</h6>
+                        <h6 class="mb-2">
+                            <i class="fas fa-shield-alt me-1"></i>
+                            What This Department Can Do
+                        </h6>
                         <div class="permission-tags">
-                            {% for permission in department.get_permissions()[:3] %}
-                            <span class="badge badge-primary me-1 mb-1">{{ permission|replace('_', ' ')|title }}</span>
-                            {% endfor %}
-                            {% if department.get_permissions()|length > 3 %}
-                            <span class="badge badge-secondary">+{{ department.get_permissions()|length - 3 }} more</span>
+                            {% if department.get_permissions() %}
+                                {% for permission in department.get_permissions()[:3] %}
+                                <span class="badge badge-success me-1 mb-1">{{ permission|replace('_', ' ')|title }}</span>
+                                {% endfor %}
+                                {% if department.get_permissions()|length > 3 %}
+                                <span class="badge badge-secondary">+{{ department.get_permissions()|length - 3 }} more</span>
+                                {% endif %}
+                            {% else %}
+                                <span class="badge badge-warning">No permissions set</span>
+                                <small class="text-muted d-block mt-1">Click "Set Permissions" to configure</small>
                             {% endif %}
                         </div>
+                    </div>
+                    
+                    <!-- Quick Action Buttons -->
+                    <div class="quick-actions mt-3">
+                        <a href="{{ url_for('admin.department_permissions', dept_id=department.id) }}" 
+                           class="btn btn-sm btn-primary">
+                            <i class="fas fa-key"></i>
+                            Set Permissions
+                        </a>
+                        {% if current_user.role in ['superadmin', 'admin'] %}
+                        <button class="btn btn-sm btn-outline-secondary ms-2" 
+                                onclick="editDepartment('{{ department.id }}', '{{ department.name }}', '{{ department.code }}', '{{ department.description or '' }}')">
+                            <i class="fas fa-edit"></i>
+                            Edit
+                        </button>
+                        {% endif %}
                     </div>
                 </div>
                 <div class="card-footer">
                     <div class="d-flex justify-content-between align-items-center">
                         <small class="text-muted">
+                            <i class="fas fa-calendar me-1"></i>
                             Created: {{ department.created_at.strftime('%d %b %Y') if department.created_at else 'N/A' }}
                         </small>
                         <span class="badge badge-{{ 'success' if department.is_active else 'danger' }}">
+                            <i class="fas fa-{{ 'check' if department.is_active else 'times' }} me-1"></i>
                             {{ 'Active' if department.is_active else 'Inactive' }}
                         </span>
                     </div>
@@ -123,12 +182,12 @@
     {% if not departments %}
     <div class="text-center py-5">
         <i class="fas fa-building fa-3x text-muted mb-3"></i>
-        <h5>No Departments Found</h5>
-        <p class="text-muted">Create your first department to get started.</p>
+        <h5>No Departments Yet</h5>
+        <p class="text-muted">Departments help you organize users and control permissions.<br>Start by creating your first department.</p>
         {% if current_user.role in ['superadmin', 'admin'] %}
-        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createDepartmentModal">
-            <i class="fas fa-plus"></i>
-            Create First Department
+        <button class="btn btn-primary btn-lg" data-bs-toggle="modal" data-bs-target="#createDepartmentModal">
+            <i class="fas fa-plus me-2"></i>
+            Create Your First Department
         </button>
         {% endif %}
     </div>
@@ -137,39 +196,61 @@
 
 <!-- Create Department Modal -->
 {% if current_user.role in ['superadmin', 'admin'] %}
-<div class="modal fade" id="createDepartmentModal" tabindex="-1" aria-labelledby="createDepartmentModalLabel" aria-hidden="true">
+<div class="modal fade" id="createDepartmentModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="createDepartmentModalLabel">
-                    <i class="fas fa-plus"></i>
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-plus me-2"></i>
                     Create New Department
                 </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <form id="createDepartmentForm">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
                 <div class="modal-body">
-                    <div class="mb-3">
-                        <label for="departmentName" class="form-label">Department Name *</label>
-                        <input type="text" class="form-control" id="departmentName" name="name" required
-                               placeholder="e.g., Advanced Mathematics">
+                    <div class="alert alert-info">
+                        <i class="fas fa-lightbulb me-2"></i>
+                        <strong>Tip:</strong> Create departments based on subjects (Math, Science) or roles (Admin, Teaching Staff).
                     </div>
+                    
                     <div class="mb-3">
-                        <label for="departmentCode" class="form-label">Department Code *</label>
+                        <label for="departmentName" class="form-label">
+                            <i class="fas fa-building me-1"></i>
+                            Department Name *
+                        </label>
+                        <input type="text" class="form-control" id="departmentName" name="name" required
+                               placeholder="e.g., Mathematics Department">
+                        <div class="form-text">This will be displayed throughout the system</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="departmentCode" class="form-label">
+                            <i class="fas fa-tag me-1"></i>
+                            Department Code *
+                        </label>
                         <input type="text" class="form-control" id="departmentCode" name="code" required
                                placeholder="e.g., MATH" maxlength="10">
-                        <small class="form-text text-muted">Short code for easy identification (max 10 characters)</small>
+                        <div class="form-text">Short code for easy identification (auto-generated from name)</div>
                     </div>
+                    
                     <div class="mb-3">
-                        <label for="departmentDescription" class="form-label">Description</label>
+                        <label for="departmentDescription" class="form-label">
+                            <i class="fas fa-info-circle me-1"></i>
+                            Description
+                        </label>
                         <textarea class="form-control" id="departmentDescription" name="description" rows="3"
-                                  placeholder="Brief description of the department"></textarea>
+                                  placeholder="What does this department handle?"></textarea>
+                        <div class="form-text">Optional: Explain what this department is responsible for</div>
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="fas fa-times me-1"></i>
+                        Cancel
+                    </button>
                     <button type="submit" class="btn btn-primary">
-                        <i class="fas fa-save"></i>
+                        <i class="fas fa-save me-1"></i>
                         Create Department
                     </button>
                 </div>
@@ -180,36 +261,52 @@
 {% endif %}
 
 <!-- Edit Department Modal -->
-<div class="modal fade" id="editDepartmentModal" tabindex="-1" aria-labelledby="editDepartmentModalLabel" aria-hidden="true">
+<div class="modal fade" id="editDepartmentModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="editDepartmentModalLabel">
-                    <i class="fas fa-edit"></i>
+            <div class="modal-header bg-warning text-dark">
+                <h5 class="modal-title">
+                    <i class="fas fa-edit me-2"></i>
                     Edit Department
                 </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <form id="editDepartmentForm">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
                 <div class="modal-body">
                     <input type="hidden" id="editDepartmentId" name="id">
+                    
                     <div class="mb-3">
-                        <label for="editDepartmentName" class="form-label">Department Name *</label>
+                        <label for="editDepartmentName" class="form-label">
+                            <i class="fas fa-building me-1"></i>
+                            Department Name *
+                        </label>
                         <input type="text" class="form-control" id="editDepartmentName" name="name" required>
                     </div>
+                    
                     <div class="mb-3">
-                        <label for="editDepartmentCode" class="form-label">Department Code *</label>
+                        <label for="editDepartmentCode" class="form-label">
+                            <i class="fas fa-tag me-1"></i>
+                            Department Code *
+                        </label>
                         <input type="text" class="form-control" id="editDepartmentCode" name="code" required maxlength="10">
                     </div>
+                    
                     <div class="mb-3">
-                        <label for="editDepartmentDescription" class="form-label">Description</label>
+                        <label for="editDepartmentDescription" class="form-label">
+                            <i class="fas fa-info-circle me-1"></i>
+                            Description
+                        </label>
                         <textarea class="form-control" id="editDepartmentDescription" name="description" rows="3"></textarea>
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-primary">
-                        <i class="fas fa-save"></i>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="fas fa-times me-1"></i>
+                        Cancel
+                    </button>
+                    <button type="submit" class="btn btn-warning">
+                        <i class="fas fa-save me-1"></i>
                         Update Department
                     </button>
                 </div>
@@ -219,31 +316,36 @@
 </div>
 
 <style>
+/* Enhanced Styles with Dropdown Fix */
 .department-card {
-    transition: var(--transition);
+    transition: all 0.3s ease;
     border: none;
-    box-shadow: var(--shadow);
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    position: relative;
+    z-index: 1;
 }
 
 .department-card:hover {
     transform: translateY(-5px);
-    box-shadow: var(--shadow-lg);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.15);
 }
 
 .dept-code {
-    background: var(--primary-color);
+    background: linear-gradient(135deg, #007bff, #0056b3);
     color: white;
     padding: 0.25rem 0.5rem;
-    border-radius: 0.25rem;
+    border-radius: 0.375rem;
     font-size: 0.75rem;
     font-weight: 600;
     margin-right: 0.5rem;
+    box-shadow: 0 2px 4px rgba(0,123,255,0.3);
 }
 
 .dept-stats {
-    background: var(--bg-light);
-    border-radius: var(--border-radius);
+    background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+    border-radius: 0.5rem;
     padding: 1rem;
+    border: 1px solid #dee2e6;
 }
 
 .stat-item {
@@ -253,21 +355,23 @@
 .stat-value {
     font-size: 1.5rem;
     font-weight: 700;
-    color: var(--primary-color);
+    color: #007bff;
     line-height: 1;
 }
 
 .stat-label {
     font-size: 0.75rem;
-    color: var(--text-secondary);
+    color: #6c757d;
     text-transform: uppercase;
     letter-spacing: 0.5px;
+    margin-top: 0.25rem;
 }
 
 .permissions-preview h6 {
     font-size: 0.875rem;
-    color: var(--text-secondary);
+    color: #495057;
     margin-bottom: 0.5rem;
+    font-weight: 600;
 }
 
 .permission-tags {
@@ -276,49 +380,211 @@
 
 .permission-tags .badge {
     font-size: 0.7rem;
-    padding: 0.25rem 0.5rem;
+    padding: 0.35rem 0.6rem;
+    border-radius: 0.375rem;
+}
+
+.badge-success {
+    background: linear-gradient(135deg, #28a745, #20c997);
+    border: none;
+}
+
+.badge-warning {
+    background: linear-gradient(135deg, #ffc107, #fd7e14);
+    color: #212529;
+}
+
+.badge-secondary {
+    background: linear-gradient(135deg, #6c757d, #5a6268);
+}
+
+.quick-actions {
+    border-top: 1px solid #dee2e6;
+    padding-top: 1rem;
 }
 
 .card-footer {
-    background: transparent;
-    border-top: 1px solid var(--border-color);
+    background: linear-gradient(135deg, #f8f9fa, #ffffff);
+    border-top: 1px solid #dee2e6;
+}
+
+/* DROPDOWN FIX - CRITICAL */
+.dropdown {
+    position: relative;
+    z-index: 1000;
+}
+
+.dropdown.show {
+    z-index: 1060 !important;
+}
+
+.department-card:has(.dropdown.show) {
+    z-index: 1060 !important;
+    position: relative;
 }
 
 .dropdown-menu {
-    border: none;
-    box-shadow: var(--shadow-lg);
+    position: absolute !important;
+    top: 100% !important;
+    right: 0 !important;
+    left: auto !important;
+    z-index: 1070 !important;
+    min-width: 220px !important;
+    max-width: 300px !important;
+    border: none !important;
+    border-radius: 0.5rem !important;
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.175) !important;
+    background-color: #fff !important;
+    background-clip: padding-box !important;
+    padding: 0.5rem 0 !important;
+}
+
+.dropdown-menu.show {
+    display: block !important;
+    z-index: 1070 !important;
 }
 
 .dropdown-item {
-    padding: 0.5rem 1rem;
-    transition: var(--transition);
+    display: flex !important;
+    align-items: center !important;
+    padding: 0.75rem 1rem !important;
+    white-space: normal !important;
+    word-wrap: break-word !important;
+    transition: all 0.2s ease !important;
+    border: none !important;
+    background: transparent !important;
+    width: 100% !important;
+    text-decoration: none !important;
+    color: #212529 !important;
 }
 
 .dropdown-item:hover {
-    background: var(--bg-light);
+    background: linear-gradient(135deg, #f8f9fa, #e9ecef) !important;
+    color: #16181b !important;
+    transform: translateX(3px);
 }
 
 .dropdown-item i {
-    width: 16px;
-    margin-right: 0.5rem;
+    width: 20px;
+    margin-right: 0.75rem;
+    text-align: center;
+    flex-shrink: 0;
 }
 
+.dropdown-item div {
+    flex: 1;
+}
+
+.dropdown-item small {
+    font-size: 0.7rem;
+    margin-top: 0.125rem;
+    line-height: 1.2;
+    display: block;
+}
+
+.dropdown-toggle-custom::after {
+    display: none;
+}
+
+/* Prevent overflow issues */
+.container-fluid,
+.row,
+.col-lg-4,
+.col-md-6 {
+    overflow: visible !important;
+}
+
+/* Alert Enhancements */
+.alert-info {
+    background: linear-gradient(135deg, #d1ecf1, #bee5eb);
+    border: 1px solid #b6d4db;
+    border-left: 4px solid #17a2b8;
+}
+
+/* Modal Enhancements */
+.modal-header.bg-primary {
+    background: linear-gradient(135deg, #007bff, #0056b3) !important;
+}
+
+.modal-header.bg-warning {
+    background: linear-gradient(135deg, #ffc107, #fd7e14) !important;
+}
+
+/* Responsive */
 @media (max-width: 768px) {
-    .dept-stats .row {
-        text-align: center;
+    .header-actions {
+        flex-direction: column;
+        gap: 0.5rem;
+        align-items: stretch;
     }
     
-    .stat-value {
-        font-size: 1.25rem;
+    .header-actions .btn {
+        width: 100%;
+        justify-content: center;
     }
     
-    .permission-tags {
-        text-align: center;
+    .quick-actions .btn {
+        width: 100%;
+        margin-bottom: 0.5rem;
+    }
+    
+    .quick-actions .btn.ms-2 {
+        margin-left: 0 !important;
+    }
+    
+    .dropdown-menu {
+        position: fixed !important;
+        top: auto !important;
+        left: 1rem !important;
+        right: 1rem !important;
+        width: auto !important;
+        min-width: auto !important;
+        max-width: none !important;
     }
 }
 </style>
 
 <script>
+// Enhanced JavaScript with better user feedback and dropdown fix
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize dropdown fix
+    const dropdowns = document.querySelectorAll('.dropdown');
+    
+    dropdowns.forEach(dropdown => {
+        const toggle = dropdown.querySelector('[data-bs-toggle="dropdown"]');
+        const menu = dropdown.querySelector('.dropdown-menu');
+        
+        dropdown.addEventListener('show.bs.dropdown', function(e) {
+            // Increase z-index of parent card
+            const card = this.closest('.department-card');
+            if (card) {
+                card.style.zIndex = '1060';
+                card.style.position = 'relative';
+            }
+            
+            // Ensure menu is positioned correctly
+            if (menu) {
+                menu.style.position = 'absolute';
+                menu.style.top = '100%';
+                menu.style.right = '0';
+                menu.style.left = 'auto';
+                menu.style.zIndex = '1070';
+            }
+        });
+        
+        dropdown.addEventListener('hide.bs.dropdown', function() {
+            // Reset z-index after dropdown closes
+            const card = this.closest('.department-card');
+            if (card) {
+                setTimeout(() => {
+                    card.style.zIndex = '';
+                    card.style.position = '';
+                }, 150);
+            }
+        });
+    });
+});
+
 // Create Department Form
 document.getElementById('createDepartmentForm').addEventListener('submit', function(e) {
     e.preventDefault();
@@ -326,69 +592,212 @@ document.getElementById('createDepartmentForm').addEventListener('submit', funct
     const formData = new FormData(this);
     const data = Object.fromEntries(formData);
     
+    // Validation
+    if (!data.name.trim()) {
+        showAlert('error', 'Department name is required');
+        return;
+    }
+    
+    if (!data.code.trim()) {
+        showAlert('error', 'Department code is required');
+        return;
+    }
+    
+    const btn = this.querySelector('button[type="submit"]');
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Creating...';
+    btn.disabled = true;
+    
     fetch('/admin/departments/create', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
+            'X-CSRFToken': data.csrf_token
         },
         body: JSON.stringify(data)
     })
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            LMS.showAlert(data.message, 'success');
-            setTimeout(() => location.reload(), 1000);
+            showAlert('success', `Department "${data.name || 'New Department'}" created successfully!`);
+            bootstrap.Modal.getInstance(document.getElementById('createDepartmentModal')).hide();
+            setTimeout(() => location.reload(), 1500);
         } else {
-            LMS.showAlert(data.error || 'Error creating department', 'error');
+            showAlert('error', data.error || 'Error creating department');
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        LMS.showAlert('Error creating department', 'error');
+        showAlert('error', 'Network error - please check your connection');
+    })
+    .finally(() => {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
     });
 });
 
-// Auto-generate department code from name
+// Edit Department Form
+document.getElementById('editDepartmentForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    const data = Object.fromEntries(formData);
+    const departmentId = data.id;
+    
+    // Validation
+    if (!data.name.trim()) {
+        showAlert('error', 'Department name is required');
+        return;
+    }
+    
+    if (!data.code.trim()) {
+        showAlert('error', 'Department code is required');
+        return;
+    }
+    
+    const btn = this.querySelector('button[type="submit"]');
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Updating...';
+    btn.disabled = true;
+    
+    fetch(`/admin/departments/${departmentId}/update`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': data.csrf_token
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            showAlert('success', `Department "${data.name}" updated successfully!`);
+            bootstrap.Modal.getInstance(document.getElementById('editDepartmentModal')).hide();
+            setTimeout(() => location.reload(), 1500);
+        } else {
+            showAlert('error', result.error || 'Error updating department');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showAlert('error', 'Network error - please check your connection');
+    })
+    .finally(() => {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+    });
+});
+
+// Auto-generate department code with better logic
 document.getElementById('departmentName').addEventListener('input', function() {
     const name = this.value.toUpperCase();
-    const code = name.replace(/[^A-Z]/g, '').substring(0, 10);
+    // Take first letter of each word
+    const words = name.split(' ').filter(word => word.length > 0);
+    let code = '';
+    
+    if (words.length === 1) {
+        // Single word - take first 4 characters
+        code = words[0].substring(0, 4);
+    } else {
+        // Multiple words - take first letter of each word
+        code = words.map(word => word[0]).join('').substring(0, 6);
+    }
+    
     document.getElementById('departmentCode').value = code;
 });
 
-function editDepartment(departmentId) {
-    // In a real implementation, you would fetch department data
-    // For now, we'll just show the modal
-    const modal = new bootstrap.Modal(document.getElementById('editDepartmentModal'));
-    modal.show();
-}
-
-function toggleDepartmentStatus(departmentId) {
-    const confirmMessage = 'Are you sure you want to change the status of this department?';
+// Enhanced edit department function
+function editDepartment(departmentId, name, code, description) {
+    document.getElementById('editDepartmentId').value = departmentId;
+    document.getElementById('editDepartmentName').value = name;
+    document.getElementById('editDepartmentCode').value = code;
+    document.getElementById('editDepartmentDescription').value = description;
     
-    if (confirm(confirmMessage)) {
-        // Implementation would go here
-        LMS.showAlert('Department status updated successfully', 'success');
-        setTimeout(() => location.reload(), 1000);
-    }
+    new bootstrap.Modal(document.getElementById('editDepartmentModal')).show();
 }
 
-// Form validation
-document.querySelectorAll('input[required]').forEach(input => {
+// Enhanced toggle function with better confirmation
+function toggleDepartmentStatus(departmentId, currentStatus) {
+    const action = currentStatus ? 'deactivate' : 'activate';
+    const actionText = currentStatus ? 'hide' : 'show';
+    const confirmMessage = `Are you sure you want to ${action} this department?\n\nThis will ${actionText} it from the system.`;
+    
+    if (!confirm(confirmMessage)) return;
+    
+    // Get CSRF token
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || 
+                     document.querySelector('input[name="csrf_token"]')?.value;
+    
+    if (!csrfToken) {
+        showAlert('error', 'Security token missing. Please refresh the page.');
+        return;
+    }
+    
+    fetch(`/admin/departments/${departmentId}/toggle-status`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken
+        },
+        body: JSON.stringify({})
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert('success', data.message || `Department ${action}d successfully!`);
+            setTimeout(() => location.reload(), 1500);
+        } else {
+            showAlert('error', data.error || `Error ${action}ing department`);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showAlert('error', 'Network error - please check your connection');
+    });
+}
+
+// Enhanced alert function
+function showAlert(type, message) {
+    const alertClass = type === 'error' ? 'danger' : type;
+    const iconClass = type === 'error' ? 'exclamation-triangle' : 
+                     type === 'success' ? 'check-circle' : 'info-circle';
+    
+    const alertHtml = `
+        <div class="alert alert-${alertClass} alert-dismissible fade show shadow-sm" role="alert" style="position: fixed; top: 20px; right: 20px; z-index: 9999; min-width: 300px;">
+            <i class="fas fa-${iconClass} me-2"></i>
+            <strong>${type.charAt(0).toUpperCase() + type.slice(1)}:</strong> ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    `;
+    
+    document.body.insertAdjacentHTML('afterbegin', alertHtml);
+    
+    // Auto-dismiss after 5 seconds
+    setTimeout(() => {
+        const alert = document.querySelector('.alert');
+        if (alert) {
+            bootstrap.Alert.getOrCreateInstance(alert).close();
+        }
+    }, 5000);
+}
+
+// Form validation with visual feedback
+document.querySelectorAll('input[required], textarea[required]').forEach(input => {
     input.addEventListener('blur', function() {
         if (!this.value.trim()) {
             this.classList.add('is-invalid');
+            this.classList.remove('is-valid');
         } else {
             this.classList.remove('is-invalid');
             this.classList.add('is-valid');
         }
     });
-});
-
-// Initialize tooltips
-document.addEventListener('DOMContentLoaded', function() {
-    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-    tooltipTriggerList.map(function (tooltipTriggerEl) {
-        return new bootstrap.Tooltip(tooltipTriggerEl);
+    
+    input.addEventListener('input', function() {
+        if (this.classList.contains('is-invalid') && this.value.trim()) {
+            this.classList.remove('is-invalid');
+            this.classList.add('is-valid');
+        }
     });
 });
 </script>

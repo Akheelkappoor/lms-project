@@ -1,0 +1,226 @@
+{% extends "email/base_email.html" %}
+
+{% block title %}EMERGENCY ALERT - {{ student.full_name }}{% endblock %}
+{% block email_title %}🚨 EMERGENCY ALERT 🚨{% endblock %}
+{% block email_subtitle %}Immediate Attention Required - {{ emergency_data.type|title }}{% endblock %}
+
+{% block extra_styles %}
+<style>
+    .emergency-header {
+        background: linear-gradient(135deg, #c0392b 0%, #e74c3c 100%);
+        border: 3px solid #a93226;
+        animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+        0% { box-shadow: 0 0 0 0 rgba(231, 76, 60, 0.7); }
+        70% { box-shadow: 0 0 0 10px rgba(231, 76, 60, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(231, 76, 60, 0); }
+    }
+    
+    .severity-critical {
+        background: #c0392b;
+        color: white;
+        padding: 15px;
+        border-radius: 6px;
+        text-align: center;
+        font-weight: bold;
+        margin: 20px 0;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+    
+    .contact-info {
+        background: #2c3e50;
+        color: white;
+        padding: 15px;
+        border-radius: 6px;
+        margin: 20px 0;
+    }
+    
+    .emergency-action {
+        background: #e74c3c;
+        color: white;
+        padding: 12px 20px;
+        border-radius: 6px;
+        display: inline-block;
+        text-decoration: none;
+        font-weight: bold;
+        margin: 5px;
+        text-transform: uppercase;
+    }
+    
+    .emergency-action:hover {
+        background: #c0392b;
+        color: white;
+    }
+    
+    .timeline-urgent {
+        background: #fff3cd;
+        border: 2px solid #ffc107;
+        border-radius: 6px;
+        padding: 15px;
+        margin: 20px 0;
+    }
+</style>
+{% endblock %}
+
+{% block recipient_name %}Emergency Contact{% endblock %}
+
+{% block email_content %}
+<div class="severity-critical">
+    ⚠️ CRITICAL EMERGENCY - IMMEDIATE ACTION REQUIRED ⚠️
+</div>
+
+<div class="alert-box alert-danger">
+    <strong>Emergency Type:</strong> {{ emergency_data.type|title }}<br>
+    <strong>Severity Level:</strong> {{ emergency_data.severity|title }}<br>
+    <strong>Reported Time:</strong> {{ report_time.strftime('%B %d, %Y at %I:%M %p') }}<br>
+    <strong>Reported By:</strong> {{ emergency_data.reported_by }}
+</div>
+
+<div class="content-section priority-immediate">
+    <h2>Student Information</h2>
+    <div class="info-grid">
+        <div class="info-row">
+            <div class="info-label">Student Name:</div>
+            <div class="info-value"><strong>{{ student.full_name }}</strong></div>
+        </div>
+        <div class="info-row">
+            <div class="info-label">Student ID:</div>
+            <div class="info-value">{{ student.student_id or student.id }}</div>
+        </div>
+        <div class="info-row">
+            <div class="info-label">Age:</div>
+            <div class="info-value">{{ student.age or 'Not specified' }}</div>
+        </div>
+        <div class="info-row">
+            <div class="info-label">Department:</div>
+            <div class="info-value">{{ student.department.name if student.department else 'Not assigned' }}</div>
+        </div>
+        <div class="info-row">
+            <div class="info-label">Contact Phone:</div>
+            <div class="info-value">{{ student.phone or 'Not available' }}</div>
+        </div>
+        <div class="info-row">
+            <div class="info-label">Email:</div>
+            <div class="info-value">{{ student.email or 'Not available' }}</div>
+        </div>
+    </div>
+</div>
+
+{% if emergency_data.description %}
+<div class="content-section priority-immediate">
+    <h2>Emergency Details</h2>
+    <div style="background: #f8d7da; border: 1px solid #f5c6cb; border-radius: 6px; padding: 15px; color: #721c24;">
+        {{ emergency_data.description }}
+    </div>
+</div>
+{% endif %}
+
+<div class="content-section priority-immediate">
+    <h2>Emergency Contacts Available</h2>
+    {% for contact in emergency_contacts %}
+    <div style="background: white; border: 2px solid #e74c3c; border-radius: 6px; padding: 15px; margin: 10px 0;">
+        <div class="info-grid">
+            <div class="info-row">
+                <div class="info-label">Name:</div>
+                <div class="info-value"><strong>{{ contact.name }}</strong></div>
+            </div>
+            <div class="info-row">
+                <div class="info-label">Relation:</div>
+                <div class="info-value">{{ contact.relation }}</div>
+            </div>
+            <div class="info-row">
+                <div class="info-label">Phone:</div>
+                <div class="info-value">
+                    <strong style="color: #e74c3c; font-size: 16px;">{{ contact.phone }}</strong>
+                </div>
+            </div>
+            {% if contact.email %}
+            <div class="info-row">
+                <div class="info-label">Email:</div>
+                <div class="info-value">{{ contact.email }}</div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<div class="timeline-urgent">
+    <h2>🕐 IMMEDIATE ACTION TIMELINE</h2>
+    <ul class="action-list">
+        {% for action in immediate_actions %}
+        <li style="color: #856404; font-weight: 600;">{{ action }}</li>
+        {% endfor %}
+    </ul>
+</div>
+
+<div class="contact-info">
+    <h2 style="color: white; margin-bottom: 15px;">Important Contact Numbers</h2>
+    <div style="display: flex; justify-content: space-around; flex-wrap: wrap;">
+        <div style="margin: 5px;">
+            <strong>Emergency Services:</strong><br>
+            📞 {{ contact_numbers.emergency_services }}
+        </div>
+        <div style="margin: 5px;">
+            <strong>LMS Emergency:</strong><br>
+            📞 {{ contact_numbers.lms_emergency }}
+        </div>
+        {% if contact_numbers.coordinator %}
+        <div style="margin: 5px;">
+            <strong>Coordinator:</strong><br>
+            📞 {{ contact_numbers.coordinator }}
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<div class="alert-box alert-danger">
+    <strong>⚠️ CRITICAL REMINDER:</strong>
+    <ul style="margin: 10px 0; padding-left: 20px;">
+        <li>This is a genuine emergency requiring immediate response</li>
+        <li>Contact the student directly using the phone numbers provided</li>
+        <li>If unable to reach the student, contact emergency services</li>
+        <li>Keep LMS coordinators informed of all actions taken</li>
+        <li>Do not delay - time is critical in emergency situations</li>
+    </ul>
+</div>
+{% endblock %}
+
+{% block email_actions %}
+<div class="text-center">
+    {% for contact in emergency_contacts %}
+        {% if contact.phone %}
+        <a href="tel:{{ contact.phone }}" class="emergency-action">📞 Call {{ contact.relation }}</a>
+        {% endif %}
+    {% endfor %}
+    <a href="tel:{{ contact_numbers.emergency_services }}" class="emergency-action">🚨 Call Emergency Services</a>
+</div>
+{% endblock %}
+
+{% block email_closing %}
+<div class="mt-20" style="background: #f8d7da; padding: 20px; border-radius: 6px; border: 2px solid #e74c3c;">
+    <p style="color: #721c24; font-weight: bold; font-size: 16px; margin-bottom: 15px;">
+        🚨 THIS IS A CRITICAL EMERGENCY NOTIFICATION 🚨
+    </p>
+    <p style="color: #721c24;">
+        <strong>IMMEDIATE ACTION REQUIRED:</strong> A student in our care may be in a dangerous or emergency situation. Please take immediate action to ensure their safety and wellbeing.
+    </p>
+    <p style="color: #721c24;">
+        Contact the student immediately and coordinate with emergency services if necessary. Keep our coordination team informed of all actions taken.
+    </p>
+    <p style="color: #721c24; font-weight: bold;">
+        Emergency Response Team<br>
+        Learning Management System
+    </p>
+</div>
+{% endblock %}
+
+{% block unsubscribe %}
+<!-- No unsubscribe for emergency alerts -->
+<div class="text-small" style="margin-top: 10px; color: #e74c3c;">
+    <strong>This is a critical emergency notification that cannot be unsubscribed from.</strong>
+</div>
+{% endblock %}
